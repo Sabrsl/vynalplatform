@@ -1,3 +1,4 @@
+// Composant de menu mobile mis à jour pour la production - Force le déploiement
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { 
