@@ -11,14 +11,7 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <h1 className="text-3xl font-bold tracking-tight mb-2">
-        Tableau de bord
-      </h1>
-      <p className="text-muted-foreground mb-8">
-        Bienvenue sur votre espace personnel {isFreelance ? "freelance" : "client"}.
-      </p>
-
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
@@ -77,8 +70,8 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      <div className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="col-span-4">
+      <div className="mt-6 sm:mt-8 grid gap-4 md:grid-cols-1 lg:grid-cols-7">
+        <Card className="lg:col-span-4">
           <CardHeader>
             <CardTitle>Activité récente</CardTitle>
             <CardDescription>
@@ -91,7 +84,7 @@ export default function DashboardPage() {
             </div>
           </CardContent>
         </Card>
-        <Card className="col-span-3">
+        <Card className="lg:col-span-3">
           <CardHeader>
             <CardTitle>Actions rapides</CardTitle>
             <CardDescription>
@@ -99,33 +92,33 @@ export default function DashboardPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
+            <div className="space-y-3">
               {isFreelance ? (
                 <>
                   <a href="/dashboard/services/new" className="flex justify-between items-center p-3 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors">
                     <span className="font-medium">Créer un nouveau service</span>
-                    <ArrowUpRight className="h-5 w-5" />
+                    <ArrowUpRight className="h-5 w-5 flex-shrink-0" />
                   </a>
                   <a href="/dashboard/orders" className="flex justify-between items-center p-3 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors">
                     <span className="font-medium">Voir mes commandes en cours</span>
-                    <ArrowUpRight className="h-5 w-5" />
+                    <ArrowUpRight className="h-5 w-5 flex-shrink-0" />
                   </a>
                 </>
               ) : (
                 <>
                   <a href="/services" className="flex justify-between items-center p-3 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors">
                     <span className="font-medium">Explorer les services</span>
-                    <ArrowUpRight className="h-5 w-5" />
+                    <ArrowUpRight className="h-5 w-5 flex-shrink-0" />
                   </a>
                   <a href="/dashboard/orders" className="flex justify-between items-center p-3 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors">
                     <span className="font-medium">Voir mes commandes</span>
-                    <ArrowUpRight className="h-5 w-5" />
+                    <ArrowUpRight className="h-5 w-5 flex-shrink-0" />
                   </a>
                 </>
               )}
               <a href="/dashboard/profile" className="flex justify-between items-center p-3 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors">
                 <span className="font-medium">Compléter mon profil</span>
-                <ArrowUpRight className="h-5 w-5" />
+                <ArrowUpRight className="h-5 w-5 flex-shrink-0" />
               </a>
             </div>
           </CardContent>

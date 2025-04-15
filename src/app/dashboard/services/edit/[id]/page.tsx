@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useUser } from "@/hooks/useUser";
-import { useServices } from "@/hooks/useServices";
+import { useServices, ServiceWithFreelanceAndCategories } from "@/hooks/useServices";
 import { Category, Subcategory } from "@/hooks/useCategories";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,18 +25,23 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { slugify } from "@/lib/utils";
-import { AlertCircle, ArrowLeft, Loader2 } from "lucide-react";
+import { AlertCircle, ArrowLeft, Loader2, Check, X } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 
-export default function NewServicePage() {
+export default function EditServicePage() {
   const router = useRouter();
+  const params = useParams();
   const { user } = useAuth();
   const { profile, isFreelance } = useUser();
-  const { createService } = useServices();
+  const { getServiceById, updateService } = useServices();
+  
+  // Récupérer l'ID du service depuis les paramètres d'URL
+  const serviceId = typeof params.id === 'string' ? params.id : Array.isArray(params.id) ? params.id[0] : '';
   
   const [categories, setCategories] = useState<Category[]>([]);
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [serviceLoading, setServiceLoading] = useState(true);
   
   const [formData, setFormData] = useState({
     title: "",
@@ -46,6 +51,7 @@ export default function NewServicePage() {
     category_id: "",
     subcategory_id: "",
     active: true,
+    slug: ""
   });
   
   const [subcategoriesForSelected, setSubcategoriesForSelected] = useState<Subcategory[]>([]);
@@ -85,9 +91,73 @@ export default function NewServicePage() {
     loadCategories();
   }, []);
   
+  // Charger les détails du service à modifier
+  useEffect(() => {
+    async function loadServiceDetails() {
+      if (!serviceId || !profile) {
+        return;
+      }
+      
+      try {
+        setServiceLoading(true);
+        
+        // Appel direct à Supabase pour récupérer les détails du service
+        const { data, error: fetchError } = await supabase
+          .from('services')
+          .select(`
+            *,
+            profiles!services_freelance_id_fkey (
+              id, 
+              username, 
+              full_name, 
+              avatar_url
+            ),
+            categories (id, name, slug),
+            subcategories (id, name, slug)
+          `)
+          .eq('id', serviceId)
+          .single();
+        
+        if (fetchError) {
+          throw new Error(fetchError.message);
+        }
+        
+        if (!data) {
+          throw new Error("Service non trouvé");
+        }
+        
+        // Vérifier que le service appartient bien au freelancer connecté
+        if (data.freelance_id !== profile.id && profile.role !== 'admin') {
+          throw new Error("Vous n'êtes pas autorisé à modifier ce service");
+        }
+        
+        // Remplir le formulaire avec les données du service
+        setFormData({
+          title: data.title,
+          description: data.description,
+          price: data.price.toString(),
+          delivery_time: data.delivery_time.toString(),
+          category_id: data.category_id,
+          subcategory_id: data.subcategory_id || "",
+          active: data.active,
+          slug: data.slug || ""
+        });
+        
+      } catch (err: any) {
+        console.error('Erreur lors du chargement du service:', err);
+        setError(err.message || "Une erreur est survenue lors du chargement du service");
+        router.push("/dashboard/services");
+      } finally {
+        setServiceLoading(false);
+      }
+    }
+    
+    loadServiceDetails();
+  }, [serviceId, profile, router]);
+  
   // Rediriger si l'utilisateur n'est pas freelance
   useEffect(() => {
-    if (profile && !isFreelance) {
+    if (profile && !isFreelance && profile.role !== 'admin') {
       router.push("/dashboard");
     }
   }, [profile, isFreelance, router]);
@@ -120,7 +190,12 @@ export default function NewServicePage() {
     setError(null);
     
     if (!profile) {
-      setError("Vous devez être connecté pour créer un service");
+      setError("Vous devez être connecté pour modifier un service");
+      return;
+    }
+    
+    if (!serviceId) {
+      setError("Identifiant de service invalide");
       return;
     }
     
@@ -170,14 +245,13 @@ export default function NewServicePage() {
       // Générer un slug à partir du titre
       const slug = slugify(formData.title);
       
-      const result = await createService({
+      const result = await updateService(serviceId, {
         title: formData.title,
         description: formData.description,
         price: price,
         delivery_time: delivery_time,
         category_id: formData.category_id,
         subcategory_id: formData.subcategory_id || null,
-        freelance_id: profile.id,
         slug,
         active: formData.active,
       });
@@ -186,17 +260,17 @@ export default function NewServicePage() {
         throw new Error(result.error);
       }
       
-      // Rediriger vers la liste des services du freelance
-      router.push("/dashboard/services");
+      // Rediriger vers la page de détails du service
+      router.push(`/dashboard/services/${serviceId}`);
     } catch (err: any) {
-      setError(err.message || "Une erreur est survenue lors de la création du service");
-      console.error("Erreur lors de la création du service:", err);
+      setError(err.message || "Une erreur est survenue lors de la modification du service");
+      console.error("Erreur lors de la modification du service:", err);
     } finally {
       setIsSubmitting(false);
     }
   };
   
-  if (categoriesLoading) {
+  if (categoriesLoading || serviceLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
@@ -215,7 +289,7 @@ export default function NewServicePage() {
           <ArrowLeft className="w-4 h-4 mr-2" />
           Retour
         </Button>
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Nouveau service</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Modifier le service</h1>
       </div>
       
       {error && (
@@ -229,7 +303,7 @@ export default function NewServicePage() {
         <CardHeader>
           <CardTitle>Informations du service</CardTitle>
           <CardDescription>
-            Renseignez les détails de votre service pour attirer des clients
+            Modifiez les détails de votre service pour attirer plus de clients
           </CardDescription>
         </CardHeader>
         
@@ -370,22 +444,51 @@ export default function NewServicePage() {
                   Un service inactif ne sera pas visible dans la recherche ou sur votre profil
                 </p>
               </div>
+              
+              <div className="grid gap-2">
+                <Label htmlFor="slug">URL personnalisée (slug)</Label>
+                <div className="flex items-center space-x-2">
+                  <span className="text-muted-foreground text-sm">votresite.com/services/</span>
+                  <Input
+                    id="slug"
+                    name="slug"
+                    value={formData.slug}
+                    onChange={handleChange}
+                    placeholder="mon-service"
+                    className="flex-1"
+                    disabled={isSubmitting}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Utilisez uniquement des lettres minuscules, chiffres et tirets
+                </p>
+              </div>
             </div>
             
-            <Button 
-              type="submit" 
-              disabled={isSubmitting} 
-              className="w-full sm:w-auto mt-6"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Création en cours...
-                </>
-              ) : (
-                "Créer le service"
-              )}
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-3 sm:items-center mt-6">
+              <Button 
+                type="submit" 
+                disabled={isSubmitting}
+                className="w-full sm:w-auto"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Enregistrement...
+                  </>
+                ) : (
+                  "Enregistrer les modifications"
+                )}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => router.push(`/dashboard/services/${serviceId}`)}
+                className="w-full sm:w-auto"
+              >
+                Annuler
+              </Button>
+            </div>
           </form>
         </CardContent>
       </Card>

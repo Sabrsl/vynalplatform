@@ -11,6 +11,9 @@ export type ServiceWithFreelanceAndCategories = Service & {
     username: string | null;
     full_name: string | null;
     avatar_url: string | null;
+    email?: string | null;
+    role?: string | null;
+    bio?: string | null;
   };
   categories: {
     id: string;
@@ -37,6 +40,8 @@ export function useServices(params: UseServicesParams = {}) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { profile } = useUser();
+  
+  const { categoryId, subcategoryId, freelanceId, active, limit } = params;
 
   useEffect(() => {
     const fetchServices = async () => {
@@ -54,28 +59,28 @@ export function useServices(params: UseServicesParams = {}) {
           `);
         
         // Appliquer les filtres en fonction des paramètres
-        if (params.categoryId) {
-          query = query.eq('category_id', params.categoryId);
+        if (categoryId) {
+          query = query.eq('category_id', categoryId);
         }
         
-        if (params.subcategoryId) {
-          query = query.eq('subcategory_id', params.subcategoryId);
+        if (subcategoryId) {
+          query = query.eq('subcategory_id', subcategoryId);
         }
         
-        if (params.freelanceId) {
-          query = query.eq('freelance_id', params.freelanceId);
+        if (freelanceId) {
+          query = query.eq('freelance_id', freelanceId);
         }
         
         // Par défaut, ne montrer que les services actifs sauf indication contraire
-        if (params.active !== undefined) {
-          query = query.eq('active', params.active);
+        if (active !== undefined) {
+          query = query.eq('active', active);
         } else {
           query = query.eq('active', true);
         }
         
         // Limiter le nombre de résultats si spécifié
-        if (params.limit) {
-          query = query.limit(params.limit);
+        if (limit) {
+          query = query.limit(limit);
         }
         
         // Ordonner par date de création (plus récent en premier)
@@ -120,7 +125,7 @@ export function useServices(params: UseServicesParams = {}) {
     return () => {
       servicesSubscription.unsubscribe();
     };
-  }, [params]);
+  }, [categoryId, subcategoryId, freelanceId, active, limit]);
 
   // Récupérer un service spécifique par son ID
   const getServiceById = async (id: string) => {

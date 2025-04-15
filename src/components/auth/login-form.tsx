@@ -53,8 +53,10 @@ export default function LoginForm() {
 
   // Mise à jour du décompte du temps de verrouillage
   useEffect(() => {
+    let timerInterval: NodeJS.Timeout | null = null;
+    
     if (lockoutRemaining > 0) {
-      const timer = setTimeout(() => {
+      timerInterval = setInterval(() => {
         setLockoutRemaining(prev => {
           const newValue = prev - 1000;
           if (newValue <= 0) {
@@ -65,10 +67,14 @@ export default function LoginForm() {
           return newValue;
         });
       }, 1000);
-      
-      return () => clearTimeout(timer);
     }
-  }, [lockoutRemaining]);
+    
+    return () => {
+      if (timerInterval) {
+        clearInterval(timerInterval);
+      }
+    };
+  }, [lockoutRemaining > 0]); // Dépendance simplifiée pour éviter les re-rendus inutiles
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;

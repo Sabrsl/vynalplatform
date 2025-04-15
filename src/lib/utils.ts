@@ -99,4 +99,16 @@ export function timeAgo(date: Date | string): string {
   if (minutes > 0) return `il y a ${minutes} minute${minutes > 1 ? 's' : ''}`;
   
   return 'à l\'instant';
+}
+
+/**
+ * Formate une date en format lisible (jj/mm/aaaa)
+ */
+export function formatDate(date: Date | string): string {
+  const d = new Date(date);
+  return d.toLocaleDateString('fr-FR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  });
 } 

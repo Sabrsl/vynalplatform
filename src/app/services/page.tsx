@@ -63,37 +63,6 @@ export default function ServicesPage() {
     setSelectedSubcategory(subcategorySlug);
   }, [categorySlug, subcategorySlug]);
 
-  // Débogage: afficher les catégories et sous-catégories dans la console
-  useEffect(() => {
-    if (!categoriesLoading && categories.length > 0) {
-      console.debug('Catégories disponibles:', categories.length);
-      console.debug('Sous-catégories disponibles:', subcategories.length);
-      
-      // Vérifier si les catégories correspondent à l'ordre du seed
-      const categorySlugs = categories.map(cat => cat.slug);
-      const missingCategories = CATEGORY_ORDER.filter(slug => !categorySlugs.includes(slug));
-      const extraCategories = categorySlugs.filter(slug => !CATEGORY_ORDER.includes(slug));
-      
-      if (missingCategories.length > 0) {
-        console.warn('Catégories manquantes par rapport au seed:', missingCategories);
-      }
-      
-      if (extraCategories.length > 0) {
-        console.warn('Catégories supplémentaires non présentes dans le seed:', extraCategories);
-      }
-      
-      if (categorySlug) {
-        const foundCategory = categories.find(cat => cat.slug === categorySlug);
-        console.debug('Catégorie sélectionnée:', foundCategory?.name || 'Non trouvée');
-        
-        if (foundCategory) {
-          const subCats = getSubcategoriesByCategoryId(foundCategory.id);
-          console.debug(`Sous-catégories pour ${foundCategory.name}:`, subCats.length);
-        }
-      }
-    }
-  }, [categories, subcategories, categorySlug, categoriesLoading, getSubcategoriesByCategoryId]);
-
   // Tri des catégories selon l'ordre exact du seed
   const sortedCategories = [...categories].sort((a, b) => {
     const indexA = CATEGORY_ORDER.indexOf(a.slug);

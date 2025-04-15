@@ -159,9 +159,9 @@ export default function ServicesPage() {
     <div>
       {/* Afficher le titre et le bouton d'ajout uniquement s'il y a des services */}
       {services.length > 0 && (
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold tracking-tight">Mes services</h1>
-          <Button onClick={() => router.push("/dashboard/services/new")}>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Mes services</h1>
+          <Button onClick={() => router.push("/dashboard/services/new")} className="w-full sm:w-auto">
             <Plus className="mr-2 h-4 w-4" /> Ajouter un service
           </Button>
         </div>
@@ -170,7 +170,7 @@ export default function ServicesPage() {
       {deleteError && (
         <div className="bg-red-50 p-4 rounded-md flex items-start mb-6 text-red-800">
           <AlertCircle className="w-5 h-5 mr-2 flex-shrink-0 mt-0.5" />
-          <p>{deleteError}</p>
+          <p className="text-sm">{deleteError}</p>
         </div>
       )}
 
@@ -179,17 +179,17 @@ export default function ServicesPage() {
           <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
         </div>
       ) : services.length === 0 ? (
-        <Card className="mt-10">
-          <CardContent className="flex flex-col items-center justify-center p-12">
-            <h3 className="text-xl font-medium text-gray-800 mb-4">Vous n'avez pas encore de services</h3>
-            <p className="text-gray-500 mb-8 text-center">Créez votre premier service et commencez à recevoir des commandes</p>
-            <Button size="lg" onClick={() => router.push("/dashboard/services/new")}>
+        <Card className="mt-6 sm:mt-10">
+          <CardContent className="flex flex-col items-center justify-center p-6 sm:p-12">
+            <h3 className="text-lg sm:text-xl font-medium text-gray-800 mb-4 text-center">Vous n'avez pas encore de services</h3>
+            <p className="text-gray-500 mb-6 sm:mb-8 text-center">Créez votre premier service et commencez à recevoir des commandes</p>
+            <Button size="lg" onClick={() => router.push("/dashboard/services/new")} className="w-full sm:w-auto">
               <Plus className="mr-2 h-5 w-5" /> Créer mon premier service
             </Button>
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {services.map((service) => (
             <Card key={service.id} className={!service.active ? "opacity-70" : undefined}>
               {/* Image du service (placeholder pour l'instant) */}
@@ -204,45 +204,56 @@ export default function ServicesPage() {
                 )}
               </div>
               
-              <CardHeader className="p-4 pb-2">
-                <CardTitle className="text-lg line-clamp-2">{service.title}</CardTitle>
-                <CardDescription className="text-sm flex items-center mt-1">
-                  <Clock className="h-3.5 w-3.5 mr-1" /> Livraison en {service.delivery_time} jours
-                </CardDescription>
+              <CardHeader className="pb-2">
+                <div className="flex justify-between items-start">
+                  <div className="space-y-1 pr-2">
+                    <CardTitle className="text-lg font-semibold line-clamp-2 break-words">{service.title}</CardTitle>
+                    <CardDescription className="line-clamp-1">
+                      {service.categories?.name || "Catégorie non définie"}
+                    </CardDescription>
+                  </div>
+                  <div className="text-lg font-bold text-right whitespace-nowrap">
+                    {formatPrice(service.price)} FCFA
+                  </div>
+                </div>
               </CardHeader>
               
-              <CardContent className="p-4 pt-0">
-                <p className="text-sm text-gray-500 line-clamp-3">{service.description}</p>
+              <CardContent className="pb-2">
+                <div className="flex items-center text-sm text-muted-foreground">
+                  <Clock className="mr-1 h-4 w-4" />
+                  <span>Livraison en {service.delivery_time} jour(s)</span>
+                </div>
               </CardContent>
               
-              <CardFooter className="p-4 pt-0 flex justify-between items-center">
-                <span className="font-semibold text-indigo-700">{formatPrice(service.price)} FCFA</span>
-                
-                <div className="flex space-x-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => router.push(`/dashboard/services/edit/${service.id}`)}
-                  >
-                    <PenSquare className="h-4 w-4" />
-                    <span className="sr-only">Modifier</span>
-                  </Button>
-                  
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                    onClick={() => handleDeleteService(service.id)}
-                    disabled={isDeleting === service.id}
-                  >
-                    {isDeleting === service.id ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Trash2 className="h-4 w-4" />
-                    )}
-                    <span className="sr-only">Supprimer</span>
-                  </Button>
-                </div>
+              <CardFooter className="flex justify-between pt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => router.push(`/dashboard/services/${service.id}`)}
+                  className="flex-1 mr-2"
+                >
+                  Voir
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => router.push(`/dashboard/services/edit/${service.id}`)}
+                  className="mr-2"
+                >
+                  <PenSquare className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleDeleteService(service.id)}
+                  disabled={isDeleting === service.id}
+                >
+                  {isDeleting === service.id ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-4 w-4 text-red-500" />
+                  )}
+                </Button>
               </CardFooter>
             </Card>
           ))}

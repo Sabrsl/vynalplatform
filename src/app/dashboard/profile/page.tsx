@@ -162,23 +162,23 @@ export default function ProfilePage() {
 
   return (
     <div>
-      <h1 className="text-3xl font-bold tracking-tight mb-2">Mon profil</h1>
-      <p className="text-muted-foreground mb-8">
+      <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-2">Mon profil</h1>
+      <p className="text-muted-foreground mb-6 sm:mb-8">
         Gérez vos informations personnelles et préférences
       </p>
 
-      <div className="grid md:grid-cols-12 gap-8">
-        <Card className="md:col-span-4 p-6">
+      <div className="grid md:grid-cols-12 gap-6 md:gap-8">
+        <Card className="md:col-span-4 p-4 sm:p-6">
           <div className="flex flex-col items-center">
             <div className="relative mb-4">
               {profile.avatar_url ? (
                 <img 
                   src={profile.avatar_url}
                   alt="Avatar"
-                  className="w-32 h-32 rounded-full object-cover"
+                  className="w-24 sm:w-32 h-24 sm:h-32 rounded-full object-cover"
                 />
               ) : (
-                <UserCircle className="w-32 h-32 text-gray-300" />
+                <UserCircle className="w-24 sm:w-32 h-24 sm:h-32 text-gray-300" />
               )}
               <label 
                 htmlFor="avatar-upload" 
@@ -197,9 +197,9 @@ export default function ProfilePage() {
               />
             </div>
 
-            <div className="text-center mb-4">
-              <h2 className="text-xl font-bold">{profile.full_name || "Votre nom"}</h2>
-              <p className="text-muted-foreground">
+            <div className="text-center mb-4 w-full">
+              <h2 className="text-xl font-bold truncate">{profile.full_name || "Votre nom"}</h2>
+              <p className="text-muted-foreground truncate">
                 @{profile.username || "username"}
               </p>
               <div className="mt-2 inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
@@ -209,14 +209,14 @@ export default function ProfilePage() {
 
             <div className="w-full mb-4">
               <h3 className="font-semibold mb-2">À propos</h3>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-600 break-words">
                 {profile.bio || "Aucune biographie renseignée"}
               </p>
             </div>
 
             <div className="w-full">
               <h3 className="font-semibold mb-2">Coordonnées</h3>
-              <div className="text-sm text-gray-600">
+              <div className="text-sm text-gray-600 break-words">
                 <p>{user?.email}</p>
               </div>
             </div>
@@ -224,7 +224,7 @@ export default function ProfilePage() {
         </Card>
 
         <div className="md:col-span-8">
-          <Card className="p-6">
+          <Card className="p-4 sm:p-6">
             <h2 className="text-xl font-bold mb-6">Modifier vos informations</h2>
             <form onSubmit={handleSubmit}>
               <div className="grid gap-6">
@@ -265,7 +265,7 @@ export default function ProfilePage() {
                   />
                 </div>
 
-                <Button type="submit" disabled={saving}>
+                <Button type="submit" disabled={saving} className="w-full sm:w-auto">
                   {saving ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
