@@ -22,7 +22,7 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, loading } = useAuth();
+  const { user, loading, signOut } = useAuth();
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activePath, setActivePath] = useState("");
@@ -177,7 +177,10 @@ export default function DashboardLayout({
                 <p className="text-xs font-medium text-slate-800">{user?.user_metadata?.name || "Utilisateur"}</p>
                 <p className="text-[10px] text-slate-500 truncate">{user?.email || ""}</p>
               </div>
-              <button className="p-1 rounded-md text-slate-400 hover:text-red-500 hover:bg-slate-100 transition-colors">
+              <button 
+                onClick={() => signOut()} 
+                className="p-1 rounded-md text-slate-400 hover:text-red-500 hover:bg-slate-100 transition-colors"
+              >
                 <LogOut className="w-3.5 h-3.5" />
               </button>
             </div>

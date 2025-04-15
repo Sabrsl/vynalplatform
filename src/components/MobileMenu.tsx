@@ -6,6 +6,7 @@ import {
   Calendar, CreditCard, BarChart2, BookOpen, Award, HelpCircle,
   X, ChevronRight, LogOut, Search
 } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 interface NavItemProps {
   href: string;
@@ -55,6 +56,9 @@ export default function MobileMenu({ isOpen, onClose, user, activePath, setActiv
   if (!isOpen) return null;
 
   const isActive = (path: string) => activePath === path;
+  
+  // Import de la fonction de déconnexion
+  const { signOut } = useAuth();
 
   return (
     <>
@@ -241,7 +245,10 @@ export default function MobileMenu({ isOpen, onClose, user, activePath, setActiv
                 <p className="text-xs font-medium text-slate-800">{user?.user_metadata?.name || "Utilisateur"}</p>
                 <p className="text-[10px] text-slate-500 truncate">{user?.email || ""}</p>
               </div>
-              <button className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-slate-100 transition-colors">
+              <button 
+                onClick={() => signOut()} 
+                className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-slate-100 transition-colors"
+              >
                 <LogOut className="w-4 h-4" />
               </button>
             </div>
