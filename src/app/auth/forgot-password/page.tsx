@@ -81,7 +81,7 @@ export default function ForgotPasswordPage() {
               </Button>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
               <p className="text-sm text-gray-600 mb-4">
                 Entrez votre adresse e-mail ci-dessous et nous vous enverrons un lien pour réinitialiser votre mot de passe.
               </p>

@@ -1,23 +1,60 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/lib/supabase/client';
 
 export default function ResetPasswordPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { updatePassword } = useAuth();
   
-  const [email, setEmail] = useState(searchParams.get('email') || '');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    const hash = window.location.hash;
+
+    if (hash && hash.includes("access_token")) {
+      const params = new URLSearchParams(hash.replace("#", ""));
+      const access_token = params.get("access_token");
+      const refresh_token = params.get("refresh_token");
+
+      if (access_token && refresh_token) {
+        supabase.auth
+          .setSession({ access_token, refresh_token })
+          .then(({ error }: { error: any }) => {
+            if (error) {
+              console.error("Erreur setSession Supabase :", error.message);
+              setError("Lien invalide ou expiré.");
+              return;
+            }
+
+            // Supabase doit maintenant avoir une session active
+            supabase.auth.getSession().then(({ data }: { data: any }) => {
+              if (!data.session) {
+                setError("Session invalide ou expirée.");
+              } else {
+                setIsReady(true);
+                window.history.replaceState({}, document.title, window.location.pathname);
+              }
+            });
+          });
+      } else {
+        setError("Lien incomplet.");
+      }
+    } else {
+      setError("Aucun token fourni.");
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,8 +79,9 @@ export default function ResetPasswordPage() {
       
       if (success) {
         setSuccess(true);
+        await supabase.auth.signOut();
         setTimeout(() => {
-          router.push('/auth/signin');
+          router.push('/auth/login');
         }, 3000);
       } else {
         setError((error as Error).message || 'Une erreur est survenue');
@@ -68,90 +106,87 @@ export default function ResetPasswordPage() {
             Réinitialisation du mot de passe
           </h2>
           
-          {success ? (
-            <div className="bg-green-50 border-l-4 border-green-400 p-4 mb-6">
-              <div className="flex">
-                <div className="ml-3">
-                  <p className="text-sm text-green-700">
-                    Votre mot de passe a été réinitialisé avec succès. Vous allez être redirigé...
-                  </p>
-                </div>
-              </div>
+          {!isReady && !error && (
+            <p className="text-center mt-10">Chargement...</p>
+          )}
+
+          {error && (
+            <div className="text-center mt-10 text-red-600">
+              <p>{error}</p>
+              <Link href="/auth/login" className="underline text-blue-600 mt-4 inline-block">Retour à la connexion</Link>
             </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                  Adresse e-mail
-                </label>
-                <div className="mt-1">
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    disabled={!!searchParams.get('email')}
-                    className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                  Nouveau mot de passe
-                </label>
-                <div className="mt-1">
-                  <input
-                    id="password"
-                    name="password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
-                  Confirmer le mot de passe
-                </label>
-                <div className="mt-1">
-                  <input
-                    id="confirmPassword"
-                    name="confirmPassword"
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    required
-                    className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  />
-                </div>
-              </div>
-
-              {error && (
-                <div className="bg-red-50 border-l-4 border-red-400 p-4">
-                  <div className="flex">
-                    <div className="ml-3">
-                      <p className="text-sm text-red-700">{error}</p>
-                    </div>
+          )}
+          
+          {isReady && !error && (
+            success ? (
+              <div className="bg-green-50 border-l-4 border-green-400 p-4 mb-6">
+                <div className="flex">
+                  <div className="ml-3">
+                    <p className="text-sm text-green-700">
+                      Votre mot de passe a été réinitialisé avec succès. Vous allez être redirigé...
+                    </p>
                   </div>
                 </div>
-              )}
-
-              <div>
-                <Button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full flex justify-center"
-                >
-                  {loading ? 'Réinitialisation en cours...' : 'Réinitialiser le mot de passe'}
-                </Button>
               </div>
-            </form>
+            ) : (
+              <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
+                <div>
+                  <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                    Nouveau mot de passe
+                  </label>
+                  <div className="mt-1">
+                    <input
+                      id="password"
+                      name="password"
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      autoComplete="new-password"
+                      className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
+                    Confirmer le mot de passe
+                  </label>
+                  <div className="mt-1">
+                    <input
+                      id="confirmPassword"
+                      name="confirmPassword"
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      required
+                      autoComplete="new-password"
+                      className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    />
+                  </div>
+                </div>
+
+                {error && (
+                  <div className="bg-red-50 border-l-4 border-red-400 p-4">
+                    <div className="flex">
+                      <div className="ml-3">
+                        <p className="text-sm text-red-700">{error}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <Button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full flex justify-center"
+                  >
+                    {loading ? 'Réinitialisation en cours...' : 'Réinitialiser le mot de passe'}
+                  </Button>
+                </div>
+              </form>
+            )
           )}
         </div>
       </div>

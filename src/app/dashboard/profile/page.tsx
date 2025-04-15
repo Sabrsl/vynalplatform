@@ -86,22 +86,49 @@ export default function ProfilePage() {
       return;
     }
 
+    // Vérifier que l'utilisateur est bien connecté
+    if (!user || !user.id) {
+      alert("Vous devez être connecté pour uploader un avatar.");
+      return;
+    }
+
     try {
       setUploading(true);
       const file = e.target.files[0];
       const fileExt = file.name.split(".").pop();
       const fileName = `${user?.id}.${fileExt}`;
-      const filePath = `avatars/${fileName}`;
+      const filePath = fileName;
 
       // Upload the file to Supabase Storage
-      const { error: uploadError } = await supabase.storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
         .from("avatars")
         .upload(filePath, file, { upsert: true });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error("Erreur lors de l'upload:", uploadError);
+        
+        // Messages d'erreur spécifiques par type d'erreur
+        if (uploadError.message?.includes("row-level security")) {
+          throw new Error("Problème de permission avec le bucket de stockage. Contactez l'administrateur.");
+        }
+        
+        if (uploadError.message?.includes("not found") || uploadError.statusCode === 404) {
+          throw new Error("Le bucket 'avatars' n'existe pas. Contactez l'administrateur.");
+        }
+        
+        if (uploadError.message?.includes("permission") || uploadError.statusCode === 403) {
+          throw new Error("Permission refusée pour le stockage. Contactez l'administrateur.");
+        }
+        
+        throw uploadError;
+      }
 
       // Get public URL
       const { data } = supabase.storage.from("avatars").getPublicUrl(filePath);
+      
+      if (!data || !data.publicUrl) {
+        throw new Error("Impossible d'obtenir l'URL publique de l'image");
+      }
       
       // Update profile with avatar URL
       const avatarUrl = data.publicUrl;
@@ -116,9 +143,10 @@ export default function ProfilePage() {
       if (updateError) throw updateError;
       
       alert("Avatar mis à jour avec succès!");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erreur lors du téléchargement de l'avatar:", error);
-      alert("Erreur lors du téléchargement de l'avatar");
+      // Afficher un message d'erreur plus spécifique à l'utilisateur
+      alert(error.message || "Erreur lors du téléchargement de l'avatar");
     } finally {
       setUploading(false);
     }

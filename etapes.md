@@ -12,7 +12,7 @@ Nous avons posé les fondations de la plateforme Vynal. Voici les prochaines ét
 - [x] Composants UI de base (bouton, etc.)
 - [x] Layout principal (Header, Footer)
 
-## Étape 2 : Authentification et profils
+## Étape 2 : Authentification et profils ✅
 
 - [x] Création du projet Supabase
 - [x] Configuration de l'authentification Supabase (email, Google)
@@ -26,7 +26,7 @@ Nous avons posé les fondations de la plateforme Vynal. Voici les prochaines ét
 
 ## Étape 3 : Système de services
 
-- [ ] Page d'ajout de service (pour freelances)
+- [x] Page d'ajout de service (pour freelances)
 - [ ] Page de listing des services (filtrage, recherche)
 - [ ] Page détaillée d'un service
 - [ ] Gestion des catégories et sous-catégories
