@@ -73,6 +73,10 @@ Ce projet est sous licence [MIT](LICENSE).
 
 - [Sabrsl](https://github.com/Sabrsl) - Créateur du projet
 
+## Test de configuration Git
+
+Ce projet a été mis à jour par Sabrsl.
+
 ---
 
 © 2025 Vynal Platform. Tous droits réservés.
