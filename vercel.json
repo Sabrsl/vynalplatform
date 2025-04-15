@@ -1,19 +1,8 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "npm run build",
-  "outputDirectory": ".next",
-  "framework": "nextjs",
   "devCommand": "npm run dev",
-  "installCommand": "npm install",
-  "builds": [
-    {
-      "src": "package.json",
-      "use": "@vercel/next"
-    }
-  ],
-  "env": {
-    "NEXT_TELEMETRY_DISABLED": "1",
-    "NODE_ENV": "production"
-  },
+  "framework": "nextjs",
   "typescript": {
     "ignoreBuildErrors": true
   }
