@@ -1,14 +1,10 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# Fichiers et dossiers à ignorer par Git pour un projet Next.js + Supabase
 
 # dependencies
 /node_modules
 /.pnp
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
+.pnp.js
+.yarn/install-state.gz
 
 # testing
 /coverage
@@ -16,6 +12,7 @@
 # next.js
 /.next/
 /out/
+.swc/
 
 # production
 /build
@@ -23,6 +20,9 @@
 # misc
 .DS_Store
 *.pem
+.vscode/
+.idea/
+*.iml
 
 # debug
 npm-debug.log*
@@ -30,8 +30,12 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# local env files
+.env*.local
+.env
+.env.development
+.env.test
+.env.production
 
 # vercel
 .vercel
@@ -39,3 +43,37 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Supabase
+.supabase/
+
+# Logs
+logs/
+*.log
+
+# Cache & generated files
+.eslintcache
+.cache/
+.temp/
+dist/
+tmp/
+public/sw.js
+public/workbox-*.js
+
+# PWA files
+**/public/sw.js
+**/public/workbox-*.js
+**/public/worker-*.js
+**/public/fallback-*.js
+**/public/precache-*.js
+
+# Package manager lock files (comment if you want to include them)
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+
+# Local Netlify folder
+.netlify
+
+# Storybook
+/storybook-static 
