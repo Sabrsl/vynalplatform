@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ShoppingBag } from "lucide-react";
@@ -15,6 +15,8 @@ import { OrderRequirementsForm } from "@/components/orders/OrderRequirementsForm
 import { service } from "@/data/service";
 import { generateOrderId } from "@/lib/utils";
 import { OrderSummary } from "./OrderSummary";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/components/ui/use-toast";
 
 interface OrderButtonProps {
   serviceId?: string;
@@ -39,6 +41,8 @@ export function OrderButton({
   className,
 }: OrderButtonProps) {
   const router = useRouter();
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState<OrderStep>("requirements");
@@ -62,6 +66,36 @@ export function OrderButton({
   
   // Pour cette démo, on utilise un service fictif
   const currentService = service;
+
+  // Vérification de l'authentification avant ouverture du modal
+  const handleOpenOrderModal = () => {
+    if (!user) {
+      // L'utilisateur n'est pas connecté, rediriger vers la page de connexion
+      toast({
+        title: "Connexion requise",
+        description: "Vous devez être connecté pour commander un service",
+        variant: "destructive",
+      });
+      
+      // Stocker l'URL courante pour redirection après connexion
+      const currentPath = window.location.pathname + window.location.search;
+      router.push(`/auth/login?redirect=${encodeURIComponent(currentPath)}`);
+      return;
+    }
+    
+    // Si l'utilisateur est un freelance, il ne peut pas commander
+    if (user.user_metadata?.role === "freelance") {
+      toast({
+        title: "Action non autorisée",
+        description: "En tant que freelance, vous ne pouvez pas commander de services",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // L'utilisateur est connecté et autorisé à commander
+    setIsOpen(true);
+  };
   
   // Valider les instructions et passer à l'étape suivante
   const handleRequirementsComplete = () => {
@@ -152,6 +186,10 @@ export function OrderButton({
           className={`${fullWidth ? "w-full" : ""} ${
             variant === "default" ? "bg-gradient-to-r from-indigo-600 to-indigo-700" : ""
           } ${className || ''}`}
+          onClick={(e) => {
+            e.preventDefault();
+            handleOpenOrderModal();
+          }}
         >
           {showIcon && <ShoppingBag className="mr-2 h-4 w-4" />}
           {getLabel()}
