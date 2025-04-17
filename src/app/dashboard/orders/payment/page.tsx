@@ -7,59 +7,14 @@ import { ServiceSummary } from "@/components/orders/ServiceSummary";
 import { PaymentMethodCard } from "@/components/orders/PaymentMethodCard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, CreditCard, AlertCircle, CheckCircle, Loader, FileCheck } from "lucide-react";
+import { ArrowLeft, AlertCircle, CheckCircle, Loader, FileCheck, CreditCard, Lock, Phone } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import Link from "next/link";
-
-// Données fictives pour la démo
-const MOCK_SERVICE = {
-  id: "service-1",
-  title: "Création d'un logo professionnel avec identité visuelle complète",
-  description: "Je vais concevoir un logo professionnel unique pour votre entreprise ou projet. Le processus comprend 3 propositions initiales, puis des révisions illimitées sur le design choisi jusqu'à votre satisfaction totale. Livraison de tous les fichiers sources (AI, EPS, PDF, PNG, JPG) prêts à l'emploi.",
-  price: 150,
-  delivery_time: 3,
-  category: "Design & Graphisme",
-  freelance: {
-    id: "freelance-1",
-    username: "designpro",
-    full_name: "Marie Dupont",
-    avatar_url: "https://i.pravatar.cc/150?img=32",
-    rating: 4.9
-  },
-  image_url: "https://images.unsplash.com/photo-1629429407759-01cd3d7cfb38?q=80&w=2000&auto=format&fit=crop"
-};
-
-const PAYMENT_METHODS = [
-  {
-    id: "card",
-    name: "Carte bancaire",
-    description: "Visa, Mastercard, CB",
-    logo: "/assets/payment/cards.svg"
-  },
-  {
-    id: "paypal",
-    name: "PayPal",
-    description: "Paiement sécurisé via PayPal",
-    logo: "/assets/payment/paypal.svg"
-  },
-  {
-    id: "orange-money",
-    name: "Orange Money",
-    description: "Paiement mobile via Orange Money",
-    logo: "/assets/payment/orange-money.svg"
-  },
-  {
-    id: "free-money",
-    name: "Free Money",
-    description: "Paiement mobile via Free Money",
-    logo: "/assets/payment/free-money.svg"
-  },
-  {
-    id: "wave",
-    name: "Wave",
-    description: "Paiement mobile via Wave",
-    logo: "/assets/payment/wave.svg"
-  }
-];
+import { supabase } from "@/lib/supabase/client";
+import { formatPrice } from "@/lib/utils";
+import { PAYMENT_METHODS } from "@/components/orders/constants";
+import { PaymentForm } from "@/components/orders/PaymentForm";
 
 export default function PaymentPage() {
   const { user } = useAuth();
@@ -70,12 +25,46 @@ export default function PaymentPage() {
   const [loading, setLoading] = useState(true);
   const [service, setService] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [errorFading, setErrorFading] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>("");
   const [paymentProcessing, setPaymentProcessing] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   
+  // Informations de paiement par carte
+  const [cardNumber, setCardNumber] = useState("");
+  const [cardHolder, setCardHolder] = useState("");
+  const [expiryDate, setExpiryDate] = useState("");
+  const [cvv, setCvv] = useState("");
+  
+  // Informations de paiement mobile
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [mobileOperator, setMobileOperator] = useState<"orange-money" | "free-money" | "wave">("orange-money");
+  
+  // Informations PayPal
+  const [paypalEmail, setPaypalEmail] = useState("");
+  
   // Récupérer les détails de la commande du sessionStorage
   const [orderDetails, setOrderDetails] = useState<any>(null);
+
+  // Effet pour faire disparaître les messages d'erreur après quelques secondes
+  useEffect(() => {
+    if (error) {
+      // Attendre 3 secondes avant de commencer à faire disparaître le message
+      const fadeTimer = setTimeout(() => {
+        setErrorFading(true);
+        
+        // Attendre 1 seconde pour l'animation avant de supprimer complètement le message
+        const removeTimer = setTimeout(() => {
+          setError(null);
+          setErrorFading(false);
+        }, 1000);
+        
+        return () => clearTimeout(removeTimer);
+      }, 3000);
+      
+      return () => clearTimeout(fadeTimer);
+    }
+  }, [error]);
 
   useEffect(() => {
     if (!user) {
@@ -85,7 +74,7 @@ export default function PaymentPage() {
 
     if (user?.user_metadata?.role === "freelance") {
       router.push("/dashboard");
-      setError("Les freelances ne peuvent pas effectuer de paiements");
+      setError("Les prestataires ne peuvent pas effectuer de paiements");
       return;
     }
 
@@ -97,23 +86,63 @@ export default function PaymentPage() {
       setError("Aucune commande en attente n'a été trouvée");
     }
 
-    // Dans une vraie application, récupérez les données du service depuis l'API
+    // Récupérer les données du service depuis l'API
     const fetchService = async () => {
       setLoading(true);
       try {
-        // Simuler un appel API
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
         if (!serviceId) {
           setError("Aucun service n'a été spécifié");
           return;
         }
         
-        // Utilisez les données fictives pour la démo
-        setService(MOCK_SERVICE);
-      } catch (err) {
+        // Appel direct à Supabase pour récupérer les données du service
+        const { data, error: fetchError } = await supabase
+          .from('services')
+          .select(`
+            *,
+            profiles!services_freelance_id_fkey (
+              id, 
+              username, 
+              full_name, 
+              avatar_url
+            )
+          `)
+          .eq('id', serviceId)
+          .single();
+        
+        if (fetchError) {
+          console.error("Erreur lors de la récupération du service:", fetchError);
+          throw new Error(fetchError.message);
+        }
+        
+        if (!data) {
+          throw new Error("Service non trouvé");
+        }
+        
+        // Récupérer la note moyenne du prestataire si disponible
+        let rating = 0;
+        if (data.freelance_id) {
+          const { data: reviewsData, error: reviewsError } = await supabase
+            .from('reviews')
+            .select('rating')
+            .eq('freelance_id', data.freelance_id);
+            
+          if (!reviewsError && reviewsData && reviewsData.length > 0) {
+            rating = reviewsData.reduce((sum, review) => sum + review.rating, 0) / reviewsData.length;
+          }
+        }
+        
+        // Formater les données du service
+        setService({
+          ...data,
+          profiles: data.profiles ? {
+            ...data.profiles,
+            rating: rating
+          } : undefined
+        });
+      } catch (err: any) {
         console.error("Erreur lors de la récupération du service", err);
-        setError("Une erreur s'est produite lors du chargement du service");
+        setError("Une erreur s'est produite lors du chargement du service: " + (err.message || ""));
       } finally {
         setLoading(false);
       }
@@ -128,14 +157,64 @@ export default function PaymentPage() {
       return;
     }
 
+    // Valider les informations de paiement selon la méthode choisie
+    if (selectedPaymentMethod === 'card') {
+      if (!cardNumber.trim() || !cardHolder.trim() || !expiryDate.trim() || !cvv.trim()) {
+        setError("Veuillez remplir tous les champs de paiement");
+        return;
+      }
+    } 
+    else if (selectedPaymentMethod === 'paypal') {
+      if (!paypalEmail.trim()) {
+        setError("Veuillez entrer votre email PayPal");
+        return;
+      }
+    }
+    else if (['orange-money', 'free-money', 'wave'].includes(selectedPaymentMethod)) {
+      if (!phoneNumber.trim()) {
+        setError("Veuillez entrer votre numéro de téléphone");
+        return;
+      }
+    }
+
     setError(null);
     setPaymentProcessing(true);
 
     try {
-      // Simulation d'un paiement (remplacer par l'intégration réelle avec le fournisseur de paiement)
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Récupérer les données de commande du sessionStorage
+      const savedOrder = sessionStorage.getItem('pendingOrder');
+      if (!savedOrder) {
+        throw new Error("Aucune commande en attente n'a été trouvée");
+      }
       
-      // Simuler une commande réussie
+      const orderData = JSON.parse(savedOrder);
+      
+      // Envoyer les données à l'API
+      const { data: insertedOrder, error: orderError } = await supabase
+        .from('orders')
+        .insert([
+          {
+            service_id: serviceId,
+            client_id: user?.id,
+            requirements: orderData.requirements,
+            delivery_date: orderData.delivery_date,
+            status: 'pending',
+            payment_method: selectedPaymentMethod,
+            payment_status: 'completed',
+            total_amount: service?.price || 0
+          }
+        ])
+        .select()
+        .single();
+      
+      if (orderError) {
+        throw new Error("Erreur lors de la création de la commande: " + orderError.message);
+      }
+      
+      // Si nous avons des fichiers, il faudrait les télécharger dans le stockage Supabase
+      // Cette partie est à implémenter selon les besoins spécifiques
+      
+      // Paiement réussi
       setPaymentSuccess(true);
       
       // Effacer les données de commande temporaires
@@ -145,18 +224,41 @@ export default function PaymentPage() {
       setTimeout(() => {
         router.push('/dashboard/orders');
       }, 3000);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Erreur lors du traitement du paiement", err);
-      setError("Une erreur s'est produite lors du traitement du paiement");
+      setError("Une erreur s'est produite lors du traitement du paiement: " + (err.message || ""));
     } finally {
       setPaymentProcessing(false);
     }
   };
 
+  const renderPaymentDetailsForm = () => {
+    return (
+      <PaymentForm 
+        method={selectedPaymentMethod}
+        cardNumber={cardNumber}
+        setCardNumber={setCardNumber}
+        cardHolder={cardHolder}
+        setCardHolder={setCardHolder}
+        expiryDate={expiryDate}
+        setExpiryDate={setExpiryDate}
+        cvv={cvv}
+        setCvv={setCvv}
+        paypalEmail={paypalEmail}
+        setPaypalEmail={setPaypalEmail}
+        phoneNumber={phoneNumber}
+        setPhoneNumber={setPhoneNumber}
+        mobileOperator={mobileOperator}
+        setMobileOperator={setMobileOperator}
+      />
+    );
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader className="h-8 w-8 animate-spin text-indigo-600" />
+        <div className="animate-spin w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full"></div>
+        <p className="ml-3 text-gray-500">Chargement du service...</p>
       </div>
     );
   }
@@ -171,7 +273,7 @@ export default function PaymentPage() {
             </div>
             <h2 className="text-2xl font-bold text-green-700 mb-2">Paiement réussi !</h2>
             <p className="text-slate-600 mb-6">
-              Votre commande a été confirmée et le freelance a été notifié.
+              Votre commande a été confirmée et le prestataire a été notifié.
               Vous allez être redirigé vers vos commandes.
             </p>
             <div className="mt-2 animate-pulse">
@@ -234,13 +336,13 @@ export default function PaymentPage() {
                     <p className="text-slate-600 line-clamp-2">{orderDetails.requirements}</p>
                   </div>
                 )}
-                {orderDetails.deliveryDate && (
+                {orderDetails.delivery_date && (
                   <div>
                     <p className="font-medium text-slate-700">Livraison souhaitée:</p>
-                    <p className="text-slate-600">{new Date(orderDetails.deliveryDate).toLocaleDateString('fr-FR')}</p>
+                    <p className="text-slate-600">{new Date(orderDetails.delivery_date).toLocaleDateString('fr-FR')}</p>
                   </div>
                 )}
-                {orderDetails.hasFiles && (
+                {orderDetails.has_files && (
                   <div className="flex items-center text-slate-600">
                     <FileCheck className="h-4 w-4 mr-1.5 text-green-500" />
                     <span>Fichiers joints</span>
@@ -250,61 +352,85 @@ export default function PaymentPage() {
             </Card>
           )}
         </div>
-        
+
         <div className="lg:col-span-2">
           <Card>
             <CardHeader>
               <CardTitle>Méthode de paiement</CardTitle>
               <CardDescription>
-                Choisissez comment vous souhaitez payer
+                Choisissez la méthode de paiement qui vous convient le mieux
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {error && (
-                <div className="bg-red-50 p-3 rounded-lg flex items-start gap-2 text-red-700 text-sm mb-4">
-                  <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
+                <div className={`bg-red-50 p-2 rounded-md flex items-start gap-2 text-red-700 text-xs mb-3 max-h-20 overflow-y-auto transition-opacity duration-1000 ${errorFading ? 'opacity-0' : 'opacity-100'}`}>
+                  <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
                   <p>{error}</p>
                 </div>
               )}
-              
-              <div className="space-y-3">
-                {PAYMENT_METHODS.map((method) => (
-                  <PaymentMethodCard
-                    key={method.id}
-                    id={method.id}
-                    name={method.name}
-                    description={method.description}
-                    logo={method.logo}
-                    selected={selectedPaymentMethod === method.id}
-                    onSelect={setSelectedPaymentMethod}
-                  />
-                ))}
+
+              {!selectedPaymentMethod ? (
+                <div className="space-y-3">
+                  {PAYMENT_METHODS.map((method) => (
+                    <PaymentMethodCard
+                      key={method.id}
+                      id={method.id}
+                      name={method.name}
+                      description={method.description}
+                      logo={method.logo}
+                      selected={selectedPaymentMethod === method.id}
+                      onSelect={setSelectedPaymentMethod}
+                    />
+                  ))}
+                </div>
+              ) : (
+                renderPaymentDetailsForm()
+              )}
+
+              <div className="pt-4 mt-2 border-t border-gray-100">
+                <div className="flex items-center justify-between w-full">
+                  <div className="text-sm text-slate-500">
+                    Prix total (TTC)
+                  </div>
+                  <div className="font-medium text-xl text-indigo-700">
+                    {formatPrice(service?.price || 0)}
+                  </div>
+                </div>
               </div>
             </CardContent>
-            <CardFooter className="flex flex-col space-y-4">
-              <div className="flex items-center justify-between w-full">
-                <div className="text-sm text-slate-500">
-                  Prix total (TTC)
-                </div>
-                <div className="font-medium text-lg">
-                  {service.price.toFixed(2)} €
-                </div>
-              </div>
-              <Button 
-                onClick={handlePayment} 
-                className="w-full" 
-                disabled={paymentProcessing || !selectedPaymentMethod}
-              >
-                {paymentProcessing ? (
-                  <>
-                    <Loader className="h-4 w-4 mr-2 animate-spin" />
-                    Traitement en cours...
-                  </>
-                ) : "Payer maintenant"}
-              </Button>
-              <p className="text-xs text-center text-slate-500 mt-2">
-                En cliquant sur "Payer maintenant", vous acceptez nos conditions générales de vente et notre politique de confidentialité.
-              </p>
+            <CardFooter className="flex justify-between border-t pt-4">
+              {selectedPaymentMethod ? (
+                <>
+                  <Button 
+                    type="button" 
+                    variant="ghost" 
+                    onClick={() => setSelectedPaymentMethod("")}
+                  >
+                    <ArrowLeft className="h-4 w-4 mr-2" />
+                    Retour
+                  </Button>
+                  <Button 
+                    onClick={handlePayment}
+                    disabled={paymentProcessing}
+                  >
+                    {paymentProcessing ? (
+                      <>
+                        <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
+                        Traitement...
+                      </>
+                    ) : (
+                      "Payer maintenant"
+                    )}
+                  </Button>
+                </>
+              ) : (
+                <Button 
+                  onClick={() => setSelectedPaymentMethod("card")} 
+                  className="ml-auto"
+                >
+                  Continuer
+                </Button>
+              )}
             </CardFooter>
           </Card>
         </div>
