@@ -7,7 +7,7 @@ import Link from "next/link";
 import { 
   User, Settings, FileText, ShoppingBag, MessageSquare, Home, 
   Calendar, CreditCard, BarChart2, BookOpen, Award, HelpCircle,
-  Menu, X, ChevronRight, LogOut, Bell, Search
+  Menu, X, ChevronRight, LogOut, Bell, Search, Wallet, RefreshCw, PackageOpen
 } from "lucide-react";
 import MobileMenu from "@/components/MobileMenu";
 
@@ -132,7 +132,11 @@ export default function DashboardLayout({
                   label={user?.user_metadata?.role === "freelance" ? "Commandes reçues" : "Mes commandes"} 
                 />
                 <NavItem href="/dashboard/messages" icon={MessageSquare} label="Messages" />
-                <NavItem href="/dashboard/payments" icon={CreditCard} label="Paiements" />
+                {user?.user_metadata?.role === "freelance" ? (
+                  <NavItem href="/dashboard/wallet" icon={Wallet} label="Mon portefeuille" />
+                ) : (
+                  <NavItem href="/dashboard/payments" icon={CreditCard} label="Paiements" />
+                )}
               </div>
             </div>
             
@@ -143,8 +147,21 @@ export default function DashboardLayout({
                 
                 <div>
                   <NavItem href="/dashboard/services" icon={FileText} label="Mes services" />
+                  <NavItem href="/dashboard/orders/delivery" icon={PackageOpen} label="Livrer un travail" />
                   <NavItem href="/dashboard/stats" icon={BarChart2} label="Statistiques" />
                   <NavItem href="/dashboard/certifications" icon={Award} label="Certifications" />
+                </div>
+              </div>
+            )}
+            
+            {/* Section client uniquement */}
+            {user?.user_metadata?.role !== "freelance" && (
+              <div>
+                <p className="px-2 text-[10px] font-bold text-slate-400 uppercase mb-1.5">Actions</p>
+                
+                <div>
+                  <NavItem href="/dashboard/services/browse" icon={FileText} label="Trouver un service" />
+                  <NavItem href="/dashboard/orders/revision" icon={RefreshCw} label="Demander une révision" />
                 </div>
               </div>
             )}
@@ -199,7 +216,13 @@ export default function DashboardLayout({
                 {activePath === "/dashboard/orders" && (user?.user_metadata?.role === "freelance" ? "Commandes reçues" : "Mes commandes")}
                 {activePath === "/dashboard/messages" && "Messages"}
                 {activePath === "/dashboard/payments" && "Paiements"}
+                {activePath === "/dashboard/wallet" && "Mon portefeuille"}
+                {activePath === "/dashboard/wallet/withdraw" && "Retirer des fonds"}
                 {activePath === "/dashboard/services" && "Mes services"}
+                {activePath === "/dashboard/orders/new" && "Commander un service"}
+                {activePath === "/dashboard/orders/payment" && "Paiement"}
+                {activePath === "/dashboard/orders/delivery" && "Livrer un travail"}
+                {activePath === "/dashboard/orders/revision" && "Demander une révision"}
                 {activePath === "/dashboard/stats" && "Statistiques"}
                 {activePath === "/dashboard/certifications" && "Certifications"}
                 {activePath === "/dashboard/profile" && "Mon profil"}

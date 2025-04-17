@@ -214,26 +214,116 @@ export interface Database {
         Row: {
           id: string
           created_at: string
-          order_id: string
+          conversation_id: string
           sender_id: string
           content: string
+          read: boolean
+          attachment_url: string | null
+          attachment_type: string | null
+          attachment_name: string | null
+          is_typing: boolean
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          conversation_id: string
+          sender_id: string
+          content: string
+          read?: boolean
+          attachment_url?: string | null
+          attachment_type?: string | null
+          attachment_name?: string | null
+          is_typing?: boolean
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          conversation_id?: string
+          sender_id?: string
+          content?: string
+          read?: boolean
+          attachment_url?: string | null
+          attachment_type?: string | null
+          attachment_name?: string | null
+          is_typing?: boolean
+        }
+      }
+      conversations: {
+        Row: {
+          id: string
+          created_at: string
+          updated_at: string
+          last_message_id: string | null
+          last_message_time: string | null
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          updated_at?: string
+          last_message_id?: string | null
+          last_message_time?: string | null
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          updated_at?: string
+          last_message_id?: string | null
+          last_message_time?: string | null
+        }
+      }
+      notifications: {
+        Row: {
+          id: string
+          created_at: string
+          type: string
+          user_id: string | null
+          content: string | null
+          conversation_id: string | null
           read: boolean
         }
         Insert: {
           id?: string
           created_at?: string
-          order_id: string
-          sender_id: string
-          content: string
+          type: string
+          user_id?: string | null
+          content?: string | null
+          conversation_id?: string | null
           read?: boolean
         }
         Update: {
           id?: string
           created_at?: string
-          order_id?: string
-          sender_id?: string
-          content?: string
+          type?: string
+          user_id?: string | null
+          content?: string | null
+          conversation_id?: string | null
           read?: boolean
+        }
+      }
+      conversation_participants: {
+        Row: {
+          id: string
+          created_at: string
+          conversation_id: string
+          participant_id: string
+          unread_count: number
+          last_read_message_id: string | null
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          conversation_id: string
+          participant_id: string
+          unread_count?: number
+          last_read_message_id?: string | null
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          conversation_id?: string
+          participant_id?: string
+          unread_count?: number
+          last_read_message_id?: string | null
         }
       }
       reviews: {

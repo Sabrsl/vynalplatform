@@ -35,6 +35,15 @@ interface UseServicesParams {
   limit?: number;
 }
 
+interface CreateServiceParams extends Omit<Partial<Service>, 'id' | 'created_at' | 'updated_at'> {
+  freelance_id: string;
+  images?: string[];
+}
+
+interface UpdateServiceParams extends Omit<Partial<Service>, 'id' | 'created_at' | 'updated_at' | 'freelance_id'> {
+  images?: string[];
+}
+
 export function useServices(params: UseServicesParams = {}) {
   const [services, setServices] = useState<ServiceWithFreelanceAndCategories[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,7 +62,7 @@ export function useServices(params: UseServicesParams = {}) {
           .from('services')
           .select(`
             *,
-            profiles (id, username, full_name, avatar_url),
+            profiles (id, username, full_name, avatar_url, bio),
             categories (id, name, slug),
             subcategories (id, name, slug)
           `);
@@ -88,20 +97,43 @@ export function useServices(params: UseServicesParams = {}) {
         
         const { data, error: fetchError } = await query;
         
-        if (fetchError) throw fetchError;
+        if (fetchError) {
+          throw fetchError;
+        }
         
         // Transformer les données pour correspondre au type ServiceWithFreelanceAndCategories
-        const transformedServices = data.map((service: any) => ({
-          ...service,
-          profiles: service.profiles,
-          categories: service.categories,
-          subcategories: service.subcategories,
-        }));
+        if (!data || data.length === 0) {
+          setServices([]);
+          setLoading(false);
+          return;
+        }
+        
+        const transformedServices = data.map((service: any) => {
+          // Construction d'un service complet avec valeurs par défaut si nécessaire
+          const transformedService = {
+            ...service,
+            profiles: service.profiles || {
+              id: service.freelance_id || '',
+              username: 'utilisateur',
+              full_name: 'Utilisateur',
+              avatar_url: null,
+              bio: null
+            },
+            categories: service.categories || {
+              id: service.category_id || '',
+              name: 'Catégorie',
+              slug: 'categorie'
+            },
+            subcategories: service.subcategories || null
+          };
+          
+          return transformedService;
+        });
         
         setServices(transformedServices);
       } catch (error: any) {
-        console.error('Erreur lors du chargement des services:', error);
         setError(error.message || 'Une erreur est survenue lors du chargement des services');
+        setServices([]);
       } finally {
         setLoading(false);
       }
@@ -116,7 +148,7 @@ export function useServices(params: UseServicesParams = {}) {
         event: '*',
         schema: 'public',
         table: 'services',
-      }, () => {
+      }, (payload: any) => {
         // Recharger les données quand il y a un changement
         fetchServices();
       })
@@ -137,7 +169,7 @@ export function useServices(params: UseServicesParams = {}) {
         .from('services')
         .select(`
           *,
-          profiles (id, username, full_name, avatar_url),
+          profiles (id, username, full_name, avatar_url, bio),
           categories (id, name, slug),
           subcategories (id, name, slug)
         `)
@@ -149,14 +181,22 @@ export function useServices(params: UseServicesParams = {}) {
       // Transformer les données pour correspondre au type ServiceWithFreelanceAndCategories
       const transformedService = {
         ...data,
-        profiles: data.profiles,
-        categories: data.categories,
-        subcategories: data.subcategories,
+        profiles: data.profiles || {
+          id: data.freelance_id || '',
+          username: 'utilisateur',
+          full_name: 'Utilisateur',
+          avatar_url: null
+        },
+        categories: data.categories || {
+          id: data.category_id || '',
+          name: 'Catégorie',
+          slug: 'categorie'
+        },
+        subcategories: data.subcategories || null
       };
       
       return { service: transformedService, error: null };
     } catch (error: any) {
-      console.error('Erreur lors du chargement du service:', error);
       return { service: null, error: error.message || 'Une erreur est survenue lors du chargement du service' };
     } finally {
       setLoading(false);
@@ -165,101 +205,140 @@ export function useServices(params: UseServicesParams = {}) {
 
   // Récupérer un service par son slug
   const getServiceBySlug = async (slug: string) => {
-    setLoading(true);
-    setError(null);
+    if (!slug) {
+      return { service: null, error: 'Slug non fourni' };
+    }
     
     try {
       const { data, error: fetchError } = await supabase
         .from('services')
         .select(`
           *,
-          profiles (id, username, full_name, avatar_url),
+          profiles (id, username, full_name, avatar_url, bio),
           categories (id, name, slug),
           subcategories (id, name, slug)
         `)
         .eq('slug', slug)
+        .eq('active', true)
         .single();
       
-      if (fetchError) throw fetchError;
+      if (fetchError) {
+        if (fetchError.code === 'PGRST116') {
+          return { service: null, error: 'Service introuvable' };
+        }
+        throw fetchError;
+      }
       
-      // Transformer les données pour correspondre au type ServiceWithFreelanceAndCategories
+      if (!data) {
+        return { service: null, error: 'Service introuvable' };
+      }
+      
+      // Transformer les données pour correspondre au type
       const transformedService = {
         ...data,
-        profiles: data.profiles,
-        categories: data.categories,
-        subcategories: data.subcategories,
+        profiles: data.profiles || {
+          id: data.freelance_id || '',
+          username: 'utilisateur',
+          full_name: 'Utilisateur',
+          avatar_url: null
+        },
+        categories: data.categories || {
+          id: data.category_id || '',
+          name: 'Catégorie',
+          slug: 'categorie'
+        },
+        subcategories: data.subcategories || null
       };
       
       return { service: transformedService, error: null };
     } catch (error: any) {
-      console.error('Erreur lors du chargement du service:', error);
-      return { service: null, error: error.message || 'Une erreur est survenue lors du chargement du service' };
-    } finally {
-      setLoading(false);
+      return { 
+        service: null, 
+        error: 'Erreur de chargement du service' 
+      };
     }
   };
 
   // Créer un nouveau service
-  const createService = async (serviceData: Omit<Service, 'id' | 'created_at' | 'updated_at'>) => {
-    if (!profile) {
-      return { success: false, error: 'Vous devez être connecté pour créer un service' };
-    }
-    
+  const createService = async (serviceData: CreateServiceParams) => {
     try {
+      const { images, ...serviceFields } = serviceData;
+      
+      // Créer le service de base
       const { data, error } = await supabase
         .from('services')
-        .insert({
-          ...serviceData,
-          freelance_id: profile.id,
-        })
+        .insert([
+          {
+            ...serviceFields,
+            updated_at: new Date().toISOString()
+          }
+        ])
         .select()
         .single();
       
       if (error) throw error;
       
+      // Si des images sont fournies, les associer au service en mettant à jour le service
+      if (images && images.length > 0 && data) {
+        const { error: updateError } = await supabase
+          .from('services')
+          .update({
+            updated_at: new Date().toISOString(),
+            images: images
+          })
+          .eq('id', data.id);
+        
+        if (updateError) throw updateError;
+      }
+      
       return { success: true, service: data };
     } catch (error: any) {
-      console.error('Erreur lors de la création du service:', error);
-      return { success: false, error: error.message || 'Une erreur est survenue lors de la création du service' };
+      console.error("Erreur lors de la création du service:", error);
+      return { 
+        success: false, 
+        error: error.message || "Une erreur est survenue lors de la création du service" 
+      };
     }
   };
 
   // Mettre à jour un service existant
-  const updateService = async (id: string, serviceData: Partial<Service>) => {
-    if (!profile) {
-      return { success: false, error: 'Vous devez être connecté pour mettre à jour un service' };
-    }
-    
+  const updateService = async (serviceId: string, updates: UpdateServiceParams) => {
     try {
-      // Vérifier que l'utilisateur est bien le propriétaire du service
-      const { data: existingService, error: fetchError } = await supabase
-        .from('services')
-        .select('freelance_id')
-        .eq('id', id)
-        .single();
+      const { images, ...serviceFields } = updates;
       
-      if (fetchError) throw fetchError;
-      
-      if (existingService.freelance_id !== profile.id && profile.role !== 'admin') {
-        return { success: false, error: 'Vous n\'êtes pas autorisé à modifier ce service' };
-      }
-      
+      // Mise à jour des champs de base du service
       const { data, error } = await supabase
         .from('services')
         .update({
-          ...serviceData,
-          updated_at: new Date().toISOString(),
+          ...serviceFields,
+          updated_at: new Date().toISOString()
         })
-        .eq('id', id)
+        .eq('id', serviceId)
         .select()
         .single();
       
       if (error) throw error;
       
+      // Si des images sont fournies, les associer au service
+      if (images !== undefined && data) {
+        const { error: updateImagesError } = await supabase
+          .from('services')
+          .update({
+            updated_at: new Date().toISOString(),
+            images: images
+          })
+          .eq('id', serviceId);
+        
+        if (updateImagesError) throw updateImagesError;
+      }
+      
       return { success: true, service: data };
     } catch (error: any) {
-      console.error('Erreur lors de la mise à jour du service:', error);
-      return { success: false, error: error.message || 'Une erreur est survenue lors de la mise à jour du service' };
+      console.error("Erreur lors de la mise à jour du service:", error);
+      return { 
+        success: false, 
+        error: error.message || "Une erreur est survenue lors de la mise à jour du service" 
+      };
     }
   };
 
@@ -271,15 +350,22 @@ export function useServices(params: UseServicesParams = {}) {
     
     try {
       // Vérifier que l'utilisateur est bien le propriétaire du service
-      const { data: existingService, error: fetchError } = await supabase
+      const { data: existingServices, error: fetchError } = await supabase
         .from('services')
         .select('freelance_id')
         .eq('id', id)
-        .single();
+        .single(); // Use single() to expect exactly one row
       
-      if (fetchError) throw fetchError;
+      if (fetchError) {
+        // Handle specific case of no rows or multiple rows found
+        if (fetchError.code === 'PGRST116') {
+          return { success: false, error: 'Service introuvable ou problème d\'identification' };
+        }
+        throw fetchError;
+      }
       
-      if (existingService.freelance_id !== profile.id && profile.role !== 'admin') {
+      // Vérifier que l'utilisateur est le propriétaire ou un admin
+      if (existingServices.freelance_id !== profile.id && profile.role !== 'admin') {
         return { success: false, error: 'Vous n\'êtes pas autorisé à supprimer ce service' };
       }
       
@@ -292,7 +378,6 @@ export function useServices(params: UseServicesParams = {}) {
       
       return { success: true };
     } catch (error: any) {
-      console.error('Erreur lors de la suppression du service:', error);
       return { success: false, error: error.message || 'Une erreur est survenue lors de la suppression du service' };
     }
   };

@@ -44,14 +44,9 @@ export function useAuth() {
   // Méthodes pour gérer l'authentification
   const signIn = async (email: string, password: string, rememberMe: boolean = false) => {
     try {
-      // Définir la persistance de la session en fonction de l'option "Se souvenir de moi"
-      const persistSession = rememberMe;
-      
       const { error } = await supabase.auth.signInWithPassword({ 
         email, 
-        password,
-      }, {
-        persistSession 
+        password
       });
       
       if (error) throw error;

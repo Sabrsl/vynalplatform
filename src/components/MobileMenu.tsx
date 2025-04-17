@@ -4,7 +4,7 @@ import Link from "next/link";
 import { 
   User, Settings, FileText, ShoppingBag, MessageSquare, Home, 
   Calendar, CreditCard, BarChart2, BookOpen, Award, HelpCircle,
-  X, ChevronRight, LogOut, Search
+  X, ChevronRight, LogOut, Search, Wallet, RefreshCw, PackageOpen
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -130,16 +130,29 @@ export default function MobileMenu({ isOpen, onClose, user, activePath, setActiv
                     onClose();
                   }}
                 />
-                <NavItem 
-                  href="/dashboard/payments" 
-                  icon={CreditCard} 
-                  label="Paiements" 
-                  isActive={isActive("/dashboard/payments")}
-                  onClick={() => {
-                    setActivePath("/dashboard/payments");
-                    onClose();
-                  }}
-                />
+                {user?.user_metadata?.role === "freelance" ? (
+                  <NavItem 
+                    href="/dashboard/wallet" 
+                    icon={Wallet} 
+                    label="Mon portefeuille" 
+                    isActive={isActive("/dashboard/wallet")}
+                    onClick={() => {
+                      setActivePath("/dashboard/wallet");
+                      onClose();
+                    }}
+                  />
+                ) : (
+                  <NavItem 
+                    href="/dashboard/payments" 
+                    icon={CreditCard} 
+                    label="Paiements" 
+                    isActive={isActive("/dashboard/payments")}
+                    onClick={() => {
+                      setActivePath("/dashboard/payments");
+                      onClose();
+                    }}
+                  />
+                )}
               </div>
             </div>
             
@@ -155,6 +168,16 @@ export default function MobileMenu({ isOpen, onClose, user, activePath, setActiv
                     isActive={isActive("/dashboard/services")}
                     onClick={() => {
                       setActivePath("/dashboard/services");
+                      onClose();
+                    }}
+                  />
+                  <NavItem 
+                    href="/dashboard/orders/delivery" 
+                    icon={PackageOpen} 
+                    label="Livrer un travail" 
+                    isActive={isActive("/dashboard/orders/delivery")}
+                    onClick={() => {
+                      setActivePath("/dashboard/orders/delivery");
                       onClose();
                     }}
                   />
@@ -175,6 +198,35 @@ export default function MobileMenu({ isOpen, onClose, user, activePath, setActiv
                     isActive={isActive("/dashboard/certifications")}
                     onClick={() => {
                       setActivePath("/dashboard/certifications");
+                      onClose();
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+            
+            {/* Section client uniquement */}
+            {user?.user_metadata?.role !== "freelance" && (
+              <div>
+                <p className="px-2 text-xs font-semibold text-slate-400 uppercase mb-2">Actions</p>
+                <div>
+                  <NavItem 
+                    href="/dashboard/services/browse" 
+                    icon={FileText} 
+                    label="Trouver un service" 
+                    isActive={isActive("/dashboard/services/browse")}
+                    onClick={() => {
+                      setActivePath("/dashboard/services/browse");
+                      onClose();
+                    }}
+                  />
+                  <NavItem 
+                    href="/dashboard/orders/revision" 
+                    icon={RefreshCw} 
+                    label="Demander une révision" 
+                    isActive={isActive("/dashboard/orders/revision")}
+                    onClick={() => {
+                      setActivePath("/dashboard/orders/revision");
                       onClose();
                     }}
                   />
@@ -249,7 +301,7 @@ export default function MobileMenu({ isOpen, onClose, user, activePath, setActiv
                 onClick={() => signOut()} 
                 className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-slate-100 transition-colors"
               >
-                <LogOut className="w-4 h-4" />
+                <LogOut className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>

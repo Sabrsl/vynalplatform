@@ -22,7 +22,7 @@ Nous avons posé les fondations de la plateforme Vynal. Voici les prochaines ét
 - [x] Finalisation des hooks useAuth et useUser
 - [x] Page de profil utilisateur (client/freelance)
 - [x] Page d'édition de profil
-- [x] Upload d'avatar
+- [x] Upload d'avatar  
 
 ## Étape 3 : Système de services
 

@@ -4,6 +4,7 @@ import React from "react";
 import { usePathname } from "next/navigation";
 import Header from "./header";
 import Footer from "./footer";
+import usePreventScrollReset from "@/hooks/usePreventScrollReset";
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -11,6 +12,9 @@ interface MainLayoutProps {
 
 export default function MainLayout({ children }: MainLayoutProps) {
   const pathname = usePathname();
+  
+  // Appliquer le hook pour empêcher le reset du scroll
+  usePreventScrollReset();
   
   // Déterminer si le chemin actuel fait partie des routes d'authentification
   const isAuthPage = pathname?.startsWith('/auth/');

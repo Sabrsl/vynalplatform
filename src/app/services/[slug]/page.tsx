@@ -1,242 +1,213 @@
 "use client";
 
-import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import Link from 'next/link';
-import Image from 'next/image';
-import { 
-  ChevronRight, 
-  Clock, 
-  User, 
-  Star, 
-  Calendar, 
-  ShoppingCart, 
-  Shield, 
-  FileText,
-  Heart,
-  Share2,
-  AlertCircle,
-  Loader2
-} from 'lucide-react';
-import { formatPrice } from '@/lib/utils';
-import { useServices, ServiceWithFreelanceAndCategories } from '@/hooks/useServices';
-import { useAuth } from '@/hooks/useAuth';
+import React, { useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
+import { validate as isUUID } from 'uuid';
+import { supabase } from '@/lib/supabase/client';
+import { ServiceCard } from '@/components/services/ServiceCard';
+import ServiceView from '@/components/services/ServiceView';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Skeleton } from '@/components/ui/skeleton';
+import { ArrowLeft, AlertTriangle } from 'lucide-react';
+import Link from 'next/link';
 
 export default function ServiceDetailPage() {
-  const params = useParams();
-  const router = useRouter();
-  const { user } = useAuth();
-  const slug = params.slug as string;
-  const [service, setService] = useState<ServiceWithFreelanceAndCategories | null>(null);
-  const [loading, setLoading] = useState(true);
+  // États pour gérer le chargement et les erreurs
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { getServiceBySlug } = useServices();
-  
+  const [service, setService] = useState<any>(null);
+  const [relatedServices, setRelatedServices] = useState<any[]>([]);
+  const [loadingRelated, setLoadingRelated] = useState(true);
+
+  // Obtenir le paramètre slug ou id de l'URL
+  const params = useParams<{ slug: string }>();
+  const slugOrId = params?.slug as string;
+
   useEffect(() => {
-    const fetchService = async () => {
-      setLoading(true);
-      
-      const { service, error } = await getServiceBySlug(slug);
-      
-      if (error) {
-        setError(error);
-        setService(null);
-      } else {
-        setService(service);
-        setError(null);
+    async function fetchServiceData() {
+      if (!slugOrId) {
+        setError("Identifiant de service manquant");
+        setIsLoading(false);
+        return;
       }
-      
-      setLoading(false);
-    };
-    
-    if (slug) {
-      fetchService();
+
+      try {
+        // Vérifier si le slug est un UUID
+        const isIdUUID = isUUID(slugOrId);
+        console.log("Le paramètre est un UUID:", isIdUUID);
+
+        // Requête Supabase conditionnelle
+        let query = supabase
+          .from('services')
+          .select(`
+            *,
+            categories(*),
+            profiles(*)
+          `);
+
+        // Filtrer soit par ID soit par slug
+        query = isIdUUID 
+          ? query.eq('id', slugOrId) 
+          : query.eq('slug', slugOrId);
+
+        // Exécuter la requête
+        const { data: serviceData, error: serviceError } = await query.single();
+
+        if (serviceError) {
+          console.error("Erreur lors de la récupération du service:", serviceError);
+          setError("Service introuvable");
+          setIsLoading(false);
+          return;
+        }
+
+        if (!serviceData) {
+          setError("Service introuvable");
+          setIsLoading(false);
+          return;
+        }
+
+        // Enrichir les données du service avec des valeurs par défaut si nécessaire
+        const enrichedService = {
+          ...serviceData,
+          profiles: serviceData.profiles || {
+            id: serviceData.freelance_id || '',
+            username: 'utilisateur',
+            full_name: 'Utilisateur',
+            avatar_url: null
+          },
+          categories: serviceData.categories || null,
+          images: Array.isArray(serviceData.images) ? serviceData.images : (serviceData.images ? [serviceData.images] : [])
+        };
+
+        setService(enrichedService);
+        setError(null);
+
+        // Charger les services connexes
+        if (enrichedService.profiles?.id) {
+          await loadRelatedServices(enrichedService.profiles.id, enrichedService.id);
+        } else {
+          setLoadingRelated(false);
+        }
+      } catch (err) {
+        console.error("Erreur inattendue:", err);
+        setError("Une erreur est survenue lors du chargement des détails du service");
+        setLoadingRelated(false);
+      } finally {
+        setIsLoading(false);
+      }
     }
-  }, [slug, getServiceBySlug]);
 
-  // État de chargement
-  if (loading) {
+    // Fonction pour charger les services connexes
+    async function loadRelatedServices(freelanceId: string, currentServiceId: string) {
+      try {
+        console.log("Chargement des services connexes du freelance:", freelanceId);
+        const { data: relatedData, error: relatedError } = await supabase
+          .from('services')
+          .select(`
+            *,
+            profiles (*),
+            categories (*)
+          `)
+          .eq('profiles.id', freelanceId)
+          .eq('active', true)
+          .neq('id', currentServiceId)
+          .limit(3);
+
+        if (relatedError) {
+          console.error("Erreur lors du chargement des services connexes:", relatedError);
+        } else if (relatedData && Array.isArray(relatedData)) {
+          console.log("Services connexes chargés:", relatedData.length);
+          setRelatedServices(relatedData);
+        }
+      } catch (err) {
+        console.error("Erreur inattendue lors du chargement des services connexes:", err);
+      } finally {
+        setLoadingRelated(false);
+      }
+    }
+
+    // Lancer la récupération des données
+    setIsLoading(true);
+    fetchServiceData();
+  }, [slugOrId]);
+
+  // Rendu pour l'état de chargement
+  if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="flex flex-col items-center">
-          <Loader2 className="h-12 w-12 animate-spin text-indigo-600 mb-4" />
-          <p className="text-gray-500">Chargement du service...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // État d'erreur
-  if (error || !service) {
-    return (
-      <div className="container mx-auto px-4 py-12">
-        <div className="bg-red-50 text-red-600 p-6 rounded-lg shadow-sm flex items-start">
-          <AlertCircle className="h-6 w-6 mr-3 flex-shrink-0" />
-          <div>
-            <h2 className="text-lg font-semibold mb-2">Service non trouvé</h2>
-            <p className="mb-4">{error || "Ce service n'existe pas ou a été supprimé."}</p>
-            <Link href="/services">
-              <Button variant="outline">Retour aux services</Button>
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Vérifier si l'utilisateur est le freelance qui a créé ce service
-  const isOwnService = user?.id === service.freelance_id;
-  
-  // Récupérer les informations du freelance
-  const freelance = service.profiles;
-  
-  // Récupérer la catégorie et la sous-catégorie
-  const category = service.categories;
-  const subcategory = service.subcategories;
-
-  return (
-    <div className="container mx-auto px-4 py-8">
-      {/* Fil d'Ariane */}
-      <div className="flex items-center text-sm mb-6">
-        <Link href="/" className="text-gray-500 hover:text-gray-700">
-          Accueil
-        </Link>
-        <ChevronRight className="h-4 w-4 mx-2 text-gray-400" />
-        <Link href="/services" className="text-gray-500 hover:text-gray-700">
-          Services
-        </Link>
-        <ChevronRight className="h-4 w-4 mx-2 text-gray-400" />
-        <Link 
-          href={`/services?category=${category.slug}`} 
-          className="text-gray-500 hover:text-gray-700"
-        >
-          {category.name}
-        </Link>
-        {subcategory && (
-          <>
-            <ChevronRight className="h-4 w-4 mx-2 text-gray-400" />
-            <Link 
-              href={`/services?category=${category.slug}&subcategory=${subcategory.slug}`} 
-              className="text-gray-500 hover:text-gray-700"
-            >
-              {subcategory.name}
-            </Link>
-          </>
-        )}
-        <ChevronRight className="h-4 w-4 mx-2 text-gray-400" />
-        <span className="text-indigo-600 font-medium truncate">{service.title}</span>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Partie gauche: informations principales du service */}
-        <div className="lg:col-span-2">
-          <h1 className="text-3xl font-bold mb-4">{service.title}</h1>
-          
-          <div className="flex items-center mb-6">
-            <div className="flex items-center">
-              <Avatar className="h-8 w-8 mr-2">
-                <AvatarImage src={freelance.avatar_url || undefined} alt={freelance.username || ''} />
-                <AvatarFallback>
-                  {(freelance.username || freelance.full_name || 'UN')
-                    .split(' ')
-                    .map(n => n[0])
-                    .join('')
-                    .toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-              <span className="text-gray-700">
-                {freelance.full_name || freelance.username || 'Freelance'}
-              </span>
-            </div>
-            <div className="flex items-center ml-auto">
-              <Star className="h-4 w-4 text-yellow-400 mr-1" />
-              <span className="text-gray-700">Nouveau</span>
-            </div>
-          </div>
-          
-          {/* Placeholder pour l'image du service */}
-          <div className="bg-gray-200 w-full h-80 rounded-lg mb-6 relative overflow-hidden">
-            {/* Si on a une image pour le service plus tard */}
-            {/* <Image
-              src={service.image_url || '/images/placeholder-service.jpg'}
-              alt={service.title}
-              fill
-              className="object-cover"
-            /> */}
-          </div>
-          
-          {/* Description du service */}
-          <div className="mb-8">
-            <h2 className="text-xl font-semibold mb-3">Description</h2>
-            <div className="prose max-w-none">
-              <p>{service.description}</p>
-            </div>
-          </div>
+      <div className="container mx-auto py-8 px-4">
+        <div className="mb-6">
+          <Link href="/services" className="inline-flex items-center text-indigo-600 hover:text-indigo-800">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Retour aux services
+          </Link>
         </div>
         
-        {/* Partie droite: résumé et actions */}
-        <div>
-          <Card className="sticky top-8">
-            <CardContent className="p-6">
-              <div className="mb-6">
-                <h3 className="text-2xl font-bold text-indigo-700 mb-2">
-                  {formatPrice(service.price)} FCFA
-                </h3>
-                
-                <div className="flex items-center mb-4">
-                  <Clock className="h-4 w-4 text-gray-500 mr-2" />
-                  <span>Délai de livraison: {service.delivery_time} jours</span>
-                </div>
-                
-                <div className="space-y-4">
-                  {!isOwnService ? (
-                    <Button className="w-full" size="lg">
-                      <ShoppingCart className="h-4 w-4 mr-2" />
-                      Commander maintenant
-                    </Button>
-                  ) : (
-                    <Button className="w-full" size="lg" variant="outline" onClick={() => router.push(`/dashboard/services/edit/${service.id}`)}>
-                      <FileText className="h-4 w-4 mr-2" />
-                      Modifier ce service
-                    </Button>
-                  )}
-                  
-                  <div className="flex gap-2">
-                    <Button variant="outline" className="flex-1">
-                      <Heart className="h-4 w-4 mr-2" />
-                      Favoris
-                    </Button>
-                    <Button variant="outline" className="flex-1">
-                      <Share2 className="h-4 w-4 mr-2" />
-                      Partager
-                    </Button>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="border-t pt-4">
-                <h4 className="font-medium mb-2">Ce service inclut :</h4>
-                <ul className="space-y-2">
-                  <li className="flex items-start">
-                    <Shield className="h-4 w-4 text-indigo-600 mr-2 mt-0.5" />
-                    <span className="text-sm">Garantie de satisfaction</span>
-                  </li>
-                  <li className="flex items-start">
-                    <Calendar className="h-4 w-4 text-indigo-600 mr-2 mt-0.5" />
-                    <span className="text-sm">Délai de livraison de {service.delivery_time} jours</span>
-                  </li>
-                  <li className="flex items-start">
-                    <FileText className="h-4 w-4 text-indigo-600 mr-2 mt-0.5" />
-                    <span className="text-sm">Livrable finalisé</span>
-                  </li>
-                </ul>
-              </div>
-            </CardContent>
-          </Card>
+        <div className="flex flex-col md:flex-row gap-8">
+          <div className="w-full md:w-2/3">
+            <Skeleton className="h-[400px] w-full mb-4" />
+            <div className="grid grid-cols-4 gap-2">
+              {[1, 2, 3, 4].map((i) => (
+                <Skeleton key={i} className="h-24 w-full" />
+              ))}
+            </div>
+          </div>
+          
+          <div className="w-full md:w-1/3">
+            <Skeleton className="h-8 w-3/4 mb-4" />
+            <Skeleton className="h-6 w-1/2 mb-2" />
+            <Skeleton className="h-32 w-full mb-6" />
+            <Skeleton className="h-10 w-full mb-2" />
+            <Skeleton className="h-10 w-full" />
+          </div>
         </div>
+      </div>
+    );
+  }
+
+  // Rendu pour l'état d'erreur
+  if (error) {
+    return (
+      <div className="container mx-auto py-8 px-4">
+        <div className="mb-6">
+          <Link href="/services" className="inline-flex items-center text-indigo-600 hover:text-indigo-800">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Retour aux services
+          </Link>
+        </div>
+        
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 my-8 flex flex-col items-center justify-center">
+          <AlertTriangle className="text-red-500 h-12 w-12 mb-4" />
+          <h2 className="text-xl font-bold text-red-700 mb-2">Service introuvable</h2>
+          <p className="text-red-600 text-center mb-4">{error}</p>
+          <Button asChild variant="default">
+            <Link href="/services">Parcourir tous les services</Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Rendu pour afficher les détails du service
+  return (
+    <div className="bg-gradient-to-b from-indigo-50/50 to-white min-h-screen">
+      <div className="container mx-auto py-8 px-4">
+        <div className="mb-6">
+          <Link href="/services" className="inline-flex items-center text-indigo-600 hover:text-indigo-800">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Retour aux services
+          </Link>
+        </div>
+        
+        {service && (
+          <ServiceView 
+            service={service}
+            loading={false}
+            error={null}
+            isFreelanceView={false}
+            relatedServices={relatedServices}
+            loadingRelated={loadingRelated}
+          />
+        )}
       </div>
     </div>
   );

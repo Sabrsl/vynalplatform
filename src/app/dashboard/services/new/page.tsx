@@ -27,6 +27,7 @@ import {
 import { slugify } from "@/lib/utils";
 import { AlertCircle, ArrowLeft, Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
+import ServiceImageUploader from "@/components/services/ServiceImageUploader";
 
 export default function NewServicePage() {
   const router = useRouter();
@@ -51,6 +52,7 @@ export default function NewServicePage() {
   const [subcategoriesForSelected, setSubcategoriesForSelected] = useState<Subcategory[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [images, setImages] = useState<string[]>([]);
   
   // Charger les catégories et sous-catégories
   useEffect(() => {
@@ -111,56 +113,59 @@ export default function NewServicePage() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
   
-  const handleSelectChange = (name: string, value: string) => {
+  const handleSelectChange = (name: string, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
     
+    // Vérifier si l'utilisateur est connecté
     if (!profile) {
       setError("Vous devez être connecté pour créer un service");
       return;
     }
     
-    // Validation basique
-    if (!formData.title.trim()) {
-      setError("Le titre est requis");
-      return;
-    }
+    let price: number = 0;
+    let delivery_time: number = 0;
     
-    if (!formData.description.trim()) {
-      setError("La description est requise");
-      return;
-    }
-    
-    // Vérification de la longueur minimale de la description
-    if (formData.description.trim().length < 500) {
-      setError("La description doit contenir au moins 500 caractères pour bien détailler votre service");
-      return;
-    }
-    
-    if (!formData.category_id) {
-      setError("Veuillez sélectionner une catégorie");
-      return;
-    }
-    
-    const price = parseFloat(formData.price);
-    if (isNaN(price) || price <= 0) {
-      setError("Le prix doit être un nombre positif");
-      return;
-    }
-    
-    // Vérification du prix minimum
-    if (price < 2000) {
-      setError("Le prix minimum d'un service doit être de 2000 FCFA");
-      return;
-    }
-    
-    const delivery_time = parseInt(formData.delivery_time);
-    if (isNaN(delivery_time) || delivery_time <= 0) {
-      setError("Le délai de livraison doit être un nombre entier positif");
+    try {
+      // Validation des champs obligatoires
+      if (!formData.title.trim()) {
+        throw new Error("Le titre est obligatoire");
+      }
+      
+      if (!formData.description.trim()) {
+        throw new Error("La description est obligatoire");
+      }
+      
+      if (!formData.category_id) {
+        throw new Error("La catégorie est obligatoire");
+      }
+      
+      // Conversion et validation du prix
+      if (!formData.price) {
+        throw new Error("Le prix est obligatoire");
+      }
+      
+      price = Number(formData.price.replace(/\s/g, "").replace(",", "."));
+      
+      if (isNaN(price) || price <= 0) {
+        throw new Error("Le prix doit être un nombre positif");
+      }
+      
+      // Conversion et validation du temps de livraison
+      if (!formData.delivery_time) {
+        throw new Error("Le temps de livraison est obligatoire");
+      }
+      
+      delivery_time = Number(formData.delivery_time);
+      
+      if (isNaN(delivery_time) || delivery_time <= 0 || !Number.isInteger(delivery_time)) {
+        throw new Error("Le temps de livraison doit être un nombre entier positif");
+      }
+    } catch (err: any) {
+      setError(err.message || "Une erreur est survenue lors de la validation du formulaire");
       return;
     }
     
@@ -180,14 +185,22 @@ export default function NewServicePage() {
         freelance_id: profile.id,
         slug,
         active: formData.active,
+        images: images, // Ajouter les images au service
       });
       
       if (!result.success) {
         throw new Error(result.error);
       }
       
-      // Rediriger vers la liste des services du freelance
-      router.push("/dashboard/services");
+      // Vérifier si le service a été créé avec des images
+      if (images.length > 0 && (!result.service.images || result.service.images.length === 0)) {
+        // Le service a été créé mais sans les images
+        // On redirige quand même l'utilisateur mais on l'informe du problème
+        router.push("/dashboard/services?status=created-without-images");
+      } else {
+        // Rediriger vers la liste des services du freelance
+        router.push("/dashboard/services");
+      }
     } catch (err: any) {
       setError(err.message || "Une erreur est survenue lors de la création du service");
       console.error("Erreur lors de la création du service:", err);
@@ -205,7 +218,7 @@ export default function NewServicePage() {
   }
   
   return (
-    <div className="p-4 sm:p-6">
+    <div className="container mx-auto px-4 py-8">
       <div className="flex items-center mb-6">
         <Button 
           variant="ghost" 
@@ -215,128 +228,106 @@ export default function NewServicePage() {
           <ArrowLeft className="w-4 h-4 mr-2" />
           Retour
         </Button>
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Nouveau service</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Créer un service</h1>
       </div>
       
       {error && (
-        <div className="bg-red-50 p-4 rounded-md flex items-start mb-6 text-red-800">
-          <AlertCircle className="w-5 h-5 mr-2 flex-shrink-0 mt-0.5" />
-          <p className="text-sm">{error}</p>
+        <div className="bg-red-50 border border-red-200 text-red-800 p-4 rounded-lg mb-6 flex gap-2 items-start">
+          <AlertCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+          <p>{error}</p>
         </div>
       )}
-      
-      <Card>
-        <CardHeader>
-          <CardTitle>Informations du service</CardTitle>
-          <CardDescription>
-            Renseignez les détails de votre service pour attirer des clients
-          </CardDescription>
-        </CardHeader>
-        
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid gap-6">
-              <div className="grid gap-2">
-                <Label htmlFor="title">Titre du service*</Label>
+
+      <form onSubmit={handleSubmit}>
+        <div className="grid gap-6 md:grid-cols-2">
+          <Card className="md:col-span-1">
+            <CardHeader>
+              <CardTitle>Informations générales</CardTitle>
+              <CardDescription>Définissez les informations principales de votre service</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="title">Titre du service *</Label>
                 <Input
                   id="title"
                   name="title"
                   value={formData.title}
                   onChange={handleChange}
-                  placeholder="Ex: Je crée un logo professionnel pour votre entreprise"
-                  disabled={isSubmitting}
+                  placeholder="Ex: Je vais créer un logo professionnel pour votre entreprise"
+                  maxLength={100}
+                  required
                 />
-                <p className="text-xs text-muted-foreground">
-                  Choisissez un titre clair et accrocheur qui décrit bien votre service
+                <p className="text-xs text-gray-500">
+                  {formData.title.length}/100 caractères
                 </p>
               </div>
               
-              <div className="grid gap-2">
-                <Label htmlFor="description">Description détaillée*</Label>
+              <div className="space-y-2">
+                <Label htmlFor="description">Description *</Label>
                 <Textarea
                   id="description"
                   name="description"
                   value={formData.description}
                   onChange={handleChange}
-                  placeholder="Décrivez en détail votre service, ce qu'il inclut, votre processus de travail, etc."
+                  placeholder="Décrivez en détail ce que vous proposez, vos compétences, le process, etc."
                   rows={8}
-                  disabled={isSubmitting}
+                  required
                 />
-                <p className="text-xs text-muted-foreground">
-                  Minimum 500 caractères. Soyez précis pour que les clients comprennent exactement ce que vous proposez.
-                </p>
-                <div className="text-xs text-right">
-                  {formData.description.length} / 500 caractères minimum
-                </div>
               </div>
               
-              <div className="grid gap-6 sm:grid-cols-2">
-                <div className="grid gap-2">
-                  <Label htmlFor="price">Prix (FCFA)*</Label>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="price">Prix (FCFA) *</Label>
                   <Input
                     id="price"
                     name="price"
-                    type="number"
                     value={formData.price}
                     onChange={handleChange}
-                    placeholder="Ex: 15000"
-                    min="2000"
-                    disabled={isSubmitting}
+                    placeholder="Ex: 5000"
+                    required
                   />
-                  <p className="text-xs text-muted-foreground">
-                    Prix minimum: 2000 FCFA
-                  </p>
                 </div>
                 
-                <div className="grid gap-2">
-                  <Label htmlFor="delivery_time">Délai de livraison (jours)*</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="delivery_time">Délai de livraison (jours) *</Label>
                   <Input
                     id="delivery_time"
                     name="delivery_time"
-                    type="number"
                     value={formData.delivery_time}
                     onChange={handleChange}
                     placeholder="Ex: 3"
-                    min="1"
-                    disabled={isSubmitting}
+                    required
                   />
-                  <p className="text-xs text-muted-foreground">
-                    Combien de jours vous faut-il pour livrer ce service?
-                  </p>
                 </div>
               </div>
               
-              <div className="grid gap-6 sm:grid-cols-2">
-                <div className="grid gap-2">
-                  <Label htmlFor="category">Catégorie*</Label>
+              <div className="space-y-2">
+                <Label htmlFor="category_id">Catégorie *</Label>
+                <Select
+                  value={formData.category_id}
+                  onValueChange={(value) => handleSelectChange("category_id", value)}
+                >
+                  <SelectTrigger id="category_id" className="w-full">
+                    <SelectValue placeholder="Sélectionnez une catégorie" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((category) => (
+                      <SelectItem key={category.id} value={category.id}>
+                        {category.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {subcategoriesForSelected.length > 0 && (
+                <div className="space-y-2">
+                  <Label htmlFor="subcategory_id">Sous-catégorie</Label>
                   <Select
-                    name="category_id"
-                    value={formData.category_id}
-                    onValueChange={(value) => handleSelectChange("category_id", value)}
-                    disabled={isSubmitting || categories.length === 0}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Sélectionnez une catégorie" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categories.map((category) => (
-                        <SelectItem key={category.id} value={category.id}>
-                          {category.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div className="grid gap-2">
-                  <Label htmlFor="subcategory">Sous-catégorie</Label>
-                  <Select
-                    name="subcategory_id"
                     value={formData.subcategory_id}
                     onValueChange={(value) => handleSelectChange("subcategory_id", value)}
-                    disabled={isSubmitting || subcategoriesForSelected.length === 0 || !formData.category_id}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger id="subcategory_id" className="w-full">
                       <SelectValue placeholder="Sélectionnez une sous-catégorie" />
                     </SelectTrigger>
                     <SelectContent>
@@ -348,47 +339,61 @@ export default function NewServicePage() {
                     </SelectContent>
                   </Select>
                 </div>
-              </div>
+              )}
               
-              <div className="grid gap-2">
+              <div className="space-y-2">
                 <Label htmlFor="active">Statut</Label>
                 <Select
-                  name="active"
                   value={formData.active ? "true" : "false"}
-                  onValueChange={(value) => handleSelectChange("active", value)}
-                  disabled={isSubmitting}
+                  onValueChange={(value) => handleSelectChange("active", value === "true")}
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sélectionnez le statut" />
+                  <SelectTrigger id="active" className="w-full">
+                    <SelectValue placeholder="Statut du service" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="true">Actif (visible par les clients)</SelectItem>
-                    <SelectItem value="false">Inactif (masqué pour les clients)</SelectItem>
+                    <SelectItem value="true">Actif</SelectItem>
+                    <SelectItem value="false">Inactif</SelectItem>
                   </SelectContent>
                 </Select>
-                <p className="text-xs text-muted-foreground">
-                  Un service inactif ne sera pas visible dans la recherche ou sur votre profil
+                <p className="text-xs text-gray-500">
+                  Un service inactif ne sera pas visible par les clients
                 </p>
               </div>
-            </div>
-            
-            <Button 
-              type="submit" 
-              disabled={isSubmitting} 
-              className="w-full sm:w-auto mt-6"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Création en cours...
-                </>
-              ) : (
-                "Créer le service"
-              )}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+          
+          <Card className="md:col-span-1">
+            <CardHeader>
+              <CardTitle>Images</CardTitle>
+              <CardDescription>Ajoutez des images représentatives de votre service</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ServiceImageUploader onImagesChange={setImages} />
+            </CardContent>
+          </Card>
+          
+          <Card className="md:col-span-2">
+            <CardContent className="pt-6">
+              <div className="flex justify-end">
+                <Button 
+                  type="submit" 
+                  disabled={isSubmitting}
+                  className="w-full sm:w-auto"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Création en cours...
+                    </>
+                  ) : (
+                    "Créer le service"
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </form>
     </div>
   );
 } 

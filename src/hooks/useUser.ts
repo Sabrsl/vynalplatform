@@ -4,7 +4,9 @@ import { useAuth } from './useAuth';
 import { Database } from '@/types/database';
 
 // Type pour le profil utilisateur complet
-export type Profile = Database['public']['Tables']['profiles']['Row'];
+export type Profile = Database['public']['Tables']['profiles']['Row'] & {
+  last_seen?: string | null;
+};
 
 export function useUser() {
   const { user } = useAuth();

@@ -1,14 +1,14 @@
-import { Metadata } from 'next';
+"use client";
+
 import LoginForm from '@/components/auth/login-form';
 import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
-
-export const metadata: Metadata = {
-  title: 'Connexion | Vynal Platform',
-  description: 'Connectez-vous à votre compte Vynal Platform',
-};
+import { useSearchParams } from 'next/navigation';
 
 export default function LoginPage() {
+  const searchParams = useSearchParams();
+  const redirect = searchParams.get('redirect') || '/dashboard';
+  
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
@@ -28,7 +28,7 @@ export default function LoginPage() {
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <LoginForm />
+        <LoginForm redirectPath={redirect} />
       </div>
     </div>
   );

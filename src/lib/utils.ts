@@ -31,12 +31,17 @@ export function getCurrencySymbol(): string {
  * Génère un slug à partir d'une chaîne
  */
 export function slugify(str: string): string {
-  return str
+  // Créer le slug de base
+  const baseSlug = str
     .toLowerCase()
     .trim()
     .replace(/[^\w\s-]/g, '')
     .replace(/[\s_-]+/g, '-')
     .replace(/^-+|-+$/g, '')
+  
+  // Ajouter un timestamp à la fin pour garantir l'unicité
+  const timestamp = Date.now().toString().slice(-6)
+  return `${baseSlug}-${timestamp}`
 }
 
 /**
@@ -111,4 +116,11 @@ export function formatDate(date: Date | string): string {
     month: '2-digit',
     year: 'numeric'
   });
+}
+
+/**
+ * Formate la distance entre maintenant et une date passée
+ */
+export function formatDistanceToNow(date: Date | string): string {
+  return timeAgo(date);
 } 

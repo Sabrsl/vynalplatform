@@ -13,7 +13,11 @@ const LOCKOUT_DURATION = 5 * 60 * 1000; // 5 minutes en millisecondes
 const LOGIN_ATTEMPTS_KEY = "login_attempts";
 const LOCKOUT_TIME_KEY = "login_lockout_time";
 
-export default function LoginForm() {
+interface LoginFormProps {
+  redirectPath?: string;
+}
+
+export default function LoginForm({ redirectPath = "/dashboard" }: LoginFormProps) {
   const router = useRouter();
   const { signIn, signInWithGoogle } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
@@ -119,7 +123,10 @@ export default function LoginForm() {
       if (success) {
         // Réinitialiser les tentatives en cas de succès
         resetLoginAttempts();
-        router.push("/dashboard");
+        
+        // Utiliser le chemin de redirection fourni au lieu de la valeur codée en dur
+        console.log("Redirection vers:", redirectPath);
+        router.push(redirectPath);
       } else {
         // Incrémenter les tentatives en cas d'échec
         incrementLoginAttempts();

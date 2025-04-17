@@ -112,11 +112,11 @@ export default function ProfilePage() {
           throw new Error("Problème de permission avec le bucket de stockage. Contactez l'administrateur.");
         }
         
-        if (uploadError.message?.includes("not found") || uploadError.statusCode === 404) {
+        if (uploadError.message?.includes("not found") || (uploadError as any).statusCode === 404) {
           throw new Error("Le bucket 'avatars' n'existe pas. Contactez l'administrateur.");
         }
         
-        if (uploadError.message?.includes("permission") || uploadError.statusCode === 403) {
+        if (uploadError.message?.includes("permission")) {
           throw new Error("Permission refusée pour le stockage. Contactez l'administrateur.");
         }
         

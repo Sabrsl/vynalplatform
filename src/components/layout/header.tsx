@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useUser } from "@/hooks/useUser";
 import { Button } from "@/components/ui/button";
+import SearchBar from "@/components/categories/SearchBar";
 import { 
   User, 
   LogOut, 
@@ -17,7 +18,9 @@ import {
   MessageSquare, 
   Settings, 
   Wallet,
-  PlusCircle
+  PlusCircle,
+  Search,
+  Users
 } from "lucide-react";
 
 export default function Header() {
@@ -25,10 +28,34 @@ export default function Header() {
   const { user, signOut } = useAuth();
   const { profile, isFreelance, isClient, isAdmin } = useUser();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchBarVisible, setSearchBarVisible] = useState(false);
+  const searchBarRef = useRef<HTMLDivElement>(null);
+  const searchButtonRef = useRef<HTMLButtonElement>(null);
 
   const isActive = (path: string) => {
     return pathname === path || pathname?.startsWith(`${path}/`);
   };
+
+  // Fermer la barre de recherche si l'utilisateur clique en dehors
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        searchBarVisible &&
+        searchBarRef.current &&
+        !searchBarRef.current.contains(event.target as Node) &&
+        searchButtonRef.current &&
+        !searchButtonRef.current.contains(event.target as Node)
+      ) {
+        setSearchBarVisible(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [searchBarVisible]);
 
   const navigation = [
     { name: "Accueil", href: "/", icon: Home },
@@ -49,6 +76,28 @@ export default function Header() {
     { name: "Profil", href: "/dashboard/profile", icon: User },
   ];
 
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      // Rediriger vers la page services avec le paramètre de recherche
+      window.location.href = `/services?search=${encodeURIComponent(searchQuery.trim())}`;
+      setSearchBarVisible(false);
+    }
+  };
+
+  const toggleSearchBar = () => {
+    setSearchBarVisible(!searchBarVisible);
+    // Donner le focus à l'input après l'avoir affiché
+    if (!searchBarVisible) {
+      setTimeout(() => {
+        const searchInput = searchBarRef.current?.querySelector('input');
+        if (searchInput) {
+          searchInput.focus();
+        }
+      }, 100);
+    }
+  };
+
   return (
     <header className="bg-white shadow-sm">
       <div className="container mx-auto px-4">
@@ -57,6 +106,20 @@ export default function Header() {
           <Link href="/" className="flex items-center">
             <span className="text-xl font-bold text-gray-900">Vynal Platform</span>
           </Link>
+
+          {/* Search Bar - Desktop */}
+          {pathname.includes('/services') && (
+            <div className="hidden md:block w-[300px]">
+              <SearchBar 
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+                onSearch={handleSearch}
+                className="h-9 border border-gray-200 shadow-sm"
+                placeholder="Rechercher un service..."
+                showFiltersButton={false}
+              />
+            </div>
+          )}
 
           {/* Desktop Nav */}
           <nav className="hidden md:flex items-center space-x-8">
@@ -111,8 +174,18 @@ export default function Header() {
             )}
           </div>
 
-          {/* Mobile Menu Button */}
-          <div className="md:hidden">
+          {/* Mobile Menu Button and Search Icon */}
+          <div className="md:hidden flex items-center gap-2">
+            {pathname.includes('/services') && (
+              <button
+                ref={searchButtonRef}
+                onClick={toggleSearchBar}
+                className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-full"
+                aria-label="Rechercher"
+              >
+                <Search className="h-5 w-5" />
+              </button>
+            )}
             <Button
               variant="ghost"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -129,6 +202,23 @@ export default function Header() {
           </div>
         </div>
       </div>
+
+      {/* Search Bar - Mobile */}
+      {pathname.includes('/services') && searchBarVisible && (
+        <div 
+          ref={searchBarRef}
+          className="md:hidden absolute left-0 right-0 px-4 py-2 bg-white border-b border-gray-200 shadow-md z-50 transition-all duration-300 ease-in-out animate-in fade-in slide-in-from-top-5"
+        >
+          <SearchBar 
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            onSearch={handleSearch}
+            className="h-10 border border-gray-200 shadow-sm"
+            placeholder="Rechercher un service..."
+            showFiltersButton={false}
+          />
+        </div>
+      )}
 
       {/* Mobile Menu */}
       {mobileMenuOpen && (
