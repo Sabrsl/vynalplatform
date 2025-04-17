@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
+import { useUser } from "@/hooks/useUser";
 import { ServiceSummary } from "@/components/orders/ServiceSummary";
 import { PaymentMethodCard } from "@/components/orders/PaymentMethodCard";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,7 @@ import { PaymentForm } from "@/components/orders/PaymentForm";
 
 export default function PaymentPage() {
   const { user } = useAuth();
+  const { profile } = useUser();
   const router = useRouter();
   const searchParams = useSearchParams();
   const serviceId = searchParams.get("serviceId");
@@ -26,6 +28,7 @@ export default function PaymentPage() {
   const [service, setService] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [errorFading, setErrorFading] = useState(false);
+  const [isOwnService, setIsOwnService] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>("");
   const [paymentProcessing, setPaymentProcessing] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
@@ -72,6 +75,7 @@ export default function PaymentPage() {
       return;
     }
 
+    // Vérifier si l'utilisateur a un rôle de freelance dans les métadonnées
     if (user?.user_metadata?.role === "freelance") {
       router.push("/dashboard");
       setError("Les prestataires ne peuvent pas effectuer de paiements");
@@ -119,6 +123,14 @@ export default function PaymentPage() {
           throw new Error("Service non trouvé");
         }
         
+        // Vérifier si l'utilisateur est le propriétaire du service
+        if (profile && data.freelance_id === profile.id) {
+          setIsOwnService(true);
+          setError("Vous ne pouvez pas commander votre propre service");
+          router.push(`/dashboard/services/${serviceId}`);
+          return;
+        }
+        
         // Récupérer la note moyenne du prestataire si disponible
         let rating = 0;
         if (data.freelance_id) {
@@ -149,9 +161,15 @@ export default function PaymentPage() {
     };
 
     fetchService();
-  }, [user, router, serviceId]);
+  }, [user, router, serviceId, profile]);
 
   const handlePayment = async () => {
+    // Vérifier si c'est le propre service de l'utilisateur
+    if (isOwnService) {
+      setError("Vous ne pouvez pas commander votre propre service");
+      return;
+    }
+    
     if (!selectedPaymentMethod) {
       setError("Veuillez sélectionner une méthode de paiement");
       return;
@@ -257,8 +275,39 @@ export default function PaymentPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="animate-spin w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full"></div>
-        <p className="ml-3 text-gray-500">Chargement du service...</p>
+        <Loader className="h-8 w-8 animate-spin text-indigo-600" />
+      </div>
+    );
+  }
+
+  if (isOwnService) {
+    return (
+      <div className="max-w-3xl mx-auto mt-8">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center py-8">
+              <AlertCircle className="h-12 w-12 text-amber-500 mx-auto mb-4" />
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">
+                Vous ne pouvez pas commander votre propre service
+              </h2>
+              <p className="text-gray-600 mb-6">
+                En tant que prestataire, vous ne pouvez pas acheter les services que vous proposez.
+              </p>
+              <div className="flex justify-center">
+                <Button onClick={() => router.push('/dashboard/services')} className="mx-2">
+                  Retour à mes services
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => router.push('/services')} 
+                  className="mx-2"
+                >
+                  Explorer d'autres services
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }

@@ -3,32 +3,18 @@
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
+import { useUser } from "@/hooks/useUser";
 import { ServiceSummary } from "@/components/orders/ServiceSummary";
 import { OrderForm } from "@/components/orders/OrderForm";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Clock, Loader } from "lucide-react";
+import { ArrowLeft, Clock, Loader, AlertCircle } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
 import Link from "next/link";
-
-// Données fictives pour la démo
-const MOCK_SERVICE = {
-  id: "service-1",
-  title: "Création d'un logo professionnel avec identité visuelle complète",
-  description: "Je vais concevoir un logo professionnel unique pour votre entreprise ou projet. Le processus comprend 3 propositions initiales, puis des révisions illimitées sur le design choisi jusqu'à votre satisfaction totale. Livraison de tous les fichiers sources (AI, EPS, PDF, PNG, JPG) prêts à l'emploi.",
-  price: 150,
-  delivery_time: 3,
-  category: "Design & Graphisme",
-  freelance: {
-    id: "freelance-1",
-    username: "designpro",
-    full_name: "Marie Dupont",
-    avatar_url: "https://i.pravatar.cc/150?img=32",
-    rating: 4.9
-  },
-  image_url: "https://images.unsplash.com/photo-1629429407759-01cd3d7cfb38?q=80&w=2000&auto=format&fit=crop"
-};
+import { supabase } from "@/lib/supabase/client";
 
 export default function NewOrderPage() {
   const { user } = useAuth();
+  const { profile } = useUser();
   const router = useRouter();
   const searchParams = useSearchParams();
   const serviceId = searchParams.get("serviceId");
@@ -36,6 +22,7 @@ export default function NewOrderPage() {
   const [loading, setLoading] = useState(true);
   const [service, setService] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isOwnService, setIsOwnService] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -48,35 +35,114 @@ export default function NewOrderPage() {
       return;
     }
 
-    // Dans une vraie application, récupérez les données du service depuis l'API
+    // Récupérer les données du service depuis l'API
     const fetchService = async () => {
       setLoading(true);
       try {
-        // Simuler un appel API
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
         if (!serviceId) {
           setError("Aucun service n'a été spécifié");
           return;
         }
         
-        // Utilisez les données fictives pour la démo
-        setService(MOCK_SERVICE);
-      } catch (err) {
+        // Appel à Supabase pour récupérer les données du service
+        const { data, error: fetchError } = await supabase
+          .from('services')
+          .select(`
+            *,
+            profiles!services_freelance_id_fkey (
+              id, 
+              username, 
+              full_name, 
+              avatar_url
+            )
+          `)
+          .eq('id', serviceId)
+          .single();
+        
+        if (fetchError) {
+          console.error("Erreur lors de la récupération du service:", fetchError);
+          throw new Error(fetchError.message);
+        }
+        
+        if (!data) {
+          throw new Error("Service non trouvé");
+        }
+        
+        // Vérifier si l'utilisateur est le propriétaire du service
+        if (profile && data.freelance_id === profile.id) {
+          setIsOwnService(true);
+          setError("Vous ne pouvez pas commander votre propre service");
+          return;
+        }
+        
+        // Récupérer la note moyenne du prestataire si disponible
+        let rating = 0;
+        if (data.freelance_id) {
+          const { data: reviewsData, error: reviewsError } = await supabase
+            .from('reviews')
+            .select('rating')
+            .eq('freelance_id', data.freelance_id);
+            
+          if (!reviewsError && reviewsData && reviewsData.length > 0) {
+            rating = reviewsData.reduce((sum, review) => sum + review.rating, 0) / reviewsData.length;
+          }
+        }
+        
+        // Formater les données du service
+        setService({
+          ...data,
+          profiles: data.profiles ? {
+            ...data.profiles,
+            rating: rating
+          } : undefined
+        });
+      } catch (err: any) {
         console.error("Erreur lors de la récupération du service", err);
-        setError("Une erreur s'est produite lors du chargement du service");
+        setError(err.message || "Une erreur s'est produite lors du chargement du service");
       } finally {
         setLoading(false);
       }
     };
 
     fetchService();
-  }, [user, router, serviceId]);
+  }, [user, router, serviceId, profile]);
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <Loader className="h-8 w-8 animate-spin text-indigo-600" />
+      </div>
+    );
+  }
+
+  if (isOwnService) {
+    return (
+      <div className="max-w-3xl mx-auto mt-8">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center py-8">
+              <AlertCircle className="h-12 w-12 text-amber-500 mx-auto mb-4" />
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">
+                Vous ne pouvez pas commander votre propre service
+              </h2>
+              <p className="text-gray-600 mb-6">
+                En tant que prestataire, vous ne pouvez pas acheter les services que vous proposez.
+              </p>
+              <div className="flex justify-center">
+                <Button onClick={() => router.push('/dashboard/services')} className="mx-2">
+                  Retour à mes services
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => router.push('/services')} 
+                  className="mx-2"
+                >
+                  Explorer d'autres services
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -123,7 +189,7 @@ export default function NewOrderPage() {
         </div>
         
         <div className="lg:col-span-2">
-          <OrderForm serviceId={service.id} price={service.price} />
+          <OrderForm serviceId={service.id} />
         </div>
       </div>
     </div>

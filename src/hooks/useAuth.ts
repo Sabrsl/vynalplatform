@@ -97,11 +97,19 @@ export function useAuth() {
 
   const signOut = async () => {
     try {
+      // Déconnexion sécurisée avec Supabase
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
-      router.push('/'); // Rediriger vers la page d'accueil après déconnexion
+      
+      // Réinitialiser les données utilisateur en local
+      setUser(null);
+      
+      // Redirection vers la page d'accueil
+      window.location.href = '/';
+      
       return { success: true };
     } catch (error) {
+      console.error("Erreur lors de la déconnexion:", error);
       return { success: false, error };
     }
   };

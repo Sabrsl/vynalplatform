@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useUser } from "@/hooks/useUser";
 import { Button } from "@/components/ui/button";
 import SearchBar from "@/components/categories/SearchBar";
+import { supabase } from "@/lib/supabase/client";
 import { 
   User, 
   LogOut, 
@@ -32,6 +33,7 @@ export default function Header() {
   const [searchBarVisible, setSearchBarVisible] = useState(false);
   const searchBarRef = useRef<HTMLDivElement>(null);
   const searchButtonRef = useRef<HTMLButtonElement>(null);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const isActive = (path: string) => {
     return pathname === path || pathname?.startsWith(`${path}/`);
@@ -98,6 +100,32 @@ export default function Header() {
     }
   };
 
+  // Fonction simplifiée de déconnexion
+  const handleLogout = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    
+    if (isLoggingOut) return;
+    
+    setIsLoggingOut(true);
+    
+    try {
+      // Déconnexion manuelle via Supabase
+      await supabase.auth.signOut();
+      
+      // Nettoyage du local storage
+      localStorage.removeItem('supabase.auth.token');
+      
+      // Attendre un court instant avant de rediriger
+      setTimeout(() => {
+        // Forcer un rechargement complet de la page
+        window.location.href = '/';
+      }, 300);
+    } catch (error) {
+      console.error("Erreur lors de la déconnexion:", error);
+      setIsLoggingOut(false);
+    }
+  };
+
   return (
     <header className="bg-white shadow-sm">
       <div className="container mx-auto px-4">
@@ -151,11 +179,21 @@ export default function Header() {
                 
                 <Button 
                   variant="ghost" 
-                  onClick={() => signOut()}
+                  onClick={handleLogout}
+                  disabled={isLoggingOut}
                   className="text-gray-700 flex items-center gap-2"
                 >
-                  <LogOut className="w-4 h-4" />
-                  Déconnexion
+                  {isLoggingOut ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-gray-600 border-t-transparent rounded-full animate-spin mr-2"></div>
+                      Déconnexion...
+                    </>
+                  ) : (
+                    <>
+                      <LogOut className="w-4 h-4" />
+                      Déconnexion
+                    </>
+                  )}
                 </Button>
               </div>
             ) : (
@@ -260,14 +298,24 @@ export default function Header() {
                 ))}
                 
                 <button
-                  onClick={() => {
-                    signOut();
+                  onClick={async (e) => {
+                    await handleLogout(e);
                     setMobileMenuOpen(false);
                   }}
+                  disabled={isLoggingOut}
                   className="flex items-center w-full px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-100 hover:text-indigo-600 rounded-md"
                 >
-                  <LogOut className="mr-3 h-5 w-5 flex-shrink-0" />
-                  Déconnexion
+                  {isLoggingOut ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-gray-600 border-t-transparent rounded-full animate-spin mr-3"></div>
+                      Déconnexion...
+                    </>
+                  ) : (
+                    <>
+                      <LogOut className="mr-3 h-5 w-5 flex-shrink-0" />
+                      Déconnexion
+                    </>
+                  )}
                 </button>
               </>
             )}

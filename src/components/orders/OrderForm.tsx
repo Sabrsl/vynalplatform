@@ -13,6 +13,8 @@ import { supabase } from "@/lib/supabase/client";
 import { formatPrice } from "@/lib/utils";
 import Image from "next/image";
 import { DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { useAuth } from "@/hooks/useAuth";
+import { useUser } from "@/hooks/useUser";
 
 interface OrderFormProps {
   serviceId: string;
@@ -36,6 +38,8 @@ interface ServiceData {
 
 export function OrderForm({ serviceId }: OrderFormProps) {
   const router = useRouter();
+  const { user } = useAuth();
+  const { profile } = useUser();
   const [loading, setLoading] = useState(false);
   const [loadingService, setLoadingService] = useState(true);
   const [service, setService] = useState<ServiceData | null>(null);
@@ -44,6 +48,7 @@ export function OrderForm({ serviceId }: OrderFormProps) {
   const [files, setFiles] = useState<FileList | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [errorFading, setErrorFading] = useState(false);
+  const [isOwnService, setIsOwnService] = useState(false);
 
   // Effet pour faire disparaître les messages d'erreur après quelques secondes
   useEffect(() => {
@@ -96,6 +101,12 @@ export function OrderForm({ serviceId }: OrderFormProps) {
           throw new Error("Service non trouvé");
         }
         
+        // Vérifier si l'utilisateur est le propriétaire du service
+        if (profile && data.freelance_id === profile.id) {
+          setIsOwnService(true);
+          setError("Vous ne pouvez pas commander votre propre service");
+        }
+        
         // Récupérer la note moyenne du prestataire si disponible
         let rating = 0;
         if (data.freelance_id) {
@@ -128,11 +139,17 @@ export function OrderForm({ serviceId }: OrderFormProps) {
     };
     
     fetchServiceData();
-  }, [serviceId]);
+  }, [serviceId, profile]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    
+    // Empêcher la commande si c'est le propre service de l'utilisateur
+    if (isOwnService) {
+      setError("Vous ne pouvez pas commander votre propre service");
+      return;
+    }
     
     if (!requirements.trim()) {
       setError("Veuillez fournir des instructions pour cette commande");
@@ -210,6 +227,16 @@ export function OrderForm({ serviceId }: OrderFormProps) {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
+          {/* Alerte si c'est le propre service de l'utilisateur */}
+          {isOwnService && (
+            <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-md p-4 mb-4">
+              <div className="flex">
+                <AlertCircle className="h-5 w-5 text-amber-500 mr-2 flex-shrink-0" />
+                <p className="text-sm">Vous ne pouvez pas commander votre propre service.</p>
+              </div>
+            </div>
+          )}
+          
           {/* Résumé du service */}
           <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
             <div className="flex items-start gap-3">
@@ -302,27 +329,29 @@ export function OrderForm({ serviceId }: OrderFormProps) {
             />
           </div>
         </CardContent>
-        <CardFooter className="flex flex-col space-y-4">
-          <div className="flex items-center justify-between w-full">
-            <div className="flex items-center text-slate-600">
-              <Clock className="h-4 w-4 mr-1" />
-              <span className="text-sm">Temps de réponse estimé: 24h</span>
-            </div>
-            <div className="font-medium">
-              Total: {formatPrice(service?.price || 0)}
-            </div>
-          </div>
-          <Button type="submit" className="w-full" disabled={loading}>
+        <CardFooter className="flex justify-between items-center">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => router.back()}
+          >
+            Retour
+          </Button>
+          <Button 
+            type="submit" 
+            disabled={loading || isOwnService}
+            className="gap-2"
+          >
             {loading ? (
-              <div className="flex items-center">
-                <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
-                Traitement en cours...
-              </div>
+              <>
+                <div className="animate-spin w-4 h-4 border-2 border-current border-t-transparent rounded-full" />
+                Chargement...
+              </>
             ) : (
-              <div className="flex items-center">
-                Continuer vers le paiement
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </div>
+              <>
+                Continuer au paiement
+                <ArrowRight className="h-4 w-4 ml-1" />
+              </>
             )}
           </Button>
         </CardFooter>
