@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase/client';
 import type { Database } from '@/types/database';
 import { StateCreator } from 'zustand';
 import { Profile } from '@/hooks/useUser';
+import { validateMessage } from '@/lib/message-validation';
 
 export type Message = Database['public']['Tables']['messages']['Row'] & {
   sender?: Profile;
@@ -426,6 +427,7 @@ export const useMessagingStore = create<MessagingState>(
       set({ isLoading: true, error: null });
       try {
         console.log("Début de création de conversation entre:", participants);
+        console.log("Message initial (avant validation):", initialMessage);
 
         if (!initialMessage || initialMessage.trim() === '') {
           console.error("Message initial requis");
@@ -459,11 +461,42 @@ export const useMessagingStore = create<MessagingState>(
           throw new Error("Vous devez être l'un des participants de la conversation");
         }
 
+        // Validation du contenu du message côté store (doublon de sécurité)
+        console.log("Validation du message dans createConversation...");
+        const validationResult = validateMessage(initialMessage.trim(), {
+          maxLength: 5000,
+          minLength: 1,
+          censorInsteadOfBlock: true,
+          allowQuotedWords: true,
+          allowLowSeverityWords: true,
+          respectRecommendedActions: true
+        });
+        
+        console.log("Résultat de validation dans store:", validationResult);
+        
+        // Si la validation échoue, ne pas créer la conversation
+        if (!validationResult.isValid) {
+          const errMsg = validationResult.errors.join(', ');
+          console.error("Validation du message échouée dans le store:", errMsg);
+          throw new Error(errMsg);
+        }
+        
+        // Utiliser le message potentiellement censuré
+        let finalMessageText = validationResult.message;
+        
+        // Si le message a été censuré, ajouter un marqueur spécial
+        if (validationResult.censored) {
+          finalMessageText += " [Ce message a été modéré automatiquement]";
+          console.log("Message censuré dans le store:", finalMessageText);
+        }
+
         // Utiliser la fonction RPC pour créer la conversation en une seule transaction
         console.log("Appel de la fonction RPC create_conversation_with_message");
+        console.log("Message à envoyer (après validation):", finalMessageText.trim());
+        
         const { data, error } = await supabase.rpc('create_conversation_with_message', {
           p_participants: participants,
-          p_initial_message: initialMessage.trim(),
+          p_initial_message: finalMessageText.trim(),
           p_sender_id: currentUserId // Utiliser l'ID de l'utilisateur actuel comme expéditeur
         });
 

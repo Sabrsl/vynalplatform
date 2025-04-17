@@ -12,6 +12,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ShieldAlert } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
+import { validateMessage } from '@/lib/message-validation';
 
 interface MessagingDialogProps {
   freelanceId: string;
@@ -49,6 +50,7 @@ const MessagingDialog: React.FC<MessagingDialogProps> = ({
   
   const handleSendMessage = async () => {
     try {
+      console.log("🔍 Début du processus d'envoi de message via MessagingDialog");
       setError(null);
       
       if (!user?.id) {
@@ -86,12 +88,43 @@ const MessagingDialog: React.FC<MessagingDialogProps> = ({
         console.error(errMsg);
         return;
       }
+
+      console.log("🔍 Validation du message avec validateMessage...");
+      // Valider le contenu du message (mots interdits, etc.)
+      const validationResult = validateMessage(message.trim(), {
+        maxLength: 5000,
+        minLength: 1,
+        censorInsteadOfBlock: true,
+        allowQuotedWords: true,
+        allowLowSeverityWords: true,
+        respectRecommendedActions: true
+      });
+      
+      console.log("🔍 Résultat de validation:", validationResult);
+      
+      if (!validationResult.isValid) {
+        const errMsg = validationResult.errors.join(', ');
+        setError(errMsg);
+        console.error("Validation du message échouée:", errMsg);
+        return;
+      }
+      
+      // Utiliser le message potentiellement censuré
+      let finalMessageText = validationResult.message;
+      
+      // Si le message a été censuré, ajouter un marqueur spécial
+      if (validationResult.censored) {
+        finalMessageText += " [Ce message a été modéré automatiquement]";
+        console.log("Message censuré:", finalMessageText);
+      }
       
       // Créer une conversation avec un message initial
       console.log("Appel à createConversation avec les participants:", [user.id, freelanceId]);
+      console.log("Message final à envoyer:", finalMessageText.trim());
+      
       const conversationId = await createConversation(
         [user.id, freelanceId],
-        message.trim()
+        finalMessageText.trim()
       );
       
       if (!conversationId) {
@@ -110,6 +143,20 @@ const MessagingDialog: React.FC<MessagingDialogProps> = ({
         title: "Message envoyé",
         description: `Votre message à ${freelanceName} a été envoyé.`,
       });
+      
+      // Si certains mots ont été censurés, afficher une notification
+      if (validationResult.censored) {
+        toast({
+          title: "Message modéré",
+          description: "Certains mots de votre message ont été censurés automatiquement.",
+        });
+      }
+      
+      // Si une notification de modérateur est nécessaire
+      if (validationResult.shouldNotifyModerator) {
+        // Ici, vous pourriez implémenter une notification à un modérateur
+        console.log("Ce message nécessiterait une vérification par un modérateur:", message);
+      }
       
       // Rediriger vers la conversation
       console.log("Redirection vers la conversation dans 500ms");
