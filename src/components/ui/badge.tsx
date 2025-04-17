@@ -9,12 +9,16 @@ const badgeVariants = cva(
     variants: {
       variant: {
         default:
-          "border-transparent bg-primary text-primary-foreground hover:bg-primary/80",
+          "border-transparent bg-vynal-accent-primary text-vynal-text-primary hover:bg-vynal-accent-primary/80",
         secondary:
-          "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
+          "border-transparent bg-vynal-purple-secondary text-vynal-text-primary hover:bg-vynal-purple-secondary/80",
         destructive:
-          "border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80",
-        outline: "text-foreground",
+          "border-transparent bg-vynal-status-error text-vynal-text-primary hover:bg-vynal-status-error/80",
+        outline: "text-vynal-text-primary border-vynal-purple-secondary",
+        success:
+          "border-transparent bg-vynal-status-success text-vynal-text-primary hover:bg-vynal-status-success/80",
+        warning:
+          "border-transparent bg-vynal-status-warning text-vynal-purple-dark hover:bg-vynal-status-warning/80",
       },
     },
     defaultVariants: {

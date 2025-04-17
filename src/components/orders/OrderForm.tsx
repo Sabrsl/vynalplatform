@@ -7,17 +7,28 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useRouter } from "next/navigation";
-import { Calendar, Clock, FileText, Upload, AlertCircle, ArrowRight } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, FileText, Upload, AlertCircle, ArrowRight, X } from "lucide-react";
 import { FileUpload } from "@/components/orders/FileUpload";
 import { supabase } from "@/lib/supabase/client";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice, formatFileSize } from "@/lib/utils";
 import Image from "next/image";
 import { DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useUser } from "@/hooks/useUser";
+import { cn } from "@/lib/utils";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { addDays, format } from "date-fns";
+import { fr } from "date-fns/locale";
+import { useDropzone } from "react-dropzone";
+import { FileIcon } from "lucide-react";
+import { Loader } from "@/components/ui/loader";
+import { useForm } from "react-hook-form";
+import { Calendar } from "@/components/ui/calendar";
 
 interface OrderFormProps {
   serviceId: string;
+  onClose?: () => void;
 }
 
 interface ServiceData {
@@ -36,7 +47,7 @@ interface ServiceData {
   };
 }
 
-export function OrderForm({ serviceId }: OrderFormProps) {
+export function OrderForm({ serviceId, onClose }: OrderFormProps) {
   const router = useRouter();
   const { user } = useAuth();
   const { profile } = useUser();
@@ -45,10 +56,29 @@ export function OrderForm({ serviceId }: OrderFormProps) {
   const [service, setService] = useState<ServiceData | null>(null);
   const [requirements, setRequirements] = useState("");
   const [deliveryDate, setDeliveryDate] = useState("");
-  const [files, setFiles] = useState<FileList | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [errorFading, setErrorFading] = useState(false);
   const [isOwnService, setIsOwnService] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [fileError, setFileError] = useState<string | null>(null);
+  
+  // Setup react-hook-form
+  const form = useForm({
+    defaultValues: {
+      requirements: "",
+      deliveryDate: undefined as unknown as Date
+    }
+  });
+
+  // Setup dropzone
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop: (acceptedFiles) => {
+      setFiles(acceptedFiles);
+    },
+    maxFiles: 5,
+    maxSize: 10 * 1024 * 1024, // 10MB
+  });
 
   // Effet pour faire disparaître les messages d'erreur après quelques secondes
   useEffect(() => {
@@ -69,6 +99,13 @@ export function OrderForm({ serviceId }: OrderFormProps) {
       return () => clearTimeout(fadeTimer);
     }
   }, [error]);
+
+  // Retrait d'un fichier de la liste
+  const removeFile = (index: number) => {
+    if (files.length === 0) return;
+    
+    setFiles(files.filter((_, i) => i !== index));
+  };
 
   // Charger les données du service
   useEffect(() => {
@@ -141,8 +178,8 @@ export function OrderForm({ serviceId }: OrderFormProps) {
     fetchServiceData();
   }, [serviceId, profile]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Handle form submission
+  const onSubmit = form.handleSubmit((data) => {
     setError(null);
     
     // Empêcher la commande si c'est le propre service de l'utilisateur
@@ -151,25 +188,25 @@ export function OrderForm({ serviceId }: OrderFormProps) {
       return;
     }
     
-    if (!requirements.trim()) {
+    if (!data.requirements || !data.requirements.trim()) {
       setError("Veuillez fournir des instructions pour cette commande");
       return;
     }
 
-    if (!deliveryDate) {
+    if (!data.deliveryDate) {
       setError("Veuillez sélectionner une date de livraison souhaitée");
       return;
     }
 
-    setLoading(true);
+    setSubmitting(true);
 
     try {
       // Préparation des données de la commande pour le sessionStorage
       const orderData = {
         service_id: serviceId,
-        requirements,
-        delivery_date: deliveryDate,
-        has_files: files && files.length > 0
+        requirements: data.requirements,
+        delivery_date: data.deliveryDate.toISOString(),
+        has_files: files.length > 0
       };
       
       // Stockage des données temporaire dans le sessionStorage
@@ -181,9 +218,9 @@ export function OrderForm({ serviceId }: OrderFormProps) {
       console.error("Erreur lors de la préparation de la commande", err);
       setError("Une erreur s'est produite lors de la préparation de la commande: " + (err.message || ""));
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
-  };
+  });
 
   if (loadingService) {
     return (
@@ -218,29 +255,20 @@ export function OrderForm({ serviceId }: OrderFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit}>
-      <Card>
-        <CardHeader>
-          <CardTitle>Détails de votre commande</CardTitle>
-          <CardDescription>
-            Veuillez fournir toutes les informations nécessaires pour votre projet
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Alerte si c'est le propre service de l'utilisateur */}
-          {isOwnService && (
-            <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-md p-4 mb-4">
-              <div className="flex">
-                <AlertCircle className="h-5 w-5 text-amber-500 mr-2 flex-shrink-0" />
-                <p className="text-sm">Vous ne pouvez pas commander votre propre service.</p>
-              </div>
-            </div>
-          )}
-          
+    <>
+      <DialogHeader className="bg-gradient-to-b from-vynal-purple-dark to-vynal-purple-darkest p-4 rounded-t-lg border-b border-vynal-purple-secondary/30">
+        <DialogTitle className="text-vynal-text-primary">Commander un service</DialogTitle>
+        <DialogDescription className="text-vynal-text-secondary">
+          Fournissez les détails pour votre commande
+        </DialogDescription>
+      </DialogHeader>
+      
+      <Form {...form}>
+        <form onSubmit={onSubmit} className="space-y-6 p-4">
           {/* Résumé du service */}
-          <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+          <div className="bg-vynal-purple-secondary/10 rounded-lg p-4 border border-vynal-purple-secondary/30">
             <div className="flex items-start gap-3">
-              <div className="relative h-16 w-16 rounded-md overflow-hidden flex-shrink-0 bg-gray-100">
+              <div className="relative h-16 w-16 rounded-md overflow-hidden flex-shrink-0 bg-vynal-purple-secondary/20">
                 {service?.images && service.images.length > 0 ? (
                   <Image 
                     src={service.images[0]} 
@@ -249,113 +277,200 @@ export function OrderForm({ serviceId }: OrderFormProps) {
                     className="object-cover"
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-gray-200">
-                    <FileText className="h-6 w-6 text-gray-400" />
+                  <div className="w-full h-full flex items-center justify-center bg-vynal-purple-secondary/30">
+                    <FileText className="h-5 w-5 text-vynal-accent-primary" />
                   </div>
                 )}
               </div>
               
               <div className="flex-1 min-w-0">
-                <h3 className="font-medium text-sm line-clamp-2 text-gray-900">
-                  {service?.title}
-                </h3>
-                <div className="flex items-center mt-1 text-xs text-gray-600">
-                  <Clock className="h-3.5 w-3.5 mr-1 text-gray-500" />
-                  <span>Livraison: {service?.delivery_time || 1} jour{(service?.delivery_time || 1) > 1 ? 's' : ''}</span>
-                </div>
-                <div className="flex items-center justify-between mt-2">
-                  <div className="flex items-center">
-                    {service?.profiles?.rating && (
-                      <>
-                        <svg className="h-3.5 w-3.5 text-amber-500 fill-amber-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-                        </svg>
-                        <span className="text-xs ml-1 font-medium">{service?.profiles?.rating.toFixed(1) || "-"}</span>
-                      </>
-                    )}
-                  </div>
-                  <div className="text-indigo-700 font-semibold">
+                <h3 className="text-sm font-medium line-clamp-1 text-vynal-text-primary">{service?.title}</h3>
+                <p className="text-xs text-vynal-text-secondary mt-1 line-clamp-2">
+                  Par <span className="font-medium">{service?.profiles?.username || "Vendeur"}</span>
+                </p>
+                <div className="flex items-center mt-1">
+                  <div className="text-base font-medium text-vynal-accent-primary">
                     {formatPrice(service?.price || 0)}
+                  </div>
+                  <div className="ml-2 flex items-center text-xs text-vynal-text-secondary">
+                    <Clock className="h-3 w-3 mr-1" />
+                    {service?.delivery_time} {(service?.delivery_time || 1) > 1 ? 'jours' : 'jour'}
                   </div>
                 </div>
               </div>
             </div>
           </div>
-
+          
           {error && (
-            <div className={`bg-red-50 p-2 rounded-md flex items-start gap-2 text-red-700 text-xs mb-3 max-h-20 overflow-y-auto transition-opacity duration-1000 ${errorFading ? 'opacity-0' : 'opacity-100'}`}>
+            <div className="bg-vynal-status-error/20 p-2 rounded-md flex items-start gap-2 text-vynal-status-error text-xs border border-vynal-status-error/30">
               <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
               <p>{error}</p>
             </div>
           )}
           
-          <div className="space-y-2">
-            <Label htmlFor="requirements" className="flex items-center gap-1.5">
-              <FileText className="h-4 w-4" />
-              Instructions du projet
-            </Label>
-            <Textarea
-              id="requirements"
-              placeholder="Décrivez précisément ce que vous attendez du prestataire..."
-              rows={5}
-              value={requirements}
-              onChange={(e) => setRequirements(e.target.value)}
-              className="resize-none"
+          <div className="grid gap-6">
+            <FormField
+              control={form.control}
+              name="requirements"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-vynal-text-primary">Exigences du projet</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Décrivez ce dont vous avez besoin pour ce service..." 
+                      className="min-h-[120px] bg-transparent border-vynal-purple-secondary/30 text-vynal-text-primary focus-visible:ring-vynal-accent-primary"
+                      {...field} 
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Fournissez autant de détails que possible pour une livraison réussie
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
+            
+            <FormField
+              control={form.control}
+              name="deliveryDate"
+              render={({ field }) => (
+                <FormItem className="flex flex-col">
+                  <FormLabel className="text-vynal-text-primary">Date de livraison souhaitée</FormLabel>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "pl-3 text-left font-normal bg-transparent border-vynal-purple-secondary/30 text-vynal-text-primary hover:bg-vynal-purple-secondary/10",
+                            !field.value && "text-muted-foreground"
+                          )}
+                        >
+                          {field.value ? (
+                            format(field.value, "PPP", { locale: fr })
+                          ) : (
+                            <span>Choisir une date</span>
+                          )}
+                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0 bg-vynal-purple-dark border-vynal-purple-secondary/30" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={field.value}
+                        onSelect={field.onChange}
+                        disabled={(date: Date) => date < new Date() || date < addDays(new Date(), service?.delivery_time || 1)}
+                        initialFocus
+                        className="bg-vynal-purple-dark text-vynal-text-primary border-vynal-purple-secondary/30"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <FormDescription>
+                    La date la plus proche possible est dans {service?.delivery_time || 1} jour{(service?.delivery_time || 1) > 1 ? 's' : ''}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <div>
+              <Label htmlFor="file-upload" className="text-vynal-text-primary block mb-2">
+                Fichiers (optionnel)
+              </Label>
+              
+              {/* Zone de dépôt de fichiers */}
+              <div 
+                {...getRootProps()} 
+                className={cn(
+                  "border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors",
+                  isDragActive 
+                    ? "border-vynal-accent-primary bg-vynal-accent-primary/10" 
+                    : "border-vynal-purple-secondary/30 hover:bg-vynal-purple-secondary/10"
+                )}
+              >
+                <input {...getInputProps()} />
+                {isDragActive ? (
+                  <p className="text-sm text-vynal-accent-primary">Déposez les fichiers ici...</p>
+                ) : (
+                  <div>
+                    <Upload className="mx-auto h-8 w-8 text-vynal-accent-primary mb-2" />
+                    <p className="text-sm font-medium text-vynal-text-primary">
+                      Glissez-déposez des fichiers ici, ou cliquez pour sélectionner
+                    </p>
+                    <p className="text-xs text-vynal-text-secondary mt-1">
+                      Formats acceptés: images, PDF, Word, Excel, ZIP (max 10MB)
+                    </p>
+                  </div>
+                )}
+              </div>
+              
+              {/* Liste des fichiers */}
+              {files.length > 0 && (
+                <div className="mt-4 space-y-2">
+                  {files.map((file, index) => (
+                    <div 
+                      key={index} 
+                      className="flex items-center justify-between p-2 rounded-md bg-vynal-purple-secondary/10 border border-vynal-purple-secondary/30"
+                    >
+                      <div className="flex items-center truncate">
+                        <div className="p-1.5 rounded-md bg-vynal-purple-secondary/20 mr-2">
+                          <FileIcon className="h-4 w-4 text-vynal-accent-primary" />
+                        </div>
+                        <span className="text-sm text-vynal-text-primary truncate max-w-[180px]">
+                          {file.name}
+                        </span>
+                        <span className="text-xs text-vynal-text-secondary ml-2">
+                          ({formatFileSize(file.size)})
+                        </span>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 rounded-full hover:bg-vynal-status-error/20 hover:text-vynal-status-error"
+                        onClick={() => removeFile(index)}
+                      >
+                        <X className="h-4 w-4" />
+                        <span className="sr-only">Supprimer</span>
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {fileError && (
+                <p className="mt-2 text-xs text-vynal-status-error">{fileError}</p>
+              )}
+            </div>
           </div>
           
-          <div className="space-y-2">
-            <FileUpload
-              onChange={(files) => setFiles(files)}
-              label="Documents & Ressources"
-              description="Glissez-déposez ou cliquez pour téléverser"
-              multiple={true}
-              maxFiles={5}
-              maxSize={10}
-            />
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="delivery-date" className="flex items-center gap-1.5">
-              <Calendar className="h-4 w-4" />
-              Date de livraison souhaitée
-            </Label>
-            <Input
-              id="delivery-date"
-              type="date"
-              value={deliveryDate}
-              onChange={(e) => setDeliveryDate(e.target.value)}
-              min={new Date().toISOString().split('T')[0]}
-            />
-          </div>
-        </CardContent>
-        <CardFooter className="flex justify-between items-center">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => router.back()}
-          >
-            Retour
-          </Button>
-          <Button 
-            type="submit" 
-            disabled={loading || isOwnService}
-            className="gap-2"
-          >
-            {loading ? (
-              <>
-                <div className="animate-spin w-4 h-4 border-2 border-current border-t-transparent rounded-full" />
-                Chargement...
-              </>
-            ) : (
-              <>
-                Continuer au paiement
-                <ArrowRight className="h-4 w-4 ml-1" />
-              </>
-            )}
-          </Button>
-        </CardFooter>
-      </Card>
-    </form>
+          <DialogFooter className="mt-6 px-0">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={onClose}
+              className="text-vynal-text-primary hover:text-vynal-accent-primary hover:bg-vynal-purple-secondary/20"
+              disabled={submitting}
+            >
+              Annuler
+            </Button>
+            <Button 
+              type="submit" 
+              className="bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-vynal-purple-dark"
+              disabled={submitting || !form.formState.isValid}
+            >
+              {submitting ? (
+                <>
+                  <Loader className="mr-2 h-4 w-4 animate-spin" />
+                  Traitement...
+                </>
+              ) : (
+                "Continuer vers le paiement"
+              )}
+            </Button>
+          </DialogFooter>
+        </form>
+      </Form>
+    </>
   );
 } 

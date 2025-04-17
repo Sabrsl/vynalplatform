@@ -38,7 +38,7 @@ export function OrderCard({ order }: OrderCardProps) {
     in_progress: "bg-blue-100 text-blue-800 hover:bg-blue-200",
     completed: "bg-green-100 text-green-800 hover:bg-green-200",
     delivered: "bg-indigo-100 text-indigo-800 hover:bg-indigo-200",
-    revision_requested: "bg-purple-100 text-purple-800 hover:bg-purple-200",
+    revision_requested: "bg-vynal-purple-100 text-vynal-purple-800 hover:bg-vynal-purple-200",
     cancelled: "bg-red-100 text-red-800 hover:bg-red-200",
   };
   
@@ -93,7 +93,7 @@ export function OrderCard({ order }: OrderCardProps) {
         )}
         
         {order.status === "delivered" && order.is_client_view && (
-          <Button variant="outline" size="sm" className="text-purple-600 border-purple-200 hover:bg-purple-50">
+          <Button variant="outline" size="sm" className="text-vynal-purple-600 border-vynal-purple-200 hover:bg-vynal-purple-50">
             <RefreshCw className="h-4 w-4 mr-1" />
             Demander révision
           </Button>

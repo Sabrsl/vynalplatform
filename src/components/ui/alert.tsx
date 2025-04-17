@@ -8,9 +8,15 @@ const alertVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-background text-foreground",
+        default: "bg-background text-foreground dark:border-vynal-purple-secondary/20 dark:bg-vynal-purple-dark/30",
         destructive:
-          "border-destructive/50 text-destructive dark:border-destructive [&>svg]:text-destructive",
+          "border-vynal-status-error/50 text-vynal-status-error dark:border-vynal-status-error/50 [&>svg]:text-vynal-status-error",
+        success:
+          "border-vynal-status-success/50 text-vynal-status-success dark:border-vynal-status-success/50 [&>svg]:text-vynal-status-success",
+        warning:
+          "border-vynal-status-warning/50 text-vynal-purple-dark dark:border-vynal-status-warning/50 [&>svg]:text-vynal-status-warning",
+        accent:
+          "border-vynal-accent-primary/50 text-vynal-accent-primary dark:border-vynal-accent-primary/50 [&>svg]:text-vynal-accent-primary",
       },
     },
     defaultVariants: {

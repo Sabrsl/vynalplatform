@@ -55,18 +55,18 @@ export function PaymentDetails({
   
   return (
     <>
-      <DialogHeader>
-        <DialogTitle>Détails de paiement</DialogTitle>
-        <DialogDescription>
+      <DialogHeader className="bg-gradient-to-b from-vynal-purple-dark to-vynal-purple-darkest p-4 rounded-t-lg border-b border-vynal-purple-secondary/30">
+        <DialogTitle className="text-vynal-text-primary">Détails de paiement</DialogTitle>
+        <DialogDescription className="text-vynal-text-secondary">
           Veuillez entrer vos informations de paiement
         </DialogDescription>
       </DialogHeader>
       
-      <div className="space-y-4 py-2">
+      <div className="space-y-4 py-2 px-4">
         {/* Résumé du service commandé */}
-        <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+        <div className="bg-vynal-purple-secondary/10 rounded-lg p-4 border border-vynal-purple-secondary/30">
           <div className="flex items-start gap-3">
-            <div className="relative h-14 w-14 rounded-md overflow-hidden flex-shrink-0 bg-gray-100">
+            <div className="relative h-14 w-14 rounded-md overflow-hidden flex-shrink-0 bg-vynal-purple-secondary/20">
               {service?.images && service.images.length > 0 ? (
                 <Image 
                   src={service.images[0]} 
@@ -75,15 +75,15 @@ export function PaymentDetails({
                   className="object-cover"
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center bg-gray-200">
-                  <FileText className="h-5 w-5 text-gray-400" />
+                <div className="w-full h-full flex items-center justify-center bg-vynal-purple-secondary/30">
+                  <FileText className="h-5 w-5 text-vynal-accent-primary" />
                 </div>
               )}
             </div>
             
             <div className="flex-1 min-w-0">
-              <h3 className="text-sm font-medium line-clamp-1">{service?.title}</h3>
-              <p className="text-xs text-gray-500 mt-1 line-clamp-1">
+              <h3 className="text-sm font-medium line-clamp-1 text-vynal-text-primary">{service?.title}</h3>
+              <p className="text-xs text-vynal-text-secondary mt-1 line-clamp-1">
                 Vous payez avec : <span className="font-medium">
                   {selectedPaymentMethod === 'card' ? 'Carte bancaire' :
                    selectedPaymentMethod === 'paypal' ? 'PayPal' :
@@ -99,7 +99,7 @@ export function PaymentDetails({
         
         {/* Affichage des erreurs */}
         {error && (
-          <div className="bg-red-50 p-2 rounded-md flex items-start gap-2 text-red-700 text-xs">
+          <div className="bg-vynal-status-error/20 p-2 rounded-md flex items-start gap-2 text-vynal-status-error text-xs border border-vynal-status-error/30">
             <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
             <p>{error}</p>
           </div>
@@ -124,23 +124,23 @@ export function PaymentDetails({
           setMobileOperator={setMobileOperator}
         />
         
-        <div className="pt-2 mt-2 border-t border-gray-100">
+        <div className="pt-2 mt-2 border-t border-vynal-purple-secondary/30">
           <div className="flex items-center justify-between w-full">
-            <div className="text-sm text-slate-500">
+            <div className="text-sm text-vynal-text-secondary">
               Prix total (TTC)
             </div>
-            <div className="font-medium text-lg">
+            <div className="font-medium text-lg text-vynal-accent-primary">
               {formatPrice(service?.price || 0)}
             </div>
           </div>
         </div>
       </div>
       
-      <DialogFooter className="flex justify-between sm:justify-between">
+      <DialogFooter className="flex justify-between sm:justify-between px-4 py-3 bg-vynal-purple-secondary/10 border-t border-vynal-purple-secondary/30">
         <Button
           onClick={onBack}
           variant="ghost"
-          className="flex items-center"
+          className="text-vynal-text-primary hover:text-vynal-accent-primary hover:bg-vynal-purple-secondary/20"
           disabled={loading}
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
@@ -149,7 +149,7 @@ export function PaymentDetails({
         
         <Button 
           onClick={onNext}
-          className="bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800"
+          className="bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-vynal-purple-dark"
           disabled={loading}
         >
           {loading ? (

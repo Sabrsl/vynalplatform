@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { validate as isUUID } from 'uuid';
 import { supabase } from '@/lib/supabase/client';
-import { ServiceCard } from '@/components/services/ServiceCard';
+import ServiceCard from '@/components/services/ServiceCard';
 import ServiceView from '@/components/services/ServiceView';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -134,9 +134,9 @@ export default function ServiceDetailPage() {
   // Rendu pour l'état de chargement
   if (isLoading) {
     return (
-      <div className="container mx-auto py-8 px-4">
+      <div className="container mx-auto py-8 px-4 bg-vynal-purple-dark/90 text-vynal-text-primary rounded-xl shadow-lg shadow-vynal-accent-secondary/20 border border-vynal-purple-secondary/30">
         <div className="mb-6">
-          <Link href="/services" className="inline-flex items-center text-indigo-600 hover:text-indigo-800">
+          <Link href="/services" className="inline-flex items-center text-vynal-text-primary hover:text-vynal-accent-primary transition-colors">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Retour aux services
           </Link>
@@ -144,20 +144,20 @@ export default function ServiceDetailPage() {
         
         <div className="flex flex-col md:flex-row gap-8">
           <div className="w-full md:w-2/3">
-            <Skeleton className="h-[400px] w-full mb-4" />
+            <Skeleton className="h-[400px] w-full mb-4 bg-vynal-purple-secondary/30" />
             <div className="grid grid-cols-4 gap-2">
               {[1, 2, 3, 4].map((i) => (
-                <Skeleton key={i} className="h-24 w-full" />
+                <Skeleton key={i} className="h-24 w-full bg-vynal-purple-secondary/30" />
               ))}
             </div>
           </div>
           
           <div className="w-full md:w-1/3">
-            <Skeleton className="h-8 w-3/4 mb-4" />
-            <Skeleton className="h-6 w-1/2 mb-2" />
-            <Skeleton className="h-32 w-full mb-6" />
-            <Skeleton className="h-10 w-full mb-2" />
-            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-8 w-3/4 mb-4 bg-vynal-purple-secondary/30" />
+            <Skeleton className="h-6 w-1/2 mb-2 bg-vynal-purple-secondary/30" />
+            <Skeleton className="h-32 w-full mb-6 bg-vynal-purple-secondary/30" />
+            <Skeleton className="h-10 w-full mb-2 bg-vynal-purple-secondary/30" />
+            <Skeleton className="h-10 w-full bg-vynal-purple-secondary/30" />
           </div>
         </div>
       </div>
@@ -167,19 +167,19 @@ export default function ServiceDetailPage() {
   // Rendu pour l'état d'erreur
   if (error) {
     return (
-      <div className="container mx-auto py-8 px-4">
+      <div className="container mx-auto py-8 px-4 bg-vynal-purple-dark/90 text-vynal-text-primary rounded-xl shadow-lg shadow-vynal-accent-secondary/20 border border-vynal-purple-secondary/30">
         <div className="mb-6">
-          <Link href="/services" className="inline-flex items-center text-indigo-600 hover:text-indigo-800">
+          <Link href="/services" className="inline-flex items-center text-vynal-text-primary hover:text-vynal-accent-primary transition-colors">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Retour aux services
           </Link>
         </div>
         
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6 my-8 flex flex-col items-center justify-center">
-          <AlertTriangle className="text-red-500 h-12 w-12 mb-4" />
-          <h2 className="text-xl font-bold text-red-700 mb-2">Service introuvable</h2>
-          <p className="text-red-600 text-center mb-4">{error}</p>
-          <Button asChild variant="default">
+        <div className="bg-vynal-purple-dark/50 border border-vynal-purple-secondary/30 rounded-lg p-6 my-8 flex flex-col items-center justify-center">
+          <AlertTriangle className="text-vynal-status-error h-12 w-12 mb-4" />
+          <h2 className="text-xl font-bold text-vynal-text-primary mb-2">Service introuvable</h2>
+          <p className="text-vynal-text-secondary text-center mb-4">{error}</p>
+          <Button asChild variant="default" className="bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-vynal-purple-dark">
             <Link href="/services">Parcourir tous les services</Link>
           </Button>
         </div>
@@ -189,10 +189,10 @@ export default function ServiceDetailPage() {
 
   // Rendu pour afficher les détails du service
   return (
-    <div className="bg-gradient-to-b from-indigo-50/50 to-white min-h-screen">
+    <div className="min-h-screen bg-vynal-purple-dark">
       <div className="container mx-auto py-8 px-4">
         <div className="mb-6">
-          <Link href="/services" className="inline-flex items-center text-indigo-600 hover:text-indigo-800">
+          <Link href="/services" className="inline-flex items-center text-vynal-text-primary hover:text-vynal-accent-primary transition-colors">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Retour aux services
           </Link>

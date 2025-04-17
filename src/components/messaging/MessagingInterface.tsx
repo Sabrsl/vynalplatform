@@ -84,7 +84,7 @@ const MessagingInterface: React.FC<MessagingInterfaceProps> = ({
   if (isLoading && !mounted) {
     return (
       <div className="flex items-center justify-center w-full h-96">
-        <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+        <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
       </div>
     );
   }
@@ -99,9 +99,9 @@ const MessagingInterface: React.FC<MessagingInterfaceProps> = ({
   }
 
   return (
-    <div className={`flex flex-col md:flex-row w-full h-[calc(100vh-8rem)] bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden overflow-x-hidden ${className}`}>
+    <div className={`flex flex-col md:flex-row w-full h-[calc(100vh-8rem)] bg-black/5 dark:bg-gray-950 rounded-lg shadow-sm border border-purple-800/20 overflow-hidden overflow-x-hidden ${className}`}>
       {/* Sidebar des conversations - caché sur mobile si une conversation est active */}
-      <div className={`${showMobileMenu || !activeConversation ? 'flex' : 'hidden'} md:flex md:w-80 lg:w-96 border-r border-gray-100 flex-col h-full`}>
+      <div className={`${showMobileMenu || !activeConversation ? 'flex' : 'hidden'} md:flex md:w-80 lg:w-96 border-r border-purple-800/10 flex-col h-full`}>
         <ConversationList 
           conversations={[...conversations].sort((a, b) => {
             // Trier par la date du dernier message, du plus récent au plus ancien
@@ -127,7 +127,7 @@ const MessagingInterface: React.FC<MessagingInterfaceProps> = ({
             isFreelance={isFreelance}
           />
         ) : (
-          <div className="flex items-center justify-center h-full text-gray-500">
+          <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
             <p>Sélectionnez une conversation pour commencer à discuter</p>
           </div>
         )}

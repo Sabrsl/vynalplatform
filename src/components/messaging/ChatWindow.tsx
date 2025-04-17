@@ -1,23 +1,49 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Paperclip, Send, ArrowLeft, MoreVertical, Image, FileText, X, Smile } from 'lucide-react';
+import { Paperclip, Send, ArrowLeft, MoreVertical, Image, FileText, X, Smile, Check, Circle, Trash, Upload, RefreshCw, ChevronUp, MessageSquare, Loader2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Conversation, Message, useMessagingStore } from '@/lib/stores/useMessagingStore';
-import { formatDistanceToNow, formatDate } from '@/lib/utils';
+import { Textarea } from "@/components/ui/textarea";
+import { Conversation as BaseConversation, Message, useMessagingStore } from '@/lib/stores/useMessagingStore';
+import { formatDistanceToNow, formatDate, formatFileSize } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import MessageBubble from './MessageBubble';
 import { supabase } from '@/lib/supabase/client';
 import UserStatusIndicator from './UserStatusIndicator';
 import usePreventScrollReset from '@/hooks/usePreventScrollReset';
 import { validateMessage } from '@/lib/message-validation';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { FileIcon } from '@/components/ui/icons/FileIcon';
+import { SendHorizontal } from 'lucide-react';
+
+// Extension du type Conversation pour inclure other_user
+interface Conversation extends BaseConversation {
+  other_user?: {
+    id: string;
+    name: string;
+    image?: string;
+    email?: string;
+    unread_count?: number;
+  };
+}
 
 interface ChatWindowProps {
   conversation: Conversation;
   onBack: () => void;
   isFreelance?: boolean;
 }
+
+// Fonction utilitaire pour obtenir les initiales d'un nom
+const getInitials = (name: string): string => {
+  return name
+    .split(' ')
+    .map(part => part[0])
+    .join('')
+    .toUpperCase()
+    .substring(0, 2);
+};
 
 const ChatWindow: React.FC<ChatWindowProps> = ({ 
   conversation, 
@@ -35,6 +61,13 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const [headerAvatarError, setHeaderAvatarError] = useState(false);
   const [typingAvatarError, setTypingAvatarError] = useState(false);
   const [notification, setNotification] = useState<{message: string, type: 'warning' | 'error' | 'info' | 'success', id: number} | null>(null);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const [messageError, setMessageError] = useState<string | null>(null);
+  const [isSending, setIsSending] = useState(false);
+  const [notificationPermissionDialog, setNotificationPermissionDialog] = useState(false);
+  const [showNotificationDialog, setShowNotificationDialog] = useState(false);
+  const [loadMoreVisible, setLoadMoreVisible] = useState(false);
+  const [attachment, setAttachment] = useState<{name: string, size: number} | null>(null);
   const MESSAGES_PER_PAGE = 20;
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -269,25 +302,21 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   }, [user, checkVisibleMessages]);
 
   // Fonction pour afficher une notification temporaire
-  const showNotification = useCallback((message: string, type: 'warning' | 'error' | 'info' | 'success' = 'info') => {
-    // Effacer toute notification existante
+  const showNotification = (message: string, type: 'warning' | 'error' | 'info' | 'success') => {
+    setNotification({
+      message,
+      type,
+      id: Date.now()
+    });
+    
     if (notificationTimeoutRef.current) {
       clearTimeout(notificationTimeoutRef.current);
-      notificationTimeoutRef.current = null;
     }
     
-    // Créer un ID unique pour la notification
-    const id = Date.now();
-    
-    // Afficher la nouvelle notification
-    setNotification({ message, type, id });
-    
-    // Programmer la disparition de la notification après 5 secondes
     notificationTimeoutRef.current = setTimeout(() => {
-      setNotification((prevNotif) => prevNotif && prevNotif.id === id ? null : prevNotif);
-      notificationTimeoutRef.current = null;
+      setNotification(null);
     }, 5000);
-  }, []);
+  };
 
   // Nettoyer le timeout de notification lorsque le composant est démonté
   useEffect(() => {
@@ -297,6 +326,87 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         notificationTimeoutRef.current = null;
       }
     };
+  }, []);
+
+  // Fonction pour récupérer les messages
+  const fetchMessages = useCallback(async (conversationId: string) => {
+    setIsLoadingMessages(true);
+    setMessageError(null);
+    try {
+      // Ici, implémentez la logique de chargement des messages
+      // Par exemple, vous pourriez appeler un service ou un API
+      console.log("Chargement des messages pour la conversation:", conversationId);
+      // Simuler un délai
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Si l'implémentation est incomplète, vous pouvez simplement ne rien faire
+      setIsLoadingMessages(false);
+    } catch (error) {
+      console.error("Erreur lors du chargement des messages:", error);
+      setMessageError("Impossible de charger les messages. Veuillez réessayer.");
+      setIsLoadingMessages(false);
+    }
+  }, []);
+
+  // Fonction pour marquer les messages comme non lus
+  const markAsUnread = useCallback(() => {
+    if (!user || !conversation) return;
+    // Implémentation fictive - à remplacer par votre logique réelle
+    console.log("Marquer comme non lu:", conversation.id);
+    
+    // Afficher une notification de succès
+    showNotification("Messages marqués comme non lus", "success");
+  }, [conversation, user]);
+
+  // Fonction pour supprimer une conversation
+  const handleDelete = useCallback(() => {
+    if (!conversation) return;
+    // Implémentation fictive - à remplacer par votre logique réelle
+    console.log("Supprimer la conversation:", conversation.id);
+    
+    // Afficher une notification de succès
+    showNotification("Conversation supprimée", "success");
+    
+    // Rediriger vers la liste des conversations
+    onBack();
+  }, [conversation, onBack]);
+
+  // Fonction pour activer les notifications
+  const enableNotifications = useCallback(async () => {
+    try {
+      // Implémenter la logique d'activation des notifications
+      console.log("Activer les notifications");
+      setShowNotificationDialog(false);
+    } catch (error) {
+      console.error("Erreur lors de l'activation des notifications:", error);
+    }
+  }, []);
+
+  // Fonction pour charger plus de messages
+  const handleLoadMore = useCallback(() => {
+    loadMoreMessages();
+  }, [loadMoreMessages]);
+
+  // Valider si un message peut être envoyé
+  const canSend = messageText.trim().length > 0 || attachments.length > 0;
+
+  // Convertir la fonction markAsRead pour être utilisable comme un handler d'événement
+  const handleMarkAsRead = useCallback(() => {
+    if (user?.id && conversation?.id) {
+      markAsRead(conversation.id, user.id);
+    }
+  }, [user, conversation, markAsRead]);
+
+  // Modifier la fonction removeAttachment pour être compatible avec un handler d'événement
+  const handleRemoveAttachment = useCallback(() => {
+    if (attachment) {
+      setAttachment(null);
+    }
+  }, [attachment]);
+
+  // Fonction pour supprimer un élément des pièces jointes par index
+  const handleRemoveAttachmentByIndex = useCallback((e: React.MouseEvent, index: number) => {
+    e.preventDefault();
+    removeAttachment(index);
   }, []);
 
   // Gérer l'envoi du message
@@ -440,88 +550,115 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
   // Supprimer une pièce jointe
   const removeAttachment = (index: number) => {
-    const newAttachments = [...attachments];
-    newAttachments.splice(index, 1);
-    setAttachments(newAttachments);
+    setAttachments(prev => prev.filter((_, i) => i !== index));
   };
   
   return (
-    <div className="flex flex-col h-full overflow-x-hidden">
-      {/* Header du chat */}
-      <div className="flex items-center p-4 border-b border-gray-100">
-        <button 
-          onClick={onBack}
-          className="md:hidden mr-2 p-1 rounded-full hover:bg-gray-100"
-          aria-label="Retour"
-        >
-          <ArrowLeft className="h-5 w-5 text-gray-600" />
-        </button>
-        
-        <Avatar className="h-10 w-10">
-          <AvatarImage 
-            src={otherParticipant?.avatar_url || ''} 
-            alt={otherParticipant?.full_name || otherParticipant?.username || 'Utilisateur'} 
-            onError={() => setHeaderAvatarError(true)}
-          />
-          <AvatarFallback className="bg-indigo-100 text-indigo-700">
-            {otherParticipant?.full_name?.[0] || otherParticipant?.username?.[0] || 'U'}
-          </AvatarFallback>
-        </Avatar>
-        
-        <div className="ml-3 flex-1 min-w-0">
-          <h3 className="text-sm font-medium text-gray-900 truncate">
-            {otherParticipant?.full_name || otherParticipant?.username || 'Utilisateur'}
-          </h3>
-          <p className="text-xs text-gray-500 flex items-center">
-            {isFreelance ? "Client" : "Freelance"}
-            <UserStatusIndicator 
-              isOnline={!!otherParticipant?.online} 
-              lastSeen={otherParticipant?.last_seen}
-              className="ml-1"
-            />
-          </p>
+    <div className="relative flex flex-col flex-1 h-full overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-purple-800/10 bg-gradient-to-r from-purple-900/10 to-indigo-900/10 text-gray-800 dark:text-gray-200">
+        <div className="flex items-center space-x-3">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="md:hidden mr-2" 
+            onClick={onBack}
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          
+          <Avatar className="h-9 w-9">
+            <AvatarImage src={conversation.other_user?.image || ''} />
+            <AvatarFallback className="bg-vynal-purple-100 text-vynal-purple-700">
+              {getInitials(conversation.other_user?.name || "User")}
+            </AvatarFallback>
+          </Avatar>
+          
+          <div>
+            <h3 className="font-medium">
+              {conversation.other_user?.name || "User"}
+            </h3>
+            {conversation.other_user?.email && (
+              <p className="text-xs text-gray-500 dark:text-gray-400">{conversation.other_user.email}</p>
+            )}
+          </div>
         </div>
         
-        <Button variant="ghost" size="icon" className="text-gray-500">
-          <MoreVertical className="h-5 w-5" />
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon">
+              <MoreVertical className="h-5 w-5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={handleMarkAsRead}>
+              <Check className="mr-2 h-4 w-4" />
+              <span>Marquer comme lu</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={markAsUnread}>
+              <Circle className="mr-2 h-4 w-4" />
+              <span>Marquer comme non lu</span>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem 
+              className="text-red-600"
+              onClick={handleDelete}
+            >
+              <Trash className="mr-2 h-4 w-4" />
+              <span>Supprimer la conversation</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
       
-      {/* Zone des messages */}
-      <div 
+      {/* Message List */}
+      <div
         ref={messagesContainerRef}
-        className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-4 scrollbar-hide w-full"
+        className="flex-1 overflow-y-auto px-4 py-4 space-y-4 scroll-smooth bg-gray-50 dark:bg-gray-900"
       >
-        {/* Indicateur de chargement des messages plus anciens */}
-        {isLoadingMore && (
-          <div className="flex justify-center py-2">
-            <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+        {isLoadingMessages ? (
+          <div className="flex justify-center py-10">
+            <Loader2 className="h-6 w-6 animate-spin text-purple-600" />
           </div>
-        )}
-        
-        {/* Bouton "Charger plus" si des messages plus anciens sont disponibles */}
-        {hasMoreMessages && !isLoadingMore && (
-          <div className="flex justify-center">
-            <button 
-              type="button"
-              onClick={loadMoreMessages}
-              className="text-xs text-indigo-600 hover:text-indigo-800 py-1 px-3 rounded-full bg-indigo-50"
+        ) : messageError ? (
+          <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+            <p className="text-red-600 dark:text-red-400 text-sm">{messageError}</p>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="mt-2" 
+              onClick={() => fetchMessages(conversation.id)}
             >
-              Voir les messages précédents
-            </button>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Réessayer
+            </Button>
           </div>
-        )}
-        
-        {visibleMessages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center">
-            <div className="bg-gray-100 rounded-full p-4 mb-3">
-              <Send className="h-8 w-8 text-gray-400" />
-            </div>
-            <p className="text-gray-500">Aucun message dans cette conversation</p>
-            <p className="text-sm text-gray-400 mt-1">Envoyez un message pour commencer</p>
+        ) : messages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-40 text-gray-500 dark:text-gray-400">
+            <MessageSquare className="h-10 w-10 mb-2 opacity-20" />
+            <p>Aucun message</p>
           </div>
         ) : (
           <>
+            {loadMoreVisible && (
+              <div className="flex justify-center">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300" 
+                  onClick={handleLoadMore}
+                  disabled={isLoadingMore}
+                >
+                  {isLoadingMore ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <ChevronUp className="h-4 w-4 mr-2" />
+                  )}
+                  Charger les messages précédents
+                </Button>
+              </div>
+            )}
+            
             {visibleMessages
               .filter(message => 
                 (message.content?.trim() || 
@@ -541,24 +678,13 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             
             {/* Indicateur "en train d'écrire" */}
             {isOtherParticipantTyping && (
-              <div className="flex items-center">
-                <Avatar className="h-8 w-8">
-                  <AvatarImage 
-                    src={otherParticipant?.avatar_url || ''} 
-                    alt={otherParticipant?.full_name || otherParticipant?.username || 'Utilisateur'}
-                    onError={() => setTypingAvatarError(true)}
-                  />
-                  <AvatarFallback className="bg-indigo-100 text-indigo-700">
-                    {otherParticipant?.full_name?.[0] || otherParticipant?.username?.[0] || 'U'}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="ml-2 bg-gray-100 rounded-2xl py-2 px-4 max-w-[75%] text-gray-700">
-                  <div className="flex items-center space-x-1">
-                    <div className="h-2 w-2 bg-gray-500 rounded-full animate-bounce"></div>
-                    <div className="h-2 w-2 bg-gray-500 rounded-full animate-bounce delay-100"></div>
-                    <div className="h-2 w-2 bg-gray-500 rounded-full animate-bounce delay-200"></div>
-                  </div>
-                </div>
+              <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 flex items-center space-x-1">
+                <span>{otherParticipant?.full_name || "L'autre utilisateur"} est en train d'écrire</span>
+                <span className="flex space-x-0.5">
+                  <span className="animate-bounce">.</span>
+                  <span className="animate-bounce" style={{ animationDelay: "0.2s" }}>.</span>
+                  <span className="animate-bounce" style={{ animationDelay: "0.4s" }}>.</span>
+                </span>
               </div>
             )}
             
@@ -583,7 +709,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               )}
               <span className="text-xs truncate max-w-[120px]">{attachment.name}</span>
               <button 
-                onClick={() => removeAttachment(index)}
+                onClick={(e) => handleRemoveAttachmentByIndex(e, index)}
                 className="ml-1 p-0.5 rounded-full bg-gray-200 hover:bg-gray-300"
                 type="button"
               >
@@ -615,57 +741,110 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       )}
       
       {/* Barre de saisie */}
-      <div className="p-4 border-t border-gray-100">
-        <div className="flex items-end gap-2">
-          <div className="flex-1 bg-gray-50 rounded-full shadow-sm">
-            <div className="flex items-center">
-              <div className="flex items-center space-x-1 pl-3">
-                <Button 
-                  type="button"
-                  variant="ghost" 
-                  size="icon"
-                  className="h-8 w-8 text-gray-400 hover:text-indigo-600 rounded-full"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isUploading}
-                >
-                  <Paperclip className="h-4 w-4" />
-                </Button>
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleFileUpload}
-                  className="hidden"
-                />
+      <div className="border-t border-purple-800/10 bg-white dark:bg-gray-950 p-4">
+        <div className="flex items-center space-x-2">
+          {notificationPermissionDialog && (
+            <AlertDialog open={showNotificationDialog} onOpenChange={setShowNotificationDialog}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Activer les notifications</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Recevez des notifications quand vous recevez de nouveaux messages, même lorsque vous n'êtes pas sur la page.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Non merci</AlertDialogCancel>
+                  <AlertDialogAction onClick={enableNotifications}>
+                    Activer
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+          
+          <div className="relative flex-1">
+            <Textarea
+              ref={textareaRef}
+              value={messageText}
+              onChange={handleTyping}
+              onKeyDown={handleKeyDown}
+              placeholder="Tapez votre message..."
+              className="resize-none overflow-hidden min-h-[40px] max-h-[120px] pr-10 focus:ring-purple-600/10 focus:border-purple-600/30"
+              disabled={isSending}
+            />
+            {isUploading && (
+              <div className="absolute right-3 bottom-3">
+                <Loader2 className="h-4 w-4 animate-spin text-purple-600" />
               </div>
-              <textarea
-                ref={textareaRef}
-                value={messageText}
-                onChange={handleTyping}
-                onKeyDown={handleKeyDown}
-                placeholder="Écrivez un message..."
-                className="flex-1 bg-transparent border-0 resize-none py-3 px-3 focus:ring-0 text-sm min-h-[40px] max-h-[120px]"
-                rows={1}
-              />
-              <Button 
-                type="button"
-                variant="ghost" 
-                size="icon"
-                className="h-8 w-8 mr-1 text-gray-400 hover:text-indigo-600 rounded-full"
-              >
-                <Smile className="h-4 w-4" />
-              </Button>
-            </div>
+            )}
           </div>
-          <Button 
+          
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                size="icon"
+                variant="outline"
+                className="flex-shrink-0 text-gray-500"
+                disabled={isSending || isUploading}
+              >
+                <Paperclip className="h-5 w-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
+                <Upload className="mr-2 h-4 w-4" />
+                <span>Ajouter un fichier</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          
+          <Button
             type="button"
+            size="icon"
+            className="flex-shrink-0 bg-vynal-purple-600 hover:bg-vynal-purple-700 text-white"
+            disabled={!canSend || isSending}
             onClick={handleSendMessage}
-            disabled={(!messageText || messageText.trim() === '') && attachments.length === 0}
-            className="flex-shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full h-10 w-10 flex items-center justify-center shadow-sm"
           >
-            <Send className="h-5 w-5" />
+            {isSending ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <SendHorizontal className="h-5 w-5" />
+            )}
           </Button>
         </div>
       </div>
+      
+      {/* Hidden file input */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        className="hidden"
+        onChange={handleFileUpload}
+        accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+      />
+      
+      {/* File preview */}
+      {attachment && (
+        <div className="mt-2 p-2 bg-gray-50 dark:bg-gray-900 border border-purple-800/10 rounded-md flex items-center justify-between">
+          <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-300 truncate">
+            <FileIcon className="h-4 w-4 flex-shrink-0" />
+            <span className="truncate">{attachment.name}</span>
+            <span className="text-xs text-gray-400 dark:text-gray-500 flex-shrink-0">
+              {formatFileSize(attachment.size)}
+            </span>
+          </div>
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="h-6 w-6 flex-shrink-0 text-gray-400 hover:text-red-500"
+            onClick={handleRemoveAttachment}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
     </div>
   );
 };

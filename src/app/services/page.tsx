@@ -233,14 +233,14 @@ export default function ServicesPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Hero Section - Modernisé */}
-      <section className="bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-800 text-white py-8 lg:py-14 relative overflow-hidden">
+    <div className="min-h-screen bg-vynal-purple-dark">
+      {/* Hero Section - avec styles mis à jour */}
+      <section className="bg-gradient-to-b from-vynal-purple-dark to-vynal-purple-darkest text-vynal-text-primary py-8 lg:py-14 relative overflow-hidden">
         {/* Decorative elements */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-indigo-500 opacity-20 rounded-full blur-3xl"></div>
-          <div className="absolute -top-24 -right-24 w-96 h-96 bg-purple-500 opacity-20 rounded-full blur-3xl"></div>
-          <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-indigo-400 opacity-20 rounded-full blur-3xl"></div>
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-vynal-accent-primary/20 rounded-full blur-3xl"></div>
+          <div className="absolute -top-24 -right-24 w-96 h-96 bg-vynal-accent-secondary/20 rounded-full blur-3xl"></div>
+          <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-vynal-accent-primary/20 rounded-full blur-3xl"></div>
           
           {/* Grid pattern overlay */}
           <div className="absolute inset-0 bg-[url('/img/grid-pattern.svg')] bg-center opacity-10"></div>
@@ -253,13 +253,13 @@ export default function ServicesPage() {
             transition={{ duration: 0.5 }}
             className="text-center max-w-3xl mx-auto pt-4 md:pt-6"
           >
-            <span className="inline-block px-2 py-0.5 text-[10px] font-medium bg-white/10 rounded-full backdrop-blur-sm mb-2">
+            <span className="inline-block px-2 py-0.5 text-[10px] font-medium bg-vynal-purple-secondary/30 rounded-full backdrop-blur-sm mb-2 text-vynal-text-primary">
               {totalCount > 0 ? `+${totalCount}` : "Des"} services disponibles
             </span>
-            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-2 leading-tight">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-2 leading-tight text-vynal-text-primary">
               Trouvez le service idéal
             </h1>
-            <p className="text-sm sm:text-base text-indigo-100 mb-4 sm:mb-6 max-w-2xl mx-auto">
+            <p className="text-sm sm:text-base text-vynal-text-secondary mb-4 sm:mb-6 max-w-2xl mx-auto">
               Des milliers de freelances talentueux prêts à réaliser vos projets
             </p>
           </motion.div>
@@ -282,7 +282,7 @@ export default function ServicesPage() {
       </section>
 
       {/* Breadcrumbs & Stats combined section */}
-      <section className="bg-white border-y border-gray-200 sticky top-0 z-10">
+      <section className="bg-vynal-purple-dark/90 border-y border-vynal-purple-secondary/30 sticky top-0 z-10">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
             {/* Breadcrumbs */}
@@ -296,7 +296,7 @@ export default function ServicesPage() {
               <button
                 onClick={refreshData}
                 disabled={isRefreshing || servicesLoading}
-                className="p-1.5 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-full disabled:opacity-50"
+                className="p-1.5 text-vynal-text-secondary hover:text-vynal-accent-primary hover:bg-vynal-purple-secondary/30 rounded-full disabled:opacity-50 transition-colors"
                 title="Actualiser"
               >
                 <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
@@ -304,23 +304,23 @@ export default function ServicesPage() {
               
               <button
                 onClick={togglePaginationMode}
-                className="text-xs px-2 py-1 border border-gray-200 rounded-md hover:bg-gray-50 bg-white"
+                className="text-xs px-2 py-1 border border-vynal-purple-secondary/50 rounded-md hover:bg-vynal-purple-secondary/30 bg-vynal-purple-secondary/10 text-vynal-text-secondary transition-colors"
                 title={isLoadMoreMode ? "Passer à la pagination classique" : "Passer au mode 'Charger plus'"}
               >
                 {isLoadMoreMode ? "Pagination" : "Charger plus"}
               </button>
               
-              <div className="hidden sm:flex items-center space-x-1 bg-gray-100 rounded-lg p-1">
+              <div className="hidden sm:flex items-center space-x-1 bg-vynal-purple-secondary/30 rounded-lg p-1">
                 <button
                   onClick={() => setViewMode('grid')}
-                  className={`p-1.5 rounded-md ${viewMode === 'grid' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-500 hover:text-gray-700'}`}
+                  className={`p-1.5 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-vynal-purple-secondary/50 shadow-sm text-vynal-accent-primary' : 'text-vynal-text-secondary hover:text-vynal-text-primary'}`}
                   title="Vue en grille"
                 >
                   <Grid className="h-4 w-4" />
                 </button>
                 <button
                   onClick={() => setViewMode('list')}
-                  className={`p-1.5 rounded-md ${viewMode === 'list' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-500 hover:text-gray-700'}`}
+                  className={`p-1.5 rounded-md transition-colors ${viewMode === 'list' ? 'bg-vynal-purple-secondary/50 shadow-sm text-vynal-accent-primary' : 'text-vynal-text-secondary hover:text-vynal-text-primary'}`}
                   title="Vue en liste"
                 >
                   <List className="h-4 w-4" />
@@ -333,7 +333,7 @@ export default function ServicesPage() {
 
       {/* Sous-catégories (quand une catégorie est sélectionnée) */}
       {activeCategory && activeSubcategories.length > 0 && (
-        <section className="bg-white border-b border-gray-200">
+        <section className="bg-vynal-purple-dark/80 border-b border-vynal-purple-secondary/30">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <SubcategoriesGrid 
               subcategories={activeSubcategories}
@@ -344,12 +344,12 @@ export default function ServicesPage() {
         </section>
       )}
 
-      {/* Contenu principal */}
-      <main className="container mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-16">
+      {/* Contenu principal - mise à jour des couleurs de fond */}
+      <div className="container mx-auto px-4 py-12">
         {/* Résumé des résultats et filtres */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-2">
           <div>
-            <h2 className="text-lg font-semibold text-gray-800">
+            <h2 className="text-lg font-semibold text-vynal-text-primary">
               {searchQuery 
                 ? `Résultats pour "${searchQuery}"`
                 : activeSubcategory 
@@ -359,7 +359,7 @@ export default function ServicesPage() {
                     : "Tous les services"
               }
             </h2>
-            <p className="text-sm text-gray-500 mt-0.5">
+            <p className="text-sm text-vynal-text-secondary mt-0.5">
               {totalCount} services disponibles
               {currentPage > 1 ? ` • Page ${currentPage} sur ${totalPages}` : ''}
             </p>
@@ -368,7 +368,7 @@ export default function ServicesPage() {
           {/* Future section de filtres */}
           <div className="flex items-center">
             <button 
-              className="flex items-center gap-1 text-sm px-2.5 py-1.5 bg-white border border-gray-200 rounded-md text-gray-600 hover:bg-gray-50"
+              className="flex items-center gap-1 text-sm px-2.5 py-1.5 bg-vynal-purple-secondary/30 border border-vynal-purple-secondary/50 rounded-md text-vynal-text-primary hover:bg-vynal-purple-secondary/50 transition-colors"
               title="Filtres"
             >
               <Filter className="h-3.5 w-3.5" />
@@ -382,18 +382,18 @@ export default function ServicesPage() {
           <motion.div 
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-red-50 p-4 rounded-xl border border-red-100 mb-4"
+            className="bg-vynal-status-error/20 p-4 rounded-xl border border-vynal-status-error/30 mb-6"
           >
             <div className="flex items-start gap-3">
-              <AlertCircle className="h-5 w-5 text-red-500 mt-0.5" />
+              <AlertCircle className="h-5 w-5 text-vynal-status-error mt-0.5" />
               <div>
-                <h3 className="font-medium text-red-800">Un problème est survenu</h3>
-                <p className="text-sm text-red-600 mt-0.5">
+                <h3 className="font-medium text-vynal-text-primary">Un problème est survenu</h3>
+                <p className="text-sm text-vynal-text-secondary mt-0.5">
                   {connectionError || servicesError}
                 </p>
                 <button
                   onClick={refreshData}
-                  className="mt-2 text-xs font-medium px-2 py-1 bg-white text-red-600 border border-red-200 rounded-md hover:bg-red-50"
+                  className="mt-2 text-xs font-medium px-2 py-1 bg-vynal-purple-secondary/30 text-vynal-accent-primary border border-vynal-purple-secondary/50 rounded-md hover:bg-vynal-purple-secondary/50 transition-colors"
                 >
                   Réessayer
                 </button>
@@ -445,7 +445,34 @@ export default function ServicesPage() {
             </motion.div>
           )}
         </AnimatePresence>
-      </main>
+      </div>
+
+      {/* Section Statistiques avec thème adapté */}
+      <section className="py-16 bg-vynal-purple-dark/90 border-t border-vynal-purple-secondary/30 shadow-lg shadow-vynal-accent-secondary/20">
+        {/* Stats content */}
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-8">
+            <div className="text-center">
+              <h3 className="text-2xl font-semibold text-vynal-text-primary mb-2">
+                {statsData.freelancersCount}
+              </h3>
+              <p className="text-sm text-vynal-text-secondary">Freelances</p>
+            </div>
+            <div className="text-center">
+              <h3 className="text-2xl font-semibold text-vynal-text-primary mb-2">
+                {statsData.clientsCount}
+              </h3>
+              <p className="text-sm text-vynal-text-secondary">Clients</p>
+            </div>
+            <div className="text-center">
+              <h3 className="text-2xl font-semibold text-vynal-text-primary mb-2">
+                {statsData.totalPayments}
+              </h3>
+              <p className="text-sm text-vynal-text-secondary">Total des paiements</p>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   );
 } 

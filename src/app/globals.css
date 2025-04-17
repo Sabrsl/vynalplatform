@@ -36,33 +36,37 @@
   }
  
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    /* Couleurs basées sur le nouveau thème violet foncé */
+    --background: 271 90% 8%; /* #100422 - Fond principal (Violet foncé) */
+    --foreground: 0 0% 100%; /* #FFFFFF - Texte principal (Blanc pur) */
  
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 267 75% 20%; /* #2A0C57 - Fond secondaire (Violet plus clair) */
+    --card-foreground: 0 0% 100%; /* #FFFFFF - Texte principal (Blanc pur) */
  
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 271 90% 8%; /* #100422 - Fond principal */
+    --popover-foreground: 0 0% 100%; /* #FFFFFF - Texte principal */
  
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 329 100% 70%; /* #FF66B2 - Accent principal (Rose doux) */
+    --primary-foreground: 0 0% 100%; /* #FFFFFF - Texte principal */
  
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 267 75% 20%; /* #2A0C57 - Fond secondaire (Violet plus clair) */
+    --secondary-foreground: 0 0% 84%; /* #D6D6D6 - Texte secondaire (Gris clair) */
  
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 271 90% 8%; /* #100422 - Fond principal légèrement plus foncé */
+    --muted-foreground: 0 0% 84%; /* #D6D6D6 - Texte secondaire (Gris clair) */
  
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 331 100% 50%; /* #FF007F - Accent secondaire (Rose plus vif) */
+    --accent-foreground: 0 0% 100%; /* #FFFFFF - Texte principal */
  
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 351 85% 60%; /* #EF4444 - Erreur (Rouge framboise) */
+    --destructive-foreground: 0 0% 100%; /* #FFFFFF - Texte principal */
+
+    --success: 151 74% 63%; /* #5BE49B - Success (Vert doux) */
+    --warning: 45 96% 65%; /* #FCD34D - Warning (Jaune pastel) */
  
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    --border: 267 75% 20%; /* #2A0C57 - Fond secondaire */
+    --input: 267 75% 20%; /* #2A0C57 - Fond secondaire */
+    --ring: 329 100% 70%; /* #FF66B2 - Accent principal */
   }
 }
  
@@ -71,8 +75,53 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground transition-colors duration-300;
     font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  /* Appliquer le fond en fonction du thème */
+  html, body {
+    min-height: 100vh;
+  }
+
+  /* Créer un élément fixe pour le dégradé de fond */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    @apply transition-colors duration-300;
+  }
+
+  /* Mode clair */
+  :root body::before {
+    background: linear-gradient(180deg, #f9f7ff 0%, #ffffff 100%);
+  }
+
+  /* Mode sombre */
+  .dark body::before {
+    background: linear-gradient(180deg, #100422 0%, #0e0021 100%);
+    background-size: 100% 100%;
+    background-attachment: fixed;
+  }
+
+  /* Style des titres avec Poppins */
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-poppins font-semibold;
+  }
+
+  p {
+    @apply font-poppins;
+  }
+  
+  /* Style spécifique pour les boutons */
+  button, .btn {
+    @apply font-poppins font-medium;
+  }
+  
+  /* Éléments d'interface utilisateur */
+  input, select, textarea {
+    @apply font-poppins;
   }
 }
 
@@ -148,19 +197,52 @@
     display: none;             /* Chrome, Safari and Opera */
   }
   
-  /* Style de barre de défilement fine et élégante */
+  /* Masquer les scrollbars pour les éléments avec la classe .no-scrollbar */
+  .no-scrollbar {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+  
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;  /* Chrome, Safari, Opera */
+  }
+
+  /* Consolidated scrollbar styles */
+  .scrollbar-custom {
+    scrollbar-width: thin;  /* Firefox */
+    -ms-overflow-style: auto;  /* IE and Edge */
+  }
+
+  .scrollbar-custom::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .scrollbar-custom::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-custom::-webkit-scrollbar-thumb {
+    background-color: rgba(148, 163, 184, 0.2);
+    border-radius: 20px;
+  }
+
+  .scrollbar-custom::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(148, 163, 184, 0.4);
+  }
+
+  /* Remove duplicate classes since we now have .scrollbar-custom */
   .scrollbar-thin {
     scrollbar-width: thin;
   }
-  
+
   .scrollbar-thin::-webkit-scrollbar {
     width: 4px;
   }
-  
+
   .scrollbar-thin::-webkit-scrollbar-track {
     background: transparent;
   }
-  
+
   .scrollbar-thin::-webkit-scrollbar-thumb {
     background-color: rgba(155, 155, 155, 0.5);
     border-radius: 20px;
@@ -280,14 +362,4 @@
   to {
     transform: translateX(100%);
   }
-}
-
-/* Masquer les scrollbars pour les éléments avec la classe .no-scrollbar */
-.no-scrollbar {
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;  /* Firefox */
-}
-
-.no-scrollbar::-webkit-scrollbar {
-  display: none;  /* Chrome, Safari, Opera */
 } 

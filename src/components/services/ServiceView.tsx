@@ -123,7 +123,7 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
             return (
               <div key={star} className="relative">
                 {/* Étoile de fond (grise) */}
-                <Star className="h-3.5 w-3.5 text-gray-200 fill-gray-200" />
+                <Star className="h-3.5 w-3.5 text-vynal-purple-secondary/30 fill-vynal-purple-secondary/30" />
                 
                 {/* Étoile colorée (complète ou partielle) */}
                 {(isFilled || isPartiallyFilled) && (
@@ -133,7 +133,7 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                       width: isFilled ? '100%' : `${fillPercentage}%` 
                     }}
                   >
-                    <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />
+                    <Star className="h-3.5 w-3.5 text-vynal-accent-primary fill-vynal-accent-primary" />
                   </div>
                 )}
               </div>
@@ -146,51 +146,51 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
     // État de chargement - Composant optimisé avec Skeleton
     if (loading) {
       return (
-        <div className="min-h-screen bg-gray-50 py-8">
+        <div className="min-h-screen py-8">
           <div className="container mx-auto px-4">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2 space-y-4">
-                <Skeleton className="w-full aspect-video rounded-lg" />
-                <Card>
+                <Skeleton className="w-full aspect-video rounded-lg bg-vynal-purple-secondary/30" />
+                <Card className="bg-vynal-purple-dark/90 border-vynal-purple-secondary/30 rounded-xl shadow-lg shadow-vynal-accent-secondary/20">
                   <CardContent className="p-6">
-                    <Skeleton className="h-8 w-3/4 mb-4" />
+                    <Skeleton className="h-8 w-3/4 mb-4 bg-vynal-purple-secondary/30" />
                     <div className="space-y-2 mb-6">
-                      <Skeleton className="h-4 w-full" />
-                      <Skeleton className="h-4 w-full" />
-                      <Skeleton className="h-4 w-2/3" />
+                      <Skeleton className="h-4 w-full bg-vynal-purple-secondary/30" />
+                      <Skeleton className="h-4 w-full bg-vynal-purple-secondary/30" />
+                      <Skeleton className="h-4 w-2/3 bg-vynal-purple-secondary/30" />
                     </div>
-                    <Skeleton className="h-24 w-full" />
+                    <Skeleton className="h-24 w-full bg-vynal-purple-secondary/30" />
                   </CardContent>
                 </Card>
               </div>
               <div>
-                <Card className="mb-4">
+                <Card className="mb-4 bg-vynal-purple-dark/90 border-vynal-purple-secondary/30 rounded-xl shadow-lg shadow-vynal-accent-secondary/20">
                   <CardContent className="p-6 space-y-4">
-                    <Skeleton className="h-8 w-full" />
-                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-8 w-full bg-vynal-purple-secondary/30" />
+                    <Skeleton className="h-10 w-full bg-vynal-purple-secondary/30" />
                     <div className="flex space-x-2">
-                      <Skeleton className="h-8 w-1/2" />
-                      <Skeleton className="h-8 w-1/2" />
+                      <Skeleton className="h-8 w-1/2 bg-vynal-purple-secondary/30" />
+                      <Skeleton className="h-8 w-1/2 bg-vynal-purple-secondary/30" />
                     </div>
                     <div className="space-y-2 pt-4">
-                      <Skeleton className="h-4 w-full" />
-                      <Skeleton className="h-4 w-full" />
-                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-full bg-vynal-purple-secondary/30" />
+                      <Skeleton className="h-4 w-full bg-vynal-purple-secondary/30" />
+                      <Skeleton className="h-4 w-full bg-vynal-purple-secondary/30" />
                     </div>
                   </CardContent>
                 </Card>
-                <Card>
+                <Card className="bg-vynal-purple-dark/90 border-vynal-purple-secondary/30 rounded-xl shadow-lg shadow-vynal-accent-secondary/20">
                   <CardContent className="p-6 space-y-4">
                     <div className="flex items-center space-x-3">
-                      <Skeleton className="h-12 w-12 rounded-full" />
+                      <Skeleton className="h-12 w-12 rounded-full bg-vynal-purple-secondary/30" />
                       <div className="space-y-2">
-                        <Skeleton className="h-4 w-32" />
-                        <Skeleton className="h-3 w-20" />
+                        <Skeleton className="h-4 w-32 bg-vynal-purple-secondary/30" />
+                        <Skeleton className="h-3 w-20 bg-vynal-purple-secondary/30" />
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <Skeleton className="h-8 w-full" />
-                      <Skeleton className="h-8 w-full" />
+                      <Skeleton className="h-8 w-full bg-vynal-purple-secondary/30" />
+                      <Skeleton className="h-8 w-full bg-vynal-purple-secondary/30" />
                     </div>
                   </CardContent>
                 </Card>
@@ -208,24 +208,24 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
           initial="hidden"
           animate="visible"
           variants={animations.fadeIn}
-          className={cn("container mx-auto px-4 py-12 bg-gray-50", className)}
+          className={cn("container mx-auto px-4 py-12", className)}
         >
-          <Card className="max-w-2xl mx-auto border-red-100 shadow-md overflow-hidden">
-            <div className="bg-red-50 p-4 flex items-center space-x-3 border-b border-red-100">
-              <AlertCircle className="h-6 w-6 text-red-500 flex-shrink-0" />
-              <h2 className="text-lg font-semibold text-red-700">Service non disponible</h2>
+          <Card className="max-w-2xl mx-auto overflow-hidden bg-vynal-purple-dark/90 border-vynal-purple-secondary/30 rounded-xl shadow-lg shadow-vynal-accent-secondary/20">
+            <div className="bg-vynal-purple-dark/90 p-4 flex items-center space-x-3 border-b border-vynal-purple-secondary/30">
+              <AlertCircle className="h-6 w-6 text-vynal-status-error flex-shrink-0" />
+              <h2 className="text-lg font-semibold text-vynal-text-primary">Service non disponible</h2>
             </div>
             <CardContent className="p-6">
-              <p className="mb-6 text-gray-600">{error || "Ce service n'existe pas ou a été supprimé."}</p>
+              <p className="mb-6 text-vynal-text-secondary">{error || "Ce service n'existe pas ou a été supprimé."}</p>
               <div className="flex flex-wrap gap-2">
                 {onBack ? (
-                  <Button variant="outline" onClick={onBack} className="group">
+                  <Button variant="outline" onClick={onBack} className="group border-vynal-purple-secondary/50 bg-vynal-purple-secondary/30 text-vynal-text-primary hover:bg-vynal-purple-secondary/50 hover:text-vynal-text-primary transition-colors">
                     <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" />
                     Retour
                   </Button>
                 ) : (
                   <Link href="/services" className="group">
-                    <Button variant="outline">
+                    <Button variant="outline" className="border-vynal-purple-secondary/50 bg-vynal-purple-secondary/30 text-vynal-text-primary hover:bg-vynal-purple-secondary/50 hover:text-vynal-text-primary transition-colors">
                       <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" />
                       Retour aux services
                     </Button>
@@ -331,14 +331,14 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
           initial="hidden"
           animate="visible"
           variants={animations.staggerContainer}
-          className={cn("min-h-screen bg-gray-50 pb-8", className)}
+          className={cn("min-h-screen bg-vynal-purple-dark pb-8", className)}
         >
           {/* Bannière stylisée - uniquement visible en mode public */}
           {!isFreelanceView && (
-            <div className="h-32 sm:h-48 bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-800 relative overflow-hidden">
+            <div className="h-32 sm:h-48 bg-gradient-to-b from-vynal-purple-dark to-vynal-purple-darkest relative overflow-hidden">
               <div className="absolute inset-0 opacity-20 bg-[url('/img/grid-pattern.svg')] bg-center"></div>
-              <div className="absolute -top-24 -right-24 w-96 h-96 bg-purple-500 opacity-20 rounded-full blur-3xl"></div>
-              <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-indigo-400 opacity-20 rounded-full blur-3xl"></div>
+              <div className="absolute -top-24 -right-24 w-96 h-96 bg-vynal-accent-secondary/20 rounded-full blur-3xl"></div>
+              <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-vynal-accent-primary/20 rounded-full blur-3xl"></div>
             </div>
           )}
           
@@ -350,36 +350,36 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
             {!isFreelanceView && category && (
               <motion.nav 
                 variants={animations.fadeIn}
-                className="flex items-center text-xs sm:text-sm mb-3 sm:mb-4 bg-white rounded-lg shadow-sm p-2 border border-gray-100 overflow-x-auto whitespace-nowrap"
+                className="flex items-center text-xs sm:text-sm mb-3 sm:mb-4 bg-vynal-purple-dark/90 rounded-lg shadow-lg shadow-vynal-accent-secondary/20 p-2 border border-vynal-purple-secondary/30 overflow-x-auto whitespace-nowrap text-vynal-text-primary"
                 aria-label="Fil d'Ariane"
               >
-                <Link href="/" className="text-gray-500 hover:text-indigo-600 transition-colors">
+                <Link href="/" className="text-vynal-text-secondary hover:text-vynal-accent-primary transition-colors">
                   Accueil
                 </Link>
-                <ChevronRight className="h-4 w-4 mx-2 text-gray-400 flex-shrink-0" aria-hidden="true" />
-                <Link href="/services" className="text-gray-500 hover:text-indigo-600 transition-colors">
+                <ChevronRight className="h-4 w-4 mx-2 text-vynal-text-secondary flex-shrink-0" aria-hidden="true" />
+                <Link href="/services" className="text-vynal-text-secondary hover:text-vynal-accent-primary transition-colors">
                   Services
                 </Link>
-                <ChevronRight className="h-4 w-4 mx-2 text-gray-400 flex-shrink-0" aria-hidden="true" />
+                <ChevronRight className="h-4 w-4 mx-2 text-vynal-text-secondary flex-shrink-0" aria-hidden="true" />
                 <Link 
                   href={`/services?category=${category.slug}`} 
-                  className="text-gray-500 hover:text-indigo-600 transition-colors"
+                  className="text-vynal-text-secondary hover:text-vynal-accent-primary transition-colors"
                 >
                   {category.name}
                 </Link>
                 {subcategory && (
                   <>
-                    <ChevronRight className="h-4 w-4 mx-2 text-gray-400 flex-shrink-0" aria-hidden="true" />
+                    <ChevronRight className="h-4 w-4 mx-2 text-vynal-text-secondary flex-shrink-0" aria-hidden="true" />
                     <Link 
                       href={`/services?category=${category.slug}&subcategory=${subcategory.slug}`} 
-                      className="text-gray-500 hover:text-indigo-600 transition-colors"
+                      className="text-vynal-text-secondary hover:text-vynal-accent-primary transition-colors"
                     >
                       {subcategory.name}
                     </Link>
                   </>
                 )}
-                <ChevronRight className="h-4 w-4 mx-2 text-gray-400 flex-shrink-0" aria-hidden="true" />
-                <span className="text-indigo-600 font-medium truncate">{title}</span>
+                <ChevronRight className="h-4 w-4 mx-2 text-vynal-text-secondary flex-shrink-0" aria-hidden="true" />
+                <span className="text-vynal-accent-primary font-medium truncate">{title}</span>
               </motion.nav>
             )}
 
@@ -393,17 +393,17 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                   <Button 
                     variant="ghost" 
                     onClick={onBack} 
-                    className="mr-4 group"
+                    className="mr-4 group border-vynal-purple-secondary/30 bg-vynal-purple-secondary/10 text-vynal-text-primary hover:bg-vynal-purple-secondary/30 hover:text-vynal-accent-primary transition-colors"
                     aria-label="Retour"
                   >
                     <ArrowLeft className="h-4 w-4 mr-2 group-hover:-translate-x-1 transition-transform" />
                     Retour
                   </Button>
                 )}
-                <h1 className="text-2xl font-bold text-gray-900">Détails du service</h1>
+                <h1 className="text-2xl font-bold text-vynal-text-primary">Détails du service</h1>
                 
                 {onEdit && (
-                  <Button onClick={onEdit} className="ml-auto">
+                  <Button onClick={onEdit} className="ml-auto bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-vynal-purple-dark font-medium transition-all">
                     Modifier
                   </Button>
                 )}
@@ -427,69 +427,69 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                       altText={service.title}
                     />
                   ) : (
-                    <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center shadow-inner">
-                      <Image className="h-12 w-12 text-gray-400" aria-hidden="true" />
-                      <p className="ml-2 text-gray-500">Aucune image disponible</p>
+                    <div className="aspect-video bg-vynal-purple-secondary/30 rounded-lg flex items-center justify-center shadow-inner">
+                      <Image className="h-12 w-12 text-vynal-text-secondary" aria-hidden="true" />
+                      <p className="ml-2 text-vynal-text-secondary">Aucune image disponible</p>
                     </div>
                   )}
                 </motion.div>
 
-                <Card className="overflow-hidden border-none shadow-md bg-white/90 backdrop-blur-sm">
+                <Card className="overflow-hidden border-vynal-purple-secondary/30 shadow-lg shadow-vynal-accent-secondary/20 bg-vynal-purple-dark/90 backdrop-blur-sm rounded-xl">
                   <CardContent className="p-4 sm:p-6">
                     {/* Statut du service - visible uniquement en mode admin */}
                     {isFreelanceView && service.active !== undefined && (
                       <div className="mb-4 flex justify-between items-center">
                         <Badge variant={service.active ? "default" : "secondary"} className={
                           service.active 
-                            ? "bg-green-100 text-green-800 hover:bg-green-200" 
-                            : "bg-yellow-100 text-yellow-800 hover:bg-yellow-200"
+                            ? "bg-green-600 text-white hover:bg-green-700" 
+                            : "bg-yellow-600 text-white hover:bg-yellow-700"
                         }>
                           {service.active ? "Actif" : "Inactif"}
                         </Badge>
                         
-                        <span className="text-xs text-gray-500">ID: {service.id}</span>
+                        <span className="text-xs text-gray-300">ID: {service.id}</span>
                       </div>
                     )}
 
                     {/* Titre du service */}
                     <div className="mb-3 sm:mb-4">
-                      <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 break-words" id="service-title">
+                      <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white break-words" id="service-title">
                         {title}
                       </h1>
                     </div>
                     
                     {/* Informations principales */}
-                    <div className="flex flex-wrap gap-2 mb-4 p-3 bg-gray-50 rounded-lg border border-gray-100">
+                    <div className="flex flex-wrap gap-2 mb-4 p-3 bg-vynal-purple-darkest/50 rounded-lg border border-vynal-purple-mid/20">
                       <div className="flex items-center space-x-2">
-                        <Tag className="h-4 w-4 text-indigo-500 flex-shrink-0" aria-hidden="true" />
+                        <Tag className="h-4 w-4 text-vynal-purple-light flex-shrink-0" aria-hidden="true" />
                         <div className="flex items-center">
-                          <p className="text-xs text-gray-500 mr-1">Catégorie:</p>
-                          <p className="text-xs font-medium truncate max-w-[120px]">{category?.name || 'Non spécifiée'}</p>
+                          <p className="text-xs text-gray-400 mr-1">Catégorie:</p>
+                          <p className="text-xs font-medium truncate max-w-[120px] text-white">{category?.name || 'Non spécifiée'}</p>
                         </div>
                       </div>
                       
                       <div className="flex items-center space-x-2">
-                        <Clock className="h-4 w-4 text-indigo-500 flex-shrink-0" aria-hidden="true" />
+                        <Clock className="h-4 w-4 text-vynal-purple-light flex-shrink-0" aria-hidden="true" />
                         <div className="flex items-center">
-                          <p className="text-xs text-gray-500 mr-1">Temps de livraison:</p>
-                          <p className="text-xs font-medium">{delivery_time} jour{delivery_time > 1 ? 's' : ''}</p>
+                          <p className="text-xs text-gray-400 mr-1">Temps de livraison:</p>
+                          <p className="text-xs font-medium text-white">{delivery_time} jour{delivery_time > 1 ? 's' : ''}</p>
                         </div>
                       </div>
                       
                       <div className="flex items-center space-x-2">
-                        <Calendar className="h-4 w-4 text-indigo-500 flex-shrink-0" aria-hidden="true" />
+                        <Calendar className="h-4 w-4 text-vynal-purple-light flex-shrink-0" aria-hidden="true" />
                         <div className="flex items-center">
-                          <p className="text-xs text-gray-500 mr-1">Créé le:</p>
-                          <p className="text-xs font-medium">{formatDate(created_at)}</p>
+                          <p className="text-xs text-gray-400 mr-1">Créé le:</p>
+                          <p className="text-xs font-medium text-white">{formatDate(created_at)}</p>
                         </div>
                       </div>
                       
                       {subcategory && (
                         <div className="flex items-center space-x-2">
-                          <FileText className="h-4 w-4 text-indigo-500 flex-shrink-0" aria-hidden="true" />
+                          <FileText className="h-4 w-4 text-vynal-purple-light flex-shrink-0" aria-hidden="true" />
                           <div className="flex items-center">
-                            <p className="text-xs text-gray-500 mr-1">Sous-catégorie:</p>
-                            <p className="text-xs font-medium truncate max-w-[120px]">{subcategory.name}</p>
+                            <p className="text-xs text-gray-400 mr-1">Sous-catégorie:</p>
+                            <p className="text-xs font-medium truncate max-w-[120px] text-white">{subcategory.name}</p>
                           </div>
                         </div>
                       )}
@@ -497,9 +497,9 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                     
                     {/* Description du service */}
                     <div className="mb-4">
-                      <h2 className="text-lg font-semibold mb-2 text-gray-900">Description</h2>
-                      <div className="bg-gray-50 border border-gray-100 rounded-lg p-4 shadow-inner">
-                        <div className="text-gray-700 prose prose-sm max-w-none overflow-hidden break-words">
+                      <h2 className="text-lg font-semibold mb-2 text-white">Description</h2>
+                      <div className="bg-vynal-purple-darkest/50 border border-vynal-purple-mid/20 rounded-lg p-4 shadow-inner">
+                        <div className="text-gray-300 prose prose-sm max-w-none overflow-hidden break-words">
                           {formattedDescription}
                         </div>
                       </div>
@@ -515,19 +515,19 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
               >
                 <div className="lg:sticky lg:top-4 space-y-4">
                   {/* Carte de prix et actions */}
-                  <Card className="shadow-md border border-gray-100 overflow-hidden">
-                    <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-4 border-b border-gray-100">
-                      <h2 className="text-2xl font-bold text-gray-900">
+                  <Card className="shadow-md overflow-hidden">
+                    <div className="bg-gradient-to-r from-vynal-purple-darkest to-vynal-purple-dark p-4 border-b border-vynal-purple-mid/20">
+                      <h2 className="text-2xl font-bold text-white">
                         {formatPrice(price)} FCFA
                       </h2>
-                      <p className="text-xs text-gray-500">Prix final, sans frais supplémentaires</p>
+                      <p className="text-xs text-gray-400">Prix final, sans frais supplémentaires</p>
                     </div>
                     
                     <CardContent className="p-4">
                       <div className="space-y-3 mb-4">
                         <Button 
                           onClick={() => setShowPaymentSteps(true)}
-                          className="w-full font-medium shadow-md bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 transition-all transform hover:scale-[1.02]"
+                          className="w-full font-medium shadow-md bg-gradient-to-r from-vynal-purple-light to-vynal-purple-mid hover:from-vynal-purple-mid hover:to-vynal-purple transition-all transform hover:scale-[1.02]"
                           aria-label="Commander ce service"
                         >
                           <ShoppingBag className="h-4 w-4 mr-2" aria-hidden="true" />
@@ -545,39 +545,39 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                             <div className="space-y-4 py-2">
                               <div className="space-y-4">
                                 <div className="flex items-start">
-                                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-indigo-900">
+                                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-vynal-purple-light/20 text-vynal-purple-light">
                                     <FileText className="h-4 w-4" />
                                   </div>
                                   <div className="ml-4">
-                                    <h3 className="text-sm font-medium">1. Spécifications du projet</h3>
-                                    <p className="text-sm text-gray-500">Détaillez vos besoins et exigences pour ce service</p>
+                                    <h3 className="text-sm font-medium text-white">1. Spécifications du projet</h3>
+                                    <p className="text-sm text-gray-300">Détaillez vos besoins et exigences pour ce service</p>
                                   </div>
                                 </div>
                                 <div className="flex items-start">
-                                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-indigo-900">
+                                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-vynal-purple-light/20 text-vynal-purple-light">
                                     <CreditCard className="h-4 w-4" />
                                   </div>
                                   <div className="ml-4">
-                                    <h3 className="text-sm font-medium">2. Paiement sécurisé</h3>
-                                    <p className="text-sm text-gray-500">Choisissez parmi plusieurs méthodes de paiement (carte, mobile money, etc.)</p>
+                                    <h3 className="text-sm font-medium text-white">2. Paiement sécurisé</h3>
+                                    <p className="text-sm text-gray-300">Choisissez parmi plusieurs méthodes de paiement (carte, mobile money, etc.)</p>
                                   </div>
                                 </div>
                                 <div className="flex items-start">
-                                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-indigo-900">
+                                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-vynal-purple-light/20 text-vynal-purple-light">
                                     <MessageSquare className="h-4 w-4" />
                                   </div>
                                   <div className="ml-4">
-                                    <h3 className="text-sm font-medium">3. Communication directe</h3>
-                                    <p className="text-sm text-gray-500">Discutez avec le freelance pour affiner votre commande</p>
+                                    <h3 className="text-sm font-medium text-white">3. Communication directe</h3>
+                                    <p className="text-sm text-gray-300">Discutez avec le freelance pour affiner votre commande</p>
                                   </div>
                                 </div>
                                 <div className="flex items-start">
-                                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-indigo-900">
+                                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-vynal-purple-light/20 text-vynal-purple-light">
                                     <PackageCheck className="h-4 w-4" />
                                   </div>
                                   <div className="ml-4">
-                                    <h3 className="text-sm font-medium">4. Livraison et validation</h3>
-                                    <p className="text-sm text-gray-500">Recevez et validez le travail final du freelance</p>
+                                    <h3 className="text-sm font-medium text-white">4. Livraison et validation</h3>
+                                    <p className="text-sm text-gray-300">Recevez et validez le travail final du freelance</p>
                                   </div>
                                 </div>
                               </div>
@@ -591,7 +591,7 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                               <OrderButton
                                 serviceId={service.id}
                                 variant="default"
-                                className="bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800"
+                                className="bg-gradient-to-r from-vynal-purple-light to-vynal-purple-mid hover:from-vynal-purple-mid hover:to-vynal-purple"
                               />
                             </DialogFooter>
                           </DialogContent>
@@ -610,22 +610,22 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                       </div>
                       
                       {/* Garanties du service */}
-                      <div className="border-t border-gray-100 pt-3">
+                      <div className="border-t border-vynal-purple-mid/20 pt-3">
                         <ul className="space-y-2">
                           <li className="flex items-start">
-                            <Clock className="h-4 w-4 text-indigo-600 mr-2 mt-0.5 flex-shrink-0" aria-hidden="true" />
-                            <span className="text-gray-700 text-sm">Livraison en {delivery_time} jour{delivery_time > 1 ? 's' : ''}</span>
+                            <Clock className="h-4 w-4 text-vynal-purple-light mr-2 mt-0.5 flex-shrink-0" aria-hidden="true" />
+                            <span className="text-gray-300 text-sm">Livraison en {delivery_time} jour{delivery_time > 1 ? 's' : ''}</span>
                           </li>
                           <li className="flex items-start">
-                            <MessageSquare className="h-4 w-4 text-indigo-600 mr-2 mt-0.5 flex-shrink-0" aria-hidden="true" />
-                            <span className="text-gray-700 text-sm">Support personnalisé assuré</span>
+                            <MessageSquare className="h-4 w-4 text-vynal-purple-light mr-2 mt-0.5 flex-shrink-0" aria-hidden="true" />
+                            <span className="text-gray-300 text-sm">Support personnalisé assuré</span>
                           </li>
                           <li className="flex flex-col">
                             <div className="flex items-start">
-                              <Shield className="h-4 w-4 text-green-600 mr-2 mt-0.5 flex-shrink-0" aria-hidden="true" />
-                              <span className="text-gray-700 text-sm">Paiement sécurisé</span>
+                              <Shield className="h-4 w-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" aria-hidden="true" />
+                              <span className="text-gray-300 text-sm">Paiement sécurisé</span>
                             </div>
-                            <span className="text-gray-500 text-xs ml-6">Vos informations sont chiffrées par TLS</span>
+                            <span className="text-gray-400 text-xs ml-6">Vos informations sont chiffrées par TLS</span>
                           </li>
                         </ul>
                       </div>
@@ -633,9 +633,9 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                   </Card>
                   
                   {/* Informations sur le freelance */}
-                  <Card className="shadow-md border border-gray-100 overflow-hidden">
-                    <div className="bg-gradient-to-r from-gray-50 to-gray-100 p-4 border-b border-gray-100">
-                      <h3 className="font-semibold text-gray-900">À propos du vendeur</h3>
+                  <Card className="shadow-md overflow-hidden">
+                    <div className="bg-gradient-to-r from-vynal-purple-darkest to-vynal-purple-dark p-4 border-b border-vynal-purple-mid/20">
+                      <h3 className="font-semibold text-white">À propos du vendeur</h3>
                     </div>
                     
                     <CardContent className="p-4">
@@ -643,26 +643,26 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                       {freelance && (
                         <>
                           <div className="flex items-center mb-3">
-                            <Avatar className="h-12 w-12 mr-3 border border-gray-100 shadow-sm">
+                            <Avatar className="h-12 w-12 mr-3 border border-vynal-purple-mid/30 shadow-sm">
                               <AvatarImage 
                                 src={freelance.avatar_url || undefined} 
                                 alt={freelance.username || ''} 
                                 className="object-cover"
                               />
-                              <AvatarFallback className="bg-indigo-100 text-indigo-700 text-sm">
+                              <AvatarFallback className="bg-vynal-purple-light text-white text-sm">
                                 {freelanceInitials}
                               </AvatarFallback>
                             </Avatar>
                             <div className="overflow-hidden">
-                              <h3 className="font-semibold text-sm text-gray-900 truncate">
+                              <h3 className="font-semibold text-sm text-white truncate">
                                 {freelance.full_name || freelance.username || 'Vendeur'}
                               </h3>
-                              <p className="text-xs text-gray-500 truncate">@{freelance.username || 'username'}</p>
+                              <p className="text-xs text-gray-400 truncate">@{freelance.username || 'username'}</p>
                               
                               {/* Affichage de la note moyenne */}
                               <div className="flex items-center mt-1">
                                 {ratingStars}
-                                <span className="text-xs ml-1.5 text-gray-600 font-medium">
+                                <span className="text-xs ml-1.5 text-gray-300 font-medium">
                                   {averageRating > 0 
                                     ? `${averageRating.toFixed(1)} (${reviewCount})` 
                                     : "Aucun avis"}
@@ -673,9 +673,9 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                           
                           {/* Bio du vendeur si disponible */}
                           {freelance.bio && (
-                            <div className="mb-3 bg-gray-50 p-2.5 rounded-md">
-                              <h4 className="text-xs font-medium text-gray-700 mb-1">À propos du vendeur</h4>
-                              <p className="text-xs text-gray-600 line-clamp-3">
+                            <div className="mb-3 bg-vynal-purple-darkest/50 p-2.5 rounded-md">
+                              <h4 className="text-xs font-medium text-white mb-1">À propos du vendeur</h4>
+                              <p className="text-xs text-gray-300 line-clamp-3">
                                 {freelance.bio}
                               </p>
                             </div>
@@ -733,7 +733,7 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                         </>
                       )}
                       {!freelance && (
-                        <div className="text-center p-2 text-gray-500 text-sm">
+                        <div className="text-center p-2 text-gray-400 text-sm">
                           <p>Information du vendeur non disponible</p>
                         </div>
                       )}
@@ -750,11 +750,11 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                 className="mt-8 sm:mt-10"
               >
                 <div className="mb-4">
-                  <h2 className="text-base sm:text-lg font-bold text-gray-900 flex items-center">
-                    <Package2 className="h-5 w-5 mr-2 text-indigo-600" aria-hidden="true" />
+                  <h2 className="text-base sm:text-lg font-bold text-white flex items-center">
+                    <Package2 className="h-5 w-5 mr-2 text-vynal-purple-light" aria-hidden="true" />
                     Autres services de {freelance.full_name || freelance.username}
                   </h2>
-                  <p className="text-sm text-gray-500 ml-7">Découvrez d'autres services proposés par ce vendeur</p>
+                  <p className="text-sm text-gray-300 ml-7">Découvrez d'autres services proposés par ce vendeur</p>
                 </div>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -762,11 +762,11 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                     // Skeletons pour les services en chargement
                     Array(3).fill(0).map((_, i) => (
                       <Card key={i} className="overflow-hidden h-64">
-                        <div className="h-32 bg-gray-200 animate-pulse"></div>
+                        <div className="h-32 bg-vynal-purple-mid/20 animate-pulse"></div>
                         <CardContent className="p-3">
-                          <Skeleton className="h-4 w-3/4 mb-2" />
-                          <Skeleton className="h-4 w-1/2 mb-2" />
-                          <Skeleton className="h-6 w-1/3 mt-4" />
+                          <Skeleton className="h-4 w-3/4 mb-2 bg-vynal-purple-mid/30" />
+                          <Skeleton className="h-4 w-1/2 mb-2 bg-vynal-purple-mid/30" />
+                          <Skeleton className="h-6 w-1/3 mt-4 bg-vynal-purple-mid/30" />
                         </CardContent>
                       </Card>
                     ))
@@ -795,10 +795,10 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                         );
                       })
                     ) : (
-                      <div className="col-span-full text-center p-8 bg-gray-50 rounded-lg border border-dashed border-gray-200">
+                      <div className="col-span-full text-center p-8 bg-vynal-purple-darkest/30 rounded-lg border border-dashed border-vynal-purple-mid/20">
                         <Package2 className="h-10 w-10 mx-auto text-gray-400 mb-3" aria-hidden="true" />
-                        <p className="text-gray-600 mb-1">Ce vendeur n'a pas d'autres services pour le moment</p>
-                        <p className="text-sm text-gray-500">Revenez plus tard pour découvrir ses nouveaux services</p>
+                        <p className="text-gray-300 mb-1">Ce vendeur n'a pas d'autres services pour le moment</p>
+                        <p className="text-sm text-gray-400">Revenez plus tard pour découvrir ses nouveaux services</p>
                       </div>
                     )
                   )}
@@ -806,15 +806,15 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                   {/* Affichage "Voir tous les services" uniquement si nécessaire */}
                   {!loadingRelated && filteredRelatedServices.length > 0 && filteredRelatedServices.length < 3 && (
                     <Link href={`/services?freelancer=${freelance.id}`} className="block">
-                      <Card className="h-full border border-dashed border-gray-300 bg-gradient-to-br from-gray-50 to-gray-100 hover:from-indigo-50 hover:to-purple-50 transition-colors flex items-center justify-center group">
+                      <Card className="h-full border border-dashed border-vynal-purple-mid/20 bg-gradient-to-br from-vynal-purple-darkest/30 to-vynal-purple-dark/30 hover:from-vynal-purple-darkest hover:to-vynal-purple-dark transition-colors flex items-center justify-center group">
                         <CardContent className="p-6 flex flex-col items-center justify-center text-center">
-                          <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                            <Package2 className="h-5 w-5 text-indigo-600" aria-hidden="true" />
+                          <div className="h-10 w-10 rounded-full bg-vynal-purple-light/20 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                            <Package2 className="h-5 w-5 text-vynal-purple-light" aria-hidden="true" />
                           </div>
-                          <h3 className="text-sm font-medium text-gray-700 mb-1 group-hover:text-indigo-700 transition-colors">
+                          <h3 className="text-sm font-medium text-gray-300 mb-1 group-hover:text-white transition-colors">
                             Voir tous les services
                           </h3>
-                          <p className="text-xs text-gray-500 group-hover:text-gray-600 transition-colors">
+                          <p className="text-xs text-gray-400 group-hover:text-gray-300 transition-colors">
                             Découvrez la liste complète des services
                           </p>
                         </CardContent>

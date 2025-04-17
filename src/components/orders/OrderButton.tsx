@@ -17,6 +17,9 @@ import { generateOrderId } from "@/lib/utils";
 import { OrderSummary } from "./OrderSummary";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/components/ui/use-toast";
+import { Loader } from "lucide-react";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { toast as hotToast } from "react-hot-toast";
 
 interface OrderButtonProps {
   serviceId?: string;
@@ -26,6 +29,7 @@ interface OrderButtonProps {
   fullWidth?: boolean;
   customLabel?: string;
   className?: string;
+  disabled?: boolean;
 }
 
 // Types d'étapes du processus de commande
@@ -39,9 +43,10 @@ export function OrderButton({
   fullWidth = false,
   customLabel,
   className,
+  disabled,
 }: OrderButtonProps) {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
@@ -67,24 +72,26 @@ export function OrderButton({
   // Pour cette démo, on utilise un service fictif
   const currentService = service;
 
+  const supabase = createClientComponentClient();
+
+  useEffect(() => {
+    if (isOpen && !user && !authLoading) {
+      setIsOpen(false);
+      hotToast.error("Vous devez être connecté pour commander");
+      router.push("/sign-in");
+    }
+  }, [isOpen, user, authLoading, router]);
+
   // Vérification de l'authentification avant ouverture du modal
   const handleOpenOrderModal = () => {
-    if (!user) {
-      // L'utilisateur n'est pas connecté, rediriger vers la page de connexion
-      toast({
-        title: "Connexion requise",
-        description: "Vous devez être connecté pour commander un service",
-        variant: "destructive",
-      });
-      
-      // Stocker l'URL courante pour redirection après connexion
-      const currentPath = window.location.pathname + window.location.search;
-      router.push(`/auth/login?redirect=${encodeURIComponent(currentPath)}`);
+    if (!user && !authLoading) {
+      hotToast.error("Vous devez être connecté pour commander");
+      router.push("/sign-in");
       return;
     }
     
     // Si l'utilisateur est un freelance, il ne peut pas commander
-    if (user.user_metadata?.role === "freelance") {
+    if (user?.user_metadata?.role === "freelance") {
       toast({
         title: "Action non autorisée",
         description: "En tant que freelance, vous ne pouvez pas commander de services",
@@ -179,85 +186,97 @@ export function OrderButton({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        <Button
-          variant={variant}
-          className={`${fullWidth ? "w-full" : ""} ${
-            variant === "default" ? "bg-gradient-to-r from-indigo-600 to-indigo-700" : ""
-          } ${className || ''}`}
-          onClick={(e) => {
-            e.preventDefault();
-            handleOpenOrderModal();
-          }}
-        >
-          {showIcon && <ShoppingBag className="mr-2 h-4 w-4" />}
-          {getLabel()}
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px]">
-        {currentStep === "requirements" && (
-          <OrderRequirementsForm
-            service={currentService}
-            requirements={requirements}
-            setRequirements={setRequirements}
-            deliveryDate={deliveryDate}
-            setDeliveryDate={setDeliveryDate}
-            files={files}
-            setFiles={setFiles}
-            error={error}
-            onBack={handleClose}
-            onNext={handleRequirementsComplete}
-          />
+    <>
+      <Button
+        variant={variant}
+        className={`${fullWidth ? "w-full" : ""} ${
+          variant === "default" ? "bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-vynal-purple-dark" : ""
+        } ${className || ''}`}
+        onClick={(e) => {
+          e.preventDefault();
+          handleOpenOrderModal();
+        }}
+        disabled={disabled || authLoading}
+      >
+        {disabled ? (
+          <>
+            <Loader className="mr-2 h-4 w-4 animate-spin" />
+            Chargement...
+          </>
+        ) : (
+          <>
+            {showIcon && <ShoppingBag className="mr-2 h-4 w-4" />}
+            {getLabel()}
+          </>
         )}
-        
-        {currentStep === "selection" && (
-          <PaymentMethodSelection 
-            service={currentService}
-            selectedPaymentMethod={selectedPaymentMethod}
-            setSelectedPaymentMethod={setSelectedPaymentMethod}
-            error={error}
-            onBack={handleBack}
-            onNext={handleMethodSelected}
-            requirements={requirements}
-            deliveryDate={deliveryDate}
-            files={files}
-          />
-        )}
-        
-        {currentStep === "payment" && (
-          <PaymentDetails 
-            service={currentService}
-            selectedPaymentMethod={selectedPaymentMethod}
-            cardNumber={cardNumber}
-            setCardNumber={setCardNumber}
-            cardHolder={cardHolder}
-            setCardHolder={setCardHolder}
-            expiryDate={expiryDate}
-            setExpiryDate={setExpiryDate}
-            cvv={cvv}
-            setCvv={setCvv}
-            paypalEmail={paypalEmail}
-            setPaypalEmail={setPaypalEmail}
-            phoneNumber={phoneNumber}
-            setPhoneNumber={setPhoneNumber}
-            mobileOperator={mobileOperator}
-            setMobileOperator={setMobileOperator}
-            loading={isLoading}
-            error={error}
-            onBack={handleBack}
-            onNext={handlePaymentComplete}
-          />
-        )}
-        
-        {currentStep === "summary" && (
-          <OrderSummary
-            service={currentService}
-            orderId={orderId}
-            onClose={handleClose}
-          />
-        )}
-      </DialogContent>
-    </Dialog>
+      </Button>
+
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogContent className="sm:max-w-[500px] bg-vynal-purple-dark/90 border-vynal-purple-secondary/30 rounded-xl shadow-lg shadow-vynal-accent-secondary/20 backdrop-blur-sm text-vynal-text-primary">
+          {currentStep === "requirements" && (
+            <OrderRequirementsForm
+              service={currentService}
+              requirements={requirements}
+              setRequirements={setRequirements}
+              deliveryDate={deliveryDate}
+              setDeliveryDate={setDeliveryDate}
+              files={files}
+              setFiles={setFiles}
+              onBack={handleClose}
+              onNext={handleRequirementsComplete}
+              error={error}
+            />
+          )}
+          
+          {currentStep === "selection" && (
+            <PaymentMethodSelection 
+              service={currentService}
+              selectedPaymentMethod={selectedPaymentMethod}
+              setSelectedPaymentMethod={setSelectedPaymentMethod}
+              error={error}
+              onBack={handleBack}
+              onNext={handleMethodSelected}
+              requirements={requirements}
+              deliveryDate={deliveryDate}
+              files={files}
+              loading={isLoading}
+            />
+          )}
+          
+          {currentStep === "payment" && (
+            <PaymentDetails 
+              service={currentService}
+              selectedPaymentMethod={selectedPaymentMethod}
+              cardNumber={cardNumber}
+              setCardNumber={setCardNumber}
+              cardHolder={cardHolder}
+              setCardHolder={setCardHolder}
+              expiryDate={expiryDate}
+              setExpiryDate={setExpiryDate}
+              cvv={cvv}
+              setCvv={setCvv}
+              paypalEmail={paypalEmail}
+              setPaypalEmail={setPaypalEmail}
+              phoneNumber={phoneNumber}
+              setPhoneNumber={setPhoneNumber}
+              mobileOperator={mobileOperator}
+              setMobileOperator={setMobileOperator}
+              loading={isLoading}
+              error={error}
+              onBack={handleBack}
+              onNext={handlePaymentComplete}
+            />
+          )}
+          
+          {currentStep === "summary" && (
+            <OrderSummary
+              service={currentService}
+              orderId={orderId}
+              onClose={handleClose}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 } 

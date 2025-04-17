@@ -1,10 +1,11 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Header from "./header";
 import Footer from "./footer";
 import usePreventScrollReset from "@/hooks/usePreventScrollReset";
+import { useTheme } from "next-themes";
 
 interface MainLayoutProps {
   children: React.ReactNode;

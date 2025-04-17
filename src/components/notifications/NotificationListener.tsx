@@ -18,7 +18,7 @@ const NotificationListener = () => {
       toast({
         title: notification.title,
         description: notification.description,
-        variant: notification.variant || 'default',
+        variant: notification.variant || 'purple',
         duration: notification.duration || 5000,
       });
     });

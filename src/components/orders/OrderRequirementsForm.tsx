@@ -9,7 +9,11 @@ import { Input } from "@/components/ui/input";
 import { ArrowLeft, ArrowRight, FileUp, AlertCircle, Calendar, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import Image from "next/image";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice, formatFileSize } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { useDropzone } from "react-dropzone";
+import { Upload, X } from "lucide-react";
+import { Loader } from "lucide-react";
 
 interface OrderRequirementsFormProps {
   service: any;
@@ -37,6 +41,8 @@ export function OrderRequirementsForm({
   onNext
 }: OrderRequirementsFormProps) {
   const [fileError, setFileError] = useState<string | null>(null);
+  const [response, setResponse] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   
   // Calcul de la date de livraison estimée
   const getEstimatedDeliveryDate = () => {
@@ -75,39 +81,58 @@ export function OrderRequirementsForm({
     }
   };
   
-  // Liste des fichiers sélectionnés
-  const renderFileList = () => {
-    if (!files || files.length === 0) return null;
+  // Configuration de react-dropzone
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop: (acceptedFiles) => {
+      // Conversion du tableau de fichiers en FileList (imparfait mais fonctionnel)
+      const dataTransfer = new DataTransfer();
+      acceptedFiles.forEach(file => {
+        dataTransfer.items.add(file);
+      });
+      setFiles(dataTransfer.files);
+    },
+    maxFiles: 5,
+    maxSize: 10 * 1024 * 1024, // 10MB
+  });
+
+  // Retrait d'un fichier de la liste
+  const removeFile = (index: number) => {
+    if (!files) return;
     
-    return (
-      <div className="mt-2 space-y-1">
-        {Array.from(files).map((file, index) => (
-          <div key={index} className="flex items-center text-xs text-gray-700 bg-gray-50 p-1.5 rounded-md">
-            <FileUp className="h-3.5 w-3.5 mr-1.5 text-indigo-500" />
-            <div className="flex-1 truncate">{file.name}</div>
-            <div className="text-gray-500">
-              {(file.size / 1024).toFixed(0)} KB
-            </div>
-          </div>
-        ))}
-      </div>
-    );
+    const dataTransfer = new DataTransfer();
+    Array.from(files).forEach((file, i) => {
+      if (i !== index) {
+        dataTransfer.items.add(file);
+      }
+    });
+    
+    setFiles(dataTransfer.files.length > 0 ? dataTransfer.files : null);
   };
-  
+
+  // Gestion de la soumission
+  const handleSubmit = () => {
+    setSubmitting(true);
+    // Simulation d'un envoi API
+    setTimeout(() => {
+      setSubmitting(false);
+      onNext();
+    }, 1000);
+  };
+
   return (
     <>
-      <DialogHeader>
-        <DialogTitle>Instructions pour le vendeur</DialogTitle>
-        <DialogDescription>
-          Décrivez précisément ce dont vous avez besoin pour ce service
+      <DialogHeader className="bg-gradient-to-b from-vynal-purple-dark to-vynal-purple-darkest p-4 rounded-t-lg border-b border-vynal-purple-secondary/30">
+        <DialogTitle className="text-vynal-text-primary">Détails de la commande</DialogTitle>
+        <DialogDescription className="text-vynal-text-secondary">
+          Fournissez vos exigences pour cette commande
         </DialogDescription>
       </DialogHeader>
       
-      <div className="space-y-4 py-4">
-        {/* Résumé du service commandé */}
-        <div className="bg-gray-50 rounded-lg p-3 border border-gray-100">
+      <div className="p-4 space-y-6">
+        {/* Informations du service */}
+        <div className="bg-vynal-purple-secondary/10 rounded-lg p-4 border border-vynal-purple-secondary/30">
           <div className="flex items-start gap-3">
-            <div className="relative h-14 w-14 rounded-md overflow-hidden flex-shrink-0 bg-gray-100">
+            <div className="relative h-14 w-14 rounded-md overflow-hidden flex-shrink-0 bg-vynal-purple-secondary/20">
               {service?.images && service.images.length > 0 ? (
                 <Image 
                   src={service.images[0]} 
@@ -116,20 +141,20 @@ export function OrderRequirementsForm({
                   className="object-cover"
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center bg-gray-200">
-                  <FileUp className="h-5 w-5 text-gray-400" />
+                <div className="w-full h-full flex items-center justify-center bg-vynal-purple-secondary/30">
+                  <FileUp className="h-5 w-5 text-vynal-accent-primary" />
                 </div>
               )}
             </div>
             
             <div className="flex-1 min-w-0">
-              <h3 className="text-sm font-medium line-clamp-1">{service?.title}</h3>
+              <h3 className="text-sm font-medium line-clamp-1 text-vynal-text-primary">{service?.title}</h3>
               <div className="flex items-center gap-2 mt-1">
-                <Badge variant="outline" className="text-xs bg-indigo-50 text-indigo-700">
+                <Badge variant="outline" className="text-xs bg-vynal-purple-secondary/10 text-vynal-accent-primary hover:bg-vynal-purple-secondary/20 border-vynal-purple-secondary/30">
                   <Clock className="h-3 w-3 mr-1" />
-                  {service?.delivery_time} jours
+                  {service?.delivery_time || 1} jour{(service?.delivery_time || 1) > 1 ? 's' : ''}
                 </Badge>
-                <span className="text-xs text-gray-500">
+                <span className="text-xs text-vynal-text-secondary">
                   {formatPrice(service?.price || 0)}
                 </span>
               </div>
@@ -137,97 +162,153 @@ export function OrderRequirementsForm({
           </div>
         </div>
         
-        {/* Affichage des erreurs */}
-        {(error || fileError) && (
-          <div className="bg-red-50 p-2 rounded-md flex items-start gap-2 text-red-700 text-xs">
-            <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-            <p>{error || fileError}</p>
-          </div>
-        )}
-        
-        {/* Formulaire d'instructions */}
+        {/* Formulaire d'exigences */}
         <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="requirements" className="text-sm font-medium">
-              Instructions détaillées
-              <span className="text-red-500 ml-0.5">*</span>
+          <div>
+            <Label htmlFor="requirements" className="text-vynal-text-primary">
+              Exigences détaillées
+              <span className="text-vynal-status-error ml-0.5">*</span>
             </Label>
-            <Textarea
+            <Textarea 
               id="requirements"
-              placeholder="Expliquez en détail ce que vous attendez du vendeur..."
               value={requirements}
               onChange={(e) => setRequirements(e.target.value)}
-              className="min-h-[150px] resize-y"
-              required
+              placeholder="Expliquez en détail ce que vous attendez du vendeur..."
+              className="mt-1.5 min-h-[120px] resize-none bg-transparent border-vynal-purple-secondary/30 text-vynal-text-primary focus-visible:ring-vynal-accent-primary"
             />
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-vynal-text-secondary mt-1">
               {requirements.length} caractères - min. 30 caractères recommandés
             </p>
           </div>
           
-          <div className="space-y-2">
-            <Label htmlFor="deliveryDate" className="text-sm font-medium">
+          <div>
+            <Label htmlFor="deliveryDate" className="text-vynal-text-primary">
               Date de livraison souhaitée
             </Label>
-            <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-gray-500" />
+            <div className="flex items-center gap-2 mt-1.5">
+              <Calendar className="h-4 w-4 text-vynal-accent-primary" />
               <Input
                 type="date"
                 id="deliveryDate"
                 value={deliveryDate}
                 onChange={(e) => setDeliveryDate(e.target.value)}
                 min={new Date().toISOString().split('T')[0]}
+                className="bg-transparent border-vynal-purple-secondary/30 text-vynal-text-primary focus-visible:ring-vynal-accent-primary"
               />
             </div>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-vynal-text-secondary mt-1">
               Date de livraison estimée: {getEstimatedDeliveryDate()}
             </p>
           </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="files" className="text-sm font-medium">
-              Télécharger des fichiers (optionnel)
-            </Label>
-            <div className="border-dashed border-2 border-gray-200 rounded-md p-4 text-center hover:bg-gray-50 transition-colors">
-              <Input
-                id="files"
-                type="file"
-                multiple
-                onChange={handleFileChange}
-                className="hidden"
-              />
-              <Label htmlFor="files" className="cursor-pointer flex flex-col items-center">
-                <FileUp className="h-8 w-8 text-gray-400 mb-2" />
-                <span className="text-sm font-medium text-gray-700">Sélectionnez des fichiers</span>
-                <span className="text-xs text-gray-500 mt-1">
-                  5 fichiers maximum (10MB par fichier)
-                </span>
-              </Label>
-            </div>
-            {renderFileList()}
-          </div>
         </div>
-      </div>
-      
-      <DialogFooter className="flex justify-between sm:justify-between">
-        <Button
-          onClick={onBack}
-          variant="ghost"
-          className="flex items-center"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Retour
-        </Button>
         
-        <Button 
-          onClick={onNext}
-          className="bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800"
-          disabled={requirements.length < 10}
-        >
-          Continuer au paiement
-          <ArrowRight className="ml-2 h-4 w-4" />
-        </Button>
-      </DialogFooter>
+        {/* Zone de téléchargement de fichiers */}
+        <div>
+          <Label className="text-vynal-text-primary block mb-2">
+            Télécharger des fichiers (optionnel)
+          </Label>
+          
+          {/* Zone de dépôt */}
+          <div 
+            {...getRootProps()} 
+            className={cn(
+              "border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors",
+              isDragActive 
+                ? "border-vynal-accent-primary bg-vynal-accent-primary/10" 
+                : "border-vynal-purple-secondary/30 hover:bg-vynal-purple-secondary/10"
+            )}
+          >
+            <input {...getInputProps()} />
+            {isDragActive ? (
+              <p className="text-sm text-vynal-accent-primary">Déposez les fichiers ici...</p>
+            ) : (
+              <div>
+                <Upload className="mx-auto h-8 w-8 text-vynal-accent-primary mb-2" />
+                <p className="text-sm font-medium text-vynal-text-primary">
+                  Glissez-déposez des fichiers ici, ou cliquez pour sélectionner
+                </p>
+                <p className="text-xs text-vynal-text-secondary mt-1">
+                  Formats acceptés: images, PDF, Word, Excel, ZIP (max 10MB)
+                </p>
+              </div>
+            )}
+          </div>
+          
+          {/* Liste des fichiers */}
+          {files && files.length > 0 && (
+            <div className="mt-4 space-y-2">
+              {Array.from(files).map((file, index) => (
+                <div 
+                  key={index} 
+                  className="flex items-center justify-between p-2 rounded-md bg-vynal-purple-secondary/10 border border-vynal-purple-secondary/30"
+                >
+                  <div className="flex items-center truncate">
+                    <div className="p-1.5 rounded-md bg-vynal-purple-secondary/20 mr-2">
+                      <FileUp className="h-4 w-4 text-vynal-accent-primary" />
+                    </div>
+                    <span className="text-sm text-vynal-text-primary truncate max-w-[250px]">
+                      {file.name}
+                    </span>
+                    <span className="text-xs text-vynal-text-secondary ml-2">
+                      ({formatFileSize(file.size)})
+                    </span>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 rounded-full hover:bg-vynal-status-error/20 hover:text-vynal-status-error"
+                    onClick={() => removeFile(index)}
+                  >
+                    <X className="h-4 w-4" />
+                    <span className="sr-only">Supprimer</span>
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+          {fileError && (
+            <p className="mt-2 text-xs text-vynal-status-error">{fileError}</p>
+          )}
+        </div>
+        
+        {error && (
+          <div className="bg-vynal-status-error/20 p-2 rounded-md flex items-start gap-2 text-vynal-status-error text-xs border border-vynal-status-error/30">
+            <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+            <p>{error}</p>
+          </div>
+        )}
+        
+        <DialogFooter className="pt-2">
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={onBack}
+            className="text-vynal-text-primary hover:text-vynal-accent-primary hover:bg-vynal-purple-secondary/20"
+            disabled={submitting}
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Retour
+          </Button>
+          <Button 
+            onClick={onNext}
+            className="bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-vynal-purple-dark"
+            disabled={submitting || requirements.length < 10}
+          >
+            {submitting ? (
+              <>
+                <Loader className="mr-2 h-4 w-4 animate-spin" />
+                Traitement...
+              </>
+            ) : (
+              <>
+                Continuer
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </>
+            )}
+          </Button>
+        </DialogFooter>
+      </div>
     </>
   );
 } 

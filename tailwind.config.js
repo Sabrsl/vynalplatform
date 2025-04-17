@@ -15,6 +15,9 @@ module.exports = {
       },
     },
     extend: {
+      fontFamily: {
+        poppins: ["var(--font-poppins)"],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -49,6 +52,41 @@ module.exports = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        success: "hsl(var(--success))",
+        warning: "hsl(var(--warning))",
+        vynal: {
+          purple: {
+            light: "#340374",
+            mid: "#20014a",
+            dark: "#100422",
+            darkest: "#0e0021",
+            secondary: "#2A0C57",
+          },
+          accent: {
+            primary: "#FF66B2",
+            secondary: "#FF007F",
+          },
+          text: {
+            primary: "#FFFFFF",
+            secondary: "#D6D6D6",
+          },
+          status: {
+            success: "#5BE49B",
+            warning: "#FCD34D",
+            error: "#EF4444",
+          },
+          gradient: {
+            primary: "linear-gradient(180deg, #100422 0%, #0e0021 100%)",
+            button: "linear-gradient(90deg, #FF66B2 0%, #FF007F 100%)",
+            card: "linear-gradient(135deg, #2A0C57 0%, #100422 100%)",
+          }
+        },
+      },
+      backgroundImage: {
+        'gradient-vynal': 'linear-gradient(180deg, #100422 0%, #0e0021 100%)',
+        'gradient-vynal-horizontal': 'linear-gradient(90deg, #100422 0%, #0e0021 100%)',
+        'gradient-card': 'linear-gradient(135deg, #2A0C57 0%, #100422 100%)',
+        'gradient-button': 'linear-gradient(90deg, #FF66B2 0%, #FF007F 100%)',
       },
       borderRadius: {
         lg: "var(--radius)",

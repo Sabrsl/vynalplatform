@@ -26,6 +26,7 @@ export default function SignupForm() {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   // Effet pour vérifier si une inscription récente a eu lieu et gérer le cooldown
   useEffect(() => {
@@ -52,6 +53,12 @@ export default function SignupForm() {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    
+    // Vérifier si les conditions d'utilisation ont été acceptées
+    if (!termsAccepted) {
+      setError("Vous devez accepter les conditions d'utilisation et la politique de confidentialité pour vous inscrire.");
+      return;
+    }
     
     // Vérifier le délai entre deux tentatives d'inscription
     const now = Date.now();
@@ -122,16 +129,16 @@ export default function SignupForm() {
   };
 
   return (
-    <div className="w-full max-w-md p-8 space-y-8 bg-white rounded-lg shadow-md">
+    <div className="w-full max-w-md p-8 space-y-8 bg-vynal-purple-dark/90 rounded-xl shadow-lg shadow-vynal-accent-secondary/20 border border-vynal-purple-secondary/30">
       <div className="text-center">
-        <h1 className="text-2xl font-bold">Inscription</h1>
-        <p className="mt-2 text-sm text-gray-600">
+        <h1 className="text-2xl font-bold text-vynal-text-primary">Inscription</h1>
+        <p className="mt-2 text-sm text-vynal-text-secondary">
           Créez votre compte {formData.role === "client" ? "client" : "freelance"} et commencez à utiliser notre plateforme.
         </p>
       </div>
 
       {error && (
-        <div className="p-3 bg-red-100 border border-red-200 rounded-md flex items-center text-red-700 text-sm">
+        <div className="p-3 bg-vynal-status-error/20 border border-vynal-status-error/30 rounded-md flex items-center text-vynal-status-error text-sm">
           <AlertCircle className="w-4 h-4 mr-2" />
           {error}
         </div>
@@ -139,12 +146,14 @@ export default function SignupForm() {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="space-y-2">
-          <label htmlFor="role" className="text-sm font-medium text-gray-700">
+          <label htmlFor="role" className="text-sm font-medium text-vynal-text-primary">
             Je m'inscris en tant que
           </label>
           <div className="flex space-x-4">
             <label className={`flex-1 flex items-center p-3 border rounded-md cursor-pointer ${
-              formData.role === "client" ? "border-indigo-500 bg-indigo-50" : "border-gray-300"
+              formData.role === "client" 
+                ? "border-vynal-accent-primary bg-vynal-accent-primary/20" 
+                : "border-vynal-purple-secondary/50 hover:bg-vynal-purple-secondary/10"
             }`}>
               <input
                 type="radio"
@@ -154,12 +163,16 @@ export default function SignupForm() {
                 onChange={handleChange}
                 className="sr-only"
               />
-              <span className={`ml-2 ${formData.role === "client" ? "text-indigo-700" : "text-gray-700"}`}>
+              <span className={`ml-2 ${
+                formData.role === "client" ? "text-vynal-accent-primary" : "text-vynal-text-secondary"
+              }`}>
                 Client
               </span>
             </label>
             <label className={`flex-1 flex items-center p-3 border rounded-md cursor-pointer ${
-              formData.role === "freelance" ? "border-indigo-500 bg-indigo-50" : "border-gray-300"
+              formData.role === "freelance" 
+                ? "border-vynal-accent-primary bg-vynal-accent-primary/20" 
+                : "border-vynal-purple-secondary/50 hover:bg-vynal-purple-secondary/10"
             }`}>
               <input
                 type="radio"
@@ -169,7 +182,9 @@ export default function SignupForm() {
                 onChange={handleChange}
                 className="sr-only"
               />
-              <span className={`ml-2 ${formData.role === "freelance" ? "text-indigo-700" : "text-gray-700"}`}>
+              <span className={`ml-2 ${
+                formData.role === "freelance" ? "text-vynal-accent-primary" : "text-vynal-text-secondary"
+              }`}>
                 Freelance
               </span>
             </label>
@@ -177,12 +192,12 @@ export default function SignupForm() {
         </div>
 
         <div className="space-y-2">
-          <label htmlFor="email" className="text-sm font-medium text-gray-700">
+          <label htmlFor="email" className="text-sm font-medium text-vynal-text-primary">
             Email
           </label>
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Mail className="h-5 w-5 text-gray-400" />
+              <Mail className="h-5 w-5 text-vynal-text-secondary" />
             </div>
             <input
               id="email"
@@ -193,19 +208,19 @@ export default function SignupForm() {
               value={formData.email}
               onChange={handleChange}
               disabled={isLoading}
-              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              className="block w-full pl-10 pr-3 py-2 bg-vynal-purple-secondary/30 border border-vynal-purple-secondary/50 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-vynal-accent-primary focus:border-vynal-accent-primary text-vynal-text-primary placeholder:text-vynal-text-secondary/70"
               placeholder="votre@email.com"
             />
           </div>
         </div>
 
         <div className="space-y-2">
-          <label htmlFor="password" className="text-sm font-medium text-gray-700">
+          <label htmlFor="password" className="text-sm font-medium text-vynal-text-primary">
             Mot de passe
           </label>
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Lock className="h-5 w-5 text-gray-400" />
+              <Lock className="h-5 w-5 text-vynal-text-secondary" />
             </div>
             <input
               id="password"
@@ -216,7 +231,7 @@ export default function SignupForm() {
               value={formData.password}
               onChange={handleChange}
               disabled={isLoading}
-              className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              className="block w-full pl-10 pr-10 py-2 bg-vynal-purple-secondary/30 border border-vynal-purple-secondary/50 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-vynal-accent-primary focus:border-vynal-accent-primary text-vynal-text-primary placeholder:text-vynal-text-secondary/70"
               placeholder="••••••••"
             />
             <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
@@ -226,25 +241,25 @@ export default function SignupForm() {
                   e.preventDefault();
                   setShowPassword(!showPassword);
                 }}
-                className="text-gray-400 hover:text-gray-500 focus:outline-none"
+                className="text-vynal-text-secondary hover:text-vynal-text-primary focus:outline-none transition-colors"
                 aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
               >
                 {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
               </button>
             </div>
           </div>
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-vynal-text-secondary">
             Minimum 8 caractères
           </p>
         </div>
 
         <div className="space-y-2">
-          <label htmlFor="confirmPassword" className="text-sm font-medium text-gray-700">
+          <label htmlFor="confirmPassword" className="text-sm font-medium text-vynal-text-primary">
             Confirmer le mot de passe
           </label>
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Lock className="h-5 w-5 text-gray-400" />
+              <Lock className="h-5 w-5 text-vynal-text-secondary" />
             </div>
             <input
               id="confirmPassword"
@@ -255,58 +270,61 @@ export default function SignupForm() {
               value={formData.confirmPassword}
               onChange={handleChange}
               disabled={isLoading}
-              className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              className="block w-full pl-10 pr-3 py-2 bg-vynal-purple-secondary/30 border border-vynal-purple-secondary/50 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-vynal-accent-primary focus:border-vynal-accent-primary text-vynal-text-primary placeholder:text-vynal-text-secondary/70"
               placeholder="••••••••"
             />
-            <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  setShowPassword(!showPassword);
-                }}
-                className="text-gray-400 hover:text-gray-500 focus:outline-none"
-                aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
-              >
-                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-              </button>
-            </div>
+          </div>
+        </div>
+        
+        {/* Ajout de la case à cocher pour les conditions d'utilisation */}
+        <div className="flex items-start space-x-2 mt-4">
+          <div className="flex items-center h-5">
+            <input
+              id="terms"
+              name="terms"
+              type="checkbox"
+              checked={termsAccepted}
+              onChange={(e) => setTermsAccepted(e.target.checked)}
+              className="h-4 w-4 bg-vynal-purple-secondary/30 border-vynal-purple-secondary/50 rounded focus:ring-vynal-accent-primary text-vynal-accent-primary"
+              required
+            />
+          </div>
+          <div className="ml-2 text-sm">
+            <label htmlFor="terms" className="text-vynal-text-secondary">
+              J'accepte les{" "}
+              <Link href="/terms" className="text-vynal-accent-primary hover:text-vynal-accent-secondary underline">
+                Conditions d'utilisation
+              </Link>{" "}
+              et la{" "}
+              <Link href="/privacy" className="text-vynal-accent-primary hover:text-vynal-accent-secondary underline">
+                Politique de confidentialité
+              </Link>
+            </label>
           </div>
         </div>
 
         <Button
           type="submit"
           disabled={isLoading || cooldownRemaining > 0}
-          className="w-full flex justify-center"
+          className="w-full flex justify-center bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-vynal-purple-dark font-medium transition-all"
         >
           {isLoading ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Inscription en cours...
             </>
           ) : cooldownRemaining > 0 ? (
-            <>
-              Réessayer dans {Math.ceil(cooldownRemaining / 1000)}s
-            </>
+            `Patientez ${Math.max(1, Math.ceil(cooldownRemaining / 1000))}s...`
           ) : (
             "S'inscrire"
           )}
         </Button>
       </form>
 
-      <div className="relative mt-6">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-gray-300" />
-        </div>
-        <div className="relative flex justify-center text-sm">
-          <span className="px-2 bg-white text-gray-500">Ou</span>
-        </div>
-      </div>
-
-      <p className="mt-6 text-center text-sm text-gray-600">
+      <p className="mt-6 text-center text-sm text-vynal-text-secondary">
         Vous avez déjà un compte ?{" "}
         <Link
           href="/auth/login"
-          className="font-medium text-indigo-600 hover:text-indigo-500"
+          className="font-medium text-vynal-accent-primary hover:text-vynal-accent-secondary transition-colors"
         >
           Connectez-vous
         </Link>

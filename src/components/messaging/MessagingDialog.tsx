@@ -298,7 +298,7 @@ const MessagingDialog: React.FC<MessagingDialogProps> = ({
                 onChange={(e) => setMessage(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Écrivez votre message ici..."
-                className="min-h-[120px] resize-none"
+                className="min-h-[120px] resize-none bg-vynal-purple-darkest/50 focus:border-vynal-purple-light border-vynal-purple-mid/30"
                 disabled={isLoading}
                 autoFocus
               />
@@ -309,6 +309,7 @@ const MessagingDialog: React.FC<MessagingDialogProps> = ({
                 variant="outline" 
                 onClick={() => setIsOpen(false)}
                 disabled={isLoading}
+                className="border-vynal-purple-light/50 text-vynal-purple-light hover:bg-vynal-purple-dark/20"
               >
                 Annuler
               </Button>
@@ -316,6 +317,7 @@ const MessagingDialog: React.FC<MessagingDialogProps> = ({
               <Button 
                 onClick={handleSendMessage} 
                 disabled={isLoading || message.trim() === ''}
+                className="bg-gradient-to-r from-vynal-purple-light to-vynal-purple-mid hover:from-vynal-purple-mid hover:to-vynal-purple-dark"
               >
                 {isLoading ? (
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />

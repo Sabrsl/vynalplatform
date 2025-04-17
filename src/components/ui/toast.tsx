@@ -29,9 +29,15 @@ const toastVariants = cva(
   {
     variants: {
       variant: {
-        default: "border bg-background",
+        default: "border bg-background dark:border-vynal-purple-secondary/20 dark:bg-vynal-purple-dark/80",
         destructive:
-          "destructive group border-destructive bg-destructive text-destructive-foreground",
+          "destructive group border-vynal-status-error bg-vynal-status-error text-vynal-text-primary",
+        success:
+          "border-vynal-status-success bg-vynal-status-success/90 text-vynal-text-primary",
+        warning:
+          "border-vynal-status-warning bg-vynal-status-warning/90 text-vynal-purple-dark",
+        accent:
+          "border-vynal-accent-primary bg-gradient-to-b from-vynal-accent-primary/80 to-vynal-accent-secondary/80 text-vynal-text-primary",
       },
     },
     defaultVariants: {

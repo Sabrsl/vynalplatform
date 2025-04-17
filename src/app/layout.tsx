@@ -1,11 +1,15 @@
 import './globals.css';
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import { Poppins } from 'next/font/google';
 import { Providers } from './providers';
 import MainLayout from '@/components/layout/main-layout';
 
-// Utilisation de la police Inter
-const inter = Inter({ subsets: ['latin'] });
+// Utilisation de la police Poppins
+const poppins = Poppins({
+  subsets: ['latin'],
+  weight: ['300', '400', '500', '600', '700'],
+  variable: '--font-poppins',
+});
 
 export const metadata: Metadata = {
   title: 'Vynal Platform | Mise en relation freelances et clients',
@@ -19,8 +23,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="fr" suppressHydrationWarning>
-      <body className={inter.className}>
+    <html lang="fr" suppressHydrationWarning className="overflow-x-hidden">
+      <body className={`${poppins.variable} font-poppins transition-colors duration-300`}>
         <Providers>
           <MainLayout>
             {children}

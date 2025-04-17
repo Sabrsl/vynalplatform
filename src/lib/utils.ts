@@ -132,4 +132,16 @@ export function generateOrderId(): string {
   const timestamp = Date.now().toString(36);
   const randomStr = Math.random().toString(36).substring(2, 8).toUpperCase();
   return `ORD-${timestamp}-${randomStr}`;
+}
+
+/**
+ * Formate la taille d'un fichier en unités lisibles (B, KB, MB, GB)
+ */
+export function formatFileSize(bytes: number): string {
+  if (bytes === 0) return '0 B';
+  
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  
+  return `${parseFloat((bytes / Math.pow(1024, i)).toFixed(2))} ${sizes[i]}`;
 } 

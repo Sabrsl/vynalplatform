@@ -10,15 +10,17 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90",
+        default: "bg-vynal-accent-primary text-vynal-text-primary hover:bg-vynal-accent-secondary",
         destructive:
-          "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+          "bg-vynal-status-error text-vynal-text-primary hover:bg-vynal-status-error/90",
         outline:
-          "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
+          "border border-vynal-purple-secondary/50 bg-vynal-purple-dark/30 text-vynal-text-primary hover:bg-vynal-purple-secondary/30",
         secondary:
-          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
-        link: "text-primary underline-offset-4 hover:underline",
+          "bg-vynal-purple-secondary/70 text-vynal-text-primary hover:bg-vynal-purple-secondary",
+        ghost: "text-vynal-text-primary hover:bg-vynal-purple-dark hover:text-vynal-text-primary",
+        link: "text-vynal-text-primary underline-offset-4 hover:underline hover:text-vynal-accent-primary",
+        success: "bg-vynal-status-success text-vynal-text-primary hover:bg-vynal-status-success/90",
+        warning: "bg-vynal-status-warning text-vynal-purple-dark hover:bg-vynal-status-warning/90",
       },
       size: {
         default: "h-10 px-4 py-2",

@@ -262,7 +262,7 @@ const ServiceImageGallery: React.FC<ServiceImageGalleryProps> = ({
       
       {/* Miniatures */}
       {images.length > 1 && (
-        <div className="flex overflow-x-auto py-2 px-1 bg-gray-100 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
+        <div className="flex overflow-x-auto py-2 px-1 bg-gray-800/20 dark:bg-gray-900/40 scrollbar-thin scrollbar-thumb-purple-500/50 scrollbar-track-transparent">
           {images.map((image, index) => (
             <button
               key={index}
@@ -271,9 +271,9 @@ const ServiceImageGallery: React.FC<ServiceImageGalleryProps> = ({
                 setIsLoading(true);
               }}
               className={cn(
-                "flex-shrink-0 mx-1 h-14 w-14 sm:h-16 sm:w-16 rounded-md overflow-hidden border-2 transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500",
+                "flex-shrink-0 mx-1 h-14 w-14 sm:h-16 sm:w-16 rounded-md overflow-hidden border-2 transition-all focus:outline-none focus:ring-2 focus:ring-purple-500",
                 index === currentIndex 
-                  ? "border-indigo-600 opacity-100" 
+                  ? "border-purple-600 opacity-100" 
                   : "border-transparent opacity-70 hover:opacity-100"
               )}
             >

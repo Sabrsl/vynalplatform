@@ -52,6 +52,6 @@ export const EVENTS = {
 export type NotificationEvent = {
   title: string;
   description?: string;
-  variant?: 'default' | 'destructive';
+  variant?: 'default' | 'destructive' | 'purple';
   duration?: number;
 }; 

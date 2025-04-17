@@ -36,7 +36,7 @@ export function ServiceSummary({ service }: ServiceSummaryProps) {
           />
           {service.category && (
             <div className="absolute top-2 left-2">
-              <Badge variant="outline" className="bg-white/80 text-slate-800 hover:bg-white/90">
+              <Badge variant="outline" className="bg-white/80 text-vynal-purple-dark hover:bg-white/90">
                 {service.category}
               </Badge>
             </div>
@@ -58,7 +58,7 @@ export function ServiceSummary({ service }: ServiceSummaryProps) {
                       className="object-cover"
                     />
                   ) : (
-                    <div className="h-full w-full bg-slate-200 flex items-center justify-center text-xs">
+                    <div className="h-full w-full bg-vynal-purple-50 dark:bg-vynal-purple-900/30 flex items-center justify-center text-xs">
                       {service.freelance.full_name?.charAt(0) || service.freelance.username?.charAt(0) || "U"}
                     </div>
                   )}
@@ -67,37 +67,37 @@ export function ServiceSummary({ service }: ServiceSummaryProps) {
                 {service.freelance.rating && (
                   <div className="flex items-center ml-1">
                     <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                    <span className="text-xs text-slate-600 ml-0.5">{service.freelance.rating.toFixed(1)}</span>
+                    <span className="text-xs text-vynal-purple-600 dark:text-vynal-purple-300 ml-0.5">{service.freelance.rating.toFixed(1)}</span>
                   </div>
                 )}
               </div>
             </CardDescription>
           </div>
-          <Badge variant="outline" className="bg-indigo-50 text-indigo-700 hover:bg-indigo-100">
+          <Badge variant="outline" className="bg-vynal-purple-50 dark:bg-vynal-purple-900/30 text-vynal-purple-700 dark:text-vynal-purple-300 hover:bg-vynal-purple-100 dark:hover:bg-vynal-purple-800/30">
             {service.price.toFixed(2)} €
           </Badge>
         </div>
       </CardHeader>
       <CardContent className="pb-4">
-        <div className="text-sm text-slate-600 line-clamp-3 mb-4">
+        <div className="text-sm text-vynal-purple-700 dark:text-vynal-purple-300 line-clamp-3 mb-4">
           {service.description}
         </div>
         
-        <div className="grid grid-cols-2 gap-2 text-sm text-slate-600">
+        <div className="grid grid-cols-2 gap-2 text-sm text-vynal-purple-700 dark:text-vynal-purple-300">
           <div className="flex items-center">
-            <Clock className="h-4 w-4 mr-1 text-indigo-600" />
+            <Clock className="h-4 w-4 mr-1 text-vynal-purple-600 dark:text-vynal-purple-400" />
             <span>{service.delivery_time} jours</span>
           </div>
           <div className="flex items-center">
-            <Calendar className="h-4 w-4 mr-1 text-indigo-600" />
+            <Calendar className="h-4 w-4 mr-1 text-vynal-purple-600 dark:text-vynal-purple-400" />
             <span>Livraison rapide</span>
           </div>
           <div className="flex items-center">
-            <CheckCircle className="h-4 w-4 mr-1 text-green-600" />
+            <CheckCircle className="h-4 w-4 mr-1 text-vynal-purple-600 dark:text-vynal-purple-400" />
             <span>Révisions incluses</span>
           </div>
           <div className="flex items-center">
-            <DollarSign className="h-4 w-4 mr-1 text-green-600" />
+            <DollarSign className="h-4 w-4 mr-1 text-vynal-purple-600 dark:text-vynal-purple-400" />
             <span>Garantie satisfait</span>
           </div>
         </div>

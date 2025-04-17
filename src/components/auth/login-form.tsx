@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Mail, Lock, Loader2, AlertCircle, Eye, EyeOff } from "lucide-react";
+import TwoFactorVerification from "@/components/auth/TwoFactorVerification";
 
 // Constantes pour la limitation des tentatives
 const MAX_LOGIN_ATTEMPTS = 5;
@@ -31,6 +32,12 @@ export default function LoginForm({ redirectPath = "/dashboard" }: LoginFormProp
   const [loginAttempts, setLoginAttempts] = useState(0);
   const [isLocked, setIsLocked] = useState(false);
   const [lockoutRemaining, setLockoutRemaining] = useState(0);
+  // État pour la vérification à deux facteurs
+  const [requiresTwoFactor, setRequiresTwoFactor] = useState(false);
+  const [twoFactorData, setTwoFactorData] = useState({
+    userId: "",
+    phoneNumber: "",
+  });
 
   // Récupérer les tentatives de connexion et le statut de verrouillage au chargement
   useEffect(() => {
@@ -118,21 +125,40 @@ export default function LoginForm({ redirectPath = "/dashboard" }: LoginFormProp
     setError("");
 
     try {
-      const { success, error } = await signIn(formData.email, formData.password, rememberMe);
+      // Vérification à deux facteurs
+      const response = await fetch('/api/auth/two-factor', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password
+        })
+      });
       
-      if (success) {
-        // Réinitialiser les tentatives en cas de succès
-        resetLoginAttempts();
-        
-        // Utiliser le chemin de redirection fourni au lieu de la valeur codée en dur
-        console.log("Redirection vers:", redirectPath);
-        router.push(redirectPath);
-      } else {
-        // Incrémenter les tentatives en cas d'échec
+      const result = await response.json();
+      
+      if (!result.success) {
         incrementLoginAttempts();
-        setError("Identifiants invalides. Veuillez réessayer.");
-        console.error(error);
+        setError(result.message || "Identifiants invalides. Veuillez réessayer.");
+        return;
       }
+      
+      // Si l'authentification à deux facteurs est requise
+      if (result.requiresTwoFactor) {
+        setRequiresTwoFactor(true);
+        setTwoFactorData({
+          userId: result.userId,
+          phoneNumber: result.phoneNumber
+        });
+        resetLoginAttempts(); // Réinitialiser les tentatives car les identifiants sont valides
+        return;
+      }
+      
+      // Si pas de 2FA, connexion réussie directement
+      resetLoginAttempts();
+      router.push(redirectPath);
     } catch (err) {
       // Incrémenter les tentatives en cas d'erreur
       incrementLoginAttempts();
@@ -157,17 +183,46 @@ export default function LoginForm({ redirectPath = "/dashboard" }: LoginFormProp
     }
   };
 
+  // Gestionnaire pour le succès de la vérification à deux facteurs
+  const handleTwoFactorSuccess = (user: any) => {
+    resetLoginAttempts();
+    router.push(redirectPath);
+  };
+
+  // Gestionnaire pour l'annulation de la vérification à deux facteurs
+  const handleTwoFactorCancel = () => {
+    setRequiresTwoFactor(false);
+    setTwoFactorData({
+      userId: "",
+      phoneNumber: ""
+    });
+  };
+
+  // Afficher le formulaire de vérification à deux facteurs si nécessaire
+  if (requiresTwoFactor) {
+    return (
+      <TwoFactorVerification
+        userId={twoFactorData.userId}
+        phoneNumber={twoFactorData.phoneNumber}
+        email={formData.email}
+        password={formData.password}
+        onSuccess={handleTwoFactorSuccess}
+        onCancel={handleTwoFactorCancel}
+      />
+    );
+  }
+
   return (
-    <div className="w-full max-w-md p-8 space-y-8 bg-white rounded-lg shadow-md">
+    <div className="w-full max-w-md p-8 space-y-8 bg-vynal-purple-dark/90 rounded-xl shadow-lg shadow-vynal-accent-secondary/20 border border-vynal-purple-secondary/30">
       <div className="text-center">
-        <h1 className="text-2xl font-bold">Connexion</h1>
-        <p className="mt-2 text-sm text-gray-600">
+        <h1 className="text-2xl font-bold text-vynal-text-primary">Connexion</h1>
+        <p className="mt-2 text-sm text-vynal-text-secondary">
           Bienvenue ! Connectez-vous pour accéder à votre compte.
         </p>
       </div>
 
       {error && (
-        <div className="p-3 bg-red-100 border border-red-200 rounded-md flex items-center text-red-700 text-sm">
+        <div className="p-3 bg-vynal-status-error/20 border border-vynal-status-error/30 rounded-md flex items-center text-vynal-status-error text-sm">
           <AlertCircle className="w-4 h-4 mr-2" />
           {error}
         </div>
@@ -175,12 +230,12 @@ export default function LoginForm({ redirectPath = "/dashboard" }: LoginFormProp
 
       <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
         <div className="space-y-2">
-          <label htmlFor="email" className="text-sm font-medium text-gray-700">
+          <label htmlFor="email" className="text-sm font-medium text-vynal-text-primary">
             Email
           </label>
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Mail className="h-5 w-5 text-gray-400" />
+              <Mail className="h-5 w-5 text-vynal-text-secondary" />
             </div>
             <input
               id="email"
@@ -191,7 +246,7 @@ export default function LoginForm({ redirectPath = "/dashboard" }: LoginFormProp
               value={formData.email}
               onChange={handleChange}
               disabled={isLoading}
-              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              className="block w-full pl-10 pr-3 py-2 bg-vynal-purple-secondary/30 border border-vynal-purple-secondary/50 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-vynal-accent-primary focus:border-vynal-accent-primary text-vynal-text-primary placeholder:text-vynal-text-secondary/70"
               placeholder="votre@email.com"
             />
           </div>
@@ -199,19 +254,19 @@ export default function LoginForm({ redirectPath = "/dashboard" }: LoginFormProp
 
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <label htmlFor="password" className="text-sm font-medium text-gray-700">
+            <label htmlFor="password" className="text-sm font-medium text-vynal-text-primary">
               Mot de passe
             </label>
             <Link
               href="/auth/forgot-password"
-              className="text-sm font-medium text-indigo-600 hover:text-indigo-500"
+              className="text-sm font-medium text-vynal-accent-primary hover:text-vynal-accent-secondary transition-colors"
             >
               Mot de passe oublié ?
             </Link>
           </div>
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Lock className="h-5 w-5 text-gray-400" />
+              <Lock className="h-5 w-5 text-vynal-text-secondary" />
             </div>
             <input
               id="password"
@@ -222,7 +277,7 @@ export default function LoginForm({ redirectPath = "/dashboard" }: LoginFormProp
               value={formData.password}
               onChange={handleChange}
               disabled={isLoading}
-              className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              className="block w-full pl-10 pr-10 py-2 bg-vynal-purple-secondary/30 border border-vynal-purple-secondary/50 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-vynal-accent-primary focus:border-vynal-accent-primary text-vynal-text-primary placeholder:text-vynal-text-secondary/70"
               placeholder="••••••••"
             />
             <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
@@ -232,7 +287,7 @@ export default function LoginForm({ redirectPath = "/dashboard" }: LoginFormProp
                   e.preventDefault();
                   setShowPassword(!showPassword);
                 }}
-                className="text-gray-400 hover:text-gray-500 focus:outline-none"
+                className="text-vynal-text-secondary hover:text-vynal-text-primary focus:outline-none transition-colors"
                 aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
               >
                 {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
@@ -248,9 +303,9 @@ export default function LoginForm({ redirectPath = "/dashboard" }: LoginFormProp
             type="checkbox"
             checked={rememberMe}
             onChange={(e) => setRememberMe(e.target.checked)}
-            className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+            className="h-4 w-4 bg-vynal-purple-secondary/30 border-vynal-purple-secondary/50 rounded focus:ring-vynal-accent-primary text-vynal-accent-primary"
           />
-          <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700">
+          <label htmlFor="remember-me" className="ml-2 block text-sm text-vynal-text-secondary">
             Se souvenir de moi
           </label>
         </div>
@@ -258,7 +313,7 @@ export default function LoginForm({ redirectPath = "/dashboard" }: LoginFormProp
         <Button
           type="submit"
           disabled={isLoading || isLocked}
-          className="w-full flex justify-center"
+          className="w-full flex justify-center bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-vynal-purple-dark font-medium transition-all"
         >
           {isLoading ? (
             <>
@@ -274,10 +329,10 @@ export default function LoginForm({ redirectPath = "/dashboard" }: LoginFormProp
 
       <div className="relative mt-6">
         <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-gray-300" />
+          <div className="w-full border-t border-vynal-purple-secondary/40" />
         </div>
         <div className="relative flex justify-center text-sm">
-          <span className="px-2 bg-white text-gray-500">Ou continuer avec</span>
+          <span className="px-2 bg-vynal-purple-dark/90 text-vynal-text-secondary">Ou continuer avec</span>
         </div>
       </div>
 
@@ -286,7 +341,7 @@ export default function LoginForm({ redirectPath = "/dashboard" }: LoginFormProp
         variant="outline"
         onClick={handleGoogleSignIn}
         disabled={isLoading}
-        className="w-full"
+        className="w-full border-vynal-accent-primary text-vynal-accent-primary hover:bg-vynal-accent-primary/10 transition-all"
       >
         <svg
           className="w-5 h-5 mr-2"
@@ -314,11 +369,11 @@ export default function LoginForm({ redirectPath = "/dashboard" }: LoginFormProp
         Continuer avec Google
       </Button>
 
-      <p className="mt-6 text-center text-sm text-gray-600">
+      <p className="mt-6 text-center text-sm text-vynal-text-secondary">
         Vous n'avez pas de compte ?{" "}
         <Link
           href="/auth/signup"
-          className="font-medium text-indigo-600 hover:text-indigo-500"
+          className="font-medium text-vynal-accent-primary hover:text-vynal-accent-secondary transition-colors"
         >
           Inscrivez-vous
         </Link>
