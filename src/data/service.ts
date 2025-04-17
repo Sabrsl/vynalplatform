@@ -17,12 +17,12 @@ export const service: ServiceWithFreelanceAndCategories & { images?: string[] } 
   freelance_id: "user-001",
   active: true,
   slug: "service-demo",
-  images: ["/images/demo-service.jpg"],
+  images: [],
   profiles: {
     id: "user-001",
     username: "demouser",
     full_name: "Utilisateur Démo",
-    avatar_url: "/images/avatar-placeholder.png",
+    avatar_url: null,
     bio: "Ceci est un profil de démonstration pour tester les fonctionnalités."
   },
   categories: {
