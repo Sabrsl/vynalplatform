@@ -11,6 +11,7 @@ import MessageBubble from './MessageBubble';
 import { supabase } from '@/lib/supabase/client';
 import UserStatusIndicator from './UserStatusIndicator';
 import usePreventScrollReset from '@/hooks/usePreventScrollReset';
+import { validateMessage } from '@/lib/message-validation';
 
 interface ChatWindowProps {
   conversation: Conversation;
@@ -33,6 +34,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const [page, setPage] = useState(1);
   const [headerAvatarError, setHeaderAvatarError] = useState(false);
   const [typingAvatarError, setTypingAvatarError] = useState(false);
+  const [notification, setNotification] = useState<{message: string, type: 'warning' | 'error' | 'info' | 'success', id: number} | null>(null);
   const MESSAGES_PER_PAGE = 20;
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -42,6 +44,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const visibleMessageIdsRef = useRef<Set<string>>(new Set());
   const markAsReadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const userScrolledUpRef = useRef<boolean>(false);
+  const notificationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   const { 
     messages,
@@ -265,36 +268,115 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     };
   }, [user, checkVisibleMessages]);
 
+  // Fonction pour afficher une notification temporaire
+  const showNotification = useCallback((message: string, type: 'warning' | 'error' | 'info' | 'success' = 'info') => {
+    // Effacer toute notification existante
+    if (notificationTimeoutRef.current) {
+      clearTimeout(notificationTimeoutRef.current);
+      notificationTimeoutRef.current = null;
+    }
+    
+    // Créer un ID unique pour la notification
+    const id = Date.now();
+    
+    // Afficher la nouvelle notification
+    setNotification({ message, type, id });
+    
+    // Programmer la disparition de la notification après 5 secondes
+    notificationTimeoutRef.current = setTimeout(() => {
+      setNotification((prevNotif) => prevNotif && prevNotif.id === id ? null : prevNotif);
+      notificationTimeoutRef.current = null;
+    }, 5000);
+  }, []);
+
+  // Nettoyer le timeout de notification lorsque le composant est démonté
+  useEffect(() => {
+    return () => {
+      if (notificationTimeoutRef.current) {
+        clearTimeout(notificationTimeoutRef.current);
+        notificationTimeoutRef.current = null;
+      }
+    };
+  }, []);
+
   // Gérer l'envoi du message
   const handleSendMessage = async () => {
     if ((!messageText || messageText.trim() === '') && attachments.length === 0) return;
     
     if (user?.id) {
-      if (attachments.length > 0) {
-        // Envoyer des messages avec pièces jointes
-        for (const attachment of attachments) {
-          await sendMessage(
-            conversation.id, 
-            user.id, 
-            messageText || 'Pièce jointe',
-            attachment.url,
-            attachment.type,
-            attachment.name
-          );
+      try {
+        // Valider directement le message avec la fonction locale au lieu d'un appel API
+        const validationResult = validateMessage(messageText.trim(), {
+          maxLength: 5000,
+          minLength: 1,
+          censorInsteadOfBlock: true,
+          allowQuotedWords: true,      // Autorise les mots interdits dans les citations/signalements
+          allowLowSeverityWords: true,  // Autorise les mots de faible gravité
+          respectRecommendedActions: true  // Utiliser les actions recommandées
+        });
+        
+        if (!validationResult.isValid) {
+          // Afficher un message d'erreur si le message contient des mots interdits
+          showNotification(validationResult.errors.join(', '), 'error');
+          return;
         }
-        setAttachments([]);
-      } else {
-        // Envoyer un message texte simple
-        await sendMessage(conversation.id, user.id, messageText.trim());
+        
+        // Afficher un avertissement si nécessaire mais laisser l'utilisateur envoyer le message
+        if (validationResult.warningMessage) {
+          showNotification(validationResult.warningMessage, 'warning');
+        }
+        
+        // Ajouter une note aux messages censurés
+        let finalMessageText = validationResult.message; // Utiliser toujours le message potentiellement censuré
+        
+        // Si le message a été censuré, ajouter un marqueur spécial
+        if (validationResult.censored) {
+          finalMessageText += " [Ce message a été modéré automatiquement]";
+        }
+        
+        // Si un modérateur doit être notifié
+        if (validationResult.shouldNotifyModerator) {
+          // Ici vous pourriez implémenter une notification à un modérateur
+          // Par exemple, enregistrer dans une table "reports" ou envoyer un webhook
+          console.log("Ce message nécessiterait une vérification par un modérateur:", messageText);
+          // Afficher une notification à l'utilisateur que son message sera examiné
+          showNotification("Votre message contient des éléments qui nécessitent une vérification et pourrait être examiné par un modérateur.", 'info');
+        }
+        
+        if (attachments.length > 0) {
+          // Envoyer des messages avec pièces jointes
+          for (const attachment of attachments) {
+            await sendMessage(
+              conversation.id, 
+              user.id, 
+              finalMessageText || 'Pièce jointe',
+              attachment.url,
+              attachment.type,
+              attachment.name
+            );
+          }
+          setAttachments([]);
+        } else {
+          // Envoyer un message texte simple
+          await sendMessage(conversation.id, user.id, finalMessageText.trim());
+        }
+        
+        setMessageText('');
+        
+        // Réinitialiser l'état d'écriture
+        updateTypingStatus(conversation.id, user.id, false);
+        
+        // Réinitialiser le flag de défilement manuel pour permettre le défilement automatique après l'envoi d'un message
+        userScrolledUpRef.current = false;
+        
+        // Si le message a été censuré, on affiche une notification
+        if (validationResult.censored) {
+          showNotification("Certains mots de votre message ont été censurés.", 'info');
+        }
+      } catch (error) {
+        console.error("Erreur lors de la validation ou de l'envoi du message:", error);
+        showNotification("Une erreur est survenue lors de l'envoi du message.", 'error');
       }
-      
-      setMessageText('');
-      
-      // Réinitialiser l'état d'écriture
-      updateTypingStatus(conversation.id, user.id, false);
-      
-      // Réinitialiser le flag de défilement manuel pour permettre le défilement automatique après l'envoi d'un message
-      userScrolledUpRef.current = false;
     }
   };
 
@@ -509,6 +591,26 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               </button>
             </div>
           ))}
+        </div>
+      )}
+      
+      {/* Système de notification positionné juste au-dessus de la zone de saisie */}
+      {notification && (
+        <div className={`px-4 py-2 text-sm animate-fadeIn ${
+          notification.type === 'error' ? 'bg-red-100 text-red-800' :
+          notification.type === 'warning' ? 'bg-yellow-100 text-yellow-800' :
+          notification.type === 'success' ? 'bg-green-100 text-green-800' :
+          'bg-blue-100 text-blue-800'
+        }`}>
+          <div className="flex items-center justify-between">
+            <div className="flex-1">{notification.message}</div>
+            <button 
+              onClick={() => setNotification(null)} 
+              className="ml-2 text-gray-500 hover:text-gray-700"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       )}
       

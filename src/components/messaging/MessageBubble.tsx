@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { FileText, Image as ImageIcon, ExternalLink, MoreVertical, Check, CheckCheck } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { FileText, Image as ImageIcon, ExternalLink, MoreVertical, Check, CheckCheck, AlertTriangle } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Message } from '@/lib/stores/useMessagingStore';
@@ -46,6 +46,18 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   // Déterminer s'il s'agit d'un message non lu pour le mettre en évidence
   const isUnread = !typedMessage.read;
   
+  // Déterminer si le message a été censuré
+  const isCensored = useMemo(() => {
+    if (!typedMessage.content) return false;
+    return typedMessage.content.includes('[Ce message a été modéré automatiquement]');
+  }, [typedMessage.content]);
+  
+  // Contenu du message sans la note de censure
+  const displayContent = useMemo(() => {
+    if (!typedMessage.content) return '';
+    return typedMessage.content.replace('[Ce message a été modéré automatiquement]', '');
+  }, [typedMessage.content]);
+  
   return (
     <div className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'} mb-4`}>
       {/* Avatar (seulement si ce n'est pas l'utilisateur courant) */}
@@ -76,11 +88,20 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           ${isCurrentUser 
             ? 'bg-indigo-600 text-white rounded-tr-none' 
             : `bg-gray-100 text-gray-700 rounded-tl-none ${isUnread ? 'ring-2 ring-blue-200' : ''}`}
+          ${isCensored ? 'border border-yellow-400' : ''}
         `}>
+          {/* Indicateur de censure */}
+          {isCensored && (
+            <div className="flex items-center gap-1 text-xs mb-2 font-medium text-yellow-600 bg-yellow-100 py-1 px-2 rounded">
+              <AlertTriangle className="h-3 w-3" />
+              <span>Ce message a été modéré automatiquement</span>
+            </div>
+          )}
+          
           {/* Texte du message */}
           {typedMessage.content && typedMessage.content.trim() !== '' && (
             <p className="text-sm whitespace-pre-wrap break-all break-words overflow-hidden w-full">
-              {typedMessage.content}
+              {displayContent}
             </p>
           )}
           
