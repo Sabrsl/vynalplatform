@@ -123,4 +123,13 @@ export function formatDate(date: Date | string): string {
  */
 export function formatDistanceToNow(date: Date | string): string {
   return timeAgo(date);
+}
+
+/**
+ * Génère un ID unique pour une commande
+ */
+export function generateOrderId(): string {
+  const timestamp = Date.now().toString(36);
+  const randomStr = Math.random().toString(36).substring(2, 8).toUpperCase();
+  return `ORD-${timestamp}-${randomStr}`;
 } 

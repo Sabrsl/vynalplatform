@@ -18,7 +18,10 @@ import {
   ArrowLeft,
   Tag,
   Image,
-  MessageSquare
+  MessageSquare,
+  ShoppingBag,
+  CreditCard,
+  PackageCheck
 } from "lucide-react";
 import { ServiceWithFreelanceAndCategories } from "@/hooks/useServices";
 import { formatPrice, formatDate, cn } from "@/lib/utils";
@@ -32,6 +35,16 @@ import { useFreelancerRating } from "@/hooks/useFreelancerRating";
 import MessagingDialog from "@/components/messaging/MessagingDialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUser } from "@/hooks/useUser";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogClose
+} from "@/components/ui/dialog";
+import { OrderButton } from "@/components/orders/OrderButton";
 
 // Animation variants
 const animations = {
@@ -311,87 +324,7 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
       }, [relatedServices, service.id]);
 
       const user = useUser();
-      // Commenté pour éviter les erreurs - à restaurer quand les dépendances seront disponibles
-      /*
-      const [isLoading, setIsLoading] = React.useState(false);
-      
-      const handlePaymentMethod = async () => {
-        try {
-          if (!user?.profile?.id) {
-            toast({
-              variant: "destructive",
-              title: "Ошибка",
-              description: "Вы не авторизованы",
-            });
-            return;
-          }
-
-          if (!service?.id) {
-            toast({
-              variant: "destructive",
-              title: "Ошибка",
-              description: "Услуга не найдена",
-            });
-            return;
-          }
-
-          setIsLoading(true);
-
-          const { data } = await axios.post(
-            `${process.env.NEXT_PUBLIC_API_URL}/payment/create-checkout-session`,
-            {
-              userId: user.profile.id,
-              serviceId: service.id,
-              quantity: 1,
-            }
-          );
-
-          if (data?.url) {
-            router.push(data.url);
-          }
-        } catch (error: any) {
-          toast({
-            variant: "destructive",
-            title: "Ошибка",
-            description: error?.response?.data?.message || "Что-то пошло не так",
-          });
-        } finally {
-          setIsLoading(false);
-        }
-      };
-
-      const handleBuyService = async () => {
-        try {
-          if (!user?.profile?.id) {
-            toast({
-              variant: "destructive",
-              title: "Ошибка",
-              description: "Вы не авторизованы",
-            });
-            return;
-          }
-
-          if (!service?.id) {
-            toast({
-              variant: "destructive",
-              title: "Ошибка",
-              description: "Услуга не найдена",
-            });
-            return;
-          }
-
-          setIsLoading(true);
-        } catch (error: any) {
-          toast({
-            variant: "destructive",
-            title: "Ошибка",
-            description: error?.response?.data?.message || "Что-то пошло не так",
-          });
-        } finally {
-          setIsLoading(false);
-        }
-      };
-      */
+      const [showPaymentSteps, setShowPaymentSteps] = React.useState(false);
 
       return (
         <motion.div 
@@ -593,11 +526,76 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                     <CardContent className="p-4">
                       <div className="space-y-3 mb-4">
                         <Button 
+                          onClick={() => setShowPaymentSteps(true)}
                           className="w-full font-medium shadow-md bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 transition-all transform hover:scale-[1.02]"
                           aria-label="Commander ce service"
                         >
+                          <ShoppingBag className="h-4 w-4 mr-2" aria-hidden="true" />
                           Commander ce service
                         </Button>
+                        
+                        <Dialog open={showPaymentSteps} onOpenChange={setShowPaymentSteps}>
+                          <DialogContent className="sm:max-w-md">
+                            <DialogHeader>
+                              <DialogTitle>Processus de commande</DialogTitle>
+                              <DialogDescription>
+                                Voici les étapes pour commander ce service
+                              </DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-4 py-2">
+                              <div className="space-y-4">
+                                <div className="flex items-start">
+                                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-indigo-900">
+                                    <FileText className="h-4 w-4" />
+                                  </div>
+                                  <div className="ml-4">
+                                    <h3 className="text-sm font-medium">1. Spécifications du projet</h3>
+                                    <p className="text-sm text-gray-500">Détaillez vos besoins et exigences pour ce service</p>
+                                  </div>
+                                </div>
+                                <div className="flex items-start">
+                                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-indigo-900">
+                                    <CreditCard className="h-4 w-4" />
+                                  </div>
+                                  <div className="ml-4">
+                                    <h3 className="text-sm font-medium">2. Paiement sécurisé</h3>
+                                    <p className="text-sm text-gray-500">Choisissez parmi plusieurs méthodes de paiement (carte, mobile money, etc.)</p>
+                                  </div>
+                                </div>
+                                <div className="flex items-start">
+                                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-indigo-900">
+                                    <MessageSquare className="h-4 w-4" />
+                                  </div>
+                                  <div className="ml-4">
+                                    <h3 className="text-sm font-medium">3. Communication directe</h3>
+                                    <p className="text-sm text-gray-500">Discutez avec le freelance pour affiner votre commande</p>
+                                  </div>
+                                </div>
+                                <div className="flex items-start">
+                                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-indigo-900">
+                                    <PackageCheck className="h-4 w-4" />
+                                  </div>
+                                  <div className="ml-4">
+                                    <h3 className="text-sm font-medium">4. Livraison et validation</h3>
+                                    <p className="text-sm text-gray-500">Recevez et validez le travail final du freelance</p>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                            <DialogFooter className="sm:justify-start">
+                              <DialogClose asChild>
+                                <Button type="button" variant="ghost">
+                                  Annuler
+                                </Button>
+                              </DialogClose>
+                              <OrderButton
+                                serviceId={service.id}
+                                variant="default"
+                                className="bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800"
+                              />
+                            </DialogFooter>
+                          </DialogContent>
+                        </Dialog>
                         
                         <div className="flex space-x-2">
                           <Button variant="outline" className="flex-1 text-xs" size="sm">
