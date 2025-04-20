@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useUser, Profile } from "@/hooks/useUser";
 import { supabase } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,72 +13,88 @@ import { UserCircle, Loader2, Upload } from "lucide-react";
 
 export default function ProfilePage() {
   const { user } = useAuth();
+  const { profile: userProfile, updateProfile, loading: profileLoading, updateError: profileUpdateError } = useUser();
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [profile, setProfile] = useState({
+  const [localProfile, setLocalProfile] = useState({
     username: "",
     full_name: "",
     bio: "",
     avatar_url: "",
   });
+  const [updateError, setUpdateError] = useState<string | null>(null);
+  const [updateMessage, setUpdateMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    if (user) {
-      fetchProfile();
-    }
-  }, [user]);
-
-  const fetchProfile = async () => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user?.id)
-        .single();
-
-      if (error) throw error;
-
-      setProfile({
-        username: data.username || "",
-        full_name: data.full_name || "",
-        bio: data.bio || "",
-        avatar_url: data.avatar_url || "",
+    if (userProfile) {
+      setLocalProfile({
+        username: userProfile.username || "",
+        full_name: userProfile.full_name || "",
+        bio: userProfile.bio || "",
+        avatar_url: userProfile.avatar_url || "",
       });
-    } catch (error) {
-      console.error("Erreur lors du chargement du profil:", error);
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [userProfile]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setProfile((prev) => ({ ...prev, [name]: value }));
+    setLocalProfile((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSaving(true);
+    setUpdateError(null);
+    
     try {
-      setSaving(true);
-      const { error } = await supabase
-        .from("profiles")
-        .update({
-          username: profile.username,
-          full_name: profile.full_name,
-          bio: profile.bio,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", user?.id);
-
-      if (error) throw error;
-      alert("Profil mis à jour avec succès!");
-    } catch (error) {
-      console.error("Erreur lors de la mise à jour du profil:", error);
-      alert("Erreur lors de la mise à jour du profil");
+      // Nettoyer les valeurs
+      const cleanUsername = localProfile.username?.trim() || "";
+      const cleanFullName = localProfile.full_name?.trim() || "";
+      const cleanBio = localProfile.bio?.trim() || "";
+      
+      // Validation de base
+      if (!cleanUsername) {
+        alert("Le nom d'utilisateur est requis");
+        setSaving(false);
+        return;
+      }
+      
+      // Préparer les mises à jour avec les valeurs nettoyées
+      const updates: Partial<Profile> = {
+        username: cleanUsername,
+        full_name: cleanFullName,
+        bio: cleanBio,
+        avatar_url: localProfile.avatar_url,
+        updated_at: new Date().toISOString(),
+      };
+      
+      const { success, data, error } = await updateProfile(updates);
+      
+      if (success) {
+        setUpdateMessage("Profil mis à jour avec succès!");
+        // La mise à jour du profil local est gérée par le hook useUser via le state userProfile
+      } else if (error) {
+        console.error("Erreur lors de la mise à jour:", error);
+        
+        // Afficher un message d'erreur spécifique en fonction du code d'erreur
+        if (error.code === '23505') {
+          setUpdateError("Ce nom d'utilisateur est déjà utilisé. Veuillez en choisir un autre.");
+        } else if (error.code === '23502') {
+          setUpdateError("Un champ obligatoire est manquant.");
+        } else if (error.code === '23503') {
+          setUpdateError("Une référence invalide a été détectée.");
+        } else {
+          setUpdateError(error.message || "Une erreur s'est produite lors de la mise à jour du profil.");
+        }
+      }
+    } catch (error: any) {
+      console.error("Erreur inattendue:", error);
+      setUpdateError(error.message || "Une erreur inattendue s'est produite");
     } finally {
       setSaving(false);
+      // Faire défiler vers le haut pour voir les messages d'erreur/succès
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
 
@@ -132,13 +149,10 @@ export default function ProfilePage() {
       
       // Update profile with avatar URL
       const avatarUrl = data.publicUrl;
-      setProfile((prev) => ({ ...prev, avatar_url: avatarUrl }));
+      setLocalProfile((prev) => ({ ...prev, avatar_url: avatarUrl }));
 
-      // Save to database
-      const { error: updateError } = await supabase
-        .from("profiles")
-        .update({ avatar_url: avatarUrl })
-        .eq("id", user?.id);
+      // Save to database via updateProfile
+      const { error: updateError } = await updateProfile({ avatar_url: avatarUrl });
 
       if (updateError) throw updateError;
       
@@ -152,7 +166,7 @@ export default function ProfilePage() {
     }
   };
 
-  if (loading) {
+  if (profileLoading) {
     return (
       <div className="flex items-center justify-center h-full">
         <Loader2 className="animate-spin h-8 w-8 text-indigo-600" />
@@ -167,13 +181,25 @@ export default function ProfilePage() {
         Gérez vos informations personnelles et préférences
       </p>
 
+      {updateMessage && (
+        <div className="mb-4 p-3 bg-green-100 border border-green-200 text-green-800 rounded">
+          {updateMessage}
+        </div>
+      )}
+
+      {updateError && (
+        <div className="mb-4 p-3 bg-red-100 border border-red-200 text-red-800 rounded">
+          {updateError}
+        </div>
+      )}
+
       <div className="grid md:grid-cols-12 gap-6 md:gap-8">
         <Card className="md:col-span-4 p-4 sm:p-6">
           <div className="flex flex-col items-center">
             <div className="relative mb-4">
-              {profile.avatar_url ? (
+              {localProfile.avatar_url ? (
                 <img 
-                  src={profile.avatar_url}
+                  src={localProfile.avatar_url}
                   alt="Avatar"
                   className="w-24 sm:w-32 h-24 sm:h-32 rounded-full object-cover"
                 />
@@ -198,19 +224,19 @@ export default function ProfilePage() {
             </div>
 
             <div className="text-center mb-4 w-full">
-              <h2 className="text-xl font-bold truncate">{profile.full_name || "Votre nom"}</h2>
+              <h2 className="text-xl font-bold truncate">{localProfile.full_name || "Votre nom"}</h2>
               <p className="text-muted-foreground truncate">
-                @{profile.username || "username"}
+                @{localProfile.username || "username"}
               </p>
               <div className="mt-2 inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
-                {user?.user_metadata?.role === "freelance" ? "Freelance" : "Client"}
+                {userProfile?.role === "freelance" ? "Freelance" : userProfile?.role === "admin" ? "Admin" : "Client"}
               </div>
             </div>
 
             <div className="w-full mb-4">
               <h3 className="font-semibold mb-2">À propos</h3>
               <p className="text-sm text-gray-600 break-words">
-                {profile.bio || "Aucune biographie renseignée"}
+                {localProfile.bio || "Aucune biographie renseignée"}
               </p>
             </div>
 
@@ -233,7 +259,7 @@ export default function ProfilePage() {
                   <Input
                     id="full_name"
                     name="full_name"
-                    value={profile.full_name}
+                    value={localProfile.full_name}
                     onChange={handleChange}
                     placeholder="Votre nom complet"
                   />
@@ -244,7 +270,7 @@ export default function ProfilePage() {
                   <Input
                     id="username"
                     name="username"
-                    value={profile.username}
+                    value={localProfile.username}
                     onChange={handleChange}
                     placeholder="votre_username"
                   />
@@ -258,7 +284,7 @@ export default function ProfilePage() {
                   <Textarea
                     id="bio"
                     name="bio"
-                    value={profile.bio}
+                    value={localProfile.bio}
                     onChange={handleChange}
                     placeholder="Parlez un peu de vous..."
                     rows={4}

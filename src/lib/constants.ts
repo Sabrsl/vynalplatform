@@ -16,19 +16,19 @@ export const APP_URLS = {
   // URL de base utilisée pour les redirections
   baseUrl: process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000',
   // URL de production (pour les redirections d'authentification)
-  productionUrl: process.env.NEXT_PUBLIC_PRODUCTION_URL || 'https://nion-farr.vercel.app',
+  productionUrl: process.env.NEXT_PUBLIC_PRODUCTION_URL || 'https://vynalplatform.com',
   // URL pour les redirections de callback d'authentification
   authCallbackUrl: '/auth/callback',
 }
 
 // Paramètres de l'application
 export const APP_CONFIG = {
-  siteName: 'NionFar.sn',
+  siteName: 'Vynal Platform',
   tagline: 'La plateforme freelance #1 au Sénégal',
-  contactEmail: 'contact@nionfar.sn',
+  contactEmail: 'contact@vynalplatform.com',
   socialMedia: {
-    facebook: 'https://facebook.com/nionfarsenegal',
-    twitter: 'https://twitter.com/nionfarsenegal',
-    instagram: 'https://instagram.com/nionfarsenegal',
+    facebook: 'https://facebook.com/vynalplatform',
+    twitter: 'https://twitter.com/vynalplatform',
+    instagram: 'https://instagram.com/vynalplatform',
   }
 } 

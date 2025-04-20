@@ -26,6 +26,7 @@ interface ServiceDetailsProps {
   isFreelanceView?: boolean;
   loading?: boolean;
   error?: string | null;
+  children?: React.ReactNode;
 }
 
 /**
@@ -39,6 +40,7 @@ const ServiceDetails: React.FC<ServiceDetailsProps> = ({
   isFreelanceView = true,
   loading = false,
   error = null,
+  children,
 }) => {
   if (loading) {
     return (

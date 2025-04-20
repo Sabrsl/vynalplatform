@@ -1,31 +1,47 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useParams, redirect } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useUser } from "@/hooks/useUser";
 import { useServices, ServiceWithFreelanceAndCategories } from "@/hooks/useServices";
 import { supabase } from "@/lib/supabase/client";
 import ServiceDetails from "@/components/services/ServiceDetails";
+import { ArrowLeftIcon, CopyIcon, PencilIcon, TrashIcon } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { useToast } from "@/components/ui/use-toast";
 
 // Extension du type pour inclure les propriétés d'images
 interface ExtendedService extends ServiceWithFreelanceAndCategories {
   images?: string[];
 }
 
-export default function ServiceDetailsPage() {
+export default function ServiceDetailsPage({
+  params,
+}: {
+  params: { id: string };
+}) {
   const router = useRouter();
-  const params = useParams();
   const { user } = useAuth();
   const { profile, isFreelance } = useUser();
   const { getServiceById } = useServices();
+  const { toast } = useToast();
   
   const [service, setService] = useState<ExtendedService | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   
   // Récupérer l'ID du service depuis les paramètres d'URL
   const serviceId = typeof params.id === 'string' ? params.id : Array.isArray(params.id) ? params.id[0] : '';
+  
+  // Rediriger si l'utilisateur n'est pas connecté
+  useEffect(() => {
+    if (!user) {
+      router.push("/login");
+    }
+  }, [user, router]);
   
   // Charger les détails du service
   useEffect(() => {
@@ -113,16 +129,59 @@ export default function ServiceDetailsPage() {
   const handleBack = () => router.push("/dashboard/services");
   const handleView = () => service && router.push(`/services/${service.id}`);
   const handleEdit = () => service && router.push(`/dashboard/services/edit/${service.id}`);
+  const handleDelete = () => {
+    setIsDeleteDialogOpen(false)
+    // Add your service deletion logic here
+    console.log('Service deleted')
+    router.push('/dashboard/services')
+  }
   
   return (
-    <ServiceDetails 
-      service={service as ExtendedService}
-      loading={loading}
-      error={error}
-      onBack={handleBack}
-      onView={handleView}
-      onEdit={handleEdit}
-      isFreelanceView={true}
-    />
+    <div className="container max-w-6xl mt-6 flex flex-col gap-6">
+      <ServiceDetails 
+        service={service as ExtendedService}
+        loading={loading}
+        error={error}
+        onBack={handleBack}
+        onView={handleView}
+        onEdit={handleEdit}
+        isFreelanceView={true}
+      >
+        <div className="flex items-center gap-2 mt-4">
+          <Button
+            onClick={handleEdit}
+            variant="outline"
+            className="flex items-center gap-2"
+          >
+            <PencilIcon className="h-4 w-4" />
+            Modifier
+          </Button>
+          
+          <ConfirmDialog
+            title="Supprimer le service"
+            description="Êtes-vous sûr de vouloir supprimer ce service ? Cette action est irréversible."
+            confirmText="Supprimer"
+            variant="destructive"
+            onConfirm={() => {
+              console.log("Service deleted");
+              toast({
+                title: "Succès",
+                description: "Service supprimé avec succès"
+              });
+              router.push('/dashboard/services');
+            }}
+            trigger={
+              <Button 
+                variant="destructive" 
+                className="flex items-center gap-2"
+              >
+                <TrashIcon className="h-4 w-4" />
+                Supprimer
+              </Button>
+            }
+          />
+        </div>
+      </ServiceDetails>
+    </div>
   );
 } 

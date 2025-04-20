@@ -110,7 +110,7 @@ export default function ServicesPage() {
         }
         
         // Mettre à jour la liste des services après suppression
-        setServices(services.filter((service) => service.id !== serviceId));
+        setServices(services.filter((service: ServiceWithFreelanceAndCategories) => service.id !== serviceId));
         
         // Afficher un message de confirmation positif (optionnel)
         setError(null); // Effacer les erreurs précédentes
@@ -204,7 +204,7 @@ export default function ServicesPage() {
   }, []);
 
   // Filtrer les services en fonction de l'onglet actif
-  const filteredServices = services.filter(service => {
+  const filteredServices = services.filter((service: ServiceWithFreelanceAndCategories) => {
     if (activeTab === 'all') return true;
     if (activeTab === 'active') return service.active;
     if (activeTab === 'inactive') return !service.active;
@@ -463,7 +463,7 @@ export default function ServicesPage() {
         </div>
       ) : (
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {filteredServices.map((service) => (
+          {filteredServices.map((service: ServiceWithFreelanceAndCategories) => (
             <ServiceCard
               key={service.id}
               service={service}

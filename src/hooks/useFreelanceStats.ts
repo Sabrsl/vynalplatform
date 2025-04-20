@@ -7,6 +7,8 @@ interface FreelanceStats {
   totalOrders: number;
   activeOrders: number;
   averageRating: number;
+  unreadMessages: number;
+  notifications: number;
 }
 
 interface UseFreelanceStatsReturn {
@@ -22,7 +24,9 @@ export function useFreelanceStats(freelanceId: string | undefined): UseFreelance
     totalRevenue: 0,
     totalOrders: 0,
     activeOrders: 0,
-    averageRating: 0
+    averageRating: 0,
+    unreadMessages: 0,
+    notifications: 0
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -84,6 +88,34 @@ export function useFreelanceStats(freelanceId: string | undefined): UseFreelance
             ['pending', 'in_progress', 'revision_requested'].includes(order.status)).length 
         : 0;
 
+      // Récupérer les messages non lus pour le freelance
+      let unreadMessages = 0;
+      const { data: messagesData, error: messagesError } = await supabase
+        .from('messages')
+        .select('id')
+        .eq('receiver_id', freelanceId)
+        .eq('read', false);
+        
+      if (messagesError) {
+        console.error('Erreur lors du chargement des messages non lus:', messagesError);
+      } else if (messagesData) {
+        unreadMessages = messagesData.length;
+      }
+
+      // Récupérer les notifications non lues pour le freelance
+      let notifications = 0;
+      const { data: notificationsData, error: notificationsError } = await supabase
+        .from('notifications')
+        .select('id')
+        .eq('user_id', freelanceId)
+        .eq('read', false);
+        
+      if (notificationsError) {
+        console.error('Erreur lors du chargement des notifications non lues:', notificationsError);
+      } else if (notificationsData) {
+        notifications = notificationsData.length;
+      }
+
       // Récupérer les avis pour tous les services de ce freelance
       let averageRating = 0;
       
@@ -109,7 +141,9 @@ export function useFreelanceStats(freelanceId: string | undefined): UseFreelance
         totalRevenue,
         totalOrders,
         activeOrders,
-        averageRating
+        averageRating,
+        unreadMessages,
+        notifications
       });
     } catch (err: any) {
       console.error('Erreur lors du chargement des statistiques:', err);
