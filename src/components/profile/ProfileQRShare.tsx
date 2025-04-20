@@ -6,7 +6,12 @@ import {
   Share2, 
   Download, 
   Link as LinkIcon,
-  QrCode 
+  QrCode,
+  Facebook, 
+  MessageCircle,
+  Mail,
+  Send,
+  X as XIcon
 } from "lucide-react";
 import { 
   Popover, 
@@ -23,18 +28,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  FacebookShareButton,
-  TwitterShareButton,
-  WhatsappShareButton,
-  TelegramShareButton,
-  EmailShareButton,
-  FacebookIcon,
-  TwitterIcon,
-  WhatsappIcon,
-  TelegramIcon,
-  EmailIcon,
-} from "react-share";
 
 interface ProfileQRShareProps {
   profileData: {
@@ -353,25 +346,50 @@ export function ProfileQRShare({ profileData, baseUrl }: ProfileQRShareProps) {
             </div>
             
             <div className="grid grid-cols-5 gap-2 mb-3">
-              <FacebookShareButton url={profileUrl}>
-                <FacebookIcon size={32} round />
-              </FacebookShareButton>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-9 w-9 rounded-full p-0 border-blue-500/30 hover:border-blue-500 hover:bg-blue-50 dark:border-blue-500/30 dark:hover:border-blue-500 dark:hover:bg-blue-900/20"
+                onClick={() => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(profileUrl)}`, '_blank')}
+              >
+                <Facebook className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              </Button>
               
-              <TwitterShareButton url={profileUrl} title={`Découvrez le profil de ${profileData.full_name} sur Vynal Platform`}>
-                <TwitterIcon size={32} round />
-              </TwitterShareButton>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-9 w-9 rounded-full p-0 border-black/30 hover:border-black hover:bg-black/5 dark:border-white/30 dark:hover:border-white dark:hover:bg-white/10"
+                onClick={() => window.open(`https://x.com/intent/tweet?url=${encodeURIComponent(profileUrl)}&text=${encodeURIComponent(`Découvrez le profil de ${profileData.full_name} sur Vynal Platform`)}`, '_blank')}
+              >
+                <XIcon className="h-4 w-4 text-black dark:text-white" />
+              </Button>
               
-              <WhatsappShareButton url={profileUrl} title={`Découvrez le profil de ${profileData.full_name} sur Vynal Platform`}>
-                <WhatsappIcon size={32} round />
-              </WhatsappShareButton>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-9 w-9 rounded-full p-0 border-green-500/30 hover:border-green-500 hover:bg-green-50 dark:border-green-500/30 dark:hover:border-green-500 dark:hover:bg-green-900/20"
+                onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(`Découvrez le profil de ${profileData.full_name} sur Vynal Platform: ${profileUrl}`)}`, '_blank')}
+              >
+                <MessageCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+              </Button>
               
-              <TelegramShareButton url={profileUrl} title={`Découvrez le profil de ${profileData.full_name} sur Vynal Platform`}>
-                <TelegramIcon size={32} round />
-              </TelegramShareButton>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-9 w-9 rounded-full p-0 border-blue-400/30 hover:border-blue-400 hover:bg-blue-50 dark:border-blue-400/30 dark:hover:border-blue-400 dark:hover:bg-blue-900/20"
+                onClick={() => window.open(`https://t.me/share/url?url=${encodeURIComponent(profileUrl)}&text=${encodeURIComponent(`Découvrez le profil de ${profileData.full_name} sur Vynal Platform`)}`, '_blank')}
+              >
+                <Send className="h-4 w-4 text-blue-400 dark:text-blue-300" />
+              </Button>
               
-              <EmailShareButton url={profileUrl} subject={`Découvrez le profil de ${profileData.full_name} sur Vynal Platform`} body="Hey, je voulais partager ce profil avec toi :">
-                <EmailIcon size={32} round />
-              </EmailShareButton>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-9 w-9 rounded-full p-0 border-pink-500/30 hover:border-pink-500 hover:bg-pink-50 dark:border-pink-500/30 dark:hover:border-pink-500 dark:hover:bg-pink-900/20"
+                onClick={() => window.open(`mailto:?subject=${encodeURIComponent(`Découvrez le profil de ${profileData.full_name} sur Vynal Platform`)}&body=${encodeURIComponent(`Hey, je voulais partager ce profil avec toi : ${profileUrl}`)}`, '_blank')}
+              >
+                <Mail className="h-4 w-4 text-pink-600 dark:text-pink-400" />
+              </Button>
             </div>
             
             <div className="flex flex-col space-y-2">
