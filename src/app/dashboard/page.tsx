@@ -353,7 +353,7 @@ export default function DashboardPage() {
                     <div className="mr-2 p-1 sm:p-2 rounded-full bg-gradient-to-br from-vynal-accent-secondary/40 to-vynal-accent-secondary/30 text-vynal-accent-secondary group-hover:shadow-sm dark:from-vynal-purple-secondary/40 dark:to-vynal-purple-secondary/20 dark:text-vynal-accent-secondary flex-shrink-0">
                       <CreditCard className="h-3 w-3 sm:h-4 sm:w-4" />
                     </div>
-                    <span className="text-xs sm:text-sm font-medium text-vynal-purple-light dark:text-vynal-text-primary truncate whitespace-nowrap">Mes&nbsp;commandes</span>
+                    <span className="text-xs sm:text-sm font-medium text-vynal-purple-light dark:text-vynal-text-primary truncate whitespace-nowrap">Gérer mes commandes</span>
                   </div>
                   <ArrowUpRight className="h-3 w-3 sm:h-4 sm:w-4 text-vynal-accent-secondary group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform dark:text-vynal-accent-secondary flex-shrink-0 ml-1" />
                 </Link>

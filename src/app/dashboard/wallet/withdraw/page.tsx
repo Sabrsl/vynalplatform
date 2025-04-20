@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, AlertCircle, CheckCircle, Loader, Wallet, BanknoteIcon } from "lucide-react";
 import Link from "next/link";
 import { PaymentMethodCard } from "@/components/orders/PaymentMethodCard";
+import { InfoTooltip } from "@/components/ui/InfoTooltip";
 
 // Données fictives pour la démo
 const MOCK_WALLET = {
@@ -254,104 +255,136 @@ export default function WithdrawPage() {
   }
 
   return (
-    <div className="container max-w-xl mx-auto py-8 px-4">
-      <div className="mb-6">
-        <Button variant="ghost" size="sm" asChild className="mb-4">
+    <div className="container max-w-xl mx-auto py-6 px-4">
+      <div className="flex items-center mb-6">
+        <Button variant="ghost" size="icon" asChild className="mr-2">
           <Link href="/dashboard/wallet">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Retour au portefeuille
+            <ArrowLeft className="h-5 w-5" />
           </Link>
         </Button>
         <h1 className="text-2xl font-bold">Retirer des fonds</h1>
-        <p className="text-slate-600 flex items-center mt-1">
-          <BanknoteIcon className="h-4 w-4 mr-1 text-indigo-600" />
-          <span className="text-sm">
-            Transférez vos gains vers le compte de votre choix
-          </span>
-        </p>
       </div>
+
+      <Card className="mb-6">
+        <CardContent className="pt-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center">
+              <Wallet className="h-5 w-5 mr-2 text-indigo-600" />
+              <h2 className="text-lg font-medium">Solde disponible</h2>
+            </div>
+            <div className="text-xl font-bold">{wallet.balance.toFixed(2)} €</div>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
           <CardTitle>Demande de retrait</CardTitle>
           <CardDescription>
-            Solde disponible: <span className="font-medium">{wallet.balance.toFixed(2)} €</span>
+            Choisissez le montant et la méthode de retrait
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {error && (
-            <div className="bg-red-50 p-3 rounded-lg flex items-start gap-2 text-red-700 text-sm mb-4">
-              <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
-              <p>{error}</p>
-            </div>
-          )}
-          
-          <div className="space-y-2">
-            <Label htmlFor="amount">Montant à retirer (€)</Label>
-            <div className="relative">
-              <BanknoteIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <Input
-                id="amount"
-                type="number"
-                min="1"
-                max={wallet.balance}
-                step="0.01"
-                placeholder="0,00"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-            <div className="flex justify-between text-xs text-slate-500">
-              <span>Minimum: {wallet.min_withdrawal.toFixed(2)} €</span>
-              <button 
-                type="button"
-                className="text-indigo-600 hover:underline"
-                onClick={() => setAmount(wallet.balance.toString())}
-              >
-                Retirer tout ({wallet.balance.toFixed(2)} €)
-              </button>
-            </div>
-          </div>
-          
-          <div className="space-y-2 pt-2">
-            <Label>Méthode de retrait</Label>
-            <div className="space-y-3">
-              {wallet.withdrawal_methods.map((method: { id: string; name: string; processing_time: string; fee: string; logo: string }) => (
-                <PaymentMethodCard
-                  key={method.id}
-                  id={method.id}
-                  name={method.name}
-                  description={`${method.processing_time} • Frais: ${method.fee}`}
-                  logo={method.logo}
-                  selected={selectedMethod === method.id}
-                  onSelect={setSelectedMethod}
+        <CardContent>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="amount" className="flex items-center gap-1">
+                Montant à retirer
+                <InfoTooltip 
+                  text={`Montant minimum de retrait: ${wallet.min_withdrawal.toFixed(2)} €. Des frais peuvent s'appliquer selon la méthode de paiement choisie.`}
+                  position="right"
+                  size="xs"
                 />
-              ))}
-            </div>
-          </div>
-          
-          {amount && parseFloat(amount) > 0 && selectedMethod && (
-            <div className="mt-6 pt-4 border-t border-slate-200">
-              <h3 className="font-medium text-slate-900 mb-3">Récapitulatif</h3>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-slate-600">Montant</span>
-                  <span className="font-medium">{parseFloat(amount).toFixed(2)} €</span>
-                </div>
-                
-                <div className="flex justify-between">
-                  <span className="text-slate-600">Frais de traitement</span>
-                  <span className="font-medium">{feeAmount.toFixed(2)} €</span>
-                </div>
-                
-                <div className="flex justify-between pt-2 border-t border-dashed border-slate-200 mt-2">
-                  <span className="font-medium">Montant net reçu</span>
-                  <span className="font-bold text-green-600">{netAmount.toFixed(2)} €</span>
+              </Label>
+              <div className="relative mt-1">
+                <Input
+                  id="amount"
+                  type="number"
+                  placeholder="0.00"
+                  min={wallet.min_withdrawal}
+                  max={wallet.balance}
+                  step="0.01"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  className="pl-8"
+                />
+                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                  <span className="text-slate-500">€</span>
                 </div>
               </div>
+              {parseFloat(amount) > wallet.balance && (
+                <p className="text-xs text-red-500 mt-1">
+                  Le montant dépasse votre solde disponible
+                </p>
+              )}
+              {parseFloat(amount) < wallet.min_withdrawal && amount !== "" && (
+                <p className="text-xs text-red-500 mt-1">
+                  Le montant minimum de retrait est de {wallet.min_withdrawal.toFixed(2)} €
+                </p>
+              )}
             </div>
-          )}
+
+            <div>
+              <Label className="flex items-center gap-1 mb-1">
+                Méthode de retrait
+                <InfoTooltip 
+                  text="Chaque méthode de paiement a des délais et des frais différents. Les virements bancaires sont gratuits mais prennent plus de temps. Les méthodes mobiles sont plus rapides mais ont des frais entre 1% et 1.5%."
+                  position="top"
+                  size="xs"
+                />
+              </Label>
+              
+              <div className="grid grid-cols-1 gap-2 mt-2">
+                {WITHDRAWAL_METHODS.map((method) => (
+                  <button
+                    key={method.id}
+                    type="button"
+                    className={`flex items-center justify-between p-3 border rounded-lg transition-colors ${
+                      selectedMethod === method.id
+                        ? "border-indigo-500 bg-indigo-50"
+                        : "border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/50"
+                    }`}
+                    onClick={() => setSelectedMethod(method.id)}
+                  >
+                    <div className="flex items-center">
+                      <div className="w-8 h-8 flex items-center justify-center mr-3">
+                        {/* <img src={method.logo} alt={method.name} className="w-6 h-6" /> */}
+                        <BanknoteIcon className="h-6 w-6 text-slate-600" />
+                      </div>
+                      <div>
+                        <h3 className="font-medium text-sm">{method.name}</h3>
+                        <p className="text-xs text-slate-500">{method.description}</p>
+                      </div>
+                    </div>
+                    {selectedMethod === method.id && (
+                      <div className="w-4 h-4 bg-indigo-500 rounded-full" />
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {amount && parseFloat(amount) > 0 && selectedMethod && (
+              <div className="mt-6 pt-4 border-t border-slate-200">
+                <h3 className="font-medium text-slate-900 mb-3">Récapitulatif</h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Montant</span>
+                    <span className="font-medium">{parseFloat(amount).toFixed(2)} €</span>
+                  </div>
+                  
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Frais de traitement</span>
+                    <span className="font-medium">{feeAmount.toFixed(2)} €</span>
+                  </div>
+                  
+                  <div className="flex justify-between pt-2 border-t border-dashed border-slate-200 mt-2">
+                    <span className="font-medium">Montant net reçu</span>
+                    <span className="font-bold text-green-600">{netAmount.toFixed(2)} €</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </CardContent>
         <CardFooter className="flex-col space-y-2">
           <Button 

@@ -17,6 +17,7 @@ export type Profile = {
   last_seen: string | null;
   verification_level: number | null;
   verified_at: string | null;
+  phone: string | null;
 };
 
 export function useUser() {

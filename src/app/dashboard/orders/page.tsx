@@ -7,8 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { OrderCard } from "@/components/orders/OrderCard";
 import { useAuth } from "@/hooks/useAuth";
-import { Search, Filter, ShoppingBag, Clock, CheckCircle, HistoryIcon, AlertCircle, BarChart, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, Filter, ShoppingBag, Clock, CheckCircle, HistoryIcon, AlertCircle, BarChart, ChevronLeft, ChevronRight, Package } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { InfoTooltip } from "@/components/ui/InfoTooltip";
+import Link from "next/link";
+import { formatPrice } from "@/lib/utils";
 
 // Type definition for order status
 type OrderStatus = "pending" | "in_progress" | "completed" | "delivered" | "revision_requested" | "cancelled";
@@ -281,29 +284,21 @@ export default function OrdersPage() {
 
   return (
     <div className="w-full h-full overflow-x-hidden overflow-y-auto scrollbar-hide bg-gray-50/50 dark:bg-transparent">
-      <div className="p-2 sm:p-4 space-y-4 sm:space-y-8 pb-12 max-w-[1600px] mx-auto">
-        <div className="flex flex-col space-y-1 sm:space-y-2">
-          <div className="flex items-center justify-between">
-            <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-vynal-purple-light dark:text-vynal-text-primary sm:hidden">
-              {isFreelance ? "Commandes reçues" : "Mes commandes"}
-            </h1>
-            {!isFreelance && (
-              <Button 
-                size="sm" 
-                className="text-xs sm:text-sm bg-gradient-to-r from-vynal-accent-primary to-vynal-accent-secondary hover:from-vynal-accent-primary/90 hover:to-vynal-accent-secondary/90 text-white sm:ml-auto"
-              >
-                Découvrir des services
-              </Button>
-            )}
+      <div className="p-2 sm:p-4 space-y-4 sm:space-y-6 pb-8 sm:pb-12 max-w-[1600px] mx-auto">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
+          <div>
           </div>
-          {isFreelance && (
-            <p className="text-xs sm:text-sm text-vynal-purple-secondary dark:text-vynal-text-secondary/80 mt-1">
-              Gérez les commandes de vos clients et suivez leur progression
-            </p>
+          {!isFreelance && (
+            <Button asChild>
+              <Link href="/services">
+                <ShoppingBag className="h-4 w-4 mr-2" />
+                Trouver un service
+              </Link>
+            </Button>
           )}
         </div>
 
-        {/* Dashboard Stats */}
+        {/* Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
           <Card className="overflow-hidden border border-vynal-accent-primary/20 shadow-sm bg-white relative before:absolute before:inset-0 before:bg-gradient-to-br before:from-vynal-accent-primary/20 before:via-vynal-accent-primary/10 before:to-white before:rounded-lg dark:bg-vynal-purple-dark/20 dark:before:from-vynal-accent-primary/20 dark:before:via-vynal-purple-secondary/10 dark:before:to-transparent hover:shadow-md transition-shadow duration-300">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-2 pt-2 sm:px-6 sm:pt-6 relative z-10">
@@ -312,9 +307,14 @@ export default function OrdersPage() {
                   <div className="mr-2 p-1 sm:p-1.5 rounded-full bg-gradient-to-tr from-vynal-accent-primary/40 to-vynal-accent-primary/20 shadow-sm dark:from-vynal-purple-secondary/30 dark:to-vynal-purple-secondary/20 flex-shrink-0">
                     <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-vynal-accent-primary dark:text-vynal-accent-primary" />
                   </div>
-                  <span className="truncate text-vynal-purple-light dark:text-vynal-text-primary">Commandes actives</span>
+                  <span className="truncate text-vynal-purple-light dark:text-vynal-text-primary">En cours</span>
                 </div>
               </CardTitle>
+              <InfoTooltip 
+                text="Les commandes en cours comprennent celles en statut 'En attente', 'En cours' et 'Révision demandée'. Ce sont les commandes qui nécessitent une action ou sont en train d'être traitées."
+                position="bottom"
+                size="xs"
+              />
             </CardHeader>
             <CardContent className="px-2 pb-2 sm:px-6 sm:pb-6 relative z-10">
               <div className="text-lg sm:text-2xl font-bold text-vynal-purple-light dark:text-vynal-text-primary">
@@ -322,8 +322,8 @@ export default function OrdersPage() {
               </div>
               <div className="flex items-center mt-1">
                 <div className="h-2 w-2 rounded-full bg-gradient-to-r from-vynal-accent-primary to-vynal-accent-secondary mr-1"></div>
-                <p className="text-[10px] sm:text-xs text-vynal-accent-secondary dark:text-vynal-accent-primary truncate">
-                  En cours
+                <p className="text-[10px] sm:text-xs text-vynal-accent-secondary dark:text-emerald-400 truncate">
+                  Commandes actives
                 </p>
               </div>
             </CardContent>
@@ -336,7 +336,7 @@ export default function OrdersPage() {
                   <div className="mr-2 p-1 sm:p-1.5 rounded-full bg-gradient-to-tr from-vynal-accent-secondary/40 to-vynal-accent-secondary/20 shadow-sm dark:from-vynal-purple-secondary/30 dark:to-vynal-purple-secondary/20 flex-shrink-0">
                     <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 text-vynal-accent-secondary dark:text-vynal-accent-secondary" />
                   </div>
-                  <span className="truncate text-vynal-purple-light dark:text-vynal-text-primary">Commandes terminées</span>
+                  <span className="truncate text-vynal-purple-light dark:text-vynal-text-primary">Complétées</span>
                 </div>
               </CardTitle>
             </CardHeader>
@@ -346,7 +346,7 @@ export default function OrdersPage() {
               </div>
               <div className="flex items-center mt-1">
                 <div className="text-[10px] sm:text-xs px-1.5 py-0.5 bg-gradient-to-r from-vynal-accent-secondary/30 to-vynal-accent-secondary/20 text-vynal-accent-secondary rounded-md dark:from-vynal-purple-secondary/30 dark:to-vynal-purple-secondary/20 dark:text-vynal-accent-secondary truncate">
-                  Finalisées
+                  Terminées
                 </div>
               </div>
             </CardContent>
@@ -357,11 +357,16 @@ export default function OrdersPage() {
               <CardTitle className="text-xs sm:text-base md:text-lg font-medium">
                 <div className="flex items-center">
                   <div className="mr-2 p-1 sm:p-1.5 rounded-full bg-gradient-to-tr from-vynal-purple-secondary/40 to-vynal-purple-secondary/20 shadow-sm dark:from-vynal-purple-secondary/30 dark:to-vynal-purple-secondary/20 flex-shrink-0">
-                    <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4 text-vynal-purple-secondary dark:text-amber-400" />
+                    <Package className="h-3 w-3 sm:h-4 sm:w-4 text-vynal-purple-secondary dark:text-amber-400" />
                   </div>
-                  <span className="truncate text-vynal-purple-light dark:text-vynal-text-primary">En attente de validation</span>
+                  <span className="truncate text-vynal-purple-light dark:text-vynal-text-primary">Livrées</span>
                 </div>
               </CardTitle>
+              <InfoTooltip 
+                text="Les commandes livrées sont celles que le freelance a terminées et livrées, mais que vous n'avez pas encore validées. Vous devez les vérifier et les accepter ou demander une révision."
+                position="bottom"
+                size="xs"
+              />
             </CardHeader>
             <CardContent className="px-2 pb-2 sm:px-6 sm:pb-6 relative z-10">
               <div className="text-lg sm:text-2xl font-bold text-vynal-purple-light dark:text-vynal-text-primary">
@@ -369,7 +374,7 @@ export default function OrdersPage() {
               </div>
               <div className="flex items-center mt-1">
                 <div className="text-[10px] sm:text-xs px-1.5 py-0.5 bg-gradient-to-r from-vynal-purple-secondary/30 to-vynal-purple-secondary/20 text-vynal-purple-secondary rounded-md dark:from-vynal-purple-secondary/30 dark:to-vynal-purple-secondary/20 dark:text-amber-400 truncate">
-                  À valider
+                  En attente de validation
                 </div>
               </div>
             </CardContent>
@@ -380,21 +385,20 @@ export default function OrdersPage() {
               <CardTitle className="text-xs sm:text-base md:text-lg font-medium">
                 <div className="flex items-center">
                   <div className="mr-2 p-1 sm:p-1.5 rounded-full bg-gradient-to-tr from-vynal-accent-primary/40 to-vynal-accent-primary/20 shadow-sm dark:from-vynal-purple-secondary/30 dark:to-vynal-purple-secondary/20 flex-shrink-0">
-                    <BarChart className="h-3 w-3 sm:h-4 sm:w-4 text-vynal-accent-primary dark:text-vynal-accent-primary" />
+                    <BarChart className="h-3 w-3 sm:h-4 sm:w-4 text-vynal-accent-primary dark:text-emerald-400" />
                   </div>
-                  <span className="truncate text-vynal-purple-light dark:text-vynal-text-primary">Montant total</span>
+                  <span className="truncate text-vynal-purple-light dark:text-vynal-text-primary">Total</span>
                 </div>
               </CardTitle>
             </CardHeader>
             <CardContent className="px-2 pb-2 sm:px-6 sm:pb-6 relative z-10">
               <div className="text-lg sm:text-2xl font-bold text-vynal-purple-light dark:text-vynal-text-primary">
-                {totalOrdersValue}€
+                {formatPrice(totalOrdersValue)}
               </div>
               <div className="flex items-center mt-1">
-                <div className="h-2 w-2 rounded-full bg-gradient-to-r from-vynal-accent-primary to-vynal-accent-secondary mr-1"></div>
-                <p className="text-[10px] sm:text-xs text-vynal-accent-secondary dark:text-vynal-accent-primary truncate">
-                  Commandes totales
-                </p>
+                <div className="text-[10px] sm:text-xs px-1.5 py-0.5 bg-gradient-to-r from-vynal-accent-primary/30 to-vynal-accent-primary/20 text-vynal-accent-primary rounded-md dark:from-vynal-purple-secondary/30 dark:to-vynal-purple-secondary/20 dark:text-emerald-400 truncate">
+                  Valeur commandes
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -583,11 +587,6 @@ export default function OrdersPage() {
                       ? "Vous n'avez pas encore reçu de commandes correspondant à ces critères."
                       : "Vous n'avez pas encore passé de commandes correspondant à ces critères."}
                   </p>
-                  {!isFreelance && (
-                    <Button className="text-xs sm:text-sm h-8 sm:h-9 bg-gradient-to-r from-vynal-accent-primary to-vynal-accent-secondary hover:from-vynal-accent-primary/90 hover:to-vynal-accent-secondary/90 text-white">
-                      Découvrir des services
-                    </Button>
-                  )}
                 </CardContent>
               </Card>
             )}

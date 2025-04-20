@@ -99,27 +99,16 @@ export default function DashboardLayout({
         <div className="h-16 flex items-center px-4 border-b border-slate-100 dark:border-vynal-purple-secondary/20">
           <div className="flex items-center space-x-2">
             <div className="bg-gradient-to-br from-purple-600 to-violet-700 h-7 w-7 rounded-lg flex items-center justify-center shadow-md shadow-purple-200/40 dark:from-vynal-accent-primary dark:to-vynal-accent-secondary dark:shadow-vynal-accent-primary/20">
-              <span className="text-white font-bold text-sm dark:text-vynal-text-primary">P</span>
+              <span className="text-white font-bold text-sm dark:text-vynal-text-primary">VY</span>
             </div>
             <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 overflow-hidden">
-              <h1 className="text-sm font-bold bg-gradient-to-r from-purple-600 to-violet-700 bg-clip-text text-transparent dark:from-vynal-accent-primary dark:to-vynal-accent-secondary">ProDash</h1>
+              <h1 className="text-sm font-bold bg-gradient-to-r from-purple-600 to-violet-700 bg-clip-text text-transparent dark:from-vynal-accent-primary dark:to-vynal-accent-secondary">VY</h1>
               <p className="text-[10px] text-slate-500 dark:text-vynal-text-secondary">Espace {user?.user_metadata?.role === "freelance" ? "Freelance" : "Client"}</p>
             </div>
           </div>
         </div>
         
         <div className="flex-1 overflow-y-auto overflow-x-hidden py-3 px-2 custom-scrollbar">
-          <div className="mb-4 mt-1 relative opacity-0 group-hover:opacity-100 hidden group-hover:block transition-all duration-200">
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Rechercher..."
-                className="w-full bg-slate-50 border border-slate-100 rounded-lg py-2 pl-8 pr-3 text-xs outline-none focus:ring-1 focus:ring-purple-300 transition-all dark:bg-vynal-purple-dark/50 dark:border-vynal-purple-secondary/30 dark:focus:ring-vynal-accent-primary dark:text-vynal-text-primary dark:placeholder:text-vynal-text-secondary/70"
-              />
-              <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-slate-400 dark:text-vynal-text-secondary" />
-            </div>
-          </div>
-          
           <nav className="space-y-5">
             {/* Éléments essentiels */}
             <div>
@@ -162,8 +151,7 @@ export default function DashboardLayout({
                 <p className="px-2 text-[10px] font-bold text-slate-400 uppercase mb-1.5 dark:text-vynal-text-secondary opacity-0 group-hover:opacity-100 transition-opacity duration-200 hidden group-hover:block">Actions</p>
                 
                 <div>
-                  <NavItem href="/dashboard/services/browse" icon={FileText} label="Trouver un service" />
-                  <NavItem href="/dashboard/orders/revision" icon={RefreshCw} label="Demander une révision" />
+                  <NavItem href="/services" icon={FileText} label="Trouver un service" />
                 </div>
               </div>
             )}
@@ -174,8 +162,8 @@ export default function DashboardLayout({
               
               <div>
                 <NavItem href="/dashboard/profile" icon={User} label="Mon profil" />
-                <NavItem href="/dashboard/resources" icon={BookOpen} label="Ressources" />
-                <NavItem href="/dashboard/support" icon={HelpCircle} label="Support" />
+                <NavItem href="/how-it-works" icon={BookOpen} label="Ressources" />
+                <NavItem href="/contact" icon={HelpCircle} label="Support" />
                 <NavItem href="/dashboard/settings" icon={Settings} label="Paramètres" />
               </div>
             </div>
@@ -188,7 +176,7 @@ export default function DashboardLayout({
             <div className="flex items-center">
               <div className="relative">
                 <div className="w-7 h-7 rounded-md bg-gradient-to-br from-purple-600 to-violet-700 flex items-center justify-center text-white font-medium shadow-sm dark:from-vynal-accent-primary dark:to-vynal-accent-secondary dark:text-vynal-text-primary">
-                  {user?.user_metadata?.name ? user.user_metadata.name.charAt(0).toUpperCase() : "U"}
+                  {user?.user_metadata?.name ? user.user_metadata.name.charAt(0).toUpperCase() : ""}
                 </div>
                 <div className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-vynal-purple-500 rounded-full border border-white dark:bg-vynal-status-success dark:border-vynal-purple-dark"></div>
               </div>
@@ -236,20 +224,6 @@ export default function DashboardLayout({
             </div>
             
             <div className="flex items-center space-x-3">
-              <button className="relative p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors">
-                <MessageSquare className="h-4 w-4" />
-                <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 bg-red-500 rounded-full border border-white"></span>
-              </button>
-              <button className="relative p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors">
-                <Bell className="h-4 w-4" />
-                <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 bg-vynal-purple-500 rounded-full border border-white"></span>
-              </button>
-              <div className="h-6 w-px bg-slate-200"></div>
-              <div className="flex items-center">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-600 to-violet-700 flex items-center justify-center text-white shadow-sm">
-                  {user?.user_metadata?.name ? user.user_metadata.name.charAt(0).toUpperCase() : "U"}
-                </div>
-              </div>
             </div>
           </header>
         )}

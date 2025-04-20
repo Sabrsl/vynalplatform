@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowUpRight, ArrowDownLeft, CreditCard, Clock, AlertCircle, Wallet, Loader } from "lucide-react";
 import Link from "next/link";
+import { InfoTooltip } from "@/components/ui/InfoTooltip";
 
 // Données fictives pour la démo
 const MOCK_WALLET = {
@@ -179,6 +180,13 @@ export default function WalletPage() {
             <div className="flex items-center mb-4">
               <Clock className="h-5 w-5 mr-2 text-yellow-500" />
               <h2 className="text-lg font-bold">En attente</h2>
+              <div className="ml-1">
+                <InfoTooltip 
+                  text="Les montants en attente correspondent aux paiements qui vous ont été envoyés mais qui ne sont pas encore disponibles pour retrait. Ils seront automatiquement débloqués 14 jours après validation de votre livraison par le client."
+                  position="top"
+                  size="sm"
+                />
+              </div>
             </div>
             <div className="text-3xl font-bold mb-1 text-yellow-600">
               {wallet.pending.toFixed(2)} €
