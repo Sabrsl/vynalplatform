@@ -8,6 +8,7 @@ import { useUser } from "@/hooks/useUser";
 import { Button } from "@/components/ui/button";
 import SearchBar from "@/components/categories/SearchBar";
 import { supabase } from "@/lib/supabase/client";
+import MobileMenu from "@/components/MobileMenu";
 import { 
   User, 
   LogOut, 
@@ -38,6 +39,7 @@ export default function Header() {
   const searchBarRef = useRef<HTMLDivElement>(null);
   const searchButtonRef = useRef<HTMLButtonElement>(null);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [activePath, setActivePath] = useState(pathname || '');
 
   const isActive = (path: string) => {
     return pathname === path || pathname?.startsWith(`${path}/`);
@@ -72,6 +74,11 @@ export default function Header() {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [searchBarVisible]);
+
+  // Mettre à jour activePath quand pathname change
+  useEffect(() => {
+    setActivePath(pathname || '');
+  }, [pathname]);
 
   const navigation = [
     { name: "Accueil", href: "/", icon: Home },
@@ -174,7 +181,7 @@ export default function Header() {
             <img 
               src="/assets/logo/logo_vynal_platform.webp" 
               alt="Vynal Platform Logo" 
-              className="h-8 sm:h-9 w-auto dark:brightness-110 transition-all duration-300 group-hover:scale-105" 
+              className="h-6 sm:h-7 md:h-8 w-auto dark:brightness-110 transition-all duration-300 group-hover:scale-105" 
             />
           </Link>
 
@@ -311,23 +318,64 @@ export default function Header() {
                 <Search className="h-4 w-4" />
               </button>
             )}
-            <Button
-              variant="ghost"
+            
+            {/* Mobile Menu Button with Profile Picture */}
+            <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className={`p-1.5 rounded-full transition-all ${
+              className={`relative h-9 w-9 rounded-full transition-all duration-300 overflow-hidden ${
                 isDark 
-                  ? "text-vynal-text-primary hover:bg-vynal-purple-secondary/20" 
-                  : "text-vynal-purple-dark hover:bg-vynal-purple-200/30"
+                  ? mobileMenuOpen
+                    ? "ring-2 ring-vynal-accent-primary ring-offset-1 ring-offset-vynal-purple-dark"
+                    : "ring-1 ring-vynal-purple-secondary/40 hover:ring-vynal-accent-primary/60" 
+                  : mobileMenuOpen
+                    ? "ring-2 ring-vynal-purple-500 ring-offset-1"
+                    : "ring-1 ring-vynal-purple-300/60 hover:ring-vynal-purple-500/60"
               }`}
               aria-expanded={mobileMenuOpen}
               aria-label="Toggle mobile menu"
             >
-              {mobileMenuOpen ? (
-                <X className="w-5 h-5" />
+              {user ? (
+                // Photo de profil si utilisateur connecté
+                profile?.avatar_url ? (
+                  <img 
+                    src={profile.avatar_url} 
+                    alt="Profile" 
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  // Avatar avec initiale si pas de photo mais connecté
+                  <div className={`h-full w-full flex items-center justify-center ${
+                    isDark 
+                      ? "bg-vynal-purple-secondary text-vynal-accent-primary" 
+                      : "bg-vynal-purple-100 text-vynal-purple-600"
+                  }`}>
+                    <span className="text-sm font-medium">
+                      {profile?.full_name 
+                        ? profile.full_name.charAt(0).toUpperCase() 
+                        : profile?.username 
+                          ? profile.username.charAt(0).toUpperCase()
+                          : user.email?.charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                )
               ) : (
-                <Menu className="w-5 h-5" />
+                // Icône placeholder pour utilisateur non connecté
+                <div className={`h-full w-full flex items-center justify-center ${
+                  isDark 
+                    ? "bg-vynal-purple-secondary/40 text-vynal-text-primary" 
+                    : "bg-vynal-purple-100/80 text-vynal-purple-dark"
+                }`}>
+                  <User className="h-4.5 w-4.5" />
+                </div>
               )}
-            </Button>
+              
+              {/* Indicateur de menu ouvert */}
+              {mobileMenuOpen && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                  <X className="h-3.5 w-3.5 text-white" />
+                </div>
+              )}
+            </button>
           </div>
         </div>
       </div>
@@ -363,130 +411,14 @@ export default function Header() {
         )}
       </AnimatePresence>
 
-      {/* Mobile Menu */}
-      <AnimatePresence>
-        {mobileMenuOpen && (
-          <motion.div
-            className="md:hidden"
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.2 }}
-          >
-            <div className={`px-4 py-3 space-y-1 ${
-              isDark 
-                ? "border-t border-vynal-purple-secondary/20 bg-vynal-purple-dark/95" 
-                : "border-t border-vynal-purple-200/30 bg-white/95"
-            }`}>
-              {navigation.map((item) => (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className={`flex items-center py-2 px-3 rounded-lg transition-all ${
-                    isActive(item.href)
-                      ? isDark 
-                        ? "text-vynal-accent-primary bg-vynal-purple-secondary/20" 
-                        : "text-vynal-purple-600 bg-vynal-purple-100/50"
-                      : isDark 
-                        ? "text-vynal-text-primary hover:bg-vynal-purple-secondary/10 hover:text-vynal-accent-primary" 
-                        : "text-vynal-purple-dark hover:bg-vynal-purple-100/30 hover:text-vynal-purple-600"
-                  }`}
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <item.icon className="w-4 h-4 mr-3" />
-                  {item.name}
-                </Link>
-              ))}
-              
-              {user ? (
-                <>
-                  <div className="pt-2 pb-1">
-                    <p className={`px-3 text-xs font-medium uppercase tracking-wider ${
-                      isDark ? "text-vynal-text-secondary" : "text-vynal-purple-400"
-                    }`}>
-                      Dashboard
-                    </p>
-                  </div>
-                  
-                  {authenticatedNavigation.map((item) => (
-                    <Link
-                      key={item.name}
-                      href={item.href}
-                      className={`flex items-center py-2 px-3 rounded-lg transition-all ${
-                        isActive(item.href)
-                          ? isDark 
-                            ? "text-vynal-accent-primary bg-vynal-purple-secondary/20" 
-                            : "text-vynal-purple-600 bg-vynal-purple-100/50"
-                          : isDark 
-                            ? "text-vynal-text-primary hover:bg-vynal-purple-secondary/10 hover:text-vynal-accent-primary" 
-                            : "text-vynal-purple-dark hover:bg-vynal-purple-100/30 hover:text-vynal-purple-600"
-                      }`}
-                      onClick={() => setMobileMenuOpen(false)}
-                    >
-                      <item.icon className="w-4 h-4 mr-3" />
-                      {item.name}
-                    </Link>
-                  ))}
-                  
-                  <button
-                    onClick={handleLogout}
-                    disabled={isLoggingOut}
-                    className={`w-full flex items-center py-2 px-3 rounded-lg text-left transition-all ${
-                      isDark 
-                        ? "text-vynal-text-primary hover:bg-vynal-purple-secondary/10 hover:text-vynal-accent-primary" 
-                        : "text-vynal-purple-dark hover:bg-vynal-purple-100/30 hover:text-vynal-purple-600"
-                    }`}
-                  >
-                    {isLoggingOut ? (
-                      <>
-                        <div className={`w-4 h-4 border-2 border-t-transparent rounded-full animate-spin mr-3 ${
-                          isDark ? "border-vynal-text-secondary" : "border-vynal-purple-400"
-                        }`}></div>
-                        Déconnexion...
-                      </>
-                    ) : (
-                      <>
-                        <LogOut className="w-4 h-4 mr-3" />
-                        Déconnexion
-                      </>
-                    )}
-                  </button>
-                </>
-              ) : (
-                <div className="flex flex-col gap-2 pt-2">
-                  <Link 
-                    href="/auth/login" 
-                    className="w-full"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    <Button 
-                      variant="outline" 
-                      className={`w-full text-sm ${
-                        isDark 
-                          ? "border-vynal-purple-secondary/40 text-vynal-text-primary" 
-                          : "border-vynal-purple-300/50 text-vynal-purple-dark"
-                      }`}
-                    >
-                      Connexion
-                    </Button>
-                  </Link>
-                  <Link 
-                    href="/auth/signup" 
-                    className="w-full"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    <Button 
-                      className="w-full text-sm bg-gradient-button hover:opacity-90 text-white"
-                    >
-                      Inscription
-                    </Button>
-                  </Link>
-                </div>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Mobile Menu - Utiliser le composant MobileMenu */}
+      <MobileMenu 
+        isOpen={mobileMenuOpen} 
+        onClose={() => setMobileMenuOpen(false)} 
+        user={user} 
+        activePath={activePath}
+        setActivePath={setActivePath}
+      />
     </header>
   );
 } 

@@ -7,7 +7,7 @@ import Link from "next/link";
 import { 
   User, Settings, FileText, ShoppingBag, MessageSquare, Home, 
   Calendar, CreditCard, BarChart2, BookOpen, Award, HelpCircle,
-  Menu, X, ChevronRight, LogOut, Bell, Search, Wallet, RefreshCw, PackageOpen, AlertTriangle
+  Menu, X, ChevronRight, LogOut, Bell, Search, Wallet, RefreshCw, PackageOpen, AlertTriangle, Users, ShieldCheck
 } from "lucide-react";
 import MobileMenu from "@/components/MobileMenu";
 import { cn } from "@/lib/utils";
@@ -92,6 +92,9 @@ export default function DashboardLayout({
     </Link>
   );
 
+  // Vérifier si l'utilisateur est administrateur
+  const isAdmin = user?.user_metadata?.role === 'admin';
+
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-slate-50/70 dark:bg-vynal-purple-dark/30">
       {/* Sidebar - Desktop with hover effect */}
@@ -167,6 +170,32 @@ export default function DashboardLayout({
                 <NavItem href="/dashboard/settings" icon={Settings} label="Paramètres" />
               </div>
             </div>
+
+            {/* Admin section temporarily commented out due to typing issues */}
+            {/* {isAdmin && (
+              <div className="space-y-3">
+                <h2 className="px-2 text-lg font-semibold tracking-tight text-vynal-purple-light dark:text-vynal-text-primary">
+                  Administration
+                </h2>
+                <div className="space-y-1">
+                  <NavItem
+                    href="/admin/users"
+                    icon={Users}
+                    label="Gestion utilisateurs"
+                  />
+                  <NavItem
+                    href="/admin/verify-document"
+                    icon={ShieldCheck}
+                    label="Vérification documents"
+                  />
+                  <NavItem
+                    href="/admin/settings"
+                    icon={Settings}
+                    label="Paramètres plateforme"
+                  />
+                </div>
+              </div>
+            )} */}
           </nav>
         </div>
 

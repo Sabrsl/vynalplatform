@@ -89,21 +89,51 @@ function SocialIcons() {
 function ContactInfo() {
   // State pour vérifier si on est côté client
   const [mounted, setMounted] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const email = "support@vynalplatform.com";
   
   // Mettre mounted à true seulement côté client
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Fonction pour copier l'email dans le presse-papiers
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(email).then(() => {
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    });
+  };
   
   if (!mounted) return null;
   
   return (
     <div className="flex flex-col md:flex-row md:space-x-8 space-y-4 md:space-y-0">
-      <div className="flex items-center text-gray-400 dark:text-vynal-text-secondary">
-        <Mail className="w-4 h-4 mr-2" />
-        <a href="mailto:contact@vynalplatform.com" className="text-xs hover:text-white dark:hover:text-vynal-accent-primary transition-colors">
-          contact@vynalplatform.com
+      <div 
+        className="flex items-center relative group"
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
+        <Mail className="w-4 h-4 mr-2 text-gray-400 dark:text-vynal-text-secondary" />
+        <a 
+          href={`mailto:${email}`} 
+          className="text-xs text-gray-400 dark:text-vynal-text-secondary hover:text-white dark:hover:text-vynal-accent-primary transition-colors"
+        >
+          {email}
         </a>
+        <button
+          onClick={copyToClipboard}
+          className={`ml-2 px-1.5 py-0.5 text-[10px] rounded transition-all ${
+            isHovered || isCopied ? "opacity-100" : "opacity-0"
+          } ${
+            isCopied 
+              ? "bg-green-600/20 text-green-400 dark:bg-green-900/40 dark:text-green-400" 
+              : "bg-gray-700 text-gray-300 dark:bg-vynal-purple-secondary/40 dark:text-vynal-text-secondary hover:bg-gray-600 dark:hover:bg-vynal-purple-secondary/60"
+          }`}
+        >
+          {isCopied ? "Copié !" : "Copier"}
+        </button>
       </div>
     </div>
   );

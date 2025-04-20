@@ -1,65 +1,67 @@
-import * as React from "react"
+import React from 'react';
 import { 
   FileText, 
   FileImage, 
+  FileCode, 
   FileArchive, 
   FileAudio, 
   FileVideo, 
-  FileCode, 
-  File,
-  FileType,
-  FileSpreadsheet as FileSpreadsheetIcon
-} from "lucide-react"
+  File 
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
 
-interface FileIconProps extends React.HTMLAttributes<HTMLDivElement> {
-  extension?: string
-  fileType?: string
+interface FileIconProps {
+  fileName?: string; 
+  className?: string;
 }
 
-export function FileIcon({ extension, fileType, className, ...props }: FileIconProps) {
-  const getIconByExtension = () => {
-    if (!extension && !fileType) return <File className={className} />;
-    
-    // Normalize extension and remove dot if present
-    const ext = extension?.toLowerCase().replace(/^\./, '') || '';
-    const type = fileType?.toLowerCase() || '';
-    
-    // Check file type first
-    if (type.includes('image') || ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp', 'bmp'].includes(ext)) {
-      return <FileImage className={className} />;
+const FileIcon: React.FC<FileIconProps> = ({ fileName = '', className }) => {
+  // Obtenir l'extension du fichier
+  const extension = fileName.split('.').pop()?.toLowerCase() || '';
+  
+  // Sélectionner l'icône en fonction de l'extension
+  const getIcon = () => {
+    // Documents texte
+    if (['doc', 'docx', 'txt', 'rtf', 'odt'].includes(extension)) {
+      return <FileText className={cn('text-blue-500', className)} />;
     }
     
-    if (type.includes('audio') || ['mp3', 'wav', 'ogg', 'flac', 'm4a'].includes(ext)) {
-      return <FileAudio className={className} />;
+    // PDFs
+    if (extension === 'pdf') {
+      return <FileText className={cn('text-red-500', className)} />;
     }
     
-    if (type.includes('video') || ['mp4', 'webm', 'avi', 'mov', 'wmv', 'flv'].includes(ext)) {
-      return <FileVideo className={className} />;
+    // Images
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp'].includes(extension)) {
+      return <FileImage className={cn('text-green-500', className)} />;
     }
     
-    if (type.includes('pdf') || ext === 'pdf') {
-      return <FileText className={className} />;
+    // Code
+    if (['js', 'jsx', 'ts', 'tsx', 'html', 'css', 'php', 'py', 'java', 'c', 'cpp', 'json', 'xml'].includes(extension)) {
+      return <FileCode className={cn('text-purple-500', className)} />;
     }
     
-    if (['zip', 'rar', '7z', 'tar', 'gz', 'bz2'].includes(ext)) {
-      return <FileArchive className={className} />;
+    // Archives
+    if (['zip', 'rar', 'tar', 'gz', '7z'].includes(extension)) {
+      return <FileArchive className={cn('text-yellow-500', className)} />;
     }
     
-    if (['html', 'css', 'js', 'ts', 'jsx', 'tsx', 'json', 'php', 'py', 'rb', 'java', 'c', 'cpp', 'h', 'cs'].includes(ext)) {
-      return <FileCode className={className} />;
+    // Audio
+    if (['mp3', 'wav', 'ogg', 'flac', 'm4a'].includes(extension)) {
+      return <FileAudio className={cn('text-amber-500', className)} />;
     }
     
-    if (['xls', 'xlsx', 'csv', 'ods'].includes(ext)) {
-      return <FileSpreadsheetIcon className={className} />;
+    // Vidéo
+    if (['mp4', 'avi', 'mov', 'wmv', 'mkv', 'webm'].includes(extension)) {
+      return <FileVideo className={cn('text-pink-500', className)} />;
     }
     
-    if (['doc', 'docx', 'txt', 'rtf', 'md', 'odt'].includes(ext)) {
-      return <FileText className={className} />;
-    }
-    
-    // Default file icon
-    return <File className={className} />;
+    // Fichier générique
+    return <File className={cn('text-gray-500', className)} />;
   };
   
-  return getIconByExtension();
-} 
+  return getIcon();
+};
+
+export { FileIcon, type FileIconProps };
+export default FileIcon; 

@@ -1,179 +1,183 @@
-import React, { useState, useMemo } from 'react';
-import { FileText, Image as ImageIcon, ExternalLink, MoreVertical, Check, CheckCheck, AlertTriangle } from 'lucide-react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
-import { Message } from '@/lib/stores/useMessagingStore';
+"use client";
+
+import React from 'react';
 import { formatDate } from '@/lib/utils';
+import { Message } from '@/lib/stores/useMessagingStore';
+import { Check, CheckCheck } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { FileIcon } from '@/components/ui/icons/FileIcon';
 
 interface MessageBubbleProps {
   message: Message;
   isCurrentUser: boolean;
   isFreelance?: boolean;
+  showAvatar?: boolean;
+  otherParticipant?: any;
+  previousMessage?: Message;
+  nextMessage?: Message;
 }
 
-// Types étendus pour TypeScript
-interface ExtendedMessage extends Message {
-  attachment_url: string | null;
-  attachment_type: string | null;
-  attachment_name: string | null;
-}
+// Fonction pour obtenir les initiales d'un nom
+const getInitials = (name: string): string => {
+  return name
+    .split(' ')
+    .map(part => part[0])
+    .join('')
+    .toUpperCase()
+    .substring(0, 2);
+};
+
+// Fonction pour déterminer si deux messages sont du même jour
+const isSameDay = (date1: string, date2: string): boolean => {
+  const d1 = new Date(date1);
+  const d2 = new Date(date2);
+  return d1.getDate() === d2.getDate() && 
+         d1.getMonth() === d2.getMonth() && 
+         d1.getFullYear() === d2.getFullYear();
+};
 
 const MessageBubble: React.FC<MessageBubbleProps> = ({ 
   message, 
   isCurrentUser,
-  isFreelance = false
+  isFreelance = false,
+  showAvatar = true,
+  otherParticipant,
+  previousMessage,
+  nextMessage
 }) => {
-  // Cast du message pour avoir accès aux propriétés d'attachement
-  const typedMessage = message as ExtendedMessage;
-  const [avatarError, setAvatarError] = useState(false);
+  const messageDate = new Date(message.created_at);
+  const formattedTime = messageDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   
-  // Ignorer les messages vides ou messages "en train d'écrire"
-  if ((typedMessage.content === '' || !typedMessage.content?.trim()) && 
-      (!typedMessage.attachment_url || typedMessage.is_typing)) {
-    return null;
-  }
+  // Vérifier si nous devons afficher un séparateur de date
+  const showDateSeparator = previousMessage && 
+    !isSameDay(message.created_at, previousMessage.created_at);
   
-  const formattedTime = typedMessage.created_at 
-    ? formatDate(new Date(typedMessage.created_at)) 
-    : '';
+  // Déterminer l'alignement et le style de la bulle en fonction de l'expéditeur
+  const bubbleAlignment = isCurrentUser ? 'justify-end' : 'justify-start';
   
-  const hasAttachment = typedMessage.attachment_url && typedMessage.attachment_type;
-  const isImageAttachment = typedMessage.attachment_type === 'image';
+  // Déterminer s'il faut arrondir tous les coins ou laisser un coin plat
+  // pour les messages groupés du même expéditeur
+  const isGroupedWithPrevious = previousMessage && 
+    previousMessage.sender_id === message.sender_id && 
+    isSameDay(message.created_at, previousMessage.created_at);
   
-  // Toutes les images sont maintenant visibles par tous les utilisateurs
-  const shouldShowAsImage = isImageAttachment;
-
-  // Déterminer s'il s'agit d'un message non lu pour le mettre en évidence
-  const isUnread = !typedMessage.read;
+  const isGroupedWithNext = nextMessage && 
+    nextMessage.sender_id === message.sender_id && 
+    isSameDay(message.created_at, nextMessage.created_at);
   
-  // Déterminer si le message a été censuré
-  const isCensored = useMemo(() => {
-    if (!typedMessage.content) return false;
-    return typedMessage.content.includes('[Ce message a été modéré automatiquement]');
-  }, [typedMessage.content]);
+  // Déterminer la forme de la bulle
+  const bubbleShape = isCurrentUser
+    ? `rounded-2xl ${!isGroupedWithPrevious ? 'rounded-tr-md' : ''} ${!isGroupedWithNext ? 'rounded-br-md' : ''}`
+    : `rounded-2xl ${!isGroupedWithPrevious ? 'rounded-tl-md' : ''} ${!isGroupedWithNext ? 'rounded-bl-md' : ''}`;
   
-  // Contenu du message sans la note de censure
-  const displayContent = useMemo(() => {
-    if (!typedMessage.content) return '';
-    return typedMessage.content.replace('[Ce message a été modéré automatiquement]', '');
-  }, [typedMessage.content]);
+  // Ajouter une marge plus petite pour les messages groupés
+  const bubbleMargin = isGroupedWithPrevious ? 'mt-1' : 'mt-3';
+  
+  // Déterminer la couleur de la bulle
+  const bubbleColor = isCurrentUser
+    ? 'bg-pink-600 text-white dark:bg-pink-700'
+    : 'bg-white text-gray-800 dark:bg-gray-800 dark:text-white border border-gray-200 dark:border-gray-700';
+  
+  // Largeur maximale de la bulle (65% pour mobile, 50% pour desktop)
+  const bubbleMaxWidth = 'max-w-[65%] sm:max-w-[50%]';
+  
+  // Vérifier si le message a une pièce jointe
+  const hasAttachment = message.attachment_url && message.attachment_type;
+  const isImageAttachment = hasAttachment && message.attachment_type?.startsWith('image/');
+  
+  // Traiter les valeurs potentiellement nulles avant de les passer aux composants
+  const attachmentUrl = message.attachment_url || '';
+  const attachmentName = message.attachment_name || 'Fichier';
   
   return (
-    <div className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'} mb-4`}>
-      {/* Avatar (seulement si ce n'est pas l'utilisateur courant) */}
-      {!isCurrentUser && (
-        <div className="flex-shrink-0 mr-2">
-          <Avatar className="h-8 w-8">
-            <AvatarImage 
-              src={typedMessage.sender?.avatar_url || ''} 
-              alt={typedMessage.sender?.full_name || typedMessage.sender?.username || 'Utilisateur'} 
-              onError={() => setAvatarError(true)}
-            />
-            <AvatarFallback className="bg-indigo-100 text-indigo-700">
-              {typedMessage.sender?.full_name?.[0] || typedMessage.sender?.username?.[0] || 'U'}
-            </AvatarFallback>
-          </Avatar>
+    <>
+      {/* Séparateur de date si nécessaire */}
+      {showDateSeparator && (
+        <div className="flex justify-center my-4">
+          <div className="px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-full text-xs text-gray-500 dark:text-gray-400">
+            {formatDate(messageDate)}
+          </div>
         </div>
       )}
       
-      {/* Contenu du message */}
-      <div className={`flex flex-col max-w-[75%] md:max-w-[60%] lg:max-w-[50%] ${!isCurrentUser && isUnread ? 'relative' : ''}`}>
-        {/* Indicateur de message non lu */}
-        {!isCurrentUser && isUnread && (
-          <div className="absolute -left-3 top-4 w-2 h-2 bg-red-500 rounded-full"></div>
+      {/* Message */}
+      <div className={`flex ${bubbleAlignment} ${bubbleMargin} group`}>
+        {/* Avatar (seulement pour les messages reçus et le premier d'un groupe) */}
+        {!isCurrentUser && showAvatar && (
+          <div className="flex-shrink-0 mr-2 self-end">
+            <Avatar className="h-8 w-8">
+              <AvatarImage 
+                src={otherParticipant?.avatar_url || ''} 
+                alt={otherParticipant?.full_name || 'Contact'} 
+              />
+              <AvatarFallback className="bg-indigo-100 text-indigo-700">
+                {getInitials(otherParticipant?.full_name || otherParticipant?.username || 'User')}
+              </AvatarFallback>
+            </Avatar>
+          </div>
         )}
-      
-        <div className={`
-          rounded-2xl py-2 px-4 mb-1 overflow-hidden
-          ${isCurrentUser 
-            ? 'bg-indigo-600 text-white rounded-tr-none' 
-            : `bg-gray-100 text-gray-700 rounded-tl-none ${isUnread ? 'ring-2 ring-blue-200' : ''}`}
-          ${isCensored ? 'border border-yellow-400' : ''}
-        `}>
-          {/* Indicateur de censure */}
-          {isCensored && (
-            <div className="flex items-center gap-1 text-xs mb-2 font-medium text-yellow-600 bg-yellow-100 py-1 px-2 rounded">
-              <AlertTriangle className="h-3 w-3" />
-              <span>Ce message a été modéré automatiquement</span>
-            </div>
-          )}
-          
-          {/* Texte du message */}
-          {typedMessage.content && typedMessage.content.trim() !== '' && (
-            <p className="text-sm whitespace-pre-wrap break-all break-words overflow-hidden w-full">
-              {displayContent}
+        
+        {/* Espace réservé pour maintenir l'alignement */}
+        {!isCurrentUser && !showAvatar && <div className="w-10"></div>}
+        
+        {/* Contenu du message */}
+        <div className={`${bubbleMaxWidth} ${bubbleColor} ${bubbleShape} px-4 py-2 shadow-sm`}>
+          {/* Contenu texte */}
+          {message.content && (
+            <p className="whitespace-pre-wrap break-words text-sm">
+              {message.content}
             </p>
           )}
           
           {/* Pièce jointe */}
           {hasAttachment && (
-            <div className={`mt-2 rounded-lg overflow-hidden ${typedMessage.content ? 'mt-3' : ''}`}>
-              {shouldShowAsImage ? (
-                <div className="relative">
+            <div className={`mt-1 ${message.content ? 'pt-2 border-t border-white/10' : ''}`}>
+              {isImageAttachment ? (
+                <div className="rounded-md overflow-hidden bg-gray-100 dark:bg-gray-700">
                   <img 
-                    src={typedMessage.attachment_url || ''} 
-                    alt={typedMessage.attachment_name || 'Image'} 
-                    className="max-w-full w-full rounded-lg max-h-[200px] object-contain bg-gray-800"
+                    src={attachmentUrl} 
+                    alt={attachmentName} 
+                    className="max-w-full h-auto max-h-80 object-contain" 
                   />
-                  <a 
-                    href={typedMessage.attachment_url || '#'}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={`
-                      absolute bottom-2 right-2 p-1.5 rounded-full
-                      ${isCurrentUser ? 'bg-indigo-800 hover:bg-indigo-900' : 'bg-gray-200 hover:bg-gray-300'}
-                    `}
-                  >
-                    <ExternalLink className={`h-4 w-4 ${isCurrentUser ? 'text-white' : 'text-gray-700'}`} />
-                  </a>
                 </div>
               ) : (
                 <a 
-                  href={typedMessage.attachment_url || '#'}
-                  target="_blank"
+                  href={attachmentUrl} 
+                  target="_blank" 
                   rel="noopener noreferrer"
-                  className={`
-                    flex items-center gap-2 py-2 px-3 rounded-lg overflow-hidden
-                    ${isCurrentUser 
-                      ? 'bg-indigo-700 hover:bg-indigo-800 text-white' 
-                      : 'bg-gray-200 hover:bg-gray-300 text-gray-700'}
-                  `}
+                  className="flex items-center p-2 rounded-md bg-black/10 hover:bg-black/20 dark:bg-white/10 dark:hover:bg-white/20 transition-colors"
                 >
-                  {isImageAttachment ? (
-                    <ImageIcon className="h-4 w-4 flex-shrink-0" />
-                  ) : (
-                    <FileText className="h-4 w-4 flex-shrink-0" />
-                  )}
-                  <span className="text-sm truncate max-w-[150px]">{typedMessage.attachment_name || 'Fichier'}</span>
-                  <ExternalLink className="h-4 w-4 ml-auto flex-shrink-0" />
+                  <FileIcon 
+                    fileName={attachmentName} 
+                    className="h-8 w-8 mr-3 flex-shrink-0" 
+                  />
+                  <div className="overflow-hidden flex-1">
+                    <p className="text-sm font-medium truncate">
+                      {attachmentName}
+                    </p>
+                    <p className="text-xs opacity-70">
+                      Télécharger
+                    </p>
+                  </div>
                 </a>
               )}
             </div>
           )}
-        </div>
-        
-        {/* Heure et statut de lecture */}
-        <div className={`flex items-center text-xs text-gray-500 ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
-          <span className="mr-1">{formattedTime}</span>
-          {/* Indicateur de lecture - affiché uniquement pour les messages envoyés par l'utilisateur courant */}
-          {isCurrentUser && (
-            <span>
-              {typedMessage.read 
-                ? <CheckCheck className="h-3 w-3 text-indigo-600" /> 
-                : <Check className="h-3 w-3" />
-              }
-            </span>
-          )}
-          {/* Indicateur "non lu" textuel pour les messages reçus */}
-          {!isCurrentUser && isUnread && (
-            <span className="ml-1 font-medium text-blue-600">• Non lu</span>
-          )}
+          
+          {/* Horodatage et statut de lecture */}
+          <div className={`flex items-center justify-end mt-1 space-x-1 text-xs ${
+            isCurrentUser ? 'text-white/70' : 'text-gray-500 dark:text-gray-400'
+          }`}>
+            <span>{formattedTime}</span>
+            {isCurrentUser && (
+              message.read ? 
+                <CheckCheck className="h-3.5 w-3.5 ml-0.5" /> : 
+                <Check className="h-3.5 w-3.5 ml-0.5" />
+            )}
+          </div>
         </div>
       </div>
-      
-      {/* Espace pour maintenir l'alignement côté utilisateur */}
-      {isCurrentUser && <div className="flex-shrink-0 ml-2 w-8"></div>}
-    </div>
+    </>
   );
 };
 

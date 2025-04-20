@@ -1,11 +1,12 @@
 "use client";
 
-import React from 'react';
-import { Search, Plus, User } from 'lucide-react';
+import React, { useState } from 'react';
+import { Search, MessagesSquare } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Conversation } from '@/lib/stores/useMessagingStore';
 import { formatDistanceToNow } from '@/lib/utils';
+import UserStatusIndicator from './UserStatusIndicator';
 
 interface ConversationListProps {
   conversations: Conversation[];
@@ -15,6 +16,16 @@ interface ConversationListProps {
   isFreelance?: boolean;
 }
 
+// Fonction pour obtenir les initiales d'un nom
+const getInitials = (name: string): string => {
+  return name
+    .split(' ')
+    .map(part => part[0])
+    .join('')
+    .toUpperCase()
+    .substring(0, 2);
+};
+
 const ConversationList: React.FC<ConversationListProps> = ({
   conversations,
   activeConversationId,
@@ -22,113 +33,132 @@ const ConversationList: React.FC<ConversationListProps> = ({
   onNewConversation,
   isFreelance = false
 }) => {
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  // Filtrer les conversations en fonction du terme de recherche
+  const filteredConversations = searchTerm.trim() 
+    ? conversations.filter(conversation => {
+        const otherParticipant = conversation.participants.find(
+          p => p.id !== activeConversationId
+        );
+        
+        const participantName = otherParticipant?.full_name || otherParticipant?.username || '';
+        return participantName.toLowerCase().includes(searchTerm.toLowerCase());
+      })
+    : conversations;
+  
   return (
-    <div className="flex flex-col h-full">
-      {/* Header avec barre de recherche et bouton nouveau message */}
-      <div className="p-4 border-b border-gray-100">
-        <h2 className="text-lg font-semibold mb-3 text-gray-900">
-          {isFreelance ? "Conversations avec clients" : "Conversations avec freelances"}
-        </h2>
-        <div className="flex space-x-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <input
-              type="text"
-              placeholder="Rechercher..."
-              className="w-full pl-10 pr-4 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-            />
-          </div>
-          {onNewConversation && (
-            <Button 
-              onClick={onNewConversation}
-              variant="outline" 
-              size="icon" 
-              className="shrink-0"
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
-          )}
+    <div className="flex flex-col h-full bg-white dark:bg-gray-950">
+      {/* En-tête avec titre et barre de recherche */}
+      <div className="p-4 border-b border-gray-200 dark:border-gray-800 bg-gradient-to-r from-pink-600 to-purple-600 text-white">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold">
+            {isFreelance ? "Clients" : "Freelances"}
+          </h2>
+        </div>
+        
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+          <input
+            type="text"
+            placeholder="Rechercher une conversation..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2.5 rounded-full text-sm text-gray-900 bg-white/90 focus:bg-white border-none focus:ring-2 focus:ring-white/50 placeholder-gray-500"
+          />
         </div>
       </div>
       
       {/* Liste des conversations */}
       <div className="flex-1 overflow-y-auto">
-        {conversations.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full p-4 text-center">
-            <div className="bg-gray-100 rounded-full p-3 mb-3">
-              <User className="h-6 w-6 text-gray-500" />
+        {filteredConversations.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full p-6 text-center">
+            <div className="bg-pink-100 dark:bg-pink-900/30 rounded-full p-4 mb-3">
+              <MessagesSquare className="h-8 w-8 text-pink-600 dark:text-pink-400" />
             </div>
-            <p className="text-gray-500 text-sm">Pas de conversations</p>
-            {onNewConversation && (
-              <Button
-                onClick={onNewConversation}
-                variant="link" 
-                className="mt-2 text-indigo-600 text-sm"
-              >
-                Démarrer une conversation
-              </Button>
-            )}
+            <h3 className="text-lg font-semibold mb-1 text-gray-800 dark:text-gray-200">
+              {searchTerm ? "Aucun résultat" : "Aucune conversation"}
+            </h3>
+            <p className="text-gray-500 dark:text-gray-400 text-sm max-w-xs">
+              {searchTerm 
+                ? "Essayez avec un autre terme de recherche" 
+                : "Aucune conversation disponible pour le moment"}
+            </p>
           </div>
         ) : (
-          <ul className="divide-y divide-gray-100">
-            {conversations.map((conversation) => {
+          <ul className="divide-y divide-gray-100 dark:divide-gray-800/50">
+            {filteredConversations.map((conversation) => {
               // Trouver l'autre participant (en supposant une conversation à 2 personnes)
               const otherParticipant = conversation.participants.find(
                 p => p.id !== activeConversationId
               );
               
               // Récupérer le dernier message
-              const lastMessage = conversation.last_message?.content || '';
-              const lastMessageTime = conversation.last_message?.created_at 
-                ? formatDistanceToNow(new Date(conversation.last_message.created_at)) 
+              const lastMessageContent = conversation.last_message?.content || '';
+              const lastMessageTime = conversation.last_message_time || conversation.updated_at || conversation.created_at;
+              const formattedTime = lastMessageTime 
+                ? formatDistanceToNow(new Date(lastMessageTime))
                 : '';
-
+              
               // Calculer le nombre total de messages non lus
               const unreadCount = otherParticipant?.unread_count || 0;
+              
+              // Tronquer le contenu du dernier message s'il est trop long
+              const truncatedContent = lastMessageContent.length > 35
+                ? `${lastMessageContent.substring(0, 35)}...`
+                : lastMessageContent;
               
               return (
                 <li 
                   key={conversation.id}
                   className={`
-                    hover:bg-gray-50 cursor-pointer
-                    ${conversation.id === activeConversationId ? 'bg-indigo-50' : ''}
+                    relative hover:bg-gray-50 dark:hover:bg-gray-900/50 cursor-pointer transition-colors
+                    ${conversation.id === activeConversationId ? 'bg-pink-50 dark:bg-pink-950/30' : ''}
                   `}
                   onClick={() => onSelectConversation(conversation.id)}
                 >
                   <div className="flex items-center p-4">
-                    {/* Avatar */}
-                    <div className="relative">
-                      <Avatar className="h-12 w-12">
+                    {/* Avatar avec indicateur de statut */}
+                    <div className="relative flex-shrink-0">
+                      <Avatar className="h-12 w-12 border border-gray-200 dark:border-gray-700">
                         <AvatarImage 
                           src={otherParticipant?.avatar_url || ''} 
-                          alt={otherParticipant?.full_name || otherParticipant?.username || 'Utilisateur'} 
+                          alt={otherParticipant?.full_name || otherParticipant?.username || 'Contact'} 
                         />
-                        <AvatarFallback className="bg-indigo-100 text-indigo-700">
-                          {otherParticipant?.full_name?.[0] || otherParticipant?.username?.[0] || 'U'}
+                        <AvatarFallback className="bg-gradient-to-br from-pink-400 to-purple-500 text-white">
+                          {getInitials(otherParticipant?.full_name || otherParticipant?.username || 'U')}
                         </AvatarFallback>
                       </Avatar>
                       
-                      {/* Indicateur en ligne */}
-                      {otherParticipant?.online && (
-                        <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-green-500 border-2 border-white"></span>
-                      )}
+                      <UserStatusIndicator 
+                        isOnline={otherParticipant?.online || false} 
+                        className="absolute bottom-0 right-0 border-2 border-white dark:border-gray-950"
+                      />
                     </div>
                     
                     {/* Information de conversation */}
                     <div className="ml-3 min-w-0 flex-1">
-                      <div className="flex justify-between items-baseline">
-                        <h3 className="text-sm font-medium text-gray-900 truncate">
-                          {otherParticipant?.full_name || otherParticipant?.username || 'Utilisateur'}
+                      <div className="flex justify-between items-center">
+                        <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
+                          {otherParticipant?.full_name || otherParticipant?.username || 'Contact'}
                         </h3>
-                        <span className="text-xs text-gray-500">{lastMessageTime}</span>
+                        <span className="text-xs text-gray-500 dark:text-gray-400 ml-2 whitespace-nowrap">
+                          {formattedTime}
+                        </span>
                       </div>
+                      
                       <div className="flex justify-between items-center mt-1">
-                        <p className="text-sm text-gray-500 truncate max-w-[180px]">
-                          {lastMessage || 'Aucun message'}
+                        <p className={`text-sm truncate ${
+                          unreadCount > 0 
+                            ? 'text-gray-900 dark:text-gray-100 font-medium' 
+                            : 'text-gray-500 dark:text-gray-400'
+                        }`}>
+                          {truncatedContent || 'Démarrer une conversation'}
                         </p>
+                        
                         {unreadCount > 0 && (
-                          <span className="ml-2 bg-indigo-600 text-white text-xs font-medium rounded-full h-5 min-w-5 inline-flex items-center justify-center px-1.5">
-                            {unreadCount}
+                          <span className="ml-2 bg-pink-600 text-white text-xs font-medium rounded-full h-5 min-w-5 inline-flex items-center justify-center px-1.5">
+                            {unreadCount > 99 ? '99+' : unreadCount}
                           </span>
                         )}
                       </div>

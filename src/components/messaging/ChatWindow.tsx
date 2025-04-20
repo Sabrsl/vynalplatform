@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Paperclip, Send, ArrowLeft, MoreVertical, Image, FileText, X, Smile, Check, Circle, Trash, Upload, RefreshCw, ChevronUp, MessageSquare, Loader2 } from 'lucide-react';
+import { Paperclip, Send, ArrowLeft, MoreVertical, Image, FileText, X, Smile, Check, Circle, Trash, Upload, RefreshCw, ChevronUp, MessageSquare, Loader2, AlertTriangle, Info } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Textarea } from "@/components/ui/textarea";
@@ -511,10 +511,22 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
     
+    const file = e.target.files[0];
+    
+    // Vérifier la taille du fichier (10 Mo max)
+    if (file.size > 10 * 1024 * 1024) {
+      showNotification("Le fichier est trop volumineux (maximum 10 Mo)", 'error');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+    
     setIsUploading(true);
+    setAttachment({
+      name: file.name,
+      size: file.size
+    });
     
     try {
-      const file = e.target.files[0];
       const fileExt = file.name.split('.').pop();
       const fileName = `${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
       const filePath = `messages/${fileName}`;
@@ -524,7 +536,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         .from('attachments')
         .upload(filePath, file);
       
-      if (error) throw error;
+      if (error) {
+        console.error('Erreur lors de l\'upload du fichier:', error);
+        showNotification("Erreur lors de l'upload du fichier", 'error');
+        setAttachment(null);
+        throw error;
+      }
       
       // Récupérer l'URL publique du fichier
       const { data: publicUrlData } = supabase.storage
@@ -540,8 +557,11 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         name: file.name
       }]);
       
+      showNotification("Fichier ajouté avec succès", 'success');
+      
     } catch (error) {
       console.error('Erreur lors de l\'upload du fichier:', error);
+      showNotification("Erreur lors de l'upload du fichier", 'error');
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -554,297 +574,312 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   };
   
   return (
-    <div className="relative flex flex-col flex-1 h-full overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-purple-800/10 bg-gradient-to-r from-purple-900/10 to-indigo-900/10 text-gray-800 dark:text-gray-200">
-        <div className="flex items-center space-x-3">
+    <div className="flex flex-col h-full bg-white dark:bg-gray-950">
+      {/* En-tête de la conversation avec l'avatar et le nom */}
+      <div className="flex items-center px-4 py-3 border-b border-gray-200 dark:border-gray-800 bg-gradient-to-r from-pink-600 to-purple-600 text-white">
           <Button 
             variant="ghost" 
             size="icon" 
-            className="md:hidden mr-2" 
             onClick={onBack}
+          className="md:hidden mr-2 text-white hover:bg-white/20"
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
           
-          <Avatar className="h-9 w-9">
-            <AvatarImage src={conversation.other_user?.image || ''} />
-            <AvatarFallback className="bg-vynal-purple-100 text-vynal-purple-700">
-              {getInitials(conversation.other_user?.name || "User")}
+        <div className="flex items-center flex-1">
+          <div className="relative">
+            <Avatar className="h-10 w-10 border-2 border-white">
+              <AvatarImage 
+                src={otherParticipant?.avatar_url || ''} 
+                alt={otherParticipant?.full_name || 'Contact'}
+                onError={() => setHeaderAvatarError(true)}
+                className="object-cover"
+              />
+              <AvatarFallback className="bg-gradient-to-br from-indigo-400 to-purple-500 text-white">
+                {getInitials(otherParticipant?.full_name || otherParticipant?.username || 'User')}
             </AvatarFallback>
           </Avatar>
+            <UserStatusIndicator 
+              isOnline={otherParticipant?.online || false} 
+              className="absolute bottom-0 right-0 border-2 border-white"
+            />
+          </div>
           
-          <div>
-            <h3 className="font-medium">
-              {conversation.other_user?.name || "User"}
-            </h3>
-            {conversation.other_user?.email && (
-              <p className="text-xs text-gray-500 dark:text-gray-400">{conversation.other_user.email}</p>
+          <div className="ml-3 overflow-hidden">
+            <h2 className="text-base font-semibold truncate">
+              {otherParticipant?.full_name || otherParticipant?.username || 'Contact'}
+            </h2>
+            {isOtherParticipantTyping ? (
+              <p className="text-xs text-white/80">En train d'écrire...</p>
+            ) : otherParticipant?.last_seen ? (
+              <p className="text-xs text-white/80">
+                {formatDistanceToNow(new Date(otherParticipant.last_seen))}
+              </p>
+            ) : (
+              <p className="text-xs text-white/80">
+                {otherParticipant?.online ? 'En ligne' : 'Hors ligne'}
+              </p>
             )}
           </div>
         </div>
         
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon">
+            <Button 
+              variant="ghost" 
+              size="icon"
+              className="ml-2 text-white hover:bg-white/20"
+            >
               <MoreVertical className="h-5 w-5" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={handleMarkAsRead}>
-              <Check className="mr-2 h-4 w-4" />
-              <span>Marquer comme lu</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={markAsUnread}>
-              <Circle className="mr-2 h-4 w-4" />
+          <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuItem className="cursor-pointer flex items-center gap-2">
+              <MessageSquare className="h-4 w-4" />
               <span>Marquer comme non lu</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem 
-              className="text-red-600"
-              onClick={handleDelete}
-            >
-              <Trash className="mr-2 h-4 w-4" />
+            <DropdownMenuItem className="cursor-pointer text-red-500 flex items-center gap-2">
+              <Trash className="h-4 w-4" />
               <span>Supprimer la conversation</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
       
-      {/* Message List */}
+      {/* Zone des messages avec stylisation WhatsApp-like */}
       <div
         ref={messagesContainerRef}
-        className="flex-1 overflow-y-auto px-4 py-4 space-y-4 scroll-smooth bg-gray-50 dark:bg-gray-900"
+        className="flex-1 overflow-y-auto p-4 bg-gradient-to-r from-gray-50 to-white dark:from-gray-900 dark:to-gray-950 bg-opacity-90 overflow-x-hidden"
+        style={{
+          backgroundImage: "url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48cGF0dGVybiBpZD0iZ3JpZCIgd2lkdGg9IjIwIiBoZWlnaHQ9IjIwIiBwYXR0ZXJuVW5pdHM9InVzZXJTcGFjZU9uVXNlIj48cGF0aCBkPSJNIDIwIDAgTCAwIDAgMCAyMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjY2NjY2NjIiBzdHJva2Utb3BhY2l0eT0iMC4xIiBzdHJva2Utd2lkdGg9IjEiLz48L3BhdHRlcm4+PC9kZWZzPjxyZWN0IGZpbGw9InVybCgjZ3JpZCkiIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiLz48L3N2Zz4=')",
+          backgroundSize: "20px 20px",
+          backgroundRepeat: "repeat"
+        }}
+        onScroll={handleScroll}
       >
-        {isLoadingMessages ? (
-          <div className="flex justify-center py-10">
-            <Loader2 className="h-6 w-6 animate-spin text-purple-600" />
-          </div>
-        ) : messageError ? (
-          <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-            <p className="text-red-600 dark:text-red-400 text-sm">{messageError}</p>
+        {/* Bouton pour charger plus de messages */}
+        {loadMoreVisible && hasMoreMessages && (
+          <div className="flex justify-center mb-4">
             <Button 
               variant="outline" 
               size="sm" 
-              className="mt-2" 
-              onClick={() => fetchMessages(conversation.id)}
-            >
-              <RefreshCw className="mr-2 h-4 w-4" />
-              Réessayer
-            </Button>
-          </div>
-        ) : messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-40 text-gray-500 dark:text-gray-400">
-            <MessageSquare className="h-10 w-10 mb-2 opacity-20" />
-            <p>Aucun message</p>
-          </div>
-        ) : (
-          <>
-            {loadMoreVisible && (
-              <div className="flex justify-center">
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300" 
-                  onClick={handleLoadMore}
+              onClick={loadMoreMessages}
                   disabled={isLoadingMore}
+              className="rounded-full text-xs bg-white shadow-sm hover:bg-gray-100 text-gray-700 flex items-center gap-1"
                 >
                   {isLoadingMore ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                <Loader2 className="h-3 w-3 animate-spin mr-1" />
                   ) : (
-                    <ChevronUp className="h-4 w-4 mr-2" />
+                <ChevronUp className="h-3 w-3 mr-1" />
                   )}
-                  Charger les messages précédents
+              Messages précédents
                 </Button>
               </div>
             )}
             
-            {visibleMessages
-              .filter(message => 
-                (message.content?.trim() || 
-                 (message as any).attachment_url) && 
-                !(message as any).is_typing
-              )
-              .map((message) => (
-                <div key={message.id} data-message-id={message.id}>
+        {/* Loader lors du chargement initial des messages */}
+        {isLoadingMessages && visibleMessages.length === 0 && (
+          <div className="flex justify-center items-center h-full">
+            <div className="flex flex-col items-center">
+              <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+              <p className="mt-2 text-sm text-gray-500">Chargement des messages...</p>
+            </div>
+          </div>
+        )}
+        
+        {/* Liste des messages */}
+        {visibleMessages.length === 0 && !isLoadingMessages && (
+          <div className="flex flex-col items-center justify-center h-full p-4 text-center">
+            <div className="bg-indigo-100 dark:bg-indigo-900/30 rounded-full p-4 mb-3">
+              <MessageSquare className="h-8 w-8 text-indigo-600 dark:text-indigo-400" />
+            </div>
+            <h3 className="text-lg font-semibold mb-1 text-gray-800 dark:text-gray-200">Aucun message</h3>
+            <p className="text-gray-500 dark:text-gray-400 text-sm max-w-xs">
+              Démarrez la conversation avec {otherParticipant?.full_name || 'votre contact'} en envoyant un message ci-dessous.
+            </p>
+          </div>
+        )}
+        
+        {visibleMessages.map((message, index) => {
+          const isCurrentUser = message.sender_id === user?.id;
+          const showAvatar = !isCurrentUser && 
+                            (index === 0 || 
+                             visibleMessages[index - 1].sender_id !== message.sender_id);
+          
+          return (
                   <MessageBubble 
+              key={message.id}
                     message={message}
-                    isCurrentUser={message.sender_id === user?.id}
+              isCurrentUser={isCurrentUser}
+              showAvatar={showAvatar}
+              otherParticipant={otherParticipant}
                     isFreelance={isFreelance}
+              previousMessage={index > 0 ? visibleMessages[index - 1] : undefined}
+              nextMessage={index < visibleMessages.length - 1 ? visibleMessages[index + 1] : undefined}
                   />
-                </div>
-              ))
-            }
+          );
+        })}
             
-            {/* Indicateur "en train d'écrire" */}
+        {/* Indicateur de frappe */}
             {isOtherParticipantTyping && (
-              <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 flex items-center space-x-1">
-                <span>{otherParticipant?.full_name || "L'autre utilisateur"} est en train d'écrire</span>
-                <span className="flex space-x-0.5">
-                  <span className="animate-bounce">.</span>
-                  <span className="animate-bounce" style={{ animationDelay: "0.2s" }}>.</span>
-                  <span className="animate-bounce" style={{ animationDelay: "0.4s" }}>.</span>
-                </span>
+          <div className="flex items-start mb-4 animate-fade-in">
+            <div className="flex items-end">
+              <Avatar className="h-8 w-8 mr-2">
+                <AvatarImage 
+                  src={otherParticipant?.avatar_url || ''} 
+                  alt={otherParticipant?.full_name || 'Contact'} 
+                  onError={() => setTypingAvatarError(true)}
+                />
+                <AvatarFallback className="bg-indigo-100 text-indigo-800">
+                  {getInitials(otherParticipant?.full_name || otherParticipant?.username || 'User')}
+                </AvatarFallback>
+              </Avatar>
+              <div className="bg-white dark:bg-gray-800 rounded-2xl px-4 py-2 shadow-sm flex items-center">
+                <div className="flex space-x-1">
+                  <span className="bg-gray-300 dark:bg-gray-600 rounded-full h-2 w-2 animate-bounce" style={{ animationDelay: '0s' }}></span>
+                  <span className="bg-gray-300 dark:bg-gray-600 rounded-full h-2 w-2 animate-bounce" style={{ animationDelay: '0.2s' }}></span>
+                  <span className="bg-gray-300 dark:bg-gray-600 rounded-full h-2 w-2 animate-bounce" style={{ animationDelay: '0.4s' }}></span>
+                </div>
+              </div>
+            </div>
               </div>
             )}
             
-            {/* Référence pour le scroll automatique */}
             <div ref={messagesEndRef} />
-          </>
-        )}
       </div>
       
-      {/* Zone des pièces jointes */}
-      {attachments.length > 0 && (
-        <div className="px-4 py-2 border-t border-gray-100 flex flex-wrap gap-2">
-          {attachments.map((attachment, index) => (
-            <div 
-              key={index} 
-              className="relative bg-gray-100 rounded-lg p-2 flex items-center gap-2"
-            >
-              {attachment.type === 'image' ? (
-                <Image className="h-4 w-4 text-indigo-600" />
-              ) : (
-                <FileText className="h-4 w-4 text-indigo-600" />
-              )}
-              <span className="text-xs truncate max-w-[120px]">{attachment.name}</span>
-              <button 
-                onClick={(e) => handleRemoveAttachmentByIndex(e, index)}
-                className="ml-1 p-0.5 rounded-full bg-gray-200 hover:bg-gray-300"
-                type="button"
-              >
-                <X className="h-3 w-3 text-gray-600" />
-              </button>
+      {/* Zone de saisie du message */}
+      <div className="border-t border-gray-200 dark:border-gray-800 p-3 bg-white dark:bg-gray-950">
+        {notification && (
+          <div className={`mb-2 p-2 text-sm rounded-md ${
+            notification.type === 'error' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' :
+            notification.type === 'warning' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300' :
+            notification.type === 'success' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' :
+            'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+          }`}>
+            <div className="flex items-center">
+              {notification.type === 'error' && <X className="h-4 w-4 mr-1 flex-shrink-0" />}
+              {notification.type === 'warning' && <AlertTriangle className="h-4 w-4 mr-1 flex-shrink-0" />}
+              {notification.type === 'success' && <Check className="h-4 w-4 mr-1 flex-shrink-0" />}
+              {notification.type === 'info' && <Info className="h-4 w-4 mr-1 flex-shrink-0" />}
+              {notification.message}
             </div>
-          ))}
         </div>
       )}
       
-      {/* Système de notification positionné juste au-dessus de la zone de saisie */}
-      {notification && (
-        <div className={`px-4 py-2 text-sm animate-fadeIn ${
-          notification.type === 'error' ? 'bg-red-100 text-red-800' :
-          notification.type === 'warning' ? 'bg-yellow-100 text-yellow-800' :
-          notification.type === 'success' ? 'bg-green-100 text-green-800' :
-          'bg-blue-100 text-blue-800'
-        }`}>
+        {attachment && (
+          <div className="mb-2 p-2 bg-gray-50 dark:bg-gray-900 rounded-md border border-gray-200 dark:border-gray-800">
           <div className="flex items-center justify-between">
-            <div className="flex-1">{notification.message}</div>
-            <button 
-              onClick={() => setNotification(null)} 
-              className="ml-2 text-gray-500 hover:text-gray-700"
+              <div className="flex items-center">
+                <FileIcon 
+                  fileName={attachment.name} 
+                  className="h-8 w-8 mr-2" 
+                />
+                <div>
+                  <p className="text-sm font-medium truncate max-w-[200px]">{attachment.name}</p>
+                  <p className="text-xs text-gray-500">{formatFileSize(attachment.size)}</p>
+                </div>
+              </div>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-6 w-6 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                onClick={() => setAttachment(null)}
             >
               <X className="h-4 w-4" />
-            </button>
+              </Button>
           </div>
         </div>
       )}
       
-      {/* Barre de saisie */}
-      <div className="border-t border-purple-800/10 bg-white dark:bg-gray-950 p-4">
-        <div className="flex items-center space-x-2">
-          {notificationPermissionDialog && (
-            <AlertDialog open={showNotificationDialog} onOpenChange={setShowNotificationDialog}>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Activer les notifications</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Recevez des notifications quand vous recevez de nouveaux messages, même lorsque vous n'êtes pas sur la page.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Non merci</AlertDialogCancel>
-                  <AlertDialogAction onClick={enableNotifications}>
-                    Activer
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          )}
+        <div className="flex items-end">
+          <input
+            type="file"
+            ref={fileInputRef}
+            className="hidden"
+            onChange={handleFileUpload}
+          />
           
-          <div className="relative flex-1">
+          <div className="flex space-x-2 mr-2">
+              <Button
+                type="button"
+                size="icon"
+              variant="ghost"
+              className="rounded-full bg-gray-100 dark:bg-gray-900 hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading || isSending}
+            >
+              {isUploading ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <Paperclip className="h-5 w-5" />
+              )}
+              </Button>
+          
+          <Button
+            type="button"
+            size="icon"
+              variant="ghost"
+              className="rounded-full bg-gray-100 dark:bg-gray-900 hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300"
+              onClick={() => window.alert("La fonction emoji sera implémentée prochainement")}
+            >
+              <Smile className="h-5 w-5" />
+          </Button>
+      </div>
+      
+          <div className="flex-1 relative">
             <Textarea
               ref={textareaRef}
               value={messageText}
               onChange={handleTyping}
               onKeyDown={handleKeyDown}
-              placeholder="Tapez votre message..."
-              className="resize-none overflow-hidden min-h-[40px] max-h-[120px] pr-10 focus:ring-purple-600/10 focus:border-purple-600/30"
-              disabled={isSending}
+              placeholder="Écrivez votre message..."
+              className="resize-none py-3 px-4 rounded-full bg-gray-100 dark:bg-gray-900 border-none focus-visible:ring-pink-500 min-h-10"
+              rows={1}
+              style={{ minHeight: '44px', maxHeight: '120px', paddingRight: '48px' }}
             />
-            {isUploading && (
-              <div className="absolute right-3 bottom-3">
-                <Loader2 className="h-4 w-4 animate-spin text-purple-600" />
-              </div>
-            )}
-          </div>
-          
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                type="button"
-                size="icon"
-                variant="outline"
-                className="flex-shrink-0 text-gray-500"
-                disabled={isSending || isUploading}
-              >
-                <Paperclip className="h-5 w-5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
-                <Upload className="mr-2 h-4 w-4" />
-                <span>Ajouter un fichier</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          
+            
           <Button
             type="button"
             size="icon"
-            className="flex-shrink-0 bg-vynal-purple-600 hover:bg-vynal-purple-700 text-white"
-            disabled={!canSend || isSending}
-            onClick={handleSendMessage}
-          >
-            {isSending ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
-            ) : (
-              <SendHorizontal className="h-5 w-5" />
-            )}
+              className={`absolute right-1 bottom-1 rounded-full ${
+                messageText.trim() ? 'bg-pink-600 hover:bg-pink-700' : 'bg-gray-300 dark:bg-gray-700'
+              } text-white h-8 w-8`}
+              onClick={handleSendMessage}
+              disabled={(!messageText.trim() && !attachment) || isSending}
+            >
+              {isSending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <SendHorizontal className="h-4 w-4" />
+              )}
           </Button>
         </div>
+        </div>
+        
+        {messageError && (
+          <p className="mt-1 text-xs text-red-500">{messageError}</p>
+        )}
       </div>
-      
-      {/* Hidden file input */}
-      <input
-        type="file"
-        ref={fileInputRef}
-        className="hidden"
-        onChange={handleFileUpload}
-        accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
-      />
-      
-      {/* File preview */}
-      {attachment && (
-        <div className="mt-2 p-2 bg-gray-50 dark:bg-gray-900 border border-purple-800/10 rounded-md flex items-center justify-between">
-          <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-300 truncate">
-            <FileIcon className="h-4 w-4 flex-shrink-0" />
-            <span className="truncate">{attachment.name}</span>
-            <span className="text-xs text-gray-400 dark:text-gray-500 flex-shrink-0">
-              {formatFileSize(attachment.size)}
-            </span>
-          </div>
-          <Button
-            type="button"
-            size="icon"
-            variant="ghost"
-            className="h-6 w-6 flex-shrink-0 text-gray-400 hover:text-red-500"
-            onClick={handleRemoveAttachment}
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-      )}
+
+      {/* Boîte de dialogue de confirmation pour les notifications */}
+      <AlertDialog open={showNotificationDialog} onOpenChange={setShowNotificationDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Activer les notifications?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Recevez des notifications lorsque vous recevez de nouveaux messages, même lorsque l'application est en arrière-plan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Plus tard</AlertDialogCancel>
+            <AlertDialogAction onClick={enableNotifications}>
+              Activer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
