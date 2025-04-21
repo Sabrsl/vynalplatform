@@ -224,6 +224,37 @@ export const useMessagingStore = create<MessagingState>(
           } as Conversation;
         });
         
+        // Récupérer le rôle de l'utilisateur courant
+        const { data: userData, error: userError } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', userId)
+          .single();
+
+        if (userError) {
+          console.error("Erreur lors de la récupération du rôle de l'utilisateur:", userError);
+        } else {
+          const userRole = userData?.role;
+          console.log(`Rôle de l'utilisateur actuel: ${userRole}`);
+
+          // Filtrer les conversations pour ne montrer que celles avec des utilisateurs du rôle complémentaire
+          if (userRole) {
+            const compatibleRole = userRole === 'freelance' ? 'client' : 'freelance';
+            
+            const filteredConversations = processedConversations.filter(conversation => {
+              // Trouver l'autre participant (autre que l'utilisateur actuel)
+              const otherParticipant = conversation.participants.find(p => p.id !== userId);
+              // Vérifier si l'autre participant a le rôle compatible
+              return otherParticipant?.role === compatibleRole;
+            });
+            
+            console.log(`${filteredConversations.length}/${processedConversations.length} conversations filtrées par rôle`);
+            set({ conversations: filteredConversations, isLoading: false });
+            return;
+          }
+        }
+
+        // Si pas de filtrage par rôle (erreur ou rôle non défini), on garde toutes les conversations
         console.log(`${processedConversations.length} conversations traitées avec succès`);
         set({ conversations: processedConversations, isLoading: false });
       } catch (err: any) {

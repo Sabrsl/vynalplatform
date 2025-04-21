@@ -27,21 +27,21 @@ Nous avons posé les fondations de la plateforme Vynal. Voici les prochaines ét
 ## Étape 3 : Système de services
 
 - [x] Page d'ajout de service (pour freelances)
-- [ ] Page de listing des services (filtrage, recherche)
-- [ ] Page détaillée d'un service
-- [ ] Gestion des catégories et sous-catégories
-- [ ] Système de slugs pour les URLs
-- [ ] Système d'images pour les services
+- [x] Page de listing des services (filtrage, recherche)
+- [x] Page détaillée d'un service
+- [x] Gestion des catégories et sous-catégories
+- [x] Système de slugs pour les URLs
+- [x] Système d'images pour les services
 - [ ] Gestion des options et extras sur un service
 
 ## Étape 4 : Système de commandes
 
-- [ ] Page de commande d'un service
-- [ ] Formulaire de spécifications client
+- [x] Page de commande d'un service
+- [x] Formulaire de spécifications client
 - [ ] Workflow de validation des commandes
-- [ ] Tableau de bord des commandes (client et freelance)
-- [ ] Système de gestion des statuts
-- [ ] Système de révisions et modifications
+- [x] Tableau de bord des commandes (client et freelance)
+- [x] Système de gestion des statuts
+- [x] Système de révisions et modifications
 - [ ] Système de livraison
 
 ## Étape 5 : Paiements et Wallet
@@ -49,23 +49,23 @@ Nous avons posé les fondations de la plateforme Vynal. Voici les prochaines ét
 - [ ] Implémentation du wallet utilisateur
 - [ ] Système de paiement (fictif pour l'instant)
 - [ ] Gestion des transactions
-- [ ] Historique des paiements
-- [ ] Tableau de bord financier
+- [x] Historique des paiements
+- [x] Tableau de bord financier
 - [ ] Système de retraits pour les freelances
 
 ## Étape 6 : Messagerie et avis
 
-- [ ] Système de messagerie par commande
+- [x] Système de messagerie par commande
 - [ ] Notifications en temps réel
 - [ ] Système d'avis et évaluations
 - [ ] Affichage des avis sur les profils freelance
 - [ ] Système de réponse aux avis
-- [ ] Gestion des disputes et réclamations
+- [x] Gestion des disputes et réclamations
 
 ## Étape 7 : Dashboards
 
-- [ ] Dashboard freelance complet
-- [ ] Dashboard client complet
+- [x] Dashboard freelance complet
+- [x] Dashboard client complet
 - [ ] Dashboard admin
 - [ ] Statistiques et analyses
 - [ ] Système de suivi des performances

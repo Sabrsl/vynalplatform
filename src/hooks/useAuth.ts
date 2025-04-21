@@ -21,7 +21,32 @@ export function useAuth() {
       setLoading(true);
       
       const { data: { session } } = await supabase.auth.getSession();
-      setUser(session?.user ?? null);
+      
+      if (session?.user) {
+        // Si l'utilisateur est connecté, récupérer son rôle explicitement
+        try {
+          const { data: userRole, error } = await supabase.rpc('get_user_role');
+          
+          if (!error && userRole) {
+            // Mettre à jour les métadonnées utilisateur avec le rôle
+            const updatedUser = {
+              ...session.user,
+              user_metadata: {
+                ...session.user.user_metadata,
+                role: userRole
+              }
+            };
+            setUser(updatedUser);
+          } else {
+            setUser(session.user);
+          }
+        } catch (err) {
+          console.error("Erreur lors de la récupération du rôle:", err);
+          setUser(session.user);
+        }
+      } else {
+        setUser(null);
+      }
       
       setLoading(false);
     };
@@ -30,8 +55,32 @@ export function useAuth() {
 
     // Écouter les changements d'authentification
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event: any, session: any) => {
-        setUser(session?.user ?? null);
+      async (_event: any, session: any) => {
+        if (session?.user) {
+          // Si l'utilisateur est connecté, récupérer son rôle explicitement
+          try {
+            const { data: userRole, error } = await supabase.rpc('get_user_role');
+            
+            if (!error && userRole) {
+              // Mettre à jour les métadonnées utilisateur avec le rôle
+              const updatedUser = {
+                ...session.user,
+                user_metadata: {
+                  ...session.user.user_metadata,
+                  role: userRole
+                }
+              };
+              setUser(updatedUser);
+            } else {
+              setUser(session.user);
+            }
+          } catch (err) {
+            console.error("Erreur lors de la récupération du rôle:", err);
+            setUser(session.user);
+          }
+        } else {
+          setUser(null);
+        }
         setLoading(false);
       }
     );

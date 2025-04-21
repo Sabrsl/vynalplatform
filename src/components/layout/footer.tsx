@@ -34,7 +34,6 @@ const footerLinks = [
       { name: "Conditions d'utilisation", href: "/terms-of-service" },
       { name: "Politique de confidentialité", href: "/privacy-policy" },
       { name: "Code de conduite", href: "/code-of-conduct" },
-      { name: "Protection des données", href: "/data-protection" },
     ],
   },
 ];

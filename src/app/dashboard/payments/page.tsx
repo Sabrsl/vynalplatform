@@ -47,6 +47,9 @@ import {
 import { CURRENCY } from "@/lib/constants";
 import { formatPrice } from "@/lib/utils";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/hooks/useAuth";
+import { useUser } from "@/hooks/useUser";
 
 // Types
 type Transaction = {
@@ -67,6 +70,16 @@ export default function PaymentsDashboard() {
   const [activeTab, setActiveTab] = useState("all");
   const isMobile = useMediaQuery("(max-width: 768px)");
   const itemsPerPage = 15;
+  const router = useRouter();
+  const { user } = useAuth();
+  const { isFreelance } = useUser();
+  
+  // Rediriger les freelances vers la page wallet
+  useEffect(() => {
+    if (user && isFreelance) {
+      router.push('/dashboard/wallet');
+    }
+  }, [user, isFreelance, router]);
   
   const [transactions, setTransactions] = useState<Transaction[]>([
     {

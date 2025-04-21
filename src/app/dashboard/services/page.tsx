@@ -139,7 +139,7 @@ export default function ServicesPage() {
     setCurrentPage(page);
   }, []);
 
-  // Effet #1: Redirection si l'utilisateur n'est pas freelance
+  // Effet #1: Redirection si l'utilisateur n'est pas freelance - simplifié
   useEffect(() => {
     if (profile && !isFreelance) {
       router.push("/dashboard");

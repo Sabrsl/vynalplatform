@@ -22,16 +22,18 @@ interface ClientStats {
   pendingReviews: number;
 }
 
+// Type pour les statistiques d'un freelance
+interface FreelanceStats {
+  activeOrders: number;
+  unreadMessages: number;
+  pendingDeliveries: number;
+  totalEarnings: number;
+  servicesCount: number;
+}
+
 export default function DashboardPage() {
   const { user } = useAuth();
   const { profile, isClient } = useUser();
-  
-  // Rediriger les freelances vers leur propre tableau de bord
-  useEffect(() => {
-    if (user?.user_metadata?.role === 'freelance') {
-      window.location.href = '/dashboard/freelance';
-    }
-  }, [user]);
   
   // Utiliser le nom complet du profil en priorité
   const userName = profile?.full_name || profile?.username || user?.user_metadata?.name || "Utilisateur";
@@ -47,26 +49,27 @@ export default function DashboardPage() {
     pendingDeliveries: 0,
     pendingReviews: 0
   });
-  const [loadingClientStats, setLoadingClientStats] = useState(false);
   
-  // Charger les statistiques du client
+  // Statistiques pour les freelances
+  const [freelanceStats, setFreelanceStats] = useState<FreelanceStats>({
+    activeOrders: 0,
+    unreadMessages: 0,
+    pendingDeliveries: 0,
+    totalEarnings: 0,
+    servicesCount: 0
+  });
+  
+  const [loadingStats, setLoadingStats] = useState(false);
+  
+  // Charger les statistiques selon le rôle
   useEffect(() => {
-    const fetchClientStats = async () => {
-      if (!user?.id || !profile?.id) return;
-      
-      setLoadingClientStats(true);
-      
+    if (!user?.id || !profile?.id) return;
+    
+    setLoadingStats(true);
+    
+    const fetchStats = async () => {
       try {
-        // Commandes actives
-        const { data: ordersData, error: ordersError } = await supabase
-          .from('orders')
-          .select('id, status')
-          .eq('client_id', profile.id)
-          .in('status', ['pending', 'in_progress', 'revision_requested']);
-          
-        if (ordersError) throw ordersError;
-        
-        // Messages non lus
+        // Messages non lus (commun aux deux rôles)
         const { data: messagesData, error: messagesError } = await supabase
           .from('messages')
           .select('id')
@@ -75,43 +78,106 @@ export default function DashboardPage() {
           
         if (messagesError) throw messagesError;
         
-        // Livraisons en attente
-        const { data: deliveriesData, error: deliveriesError } = await supabase
-          .from('orders')
-          .select('id')
-          .eq('client_id', profile.id)
-          .eq('status', 'delivered')
-          .is('completed_at', null);
-          
-        if (deliveriesError) throw deliveriesError;
+        const unreadMessages = messagesData?.length || 0;
         
-        // Commandes complétées sans avis
-        const { data: reviewsData, error: reviewsError } = await supabase
-          .from('orders')
-          .select('id, has_review')
-          .eq('client_id', profile.id)
-          .eq('status', 'completed')
-          .eq('has_review', false);
+        // Statistiques spécifiques au client
+        if (isClient) {
+          // Commandes actives
+          const { data: ordersData, error: ordersError } = await supabase
+            .from('orders')
+            .select('id, status')
+            .eq('client_id', profile.id)
+            .in('status', ['pending', 'in_progress', 'revision_requested']);
+            
+          if (ordersError) throw ordersError;
           
-        if (reviewsError) throw reviewsError;
-        
-        // Mettre à jour les statistiques
-        setClientStats({
-          activeOrders: ordersData?.length || 0,
-          unreadMessages: messagesData?.length || 0,
-          pendingDeliveries: deliveriesData?.length || 0,
-          pendingReviews: reviewsData?.length || 0
-        });
+          // Livraisons en attente
+          const { data: deliveriesData, error: deliveriesError } = await supabase
+            .from('orders')
+            .select('id')
+            .eq('client_id', profile.id)
+            .eq('status', 'delivered')
+            .is('completed_at', null);
+            
+          if (deliveriesError) throw deliveriesError;
+          
+          // Commandes complétées sans avis
+          const { data: reviewsData, error: reviewsError } = await supabase
+            .from('orders')
+            .select('id, has_review')
+            .eq('client_id', profile.id)
+            .eq('status', 'completed')
+            .eq('has_review', false);
+            
+          if (reviewsError) throw reviewsError;
+          
+          // Mettre à jour les statistiques client
+          setClientStats({
+            activeOrders: ordersData?.length || 0,
+            unreadMessages,
+            pendingDeliveries: deliveriesData?.length || 0,
+            pendingReviews: reviewsData?.length || 0
+          });
+        } 
+        // Statistiques spécifiques au freelance
+        else {
+          // Commandes actives pour le freelance
+          const { data: ordersData, error: ordersError } = await supabase
+            .from('orders')
+            .select('id, status')
+            .eq('freelance_id', profile.id)
+            .in('status', ['pending', 'in_progress', 'revision_requested']);
+            
+          if (ordersError) throw ordersError;
+          
+          // Livraisons en attente de validation
+          const { data: deliveriesData, error: deliveriesError } = await supabase
+            .from('orders')
+            .select('id')
+            .eq('freelance_id', profile.id)
+            .eq('status', 'delivered')
+            .is('completed_at', null);
+            
+          if (deliveriesError) throw deliveriesError;
+          
+          // Services proposés
+          const { data: servicesData, error: servicesError } = await supabase
+            .from('services')
+            .select('id')
+            .eq('freelance_id', profile.id);
+            
+          if (servicesError) throw servicesError;
+          
+          // Gains totaux
+          const { data: earningsData, error: earningsError } = await supabase
+            .from('orders')
+            .select('amount')
+            .eq('freelance_id', profile.id)
+            .eq('status', 'completed');
+            
+          if (earningsError) throw earningsError;
+          
+          const totalEarnings = earningsData?.reduce((sum, order) => sum + (order.amount || 0), 0) || 0;
+          
+          // Mettre à jour les statistiques freelance
+          setFreelanceStats({
+            activeOrders: ordersData?.length || 0,
+            unreadMessages,
+            pendingDeliveries: deliveriesData?.length || 0,
+            totalEarnings,
+            servicesCount: servicesData?.length || 0
+          });
+        }
         
       } catch (error) {
-        console.error("Erreur lors du chargement des statistiques client:", error);
+        console.error("Erreur lors du chargement des statistiques:", error);
       } finally {
-        setLoadingClientStats(false);
+        setLoadingStats(false);
       }
     };
     
-    fetchClientStats();
-  }, [user?.id, profile?.id]);
+    fetchStats();
+  }, [user?.id, profile?.id, isClient]);
 
   // Charger les activités récentes
   useEffect(() => {
@@ -170,7 +236,7 @@ export default function DashboardPage() {
             <span className="text-lg font-bold text-vynal-accent-secondary dark:text-vynal-text-primary">{userName}</span>
           </div>
           <p className="text-sm text-vynal-purple-secondary dark:text-vynal-text-secondary/80 mt-1">
-            Voici ton activité sur la plateforme
+            Voici {isClient ? 'ton' : 'votre'} activité sur la plateforme
           </p>
         </div>
       
@@ -182,18 +248,20 @@ export default function DashboardPage() {
                   <div className="mr-2 p-1 sm:p-1.5 rounded-full bg-gradient-to-tr from-vynal-accent-primary/40 to-vynal-accent-primary/20 shadow-sm dark:from-vynal-purple-secondary/30 dark:to-vynal-purple-secondary/20 flex-shrink-0">
                     <FileText className="h-3 w-3 sm:h-4 sm:w-4 text-vynal-accent-primary dark:text-vynal-accent-primary" />
                   </div>
-                  <span className="truncate text-vynal-purple-light dark:text-vynal-text-primary">Commandes en cours</span>
+                  <span className="truncate text-vynal-purple-light dark:text-vynal-text-primary">
+                    {isClient ? "Commandes en cours" : "Commandes à traiter"}
+                  </span>
                 </div>
               </CardTitle>
             </CardHeader>
             <CardContent className="px-2 pb-2 sm:px-6 sm:pb-6 relative z-10">
               <div className="text-lg sm:text-2xl font-bold text-vynal-purple-light dark:text-vynal-text-primary">
-                {loadingClientStats ? "-" : clientStats.activeOrders}
+                {loadingStats ? "-" : (isClient ? clientStats.activeOrders : freelanceStats.activeOrders)}
               </div>
               <div className="flex items-center mt-1">
                 <div className="h-2 w-2 rounded-full bg-gradient-to-r from-vynal-accent-primary to-vynal-accent-secondary mr-1"></div>
                 <p className="text-[10px] sm:text-xs text-vynal-accent-secondary dark:text-emerald-400 truncate">
-                  En attente
+                  {isClient ? "En attente" : "À traiter"}
                 </p>
               </div>
             </CardContent>
@@ -212,11 +280,11 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent className="px-2 pb-2 sm:px-6 sm:pb-6 relative z-10">
               <div className="text-lg sm:text-2xl font-bold text-vynal-purple-light dark:text-vynal-text-primary">
-                {loadingClientStats ? "-" : clientStats.unreadMessages}
+                {loadingStats ? "-" : (isClient ? clientStats.unreadMessages : freelanceStats.unreadMessages)}
               </div>
               <div className="flex items-center mt-1">
                 <div className="text-[10px] sm:text-xs px-1.5 py-0.5 bg-gradient-to-r from-vynal-accent-secondary/30 to-vynal-accent-secondary/20 text-vynal-accent-secondary rounded-md dark:from-vynal-purple-secondary/30 dark:to-vynal-purple-secondary/20 dark:text-vynal-accent-secondary truncate">
-                  {clientStats.unreadMessages > 0 ? "À lire" : "À jour"}
+                  {(isClient ? clientStats.unreadMessages : freelanceStats.unreadMessages) > 0 ? "À lire" : "À jour"}
                 </div>
               </div>
             </CardContent>
@@ -229,17 +297,19 @@ export default function DashboardPage() {
                   <div className="mr-2 p-1 sm:p-1.5 rounded-full bg-gradient-to-tr from-vynal-purple-secondary/40 to-vynal-purple-secondary/20 shadow-sm dark:from-vynal-purple-secondary/30 dark:to-vynal-purple-secondary/20 flex-shrink-0">
                     <Package className="h-3 w-3 sm:h-4 sm:w-4 text-vynal-purple-secondary dark:text-amber-400" />
                   </div>
-                  <span className="truncate text-vynal-purple-light dark:text-vynal-text-primary">Livraisons à venir</span>
+                  <span className="truncate text-vynal-purple-light dark:text-vynal-text-primary">
+                    {isClient ? "Livraisons à venir" : "Livraisons en attente"}
+                  </span>
                 </div>
               </CardTitle>
             </CardHeader>
             <CardContent className="px-2 pb-2 sm:px-6 sm:pb-6 relative z-10">
               <div className="text-lg sm:text-2xl font-bold text-vynal-purple-light dark:text-vynal-text-primary">
-                {loadingClientStats ? "-" : clientStats.pendingDeliveries}
+                {loadingStats ? "-" : (isClient ? clientStats.pendingDeliveries : freelanceStats.pendingDeliveries)}
               </div>
               <div className="flex items-center mt-1">
                 <div className="text-[10px] sm:text-xs px-1.5 py-0.5 bg-gradient-to-r from-vynal-purple-secondary/30 to-vynal-purple-secondary/20 text-vynal-purple-secondary rounded-md dark:from-vynal-purple-secondary/30 dark:to-vynal-purple-secondary/20 dark:text-amber-400 truncate">
-                  Prochainement
+                  {isClient ? "Prochainement" : "En attente de validation"}
                 </div>
               </div>
             </CardContent>
@@ -250,19 +320,27 @@ export default function DashboardPage() {
               <CardTitle className="text-xs sm:text-base md:text-lg font-medium">
                 <div className="flex items-center">
                   <div className="mr-2 p-1 sm:p-1.5 rounded-full bg-gradient-to-tr from-vynal-accent-primary/40 to-vynal-accent-primary/20 shadow-sm dark:from-vynal-purple-secondary/30 dark:to-vynal-purple-secondary/20 flex-shrink-0">
-                    <Star className="h-3 w-3 sm:h-4 sm:w-4 text-vynal-accent-primary dark:text-emerald-400" />
+                    {isClient ? (
+                      <Star className="h-3 w-3 sm:h-4 sm:w-4 text-vynal-accent-primary dark:text-emerald-400" />
+                    ) : (
+                      <FileText className="h-3 w-3 sm:h-4 sm:w-4 text-vynal-accent-primary dark:text-emerald-400" />
+                    )}
                   </div>
-                  <span className="truncate text-vynal-purple-light dark:text-vynal-text-primary">Avis à laisser</span>
+                  <span className="truncate text-vynal-purple-light dark:text-vynal-text-primary">
+                    {isClient ? "Avis à laisser" : "Services proposés"}
+                  </span>
                 </div>
               </CardTitle>
             </CardHeader>
             <CardContent className="px-2 pb-2 sm:px-6 sm:pb-6 relative z-10">
               <div className="text-lg sm:text-2xl font-bold text-vynal-purple-light dark:text-vynal-text-primary">
-                {loadingClientStats ? "-" : clientStats.pendingReviews}
+                {loadingStats ? "-" : (isClient ? clientStats.pendingReviews : freelanceStats.servicesCount)}
               </div>
               <div className="flex items-center mt-1">
                 <div className="text-[10px] sm:text-xs px-1.5 py-0.5 bg-gradient-to-r from-vynal-accent-primary/30 to-vynal-accent-primary/20 text-vynal-accent-primary rounded-md dark:from-vynal-purple-secondary/30 dark:to-vynal-purple-secondary/20 dark:text-emerald-400 truncate">
-                  {clientStats.pendingReviews > 0 ? "Services à évaluer" : "Tout est à jour"}
+                  {isClient 
+                    ? (clientStats.pendingReviews > 0 ? "Services à évaluer" : "Tout est à jour") 
+                    : (freelanceStats.servicesCount > 0 ? "Services actifs" : "Créez votre 1er service")}
                 </div>
               </div>
             </CardContent>
@@ -339,21 +417,34 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent className="px-3 pb-3 sm:px-6 sm:pb-6 relative z-10">
               <div className="space-y-2 sm:space-y-3">
-                <Link href="/services" className="group flex justify-between items-center p-2 sm:p-3 rounded-lg transition-all bg-gradient-to-r from-vynal-accent-primary/15 via-vynal-accent-primary/25 to-vynal-accent-primary/15 hover:translate-y-[-1px] hover:shadow-sm border border-vynal-accent-primary/10 dark:from-vynal-purple-secondary/10 dark:via-vynal-purple-secondary/15 dark:to-vynal-purple-secondary/10 dark:hover:from-vynal-purple-secondary/20 dark:hover:via-vynal-purple-secondary/25 dark:hover:to-vynal-purple-secondary/20">
+                <Link 
+                  href={isClient ? "/services" : "/dashboard/services/create"} 
+                  className="group flex justify-between items-center p-2 sm:p-3 rounded-lg transition-all bg-gradient-to-r from-vynal-accent-primary/15 via-vynal-accent-primary/25 to-vynal-accent-primary/15 hover:translate-y-[-1px] hover:shadow-sm border border-vynal-accent-primary/10 dark:from-vynal-purple-secondary/10 dark:via-vynal-purple-secondary/15 dark:to-vynal-purple-secondary/10 dark:hover:from-vynal-purple-secondary/20 dark:hover:via-vynal-purple-secondary/25 dark:hover:to-vynal-purple-secondary/20"
+                >
                   <div className="flex items-center min-w-0 flex-1">
                     <div className="mr-2 p-1 sm:p-2 rounded-full bg-gradient-to-br from-vynal-accent-primary/40 to-vynal-accent-primary/30 text-vynal-accent-primary group-hover:shadow-sm dark:from-vynal-purple-secondary/40 dark:to-vynal-purple-secondary/20 dark:text-vynal-accent-primary flex-shrink-0">
                       <Eye className="h-3 w-3 sm:h-4 sm:w-4" />
                     </div>
-                    <span className="text-xs sm:text-sm font-medium text-vynal-purple-light dark:text-vynal-text-primary truncate">Explorer les services</span>
+                    <span className="text-xs sm:text-sm font-medium text-vynal-purple-light dark:text-vynal-text-primary truncate">
+                      {isClient ? "Explorer les services" : "Créer un service"}
+                    </span>
                   </div>
                   <ArrowUpRight className="h-3 w-3 sm:h-4 sm:w-4 text-vynal-accent-primary group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform dark:text-vynal-accent-primary flex-shrink-0 ml-1" />
                 </Link>
-                <Link href="/dashboard/orders" className="group flex justify-between items-center p-2 sm:p-3 rounded-lg transition-all bg-gradient-to-r from-vynal-accent-secondary/15 via-vynal-accent-secondary/25 to-vynal-accent-secondary/15 hover:translate-y-[-1px] hover:shadow-sm border border-vynal-accent-secondary/10 dark:from-vynal-purple-secondary/10 dark:via-vynal-purple-secondary/15 dark:to-vynal-purple-secondary/10 dark:hover:from-vynal-purple-secondary/20 dark:hover:via-vynal-purple-secondary/25 dark:hover:to-vynal-purple-secondary/20">
+                <Link 
+                  href={`/dashboard/orders${isClient ? "" : "/delivery"}`}
+                  className="group flex justify-between items-center p-2 sm:p-3 rounded-lg transition-all bg-gradient-to-r from-vynal-accent-secondary/15 via-vynal-accent-secondary/25 to-vynal-accent-secondary/15 hover:translate-y-[-1px] hover:shadow-sm border border-vynal-accent-secondary/10 dark:from-vynal-purple-secondary/10 dark:via-vynal-purple-secondary/15 dark:to-vynal-purple-secondary/10 dark:hover:from-vynal-purple-secondary/20 dark:hover:via-vynal-purple-secondary/25 dark:hover:to-vynal-purple-secondary/20"
+                >
                   <div className="flex items-center min-w-0 flex-1">
                     <div className="mr-2 p-1 sm:p-2 rounded-full bg-gradient-to-br from-vynal-accent-secondary/40 to-vynal-accent-secondary/30 text-vynal-accent-secondary group-hover:shadow-sm dark:from-vynal-purple-secondary/40 dark:to-vynal-purple-secondary/20 dark:text-vynal-accent-secondary flex-shrink-0">
-                      <CreditCard className="h-3 w-3 sm:h-4 sm:w-4" />
+                      {isClient ? 
+                        <CreditCard className="h-3 w-3 sm:h-4 sm:w-4" /> :
+                        <Package className="h-3 w-3 sm:h-4 sm:w-4" />
+                      }
                     </div>
-                    <span className="text-xs sm:text-sm font-medium text-vynal-purple-light dark:text-vynal-text-primary truncate whitespace-nowrap">Gérer mes commandes</span>
+                    <span className="text-xs sm:text-sm font-medium text-vynal-purple-light dark:text-vynal-text-primary truncate whitespace-nowrap">
+                      {isClient ? "Gérer mes commandes" : "Livrer mes travaux"}
+                    </span>
                   </div>
                   <ArrowUpRight className="h-3 w-3 sm:h-4 sm:w-4 text-vynal-accent-secondary group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform dark:text-vynal-accent-secondary flex-shrink-0 ml-1" />
                 </Link>

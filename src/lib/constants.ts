@@ -25,7 +25,7 @@ export const APP_URLS = {
 export const APP_CONFIG = {
   siteName: 'Vynal Platform',
   tagline: 'La plateforme freelance #1 au Sénégal',
-  contactEmail: 'contact@vynalplatform.com',
+  contactEmail: 'support@vynalplatform.com',
   socialMedia: {
     facebook: 'https://facebook.com/vynalplatform',
     twitter: 'https://twitter.com/vynalplatform',

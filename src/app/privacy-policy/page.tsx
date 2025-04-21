@@ -33,7 +33,8 @@ export default function PrivacyPolicy() {
         <ul className="list-disc pl-5 space-y-2">
           <li><strong>Informations de compte</strong> : Lorsque vous créez un compte, nous collectons votre nom, adresse e-mail, mot de passe, numéro de téléphone, et votre rôle (client ou freelance).</li>
           <li><strong>Informations de profil</strong> : Pour les freelances, nous collectons des informations sur vos compétences, expérience, éducation, portfolio, et tarifs. Pour les clients, nous collectons des informations sur votre entreprise ou vos besoins en services.</li>
-          <li><strong>Informations de paiement</strong> : Nous collectons vos informations de paiement lorsque vous effectuez une transaction sur notre plateforme. Ces informations peuvent inclure votre nom, numéro de carte, date d'expiration, code CVV, adresse de facturation, et coordonnées bancaires pour les virements.</li>
+          <li><strong>Informations de paiement</strong> : Nous collectons vos informations de paiement lorsque vous effectuez une transaction sur notre plateforme. Ces informations peuvent inclure votre nom, numéro de carte, date d'expiration, code CVV, adresse de facturation, coordonnées bancaires pour les virements, et informations des portefeuilles mobiles (Wave, Orange Money, Free Money) pour les retraits.</li>
+          <li><strong>Historique des transactions</strong> : Nous conservons un historique complet de vos transactions, y compris les paiements reçus, les retraits effectués, les dates, montants, frais appliqués, et méthodes de paiement utilisées.</li>
           <li><strong>Communications</strong> : Nous conservons les messages que vous échangez avec d'autres utilisateurs via notre système de messagerie, ainsi que vos communications avec notre service client.</li>
           <li><strong>Contenu généré</strong> : Nous collectons le contenu que vous créez, téléchargez ou partagez sur notre plateforme, comme les descriptions de services, les livrables, les commentaires et les évaluations.</li>
         </ul>
@@ -59,13 +60,14 @@ export default function PrivacyPolicy() {
         <h2 className="text-xl font-semibold mt-8 mb-4">Comment nous utilisons vos informations</h2>
         <p>Nous utilisons vos informations pour les finalités suivantes :</p>
         <ul className="list-disc pl-5 space-y-2">
-          <li><strong>Fournir nos Services</strong> : Pour créer et gérer votre compte, faciliter les transactions, traiter les paiements, et vous permettre de communiquer avec d'autres utilisateurs.</li>
+          <li><strong>Fournir nos Services</strong> : Pour créer et gérer votre compte, faciliter les transactions, traiter les paiements et les retraits, et vous permettre de communiquer avec d'autres utilisateurs.</li>
+          <li><strong>Traitement des retraits</strong> : Pour vérifier votre identité, traiter vos demandes de retrait, appliquer les frais de service (20%), et transférer les fonds vers votre méthode de paiement choisie.</li>
           <li><strong>Personnaliser votre expérience</strong> : Pour vous recommander des services ou des freelances pertinents, personnaliser votre interface, et mémoriser vos préférences.</li>
           <li><strong>Améliorer nos Services</strong> : Pour analyser comment nos Services sont utilisés, identifier les tendances d'utilisation, résoudre les problèmes techniques, et développer de nouvelles fonctionnalités.</li>
           <li><strong>Communiquer avec vous</strong> : Pour vous envoyer des confirmations, des notifications, des mises à jour sur nos Services, et des informations sur les nouvelles fonctionnalités ou offres.</li>
           <li><strong>Marketing et publicité</strong> : Pour vous envoyer des communications marketing et afficher des publicités pertinentes, sous réserve de vos préférences de communication.</li>
           <li><strong>Sécurité et protection</strong> : Pour détecter, prévenir et traiter les activités frauduleuses, les abus, les violations de sécurité, et les problèmes techniques.</li>
-          <li><strong>Obligations légales</strong> : Pour respecter les lois, réglementations, et procédures judiciaires applicables.</li>
+          <li><strong>Obligations légales</strong> : Pour respecter les lois, réglementations, et procédures judiciaires applicables, y compris les réglementations financières et fiscales.</li>
         </ul>
         
         <h2 className="text-xl font-semibold mt-8 mb-4">Comment nous partageons vos informations</h2>
@@ -93,7 +95,7 @@ export default function PrivacyPolicy() {
           <li><strong>Paramètres des cookies</strong> : Vous pouvez gérer vos préférences concernant les cookies via notre bandeau de cookies ou les paramètres de votre navigateur.</li>
         </ul>
         <p>
-          Pour exercer ces droits, veuillez nous contacter à privacy@vynal.com.
+          Pour exercer ces droits, veuillez nous contacter à support@vynalplatform.com.
         </p>
         
         <h2 className="text-xl font-semibold mt-8 mb-4">Sécurité des données</h2>
@@ -120,6 +122,23 @@ export default function PrivacyPolicy() {
           <li>Nos obligations légales et réglementaires</li>
           <li>Les périodes de prescription applicables pour les réclamations légales potentielles</li>
         </ul>
+        <p>
+          Pour les données de transactions financières, notamment les retraits et paiements, nous conservons ces informations pendant une durée minimale de 5 ans conformément aux réglementations financières et fiscales en vigueur au Sénégal. Ces informations incluent les détails des méthodes de paiement utilisées, les montants, les frais appliqués, et les dates des transactions.
+        </p>
+        
+        <h2 className="text-xl font-semibold mt-8 mb-4">Conformité réglementaire</h2>
+        <p>
+          Vynal Platform se conforme aux lois et réglementations applicables en matière de transactions financières, notamment :
+        </p>
+        <ul className="list-disc pl-5 space-y-2">
+          <li>Les réglementations relatives à la lutte contre le blanchiment d'argent (LCB-FT)</li>
+          <li>Les obligations de vérification d'identité pour les transactions dépassant certains seuils</li>
+          <li>Les exigences de conservation des données financières</li>
+          <li>Les obligations fiscales et déclarations requises</li>
+        </ul>
+        <p>
+          Conformément à ces réglementations, nous pouvons être amenés à demander des informations supplémentaires pour vérifier votre identité ou à signaler certaines transactions aux autorités compétentes lorsque cela est légalement requis.
+        </p>
         
         <h2 className="text-xl font-semibold mt-8 mb-4">Transferts internationaux</h2>
         <p>
@@ -150,13 +169,23 @@ export default function PrivacyPolicy() {
         </p>
         <p className="mt-2">
           <strong>Vynal Platform</strong><br />
-          E-mail : privacy@vynal.com<br />
-          Adresse : [Adresse postale de l'entreprise]
+          E-mail : support@vynalplatform.com<br />
+          Adresse : Dakar, Sénégal
         </p>
         
         <p className="mt-8 text-sm">
           Si vous n'êtes pas satisfait de notre réponse, vous pouvez également contacter l'autorité de protection des données de votre pays.
         </p>
+        
+        <div className="mt-8 p-4 bg-gray-50 rounded-lg border border-gray-200">
+          <p className="text-sm">
+            <strong>Documents complémentaires :</strong>
+          </p>
+          <ul className="list-disc pl-5 mt-2 text-sm space-y-1">
+            <li><a href="/terms-of-service" className="text-indigo-600 hover:underline">Conditions d'utilisation</a></li>
+            <li><a href="/withdrawal-terms" className="text-indigo-600 hover:underline">Conditions de retrait</a></li>
+          </ul>
+        </div>
       </div>
     </div>
   );

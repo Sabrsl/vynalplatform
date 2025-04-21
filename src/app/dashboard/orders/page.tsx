@@ -12,6 +12,9 @@ import { Badge } from "@/components/ui/badge";
 import { InfoTooltip } from "@/components/ui/InfoTooltip";
 import Link from "next/link";
 import { formatPrice } from "@/lib/utils";
+import { useRouter } from "next/navigation";
+import { useUser } from "@/hooks/useUser";
+import { supabase } from "@/lib/supabase/client";
 
 // Type definition for order status
 type OrderStatus = "pending" | "in_progress" | "completed" | "delivered" | "revision_requested" | "cancelled";
@@ -176,13 +179,18 @@ const MOCK_ORDERS_FREELANCE: Order[] = [
 ];
 
 export default function OrdersPage() {
+  const router = useRouter();
   const { user } = useAuth();
+  const { profile, isClient, isFreelance } = useUser();
   const [activeTab, setActiveTab] = useState<TabValue>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const ordersPerPage = 9;
+  const [loading, setLoading] = useState(false);
+  const [orders, setOrders] = useState<any[]>([]);
   
-  const isFreelance = user?.user_metadata?.role === "freelance";
+  // Adapter le titre et les fonctionnalités selon le rôle
+  const pageTitle = isFreelance ? "Commandes reçues" : "Mes commandes";
   
   // Utiliser les données appropriées selon le rôle de l'utilisateur
   const [filteredOrders, setFilteredOrders] = useState<Order[]>(
@@ -218,7 +226,48 @@ export default function OrdersPage() {
   // Calculer le montant total des commandes
   const totalOrdersValue = allOrders.reduce((sum, order) => sum + order.service.price, 0);
 
-  // Dans une vraie application, vous récupéreriez les commandes depuis l'API
+  // Fonction pour récupérer les commandes
+  const fetchOrders = async () => {
+    if (!profile?.id) return;
+    
+    setLoading(true);
+    
+    try {
+      // Adapter la requête selon le rôle (client_id vs freelance_id)
+      const { data, error } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          services (*),
+          profiles!orders_client_id_fkey (id, username, full_name, avatar_url),
+          freelance:profiles!orders_freelance_id_fkey (id, username, full_name, avatar_url)
+        `)
+        .eq(isFreelance ? 'freelance_id' : 'client_id', profile.id)
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        console.error("Erreur lors de la récupération des commandes:", error);
+        return;
+      }
+      
+      if (data) {
+        setOrders(data);
+      }
+    } catch (err) {
+      console.error("Erreur lors de la récupération des commandes:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Appeler fetchOrders au chargement du composant
+  useEffect(() => {
+    if (profile?.id) {
+      fetchOrders();
+    }
+  }, [profile?.id, isFreelance]);
+
+  // Dans le début du composant
   useEffect(() => {
     // Filtrer par statut
     let filtered: Order[] = isFreelance ? extendedOrdersFreelance : extendedOrdersClient;

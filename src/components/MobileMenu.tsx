@@ -9,6 +9,10 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "next-themes";
 import { AnimatePresence, motion } from "framer-motion";
+import NotificationBadge from "@/components/ui/notification-badge";
+import useTotalUnreadMessages from "@/hooks/useTotalUnreadMessages";
+import { User as UserType } from "@supabase/supabase-js";
+import { useUser } from "@/hooks/useUser";
 
 interface NavItemProps {
   href: string;
@@ -16,17 +20,18 @@ interface NavItemProps {
   label: string;
   isActive: boolean;
   onClick: () => void;
+  badgeCount?: number;
 }
 
 interface MobileMenuProps {
   isOpen: boolean;
   onClose: () => void;
-  user: any;
+  user: UserType | null;
   activePath: string;
   setActivePath: (path: string) => void;
 }
 
-const NavItem = ({ href, icon: Icon, label, isActive, onClick }: NavItemProps) => {
+const NavItem = ({ href, icon: Icon, label, isActive, onClick, badgeCount }: NavItemProps) => {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   
@@ -43,14 +48,17 @@ const NavItem = ({ href, icon: Icon, label, isActive, onClick }: NavItemProps) =
       }`}
     >
       <div className="flex items-center">
-        <div className={`p-1.5 rounded-md ${
-          isActive 
+        <div className={`p-1.5 rounded-md relative ${
+          isActive
             ? "bg-white/20 text-white" 
             : isDark
               ? "bg-vynal-purple-secondary/20 text-vynal-accent-primary"
               : "bg-vynal-purple-100 text-vynal-purple-600"
         }`}>
           <Icon className="h-3.5 w-3.5" />
+          {badgeCount !== undefined && badgeCount > 0 && (
+            <NotificationBadge count={badgeCount} className="h-4 w-4 min-w-4 text-[10px]" />
+          )}
         </div>
         <span className={`ml-2.5 text-xs font-medium ${
           isActive 
@@ -70,9 +78,8 @@ const NavItem = ({ href, icon: Icon, label, isActive, onClick }: NavItemProps) =
 export default function MobileMenu({ isOpen, onClose, user, activePath, setActivePath }: MobileMenuProps) {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
-  
-  // Déterminer le rôle de l'utilisateur
-  const userRole = user?.user_metadata?.role === "freelance" ? "Freelance" : "Client";
+  const { totalUnreadCount } = useTotalUnreadMessages();
+  const { isFreelance } = useUser();
   
   // Import de la fonction de déconnexion
   const { signOut } = useAuth();
@@ -154,7 +161,7 @@ export default function MobileMenu({ isOpen, onClose, user, activePath, setActiv
                 
                 {user && (
                   <div className={`px-2 py-0.5 rounded-sm text-[9px] font-medium tracking-wide ${
-                    user?.user_metadata?.role === "freelance"
+                    isFreelance
                       ? isDark
                         ? "bg-amber-500/20 text-amber-300"
                         : "bg-amber-100 text-amber-700"
@@ -162,7 +169,7 @@ export default function MobileMenu({ isOpen, onClose, user, activePath, setActiv
                         ? "bg-blue-500/20 text-blue-300"
                         : "bg-blue-100 text-blue-700"
                   }`}>
-                    {userRole}
+                    {isFreelance ? "Freelance" : "Client"}
                   </div>
                 )}
               </div>
@@ -218,7 +225,7 @@ export default function MobileMenu({ isOpen, onClose, user, activePath, setActiv
                       <NavItem 
                         href="/dashboard/orders" 
                         icon={ShoppingBag} 
-                        label={user?.user_metadata?.role === "freelance" ? "Commandes reçues" : "Mes commandes"} 
+                        label={isFreelance ? "Commandes reçues" : "Mes commandes"} 
                         isActive={isActive("/dashboard/orders")}
                         onClick={() => {
                           setActivePath("/dashboard/orders");
@@ -234,12 +241,13 @@ export default function MobileMenu({ isOpen, onClose, user, activePath, setActiv
                           setActivePath("/dashboard/messages");
                           onClose();
                         }}
+                        badgeCount={totalUnreadCount}
                       />
-                      {user?.user_metadata?.role === "freelance" ? (
+                      {isFreelance ? (
                         <NavItem 
                           href="/dashboard/wallet" 
-                          icon={Wallet} 
-                          label="Mon portefeuille" 
+                          icon={CreditCard} 
+                          label="Paiements" 
                           isActive={isActive("/dashboard/wallet")}
                           onClick={() => {
                             setActivePath("/dashboard/wallet");
@@ -262,7 +270,7 @@ export default function MobileMenu({ isOpen, onClose, user, activePath, setActiv
                   </div>
                   
                   {/* Section pour Freelance uniquement */}
-                  {user?.user_metadata?.role === "freelance" && (
+                  {isFreelance && (
                     <div>
                       <p className={`px-2 text-xs font-semibold uppercase mb-2 ${
                         isDark ? "text-vynal-text-secondary" : "text-vynal-purple-400"
@@ -315,7 +323,7 @@ export default function MobileMenu({ isOpen, onClose, user, activePath, setActiv
                   )}
                   
                   {/* Section client uniquement */}
-                  {user?.user_metadata?.role !== "freelance" && (
+                  {!isFreelance && (
                     <div>
                       <p className={`px-2 text-xs font-semibold uppercase mb-2 ${
                         isDark ? "text-vynal-text-secondary" : "text-vynal-purple-400"

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
+import { useUser } from "@/hooks/useUser";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -36,6 +37,7 @@ const MOCK_ORDER = {
 
 export default function DeliveryPage() {
   const { user } = useAuth();
+  const { isFreelance } = useUser();
   const router = useRouter();
   const searchParams = useSearchParams();
   const orderId = searchParams.get("orderId") || "order-1"; // ID de l'ordre par défaut pour la démo
@@ -54,8 +56,8 @@ export default function DeliveryPage() {
       return;
     }
 
-    if (user?.user_metadata?.role !== "freelance") {
-      router.push("/dashboard");
+    if (!isFreelance) {
+      router.push("/dashboard/orders");
       return;
     }
 
@@ -77,7 +79,7 @@ export default function DeliveryPage() {
     };
 
     fetchOrder();
-  }, [user, router, orderId]);
+  }, [user, isFreelance, router, orderId]);
 
   const handleDelivery = async () => {
     // Validation

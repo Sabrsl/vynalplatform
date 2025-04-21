@@ -11,12 +11,14 @@ interface MessagingInterfaceProps {
   initialConversationId?: string;
   receiverId?: string;
   className?: string;
+  isFreelance?: boolean;
 }
 
 const MessagingInterface: React.FC<MessagingInterfaceProps> = ({
   initialConversationId,
   receiverId,
-  className = ''
+  className = '',
+  isFreelance: propIsFreelance
 }) => {
   const { user } = useAuth();
   const [mounted, setMounted] = useState(false);
@@ -34,7 +36,8 @@ const MessagingInterface: React.FC<MessagingInterfaceProps> = ({
   } = useMessagingStore();
 
   // Déterminer si l'utilisateur est un freelance ou un client
-  const isFreelance = user?.user_metadata?.role === 'freelance';
+  // Utiliser la prop si elle est fournie, sinon détecter à partir de l'utilisateur
+  const isFreelance = propIsFreelance !== undefined ? propIsFreelance : user?.user_metadata?.role === 'freelance';
 
   // Création d'une nouvelle conversation si receiverId est fourni
   useEffect(() => {

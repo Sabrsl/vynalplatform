@@ -74,15 +74,29 @@ export default function TermsOfService() {
         
         <h3 className="text-lg font-medium mt-6 mb-3">4.2 Commissions et frais</h3>
         <p>
-          L'utilisation de notre plateforme peut entraîner des commissions et des frais de service. Les détails de ces commissions 
-          et frais sont disponibles sur notre page de tarification. Nous nous réservons le droit de modifier nos commissions et frais 
-          à tout moment, moyennant un préavis raisonnable.
+          L'utilisation de notre plateforme implique des commissions et des frais de service. Les principaux frais comprennent:
+        </p>
+        <ul className="list-disc pl-5 space-y-2">
+          <li><strong>Frais de service pour les retraits</strong> : Un taux fixe de 20% est appliqué sur tous les retraits effectués par les freelances. Ces frais couvrent les coûts de transfert, de traitement administratif et les frais des services tiers.</li>
+          <li><strong>Frais de transaction</strong> : Des frais peuvent s'appliquer aux paiements et transactions effectués sur la plateforme.</li>
+          <li><strong>Frais supplémentaires</strong> : D'autres frais spécifiques peuvent s'appliquer à certains services premium ou fonctionnalités optionnelles.</li>
+        </ul>
+        <p>
+          Les détails complets de ces commissions et frais sont disponibles sur notre page de tarification et dans nos <a href="/withdrawal-terms" className="text-indigo-600 hover:underline">conditions de retrait</a>. Nous nous réservons le droit de modifier nos commissions et frais à tout moment, moyennant un préavis raisonnable.
         </p>
         
         <h3 className="text-lg font-medium mt-6 mb-3">4.3 Wallet et paiements</h3>
         <p>
-          Vynal propose un système de wallet (portefeuille électronique) pour faciliter les transactions sur la plateforme. 
-          L'utilisation du wallet est soumise à des conditions supplémentaires qui vous seront présentées lors de l'activation de cette fonctionnalité.
+          Vynal propose un système de wallet (portefeuille électronique) pour faciliter les transactions sur la plateforme.
+          L'utilisation du wallet est soumise aux conditions suivantes:
+        </p>
+        <ul className="list-disc pl-5 space-y-2">
+          <li><strong>Retraits</strong> : Les freelances peuvent retirer leurs fonds en suivant notre procédure de retrait. Un montant minimum de 2000 FCFA est requis pour tout retrait. Des frais de service de 20% sont appliqués sur tous les retraits.</li>
+          <li><strong>Délais de traitement</strong> : Les retraits sont traités dans un délai de 24h pour les méthodes de paiement mobile (Wave, Orange Money, Free Money) et 3-5 jours ouvrés pour les virements bancaires.</li>
+          <li><strong>Conditions détaillées</strong> : L'ensemble des conditions de retrait est disponible sur notre page <a href="/withdrawal-terms" className="text-indigo-600 hover:underline">Conditions de retrait</a>.</li>
+        </ul>
+        <p>
+          Vynal se réserve le droit de modifier les frais, les montants minimums et les délais de traitement moyennant un préavis raisonnable.
         </p>
         
         <h2 className="text-xl font-semibold mt-8 mb-4">5. Conditions spécifiques aux Freelances</h2>
@@ -253,9 +267,9 @@ export default function TermsOfService() {
         
         <h3 className="text-lg font-medium mt-6 mb-3">14.5 Loi applicable et juridiction</h3>
         <p>
-          Ces Conditions sont régies par les lois de [Pays], sans égard aux principes de conflit de lois. 
+          Ces Conditions sont régies par les lois du Sénégal, sans égard aux principes de conflit de lois. 
           Tout litige découlant de ou lié à ces Conditions ou à nos Services sera soumis à la juridiction exclusive 
-          des tribunaux de [Ville, Pays].
+          des tribunaux de Dakar, Sénégal.
         </p>
         
         <h2 className="text-xl font-semibold mt-8 mb-4">15. Nous contacter</h2>
@@ -264,9 +278,19 @@ export default function TermsOfService() {
         </p>
         <p className="mt-2">
           <strong>Vynal Platform</strong><br />
-          E-mail : terms@vynal.com<br />
-          Adresse : [Adresse postale de l'entreprise]
+          E-mail : support@vynalplatform.com<br />
+          Adresse : Dakar, Sénégal
         </p>
+        
+        <div className="mt-8 p-4 bg-gray-50 rounded-lg border border-gray-200">
+          <p className="text-sm">
+            <strong>Documents complémentaires :</strong>
+          </p>
+          <ul className="list-disc pl-5 mt-2 text-sm space-y-1">
+            <li><a href="/privacy-policy" className="text-indigo-600 hover:underline">Politique de confidentialité</a></li>
+            <li><a href="/withdrawal-terms" className="text-indigo-600 hover:underline">Conditions de retrait</a></li>
+          </ul>
+        </div>
       </div>
     </div>
   );

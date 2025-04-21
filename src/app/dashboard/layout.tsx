@@ -11,11 +11,14 @@ import {
 } from "lucide-react";
 import MobileMenu from "@/components/MobileMenu";
 import { cn } from "@/lib/utils";
+import useTotalUnreadMessages from "@/hooks/useTotalUnreadMessages";
+import NotificationBadge from "@/components/ui/notification-badge";
 
 interface NavItemProps {
   href: string;
   icon: React.ElementType;
   label: string;
+  badgeCount?: number;
 }
 
 export default function DashboardLayout({
@@ -27,6 +30,7 @@ export default function DashboardLayout({
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activePath, setActivePath] = useState("");
+  const { totalUnreadCount } = useTotalUnreadMessages();
   
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -61,7 +65,7 @@ export default function DashboardLayout({
 
   const isActive = (path: string) => activePath === path;
 
-  const NavItem = ({ href, icon: Icon, label }: NavItemProps) => (
+  const NavItem = ({ href, icon: Icon, label, badgeCount }: NavItemProps) => (
     <Link
       href={href}
       onClick={() => {
@@ -75,12 +79,13 @@ export default function DashboardLayout({
       } ${!isActive(href) ? "px-2 py-2.5" : "px-2 py-2.5"}`}
     >
       <div className="flex items-center">
-        <div className={`p-1.5 rounded-md ${
+        <div className={`p-1.5 rounded-md relative ${
           isActive(href) 
             ? "bg-white/20 text-white dark:bg-vynal-purple-dark/30 dark:text-vynal-text-primary" 
             : "bg-slate-100 text-purple-600 dark:bg-vynal-purple-dark/20 dark:text-vynal-accent-primary"
         }`}>
           <Icon className="h-3.5 w-3.5" />
+          {badgeCount !== undefined && badgeCount > 0 && <NotificationBadge count={badgeCount} className="h-4 w-4 min-w-4 text-[10px]" />}
         </div>
         <span className={`ml-2.5 text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap ${
           isActive(href) ? "text-white dark:text-vynal-text-primary" : "text-slate-700 dark:text-vynal-text-secondary"
@@ -92,8 +97,21 @@ export default function DashboardLayout({
     </Link>
   );
 
-  // Vérifier si l'utilisateur est administrateur
-  const isAdmin = user?.user_metadata?.role === 'admin';
+  // Simplifier la détection du rôle pour éviter les calculs redondants
+  const getUserRole = () => {
+    if (!user) return "non connecté";
+    
+    // Vérifier directement dans user_metadata (plus rapide)
+    if (user.user_metadata?.role) {
+      return user.user_metadata.role;
+    }
+    
+    // Valeur par défaut
+    return "client";
+  };
+
+  const userRole = getUserRole();
+  const isFreelance = userRole === "freelance";
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-slate-50/70 dark:bg-vynal-purple-dark/30">
@@ -106,7 +124,7 @@ export default function DashboardLayout({
             </div>
             <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 overflow-hidden">
               <h1 className="text-sm font-bold bg-gradient-to-r from-purple-600 to-violet-700 bg-clip-text text-transparent dark:from-vynal-accent-primary dark:to-vynal-accent-secondary">VY</h1>
-              <p className="text-[10px] text-slate-500 dark:text-vynal-text-secondary">Espace {user?.user_metadata?.role === "freelance" ? "Freelance" : "Client"}</p>
+              <p className="text-[10px] text-slate-500 dark:text-vynal-text-secondary">Espace {isFreelance ? "Freelance" : "Client"}</p>
             </div>
           </div>
         </div>
@@ -122,12 +140,17 @@ export default function DashboardLayout({
                 <NavItem 
                   href="/dashboard/orders" 
                   icon={ShoppingBag} 
-                  label={user?.user_metadata?.role === "freelance" ? "Commandes reçues" : "Mes commandes"} 
+                  label={isFreelance ? "Commandes reçues" : "Mes commandes"} 
                 />
-                <NavItem href="/dashboard/messages" icon={MessageSquare} label="Messages" />
+                <NavItem 
+                  href="/dashboard/messages" 
+                  icon={MessageSquare} 
+                  label="Messages" 
+                  badgeCount={totalUnreadCount}
+                />
                 <NavItem href="/dashboard/disputes" icon={AlertTriangle} label="Litiges" />
-                {user?.user_metadata?.role === "freelance" ? (
-                  <NavItem href="/dashboard/wallet" icon={Wallet} label="Mon portefeuille" />
+                {isFreelance ? (
+                  <NavItem href="/dashboard/wallet" icon={CreditCard} label="Paiements" />
                 ) : (
                   <NavItem href="/dashboard/payments" icon={CreditCard} label="Paiements" />
                 )}
@@ -135,7 +158,7 @@ export default function DashboardLayout({
             </div>
             
             {/* Section pour Freelance uniquement */}
-            {user?.user_metadata?.role === "freelance" && (
+            {isFreelance && (
               <div>
                 <p className="px-2 text-[10px] font-bold text-slate-400 uppercase mb-1.5 dark:text-vynal-text-secondary opacity-0 group-hover:opacity-100 transition-opacity duration-200 hidden group-hover:block">Services</p>
                 
@@ -149,7 +172,7 @@ export default function DashboardLayout({
             )}
             
             {/* Section client uniquement */}
-            {user?.user_metadata?.role !== "freelance" && (
+            {!isFreelance && (
               <div>
                 <p className="px-2 text-[10px] font-bold text-slate-400 uppercase mb-1.5 dark:text-vynal-text-secondary opacity-0 group-hover:opacity-100 transition-opacity duration-200 hidden group-hover:block">Actions</p>
                 
@@ -226,36 +249,34 @@ export default function DashboardLayout({
       
       {/* Main content */}
       <div className="w-full flex-1">
-        {/* Top Header - Visible uniquement sur desktop pour les non-freelances */}
-        {user?.user_metadata?.role !== "freelance" && (
-          <header className="bg-white h-16 flex items-center justify-between px-4 sticky top-0 z-20 border-b border-slate-100 shadow-sm hidden md:flex dark:bg-vynal-purple-dark dark:border-vynal-purple-secondary/20 dark:shadow-vynal-purple-secondary/10">
-            <div className="hidden md:block">
-              <h2 className="text-lg font-bold text-vynal-purple-light dark:text-vynal-text-primary">
-                {activePath === "/dashboard" && "Tableau de bord"}
-                {activePath === "/dashboard/orders" && (user?.user_metadata?.role === "freelance" ? "Commandes reçues" : "Mes commandes")}
-                {activePath === "/dashboard/messages" && "Messages"}
-                {activePath === "/dashboard/disputes" && "Litiges"}
-                {activePath === "/dashboard/payments" && "Paiements"}
-                {activePath === "/dashboard/wallet" && "Mon portefeuille"}
-                {activePath === "/dashboard/wallet/withdraw" && "Retirer des fonds"}
-                {activePath === "/dashboard/services" && "Mes services"}
-                {activePath === "/dashboard/orders/new" && "Commander un service"}
-                {activePath === "/dashboard/orders/payment" && "Paiement"}
-                {activePath === "/dashboard/orders/delivery" && "Livrer un travail"}
-                {activePath === "/dashboard/orders/revision" && "Demander une révision"}
-                {activePath === "/dashboard/stats" && "Statistiques"}
-                {activePath === "/dashboard/certifications" && "Certifications"}
-                {activePath === "/dashboard/profile" && "Mon profil"}
-                {activePath === "/dashboard/resources" && "Ressources"}
-                {activePath === "/dashboard/support" && "Support"}
-                {activePath === "/dashboard/settings" && "Paramètres"}
-              </h2>
-            </div>
-            
-            <div className="flex items-center space-x-3">
-            </div>
-          </header>
-        )}
+        {/* Top Header - now visible for all users, with different content based on role */}
+        <header className="bg-white h-16 flex items-center justify-between px-4 sticky top-0 z-20 border-b border-slate-100 shadow-sm hidden md:flex dark:bg-vynal-purple-dark dark:border-vynal-purple-secondary/20 dark:shadow-vynal-purple-secondary/10">
+          <div className="hidden md:block">
+            <h2 className="text-lg font-bold text-vynal-purple-light dark:text-vynal-text-primary">
+              {activePath === "/dashboard" && "Tableau de bord"}
+              {activePath === "/dashboard/orders" && (isFreelance ? "Commandes reçues" : "Mes commandes")}
+              {activePath === "/dashboard/messages" && "Messages"}
+              {activePath === "/dashboard/disputes" && "Litiges"}
+              {activePath === "/dashboard/payments" && !isFreelance && "Paiements"}
+              {activePath === "/dashboard/wallet" && isFreelance && "Paiements"}
+              {activePath === "/dashboard/wallet/withdraw" && "Retirer des fonds"}
+              {activePath === "/dashboard/services" && "Mes services"}
+              {activePath === "/dashboard/orders/new" && "Commander un service"}
+              {activePath === "/dashboard/orders/payment" && "Paiement"}
+              {activePath === "/dashboard/orders/delivery" && "Livrer un travail"}
+              {activePath === "/dashboard/orders/revision" && "Demander une révision"}
+              {activePath === "/dashboard/stats" && "Statistiques"}
+              {activePath === "/dashboard/certifications" && "Certifications"}
+              {activePath === "/dashboard/profile" && "Mon profil"}
+              {activePath === "/dashboard/resources" && "Ressources"}
+              {activePath === "/dashboard/support" && "Support"}
+              {activePath === "/dashboard/settings" && "Paramètres"}
+            </h2>
+          </div>
+          
+          <div className="flex items-center space-x-3">
+          </div>
+        </header>
 
         {/* Bouton menu mobile pour tous les utilisateurs */}
         <div className="fixed top-3 left-3 z-40 md:hidden">

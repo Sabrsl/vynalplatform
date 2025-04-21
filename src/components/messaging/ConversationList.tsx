@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Conversation } from '@/lib/stores/useMessagingStore';
 import { formatDistanceToNow } from '@/lib/utils';
 import UserStatusIndicator from './UserStatusIndicator';
+import { useAuth } from '@/hooks/useAuth';
 
 interface ConversationListProps {
   conversations: Conversation[];
@@ -34,12 +35,13 @@ const ConversationList: React.FC<ConversationListProps> = ({
   isFreelance = false
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const { user } = useAuth();
   
   // Filtrer les conversations en fonction du terme de recherche
   const filteredConversations = searchTerm.trim() 
     ? conversations.filter(conversation => {
         const otherParticipant = conversation.participants.find(
-          p => p.id !== activeConversationId
+          p => p.id !== user?.id
         );
         
         const participantName = otherParticipant?.full_name || otherParticipant?.username || '';
@@ -90,7 +92,7 @@ const ConversationList: React.FC<ConversationListProps> = ({
             {filteredConversations.map((conversation) => {
               // Trouver l'autre participant (en supposant une conversation à 2 personnes)
               const otherParticipant = conversation.participants.find(
-                p => p.id !== activeConversationId
+                p => p.id !== user?.id
               );
               
               // Récupérer le dernier message

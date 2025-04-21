@@ -58,6 +58,7 @@ export default function MessagesPage() {
       
       <MessagingInterface 
         initialConversationId={conversationId || undefined} 
+        isFreelance={isFreelance}
       />
     </div>
   );

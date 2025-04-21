@@ -1,154 +1,130 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { useAuth } from './useAuth';
 import { Database } from '@/types/database';
 
-// Type pour le profil utilisateur complet
-export type Profile = {
+// Type pour le profil utilisateur
+export interface UserProfile {
   id: string;
-  created_at: string;
-  updated_at: string;
   username: string | null;
   full_name: string | null;
   avatar_url: string | null;
-  bio: string | null;
-  role: 'client' | 'freelance' | 'admin';
   email: string | null;
-  last_seen: string | null;
+  role: 'client' | 'freelance' | 'admin' | null;
+  created_at: string;
+  updated_at: string;
+  bio: string | null;
   verification_level: number | null;
-  verified_at: string | null;
-  phone: string | null;
-};
+  last_seen: string | null;
+}
 
 export function useUser() {
   const { user } = useAuth();
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isLoading, setIsLoading] = useState(false);
-  const [updateError, setUpdateError] = useState<{ message: string; code: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Définir les rôles dérivés directement pour réduire les calculs répétés
+  // Vérifier d'abord dans user_metadata pour une réponse immédiate si possible
+  const isClient = user?.user_metadata?.role === 'client' || profile?.role === 'client';
+  const isFreelance = user?.user_metadata?.role === 'freelance' || profile?.role === 'freelance';
+  const isAdmin = user?.user_metadata?.role === 'admin' || profile?.role === 'admin';
 
+  // Memoizer les fonctions pour éviter des recalculs
+  const canAccess = useCallback((requiredRoles: Array<'client' | 'freelance' | 'admin'>) => {
+    // Vérifier d'abord user_metadata pour éviter des requêtes inutiles
+    if (user?.user_metadata?.role && requiredRoles.includes(user.user_metadata.role as any)) {
+      return true;
+    }
+    
+    // Ensuite vérifier le profil
+    if (profile?.role && requiredRoles.includes(profile.role as any)) {
+      return true;
+    }
+    
+    return false;
+  }, [user?.user_metadata?.role, profile?.role]);
+  
+  const getUserRole = useCallback(() => {
+    return user?.user_metadata?.role || profile?.role || null;
+  }, [user?.user_metadata?.role, profile?.role]);
+
+  // Récupérer le profil utilisateur depuis Supabase, mais seulement si nécessaire
   useEffect(() => {
-    // Si l'utilisateur n'est pas connecté, réinitialiser le profil
-    if (!user) {
-      setProfile(null);
-      setLoading(false);
-      return;
-    }
-
-    // Charger le profil de l'utilisateur
     const fetchProfile = async () => {
-      setLoading(true);
-      
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-      
-      if (error) {
-        console.error('Erreur lors du chargement du profil:', error);
+      // Si l'utilisateur n'est pas connecté, réinitialiser le profil
+      if (!user) {
         setProfile(null);
-      } else {
+        setLoading(false);
+        return;
+      }
+      
+      // Si le rôle est déjà dans user_metadata, pas besoin de chercher tout de suite
+      if (user.user_metadata?.role) {
+        setLoading(false);
+        
+        // Fetch profile in background for complete data
+        try {
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', user.id)
+            .single();
+            
+          if (!error && data) {
+            setProfile(data);
+          }
+        } catch (err) {
+          // Ignorer les erreurs en arrière-plan
+        }
+        
+        return;
+      }
+
+      // Sinon, chercher le profil complet
+      try {
+        setLoading(true);
+        setError(null);
+
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+
+        if (error) throw error;
+
+        // Si le profil existe mais que le rôle est manquant, utiliser celui des métadonnées
+        if (data && !data.role && user.user_metadata?.role) {
+          // Mettre à jour le profil avec le rôle des métadonnées utilisateur
+          await supabase
+            .from('profiles')
+            .update({ role: user.user_metadata.role })
+            .eq('id', user.id);
+            
+          data.role = user.user_metadata.role;
+        }
+
         setProfile(data);
+      } catch (err: any) {
+        // Supprimer le log d'erreur en production, utiliser seulement pour le débogage
+        setError(err.message);
+      } finally {
+        setLoading(false);
       }
-      
-      setLoading(false);
     };
-    
+
     fetchProfile();
-    
-    // Souscrire aux changements du profil en temps réel
-    const subscription = supabase
-      .channel(`profile:${user.id}`)
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'profiles',
-        filter: `id=eq.${user.id}`,
-      }, (payload: { new: any; old: any }) => {
-        setProfile(payload.new as Profile);
-      })
-      .subscribe();
-    
-    return () => {
-      subscription.unsubscribe();
-    };
   }, [user]);
-
-  // Fonction pour mettre à jour le profil
-  const updateProfile = async (updates: Partial<Profile>) => {
-    setIsLoading(true);
-    try {
-      // Filtrer les valeurs undefined, vides et null
-      const filteredUpdates: Partial<Profile> = Object.fromEntries(
-        Object.entries(updates).filter(([_, v]) => v !== undefined && v !== null && v !== '')
-      ) as Partial<Profile>;
-      
-      // Si aucune valeur à mettre à jour, ne pas continuer
-      if (Object.keys(filteredUpdates).length === 0) {
-        console.log("Aucune donnée à mettre à jour");
-        setUpdateError(null);
-        return { success: true, data: null, error: null };
-      }
-      
-      // Ajouter le timestamp updated_at
-      const updatesWithTimestamp = {
-        ...filteredUpdates,
-        updated_at: new Date().toISOString(),
-      };
-      
-      console.log("Mises à jour filtrées:", updatesWithTimestamp);
-      
-      const { data, error } = await supabase
-        .from("profiles")
-        .update(updatesWithTimestamp)
-        .eq("id", user?.id)
-        .select();
-      
-      if (error) {
-        console.error("Erreur détaillée lors de la mise à jour du profil:", error);
-        
-        // Gestion spécifique des erreurs de contrainte unique
-        if (error.code === '23505' || error.message?.includes('unique constraint')) {
-          const message = "Ce nom d'utilisateur est déjà utilisé. Veuillez en choisir un autre.";
-          setUpdateError({ message, code: error.code });
-          return { success: false, data: null, error: { message, code: error.code } };
-        } 
-        
-        setUpdateError(error);
-        return { success: false, data: null, error };
-      }
-      
-      if (data && data.length > 0) {
-        setProfile(data[0]);
-        setUpdateError(null);
-        return { success: true, data: data[0], error: null };
-      } else {
-        return { success: true, data: null, error: null };
-      }
-    } catch (error: any) {
-      console.error("Erreur inattendue lors de la mise à jour du profil:", error);
-      const errorMessage = error?.message || "Une erreur est survenue lors de la mise à jour du profil";
-      setUpdateError({ message: errorMessage, code: error?.code || "UNKNOWN" });
-      return { success: false, data: null, error: { message: errorMessage, code: error?.code || "UNKNOWN" } };
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Déterminer si l'utilisateur est un client, freelance ou admin
-  const isClient = profile?.role === 'client';
-  const isFreelance = profile?.role === 'freelance';
-  const isAdmin = profile?.role === 'admin';
 
   return {
     profile,
     loading,
-    updateProfile,
+    error,
     isClient,
     isFreelance,
     isAdmin,
-    isLoading,
-    updateError,
+    canAccess,
+    getUserRole,
   };
 } 
