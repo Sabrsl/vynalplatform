@@ -25,9 +25,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { slugify } from "@/lib/utils";
-import { AlertCircle, ArrowLeft, Loader2, Check, X } from "lucide-react";
+import { AlertCircle, ArrowLeft, Check, X } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import ServiceImageUploader from "@/components/services/ServiceImageUploader";
+import { Separator } from "@/components/ui/separator";
+import { Loader } from "@/components/ui/loader";
 
 export default function EditServicePage() {
   const router = useRouter();
@@ -259,8 +261,8 @@ export default function EditServicePage() {
   
   if (categoriesLoading || serviceLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+      <div className="flex justify-center items-center min-h-screen">
+        <Loader size="lg" variant="primary" showText={true} />
       </div>
     );
   }
@@ -434,8 +436,8 @@ export default function EditServicePage() {
                 >
                   {isSubmitting ? (
                     <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Mise à jour en cours...
+                      <Loader size="xs" variant="white" className="mr-2" />
+                      Mise à jour du service...
                     </>
                   ) : (
                     "Mettre à jour le service"

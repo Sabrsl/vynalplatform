@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { useUser, Profile } from "@/hooks/useUser";
+import { useUser, UserProfile } from "@/hooks/useUser";
 import { supabase } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -85,7 +85,7 @@ export default function ProfilePage() {
       }
       
       // Préparer les mises à jour avec les valeurs nettoyées
-      const updates: Partial<Profile> = {
+      const updates: Partial<UserProfile> = {
         full_name: cleanFullName,
         bio: cleanBio,
         avatar_url: localProfile.avatar_url,

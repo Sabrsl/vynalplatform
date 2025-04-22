@@ -1,4 +1,4 @@
-import { Profile } from '@/hooks/useUser';
+import { UserProfile } from '@/hooks/useUser';
 
 export interface Message {
   id: string;
@@ -11,5 +11,5 @@ export interface Message {
   attachment_type?: string | null;
   attachment_name?: string | null;
   is_typing?: boolean;
-  sender?: Profile;
+  sender?: UserProfile;
 } 

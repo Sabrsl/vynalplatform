@@ -5,14 +5,16 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { 
-  Eye, PenSquare, Trash2, Loader2, Star, Image as ImageIcon
+  Eye, PenSquare, Trash2, Star, Image as ImageIcon
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatPrice } from "@/lib/utils";
 import { CURRENCY } from "@/lib/constants";
 import { ServiceWithFreelanceAndCategories } from "@/hooks/useServices";
 import { useFreelancerRating } from "@/hooks/useFreelancerRating";
+import { Loader } from "@/components/ui/loader";
 
 // Extension du type pour inclure les propriétés supplémentaires
 interface ExtendedService extends ServiceWithFreelanceAndCategories {
@@ -272,7 +274,10 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
                 title="Supprimer"
               >
                 {isDeleting ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <span className="flex items-center text-xs text-red-500">
+                    <Loader size="xs" variant="primary" className="mr-1" />
+                    Suppression...
+                  </span>
                 ) : (
                   <Trash2 className="h-3.5 w-3.5" />
                 )}

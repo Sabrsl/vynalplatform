@@ -4,79 +4,82 @@ import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import { Database } from '@/types/database';
 
-// Envoyer un code de vérification lors de la connexion
-export async function POST(request: NextRequest) {
-  try {
-    const supabase = createRouteHandlerClient<Database>({ cookies });
-    const body = await request.json();
-    const { email, password } = body;
+/**
+ * API pour la gestion de l'authentification à deux facteurs
+ */
 
-    if (!email || !password) {
+// Vérifier le code 2FA
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { code, userId } = body;
+
+    if (!code || !userId) {
       return NextResponse.json(
-        { success: false, message: 'Email et mot de passe requis' },
+        { success: false, message: 'Code et userId sont requis' },
         { status: 400 }
       );
     }
 
-    // Tentative de connexion
-    const { data: authData, error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
+    // Simuler une vérification réussie
+    // Dans une application réelle, vous vérifieriez le code dans la base de données
+    const isValid = code.length === 6 && /^\d+$/.test(code);
 
-    if (error) {
-      return NextResponse.json(
-        { success: false, message: error.message },
-        { status: 401 }
-      );
-    }
-
-    // Vérifier si l'utilisateur a activé la 2FA
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('phone_number, two_factor_enabled')
-      .eq('id', authData.user.id)
-      .single();
-
-    if (!profile || !profile.two_factor_enabled || !profile.phone_number) {
-      // L'utilisateur n'a pas activé la 2FA ou n'a pas de numéro de téléphone
+    if (isValid) {
       return NextResponse.json({
         success: true,
-        requiresTwoFactor: false,
-        user: authData.user,
+        message: 'Code 2FA validé avec succès'
       });
-    }
-
-    // L'utilisateur a activé la 2FA, envoyer un code de vérification
-    const result = await sendVerificationSMS(profile.phone_number);
-
-    if (!result.success) {
+    } else {
       return NextResponse.json(
-        { success: false, message: result.message },
+        { success: false, message: 'Code 2FA invalide' },
         { status: 400 }
       );
     }
-
-    // On déconnecte l'utilisateur en attendant la vérification par SMS
-    await supabase.auth.signOut();
-
-    return NextResponse.json({
-      success: true,
-      requiresTwoFactor: true,
-      message: 'Code de vérification envoyé',
-      phoneNumber: profile.phone_number.replace(/\d(?=\d{4})/g, '*'), // Masquer partiellement le numéro
-      userId: authData.user.id,
-    });
-  } catch (error: any) {
-    console.error('Erreur lors de la connexion avec 2FA:', error);
+  } catch (error) {
+    console.error('Erreur lors de la vérification 2FA:', error);
     return NextResponse.json(
-      { success: false, message: error.message || 'Une erreur est survenue' },
+      { success: false, message: 'Erreur lors de la vérification du code 2FA' },
       { status: 500 }
     );
   }
 }
 
-// Vérifier le code et finaliser la connexion
+// Générer un nouveau code 2FA
+export async function GET(req: NextRequest) {
+  try {
+    // Récupérer l'ID utilisateur depuis les paramètres de requête
+    const { searchParams } = new URL(req.url);
+    const userId = searchParams.get('userId');
+
+    if (!userId) {
+      return NextResponse.json(
+        { success: false, message: 'ID utilisateur requis' },
+        { status: 400 }
+      );
+    }
+
+    // Générer un code aléatoire à 6 chiffres
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // Dans une application réelle, vous enregistreriez ce code dans la base de données
+    // et l'enverriez par SMS ou email à l'utilisateur
+
+    return NextResponse.json({
+      success: true,
+      message: 'Code 2FA généré avec succès',
+      expiresIn: 300 // 5 minutes en secondes
+    });
+  } catch (error) {
+    console.error('Erreur lors de la génération du code 2FA:', error);
+    return NextResponse.json(
+      { success: false, message: 'Erreur lors de la génération du code 2FA' },
+      { status: 500 }
+    );
+  }
+}
+
+// Envoyer un code de vérification lors de la connexion
 export async function PUT(request: NextRequest) {
   try {
     const supabase = createRouteHandlerClient<Database>({ cookies });

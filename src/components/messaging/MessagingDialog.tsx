@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { MessageSquare, Send, Loader2 } from 'lucide-react';
+import { MessageSquare, Send } from 'lucide-react';
 import { useMessagingStore } from '@/lib/stores/useMessagingStore';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
@@ -13,6 +13,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ShieldAlert } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
 import { validateMessage } from '@/lib/message-validation';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Loader } from '@/components/ui/loader';
 
 interface MessagingDialogProps {
   freelanceId: string;
@@ -320,7 +322,7 @@ const MessagingDialog: React.FC<MessagingDialogProps> = ({
                 className="bg-gradient-to-r from-vynal-purple-light to-vynal-purple-mid hover:from-vynal-purple-mid hover:to-vynal-purple-dark"
               >
                 {isLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  <Loader size="xs" variant="primary" className="mr-2" />
                 ) : (
                   <Send className="h-4 w-4 mr-2" />
                 )}

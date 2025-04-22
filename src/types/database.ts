@@ -358,6 +358,32 @@ export interface Database {
           comment?: string | null
         }
       }
+      review_replies: {
+        Row: {
+          id: string
+          created_at: string
+          updated_at: string
+          review_id: string
+          freelance_id: string
+          content: string
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          updated_at?: string
+          review_id: string
+          freelance_id: string
+          content: string
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          updated_at?: string
+          review_id?: string
+          freelance_id?: string
+          content?: string
+        }
+      }
       favorites: {
         Row: {
           id: string

@@ -1,5 +1,6 @@
 "use client";
 
+import { useOptimizedDashboard } from "@/hooks/useOptimizedDashboard";
 import { useAuth } from "@/hooks/useAuth";
 import { useUser } from "@/hooks/useUser";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,12 +8,14 @@ import {
   ArrowUpRight, FileText, Clock, Activity, Eye, 
   CreditCard, MessageCircle, Bell, Package, Mail,
   ShoppingCart, Star, AlertTriangle, Upload, MessageSquare, CheckCircle,
-  Zap, Users
+  Zap, Users, RefreshCw
 } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
 import Link from "next/link";
-import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase/client";
+import { Button } from "@/components/ui/button";
+import { useOptimizedAuth } from "@/hooks/useOptimizedAuth";
+import { useOptimizedUser } from "@/hooks/useOptimizedUser";
+import { RefreshIndicator } from "@/components/ui/refresh-indicator";
 
 // Type pour les statistiques d'un client
 interface ClientStats {
@@ -32,174 +35,22 @@ interface FreelanceStats {
 }
 
 export default function DashboardPage() {
-  const { user } = useAuth();
-  const { profile, isClient } = useUser();
+  const { user } = useOptimizedAuth();
+  const { profile, isClient } = useOptimizedUser();
+  const { 
+    clientStats, 
+    freelanceStats, 
+    recentActivities, 
+    loadingStats, 
+    loadingActivities,
+    refreshDashboard,
+    isRefreshing,
+    getLastRefreshText
+  } = useOptimizedDashboard();
   
   // Utiliser le nom complet du profil en priorité
   const userName = profile?.full_name || profile?.username || user?.user_metadata?.name || "Utilisateur";
   
-  // État pour les activités récentes
-  const [recentActivities, setRecentActivities] = useState<any[]>([]);
-  const [loadingActivities, setLoadingActivities] = useState(true);
-  
-  // Statistiques pour les clients
-  const [clientStats, setClientStats] = useState<ClientStats>({
-    activeOrders: 0,
-    unreadMessages: 0,
-    pendingDeliveries: 0,
-    pendingReviews: 0
-  });
-  
-  // Statistiques pour les freelances
-  const [freelanceStats, setFreelanceStats] = useState<FreelanceStats>({
-    activeOrders: 0,
-    unreadMessages: 0,
-    pendingDeliveries: 0,
-    totalEarnings: 0,
-    servicesCount: 0
-  });
-  
-  const [loadingStats, setLoadingStats] = useState(false);
-  
-  // Charger les statistiques selon le rôle
-  useEffect(() => {
-    if (!user?.id || !profile?.id) return;
-    
-    setLoadingStats(true);
-    
-    const fetchStats = async () => {
-      try {
-        // Messages non lus (commun aux deux rôles)
-        const { data: messagesData, error: messagesError } = await supabase
-          .from('messages')
-          .select('id')
-          .eq('receiver_id', profile.id)
-          .eq('read', false);
-          
-        if (messagesError) throw messagesError;
-        
-        const unreadMessages = messagesData?.length || 0;
-        
-        // Statistiques spécifiques au client
-        if (isClient) {
-          // Commandes actives
-          const { data: ordersData, error: ordersError } = await supabase
-            .from('orders')
-            .select('id, status')
-            .eq('client_id', profile.id)
-            .in('status', ['pending', 'in_progress', 'revision_requested']);
-            
-          if (ordersError) throw ordersError;
-          
-          // Livraisons en attente
-          const { data: deliveriesData, error: deliveriesError } = await supabase
-            .from('orders')
-            .select('id')
-            .eq('client_id', profile.id)
-            .eq('status', 'delivered')
-            .is('completed_at', null);
-            
-          if (deliveriesError) throw deliveriesError;
-          
-          // Commandes complétées sans avis
-          const { data: reviewsData, error: reviewsError } = await supabase
-            .from('orders')
-            .select('id, has_review')
-            .eq('client_id', profile.id)
-            .eq('status', 'completed')
-            .eq('has_review', false);
-            
-          if (reviewsError) throw reviewsError;
-          
-          // Mettre à jour les statistiques client
-          setClientStats({
-            activeOrders: ordersData?.length || 0,
-            unreadMessages,
-            pendingDeliveries: deliveriesData?.length || 0,
-            pendingReviews: reviewsData?.length || 0
-          });
-        } 
-        // Statistiques spécifiques au freelance
-        else {
-          // Commandes actives pour le freelance
-          const { data: ordersData, error: ordersError } = await supabase
-            .from('orders')
-            .select('id, status')
-            .eq('freelance_id', profile.id)
-            .in('status', ['pending', 'in_progress', 'revision_requested']);
-            
-          if (ordersError) throw ordersError;
-          
-          // Livraisons en attente de validation
-          const { data: deliveriesData, error: deliveriesError } = await supabase
-            .from('orders')
-            .select('id')
-            .eq('freelance_id', profile.id)
-            .eq('status', 'delivered')
-            .is('completed_at', null);
-            
-          if (deliveriesError) throw deliveriesError;
-          
-          // Services proposés
-          const { data: servicesData, error: servicesError } = await supabase
-            .from('services')
-            .select('id')
-            .eq('freelance_id', profile.id);
-            
-          if (servicesError) throw servicesError;
-          
-          // Gains totaux
-          const { data: earningsData, error: earningsError } = await supabase
-            .from('orders')
-            .select('amount')
-            .eq('freelance_id', profile.id)
-            .eq('status', 'completed');
-            
-          if (earningsError) throw earningsError;
-          
-          const totalEarnings = earningsData?.reduce((sum, order) => sum + (order.amount || 0), 0) || 0;
-          
-          // Mettre à jour les statistiques freelance
-          setFreelanceStats({
-            activeOrders: ordersData?.length || 0,
-            unreadMessages,
-            pendingDeliveries: deliveriesData?.length || 0,
-            totalEarnings,
-            servicesCount: servicesData?.length || 0
-          });
-        }
-        
-      } catch (error) {
-        console.error("Erreur lors du chargement des statistiques:", error);
-      } finally {
-        setLoadingStats(false);
-      }
-    };
-    
-    fetchStats();
-  }, [user?.id, profile?.id, isClient]);
-
-  // Charger les activités récentes
-  useEffect(() => {
-    const fetchRecentActivities = async () => {
-      if (!user?.id) return;
-      
-      setLoadingActivities(true);
-      
-      try {
-        // À implémenter: récupération des activités récentes depuis l'API
-        // Pour l'instant, initialiser avec un tableau vide
-        setRecentActivities([]);
-      } catch (error) {
-        console.error("Erreur lors du chargement des activités récentes:", error);
-      } finally {
-        setLoadingActivities(false);
-      }
-    };
-    
-    fetchRecentActivities();
-  }, [user?.id]);
-
   // Fonction pour rendre une icône d'activité
   const getActivityIcon = (type: string) => {
     switch (type) {
@@ -230,10 +81,26 @@ export default function DashboardPage() {
     <div className="w-full h-full overflow-x-hidden overflow-y-auto scrollbar-hide bg-gray-50/50 dark:bg-transparent">
       <div className="p-2 sm:p-4 space-y-6 sm:space-y-8 pb-12 max-w-[1600px] mx-auto">
         <div className="flex flex-col space-y-1 sm:space-y-2">
-          <div className="flex items-center space-x-1">
-            <span className="text-lg font-semibold text-vynal-purple-light dark:text-vynal-text-secondary">Hey</span>
-            <span className="animate-bounce inline-block">👋</span>
-            <span className="text-lg font-bold text-vynal-accent-secondary dark:text-vynal-text-primary">{userName}</span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-1">
+              <span className="text-lg font-semibold text-vynal-purple-light dark:text-vynal-text-secondary">Hey</span>
+              <span className="animate-bounce inline-block">👋</span>
+              <span className="text-lg font-bold text-vynal-accent-secondary dark:text-vynal-text-primary">{userName}</span>
+            </div>
+            <Button
+              onClick={refreshDashboard}
+              disabled={isRefreshing}
+              variant="ghost"
+              size="sm"
+              className="flex items-center gap-1.5 text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary hover:text-vynal-accent-secondary dark:hover:text-vynal-accent-primary transition-colors"
+            >
+              <RefreshIndicator 
+                isRefreshing={isRefreshing} 
+                size="sm" 
+                text 
+                variant="secondary"
+              />
+            </Button>
           </div>
           <p className="text-sm text-vynal-purple-secondary dark:text-vynal-text-secondary/80 mt-1">
             Voici {isClient ? 'ton' : 'votre'} activité sur la plateforme
@@ -469,6 +336,10 @@ export default function DashboardPage() {
               </div>
             </CardContent>
           </Card>
+        </div>
+
+        <div className="text-xs text-slate-400 dark:text-vynal-text-secondary/60 text-right mt-4 pr-2">
+          {getLastRefreshText()}
         </div>
       </div>
     </div>

@@ -1,14 +1,16 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Search, Plus, Loader2, Send } from 'lucide-react';
+import { Search, Plus, Send, ArrowRight, Loader2, UserCheck, UserPlus, X } from 'lucide-react';
 import { useMessagingStore } from '@/lib/stores/useMessagingStore';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase/client';
-import { Profile } from '@/hooks/useUser';
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Loader } from '@/components/ui/loader';
+import { useUser, UserProfile } from '@/hooks/useUser';
 
 interface NewConversationDialogProps {
   onConversationCreated?: (conversationId: string) => void;
@@ -24,50 +26,52 @@ const NewConversationDialog: React.FC<NewConversationDialogProps> = ({
   isFreelance = false
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [searchResults, setSearchResults] = useState<Profile[]>([]);
-  const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<UserProfile[]>([]);
+  const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [message, setMessage] = useState('');
   const [isSearching, setIsSearching] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
   
   const { user } = useAuth();
+  const { profile } = useUser();
   const { createConversation, isLoading } = useMessagingStore();
   
-  // Rechercher des utilisateurs
-  const handleSearch = async () => {
-    if (!searchTerm.trim()) {
-      setSearchResults([]);
-      return;
-    }
-    
-    setIsSearching(true);
+  const handleSearch = useCallback(async () => {
+    if (!searchQuery.trim() || !profile) return;
     
     try {
-      // Rechercher uniquement les clients si l'utilisateur est un freelance, et vice versa
-      const roleToSearch = isFreelance ? 'client' : 'freelance';
+      setIsSearching(true);
+      setError(null);
+      
+      // Déterminer le rôle compatible
+      const compatibleRole = profile.role === 'freelance' ? 'client' : 'freelance';
       
       const { data, error } = await supabase
         .from('profiles')
-        .select('*')  // Sélectionner tous les champs pour correspondre au type Profile
-        .eq('role', roleToSearch)
-        .or(`username.ilike.%${searchTerm}%,full_name.ilike.%${searchTerm}%`)
-        .limit(10);
+        .select()
+        .eq('role', compatibleRole)
+        .or(`username.ilike.%${searchQuery}%,full_name.ilike.%${searchQuery}%`)
+        .limit(5);
       
       if (error) throw error;
       
-      // Conversion explicite en tableau de Profile pour s'assurer que tous les champs sont présents
-      setSearchResults(data as Profile[] || []);
-    } catch (error) {
-      console.error('Erreur lors de la recherche d\'utilisateurs:', error);
+      setSearchResults(data as UserProfile[] || []);
+    } catch (err: any) {
+      console.error('Erreur de recherche:', err);
+      setError('Erreur lors de la recherche. Veuillez réessayer.');
+      setSearchResults([]);
     } finally {
       setIsSearching(false);
     }
-  };
+  }, [searchQuery, profile]);
   
   // Sélectionner un utilisateur
-  const handleSelectUser = (profile: Profile) => {
+  const handleSelectUser = (profile: UserProfile) => {
     setSelectedUser(profile);
-    setSearchTerm('');
+    setSearchQuery('');
     setSearchResults([]);
   };
   
@@ -126,8 +130,8 @@ const NewConversationDialog: React.FC<NewConversationDialogProps> = ({
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <input
                   type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                   placeholder={`Rechercher un ${isFreelance ? 'client' : 'freelance'}...`}
                   className="w-full pl-10 pr-4 py-2 text-sm border border-vynal-purple-mid/30 rounded-md focus:outline-none focus:ring-2 focus:ring-vynal-purple-light focus:border-transparent bg-vynal-purple-darkest/50"
@@ -139,7 +143,7 @@ const NewConversationDialog: React.FC<NewConversationDialogProps> = ({
                   className="absolute right-1 top-1/2 transform -translate-y-1/2 text-vynal-purple-light hover:text-white hover:bg-vynal-purple-dark/30"
                   disabled={isSearching}
                 >
-                  {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : "Rechercher"}
+                  {isSearching ? <Loader size="xs" variant="primary" /> : "Rechercher"}
                 </Button>
               </div>
               
@@ -173,7 +177,7 @@ const NewConversationDialog: React.FC<NewConversationDialogProps> = ({
                   ))}
                 </div>
               ) : (
-                searchTerm && !isSearching && (
+                searchQuery && !isSearching && (
                   <p className="text-sm text-gray-500 p-2">Aucun résultat trouvé</p>
                 )
               )}
@@ -237,11 +241,11 @@ const NewConversationDialog: React.FC<NewConversationDialogProps> = ({
               className="bg-gradient-to-r from-vynal-purple-light to-vynal-purple-mid hover:from-vynal-purple-mid hover:to-vynal-purple-dark"
             >
               {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                <Loader size="xs" variant="primary" className="mr-2" />
               ) : (
                 <Send className="h-4 w-4 mr-2" />
               )}
-              Envoyer
+              {isLoading ? 'Envoi en cours...' : 'Envoyer'}
             </Button>
           )}
         </div>

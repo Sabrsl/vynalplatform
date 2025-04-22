@@ -7,12 +7,14 @@ import {
   X, ChevronRight, LogOut, Search, Wallet, RefreshCw, PackageOpen
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { useTheme } from "next-themes";
+import { useTheme } from "@/hooks/useTheme";
 import { AnimatePresence, motion } from "framer-motion";
 import NotificationBadge from "@/components/ui/notification-badge";
-import useTotalUnreadMessages from "@/hooks/useTotalUnreadMessages";
-import { User as UserType } from "@supabase/supabase-js";
-import { useUser } from "@/hooks/useUser";
+import { useMessageCounts } from "@/hooks/useOptimizedMessageCounts";
+import { signOut } from "@/lib/auth";
+import { UserType } from "@/types";
+import { RefreshIndicator } from "./ui/refresh-indicator";
+import { useOptimizedAuth } from "@/hooks/useOptimizedAuth";
 
 interface NavItemProps {
   href: string;
@@ -78,8 +80,11 @@ const NavItem = ({ href, icon: Icon, label, isActive, onClick, badgeCount }: Nav
 export default function MobileMenu({ isOpen, onClose, user, activePath, setActivePath }: MobileMenuProps) {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
-  const { totalUnreadCount } = useTotalUnreadMessages();
-  const { isFreelance } = useUser();
+  const { totalUnread: totalUnreadCount, isRefreshing: messagesRefreshing, refreshCounts } = useMessageCounts();
+  const { user: authUser } = useOptimizedAuth();
+  
+  // Déterminer si l'utilisateur est freelance
+  const isFreelance = user?.user_metadata?.role === 'freelance' || false;
   
   // Import de la fonction de déconnexion
   const { signOut } = useAuth();

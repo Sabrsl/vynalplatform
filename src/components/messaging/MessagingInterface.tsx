@@ -5,7 +5,7 @@ import { useMessagingStore } from '@/lib/stores/useMessagingStore';
 import ConversationList from './ConversationList';
 import ChatWindow from './ChatWindow';
 import { useAuth } from '@/hooks/useAuth';
-import { Loader2 } from 'lucide-react';
+import { Loader } from '@/components/ui/loader';
 
 interface MessagingInterfaceProps {
   initialConversationId?: string;
@@ -87,7 +87,7 @@ const MessagingInterface: React.FC<MessagingInterfaceProps> = ({
   if (isLoading && !mounted) {
     return (
       <div className="flex items-center justify-center w-full h-96">
-        <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
+        <Loader size="lg" variant="primary" showText={true} text="Chargement des conversations..." />
       </div>
     );
   }

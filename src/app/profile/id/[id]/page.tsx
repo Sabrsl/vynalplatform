@@ -5,13 +5,15 @@ import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, MessageSquare, Star, UserCircle, ThumbsUp, ThumbsDown } from "lucide-react";
+import { MessageSquare, Star, UserCircle, ThumbsUp, ThumbsDown } from "lucide-react";
 import { useFreelancerRating } from "@/hooks/useFreelancerRating";
 import Link from "next/link";
 import ServiceCard from "@/components/services/ServiceCard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatDate } from "@/lib/utils";
+import ReviewReplyComponent from '@/components/reviews/ReviewReply';
+import { Loader } from "@/components/ui/loader";
 
 // Type pour le profil du vendeur et ses services
 type ProfileData = {
@@ -147,7 +149,7 @@ export default function VendorProfileByIdPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="animate-spin h-8 w-8 text-indigo-600" />
+        <Loader size="lg" variant="primary" showText={true} />
       </div>
     );
   }
@@ -255,8 +257,8 @@ export default function VendorProfileByIdPage() {
                 <div className="w-full mb-6">
                   
                   {loadingReviews ? (
-                    <div className="flex justify-center py-3">
-                      <Loader2 className="animate-spin h-5 w-5 text-indigo-600" />
+                    <div className="flex justify-center mt-2">
+                      <Loader size="sm" variant="primary" />
                     </div>
                   ) : (
                     <div className="space-y-4">
@@ -309,6 +311,9 @@ export default function VendorProfileByIdPage() {
                                         </div>
                                       </div>
                                       <p className="text-xs text-gray-700">{review.comment || "Aucun commentaire"}</p>
+                                      
+                                      {/* Ajouter le composant de réponse à l'avis */}
+                                      <ReviewReplyComponent reviewId={review.id} freelanceId={vendor.id} />
                                     </div>
                                   </div>
                                 </Card>
@@ -361,6 +366,9 @@ export default function VendorProfileByIdPage() {
                                         </div>
                                       </div>
                                       <p className="text-xs text-gray-700">{review.comment || "Aucun commentaire"}</p>
+                                      
+                                      {/* Ajouter le composant de réponse à l'avis */}
+                                      <ReviewReplyComponent reviewId={review.id} freelanceId={vendor.id} />
                                     </div>
                                   </div>
                                 </Card>

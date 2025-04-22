@@ -2,14 +2,14 @@ import { create } from 'zustand';
 import { supabase } from '@/lib/supabase/client';
 import type { Database } from '@/types/database';
 import { StateCreator } from 'zustand';
-import { Profile } from '@/hooks/useUser';
+import { UserProfile } from '@/hooks/useUser';
 import { validateMessage } from '@/lib/message-validation';
 
 export type Message = Database['public']['Tables']['messages']['Row'] & {
-  sender?: Profile;
+  sender?: UserProfile;
 };
 
-export type ConversationParticipant = Profile & {
+export type ConversationParticipant = UserProfile & {
   unread_count: number;
   online?: boolean;
   last_seen?: string | null;
@@ -183,7 +183,7 @@ export const useMessagingStore = create<MessagingState>(
           const participants = allParticipantsData
             .filter(p => p.conversation_id === convItem.conversation_id)
             .map(p => {
-              const profile = Array.isArray(p.profiles) ? p.profiles[0] as Profile : p.profiles as Profile;
+              const profile = Array.isArray(p.profiles) ? p.profiles[0] as UserProfile : p.profiles as UserProfile;
               
               // Vérifier si l'utilisateur est en ligne (actif dans les 2 dernières minutes)
               const isOnline = (lastSeen: any): boolean => {

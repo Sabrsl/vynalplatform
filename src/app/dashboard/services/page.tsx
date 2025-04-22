@@ -17,7 +17,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { formatPrice } from "@/lib/utils";
-import { Plus, PenSquare, Trash2, Clock, Loader2, AlertCircle, BarChart3, CheckCircle2, DollarSign, Layers, Eye, ShoppingBag, MessageSquare } from "lucide-react";
+import { Plus, PenSquare, Trash2, Clock, AlertCircle, BarChart3, CheckCircle2, DollarSign, Layers, Eye, ShoppingBag, MessageSquare } from "lucide-react";
+import { Loader } from "@/components/ui/loader";
 import { supabase } from "@/lib/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import ServiceCard from "@/components/services/ServiceCard";
@@ -241,7 +242,7 @@ export default function ServicesPage() {
                   <p className="text-sm font-medium text-emerald-600 mb-1">Services actifs</p>
                   <p className="text-2xl font-bold">
                     {loadingStats ? (
-                      <Loader2 className="h-6 w-6 animate-spin text-emerald-500" />
+                      <Loader size="sm" variant="primary" className="text-emerald-500" />
                     ) : (
                       stats.active
                     )}
@@ -259,7 +260,7 @@ export default function ServicesPage() {
                   <p className="text-sm font-medium text-blue-600 mb-1">Revenus cumulés</p>
                   <p className="text-2xl font-bold">
                     {loadingStats ? (
-                      <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
+                      <Loader size="sm" variant="primary" className="text-blue-500" />
                     ) : (
                       stats.totalRevenue > 0 
                         ? `${formatPrice(stats.totalRevenue)} FCFA` 
@@ -279,7 +280,7 @@ export default function ServicesPage() {
                   <p className="text-sm font-medium text-purple-600 mb-1">Commandes totales</p>
                   <p className="text-2xl font-bold">
                     {loadingStats ? (
-                      <Loader2 className="h-6 w-6 animate-spin text-purple-500" />
+                      <Loader size="sm" variant="primary" className="text-purple-500" />
                     ) : (
                       stats.totalOrders > 0 ? stats.totalOrders : "-"
                     )}
@@ -297,7 +298,7 @@ export default function ServicesPage() {
                   <p className="text-sm font-medium text-cyan-600 mb-1">Commandes en cours</p>
                   <p className="text-2xl font-bold">
                     {loadingStats ? (
-                      <Loader2 className="h-6 w-6 animate-spin text-cyan-500" />
+                      <Loader size="sm" variant="primary" className="text-cyan-500" />
                     ) : (
                       stats.activeOrders > 0 ? stats.activeOrders : "-"
                     )}
@@ -320,7 +321,7 @@ export default function ServicesPage() {
                   <p className="text-sm font-medium text-amber-600 mb-1">Note moyenne (sur 5)</p>
                   <p className="text-2xl font-bold">
                     {loadingStats ? (
-                      <Loader2 className="h-6 w-6 animate-spin text-amber-500" />
+                      <Loader size="sm" variant="primary" className="text-amber-500" />
                     ) : (
                       stats.averageRating > 0 
                         ? stats.averageRating.toFixed(1) 
@@ -349,7 +350,7 @@ export default function ServicesPage() {
               onClick={() => profile && loadServices(profile.id)}
               className="mt-2 text-xs"
             >
-              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+              <Loader size="sm" variant="primary" className="text-emerald-500" />
               Réessayer
             </Button>
           </div>
@@ -368,7 +369,7 @@ export default function ServicesPage() {
               onClick={refreshStats}
               className="mt-2 text-xs"
             >
-              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+              <Loader size="sm" variant="primary" className="text-emerald-500" />
               Réessayer
             </Button>
           </div>
@@ -422,9 +423,8 @@ export default function ServicesPage() {
       )}
 
       {loading ? (
-        <div className="flex flex-col items-center justify-center min-h-[60vh]">
-          <Loader2 className="w-10 h-10 animate-spin text-indigo-600 mb-4" />
-          <p className="text-slate-600">Chargement de vos services...</p>
+        <div className="flex flex-col items-center justify-center py-8 px-4 rounded-md border border-dashed border-gray-200 bg-gray-50 h-[300px]">
+          <Loader size="lg" variant="primary" showText={true} text="Chargement de vos services..." />
         </div>
       ) : services.length === 0 ? (
         <Card className="mt-6 sm:mt-8 border border-slate-200 shadow-sm overflow-hidden">

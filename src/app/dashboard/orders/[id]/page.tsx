@@ -19,6 +19,8 @@ import { formatPrice } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { CreateReviewForm } from "@/components/reviews/CreateReviewForm";
+import ServiceReviews from "@/components/reviews/ServiceReviews";
 
 import {
   Dialog, 
@@ -48,7 +50,6 @@ import {
   FileIcon,
   Inbox,
   Loader,
-  Loader2,
   MessageSquare,
   Package,
   PackageOpen,
@@ -59,14 +60,21 @@ import {
   Trash,
   Upload,
   X,
-  AlertCircle
+  AlertCircle,
+  Star,
+  ClipboardList,
+  CheckCircle2,
+  XCircle,
+  BarChart4,
+  ArrowRightCircle,
+  DollarSign
 } from "lucide-react";
 
 // Types pour le statut des commandes et les données
 type OrderStatus = "pending" | "in_progress" | "completed" | "delivered" | "revision_requested" | "cancelled" | "in_dispute";
 
 // Type d'onglet pour la navigation
-type TabValue = "details" | "messages" | "files";
+type TabValue = "details" | "messages" | "files" | "reviews";
 
 // Type pour les commandes
 type Order = {
@@ -340,6 +348,77 @@ const MOCK_ORDERS: Record<string, Order> = {
   }
 };
 
+// Données mockées pour les avis clients
+const MOCK_REVIEWS: Record<string, any[]> = {
+  "service-1": [
+    {
+      id: "review-1",
+      created_at: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
+      rating: 5,
+      comment: "Excellent travail ! Le logo est exactement ce que je recherchais. Très professionnel et réactif.",
+      client_id: "client-2",
+      service_id: "service-1",
+      freelance_id: "freelance-1",
+      order_id: "order-past-1",
+      client: {
+        username: "sarahb",
+        full_name: "Sarah Blanc",
+        avatar_url: "/avatars/sarah.jpg"
+      }
+    },
+    {
+      id: "review-2",
+      created_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+      rating: 4,
+      comment: "Très bon travail. La première proposition n'était pas tout à fait ce que je voulais mais les ajustements ont été parfaits.",
+      client_id: "client-3",
+      service_id: "service-1",
+      freelance_id: "freelance-1",
+      order_id: "order-past-2",
+      client: {
+        username: "thomasv",
+        full_name: "Thomas Vidal",
+        avatar_url: "/avatars/thomas.jpg"
+      }
+    }
+  ],
+  "service-2": [
+    {
+      id: "review-3",
+      created_at: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+      rating: 5,
+      comment: "Article très bien écrit et optimisé pour le SEO. Je recommande vivement !",
+      client_id: "client-4",
+      service_id: "service-2",
+      freelance_id: "freelance-2",
+      order_id: "order-past-3",
+      client: {
+        username: "carole_m",
+        full_name: "Carole Mercier",
+        avatar_url: "/avatars/carole.jpg"
+      }
+    }
+  ],
+  "service-3": [
+    {
+      id: "review-4",
+      created_at: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString(),
+      rating: 3,
+      comment: "Le site web fonctionne correctement mais le design pourrait être amélioré. Délai de livraison respecté.",
+      client_id: "client-5",
+      service_id: "service-3",
+      freelance_id: "freelance-3",
+      order_id: "order-past-4",
+      client: {
+        username: "pierre_d",
+        full_name: "Pierre Durand",
+        avatar_url: "/avatars/pierre.jpg"
+      }
+    }
+  ],
+  "service-4": []
+};
+
 // Utilitaires pour les couleurs et labels basés sur le statut
 const statusColors = {
   pending: "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800/30",
@@ -397,6 +476,7 @@ export default function OrderDetailPage() {
   const [isRequestRevisionOpen, setIsRequestRevisionOpen] = useState(false);
   const [isCancelOrderOpen, setIsCancelOrderOpen] = useState(false);
   const [revisionReason, setRevisionReason] = useState("");
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   
   // Simuler un chargement initial depuis l'API
   useEffect(() => {
@@ -478,6 +558,11 @@ export default function OrderDetailPage() {
         title: "Livraison acceptée",
         description: "Vous avez accepté la livraison avec succès.",
       });
+
+      // Ouvrir le modal de review si l'utilisateur est le client
+      if (!isFreelance) {
+        setIsReviewModalOpen(true);
+      }
     }
   };
   
@@ -863,7 +948,7 @@ export default function OrderDetailPage() {
             <Card className="border border-vynal-purple-secondary/10 shadow-sm bg-white dark:bg-vynal-purple-dark/20">
               <CardHeader className="pb-2 sm:pb-3 border-b border-vynal-purple-secondary/10 dark:border-vynal-purple-secondary/20 p-3 sm:p-4">
                 <Tabs defaultValue="details" value={activeTab} onValueChange={(value) => setActiveTab(value as TabValue)} className="w-full">
-                  <TabsList className="bg-vynal-purple-secondary/10 dark:bg-vynal-purple-secondary/20 grid w-full grid-cols-3 h-9 sm:h-10">
+                  <TabsList className="bg-vynal-purple-secondary/10 dark:bg-vynal-purple-secondary/20 grid w-full grid-cols-4 h-9 sm:h-10">
                     <TabsTrigger value="details" className="text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-vynal-accent-primary data-[state=active]:to-vynal-accent-secondary data-[state=active]:text-white">
                       <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                       Détails
@@ -875,6 +960,10 @@ export default function OrderDetailPage() {
                     <TabsTrigger value="files" className="text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-vynal-accent-primary data-[state=active]:to-vynal-accent-secondary data-[state=active]:text-white">
                       <FileType className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                       Fichiers
+                    </TabsTrigger>
+                    <TabsTrigger value="reviews" className="text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-vynal-accent-primary data-[state=active]:to-vynal-accent-secondary data-[state=active]:text-white">
+                      <Star className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                      Avis
                     </TabsTrigger>
                   </TabsList>
               
@@ -1134,6 +1223,18 @@ export default function OrderDetailPage() {
                         )}
                       </div>
                     </TabsContent>
+                    
+                    {/* Section Avis */}
+                    <TabsContent value="reviews" className="m-0">
+                      <div className="p-3 sm:p-4">
+                        {order && (
+                          <ServiceReviews 
+                            serviceId={order.service.id} 
+                            initialReviews={MOCK_REVIEWS[order.service.id] || []} 
+                          />
+                        )}
+                      </div>
+                    </TabsContent>
                   </div>
                 </Tabs>
               </CardHeader>
@@ -1351,6 +1452,34 @@ export default function OrderDetailPage() {
               Annuler la commande
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal pour laisser un avis */}
+      <Dialog open={isReviewModalOpen} onOpenChange={setIsReviewModalOpen}>
+        <DialogContent className="sm:max-w-[600px] max-w-[95%] bg-vynal-purple-dark border-vynal-purple-secondary/30">
+          <DialogHeader>
+            <DialogTitle className="text-lg sm:text-xl font-bold text-vynal-text-primary flex items-center">
+              <Star className="h-5 w-5 mr-2 text-vynal-accent-primary" />
+              Évaluez votre commande
+            </DialogTitle>
+            <DialogDescription className="text-vynal-text-secondary">
+              Partagez votre expérience avec ce service et ce freelance pour aider la communauté.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-4">
+            {order && (
+              <CreateReviewForm
+                serviceId={order.service.id}
+                freelanceId={order.freelance.id}
+                clientId={order.client.id}
+                orderId={order.id}
+                onSuccess={() => setIsReviewModalOpen(false)}
+                onCancel={() => setIsReviewModalOpen(false)}
+              />
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

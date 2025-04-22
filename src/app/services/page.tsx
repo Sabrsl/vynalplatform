@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useCategories } from '@/hooks/useCategories';
@@ -38,7 +38,29 @@ const CATEGORY_ORDER = [
   'sante-bien-etre'
 ];
 
-export default function ServicesPage() {
+// Conteneur de chargement pour le Suspense
+function ServicesPageLoading() {
+  return (
+    <div className="min-h-screen bg-vynal-purple-dark">
+      <section className="bg-gradient-to-b from-vynal-purple-dark to-vynal-purple-darkest text-vynal-text-primary py-8 lg:py-14 relative overflow-hidden">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="text-center max-w-3xl mx-auto pt-4 md:pt-6">
+            <div className="w-32 h-6 bg-vynal-purple-secondary/30 rounded-full mx-auto mb-4"></div>
+            <div className="w-64 h-10 bg-vynal-purple-secondary/30 rounded-lg mx-auto mb-4"></div>
+            <div className="w-48 h-4 bg-vynal-purple-secondary/30 rounded mx-auto"></div>
+          </div>
+        </div>
+      </section>
+      
+      <div className="container mx-auto px-4 py-12">
+        <ServiceSkeletonLoader count={12} />
+      </div>
+    </div>
+  );
+}
+
+// Composant principal avec tous les effets
+function ServicesPageContent() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -183,6 +205,27 @@ export default function ServicesPage() {
       goToPage(page);
     }
   }, [categorySlug, subcategorySlug, page]);
+  
+  // Écouter les événements d'invalidation du cache (navigation)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    const handleCacheInvalidation = () => {
+      // Vérifier si les paramètres d'URL ont changé avant de rafraîchir pour éviter les doubles appels
+      const shouldRefresh = !isRefreshing;
+      
+      if (shouldRefresh) {
+        refreshData();
+      }
+    };
+    
+    // Écouter l'événement personnalisé d'invalidation du cache
+    window.addEventListener('vynal:cache-invalidated', handleCacheInvalidation);
+    
+    return () => {
+      window.removeEventListener('vynal:cache-invalidated', handleCacheInvalidation);
+    };
+  }, [isRefreshing]);
 
   // Tri des catégories selon l'ordre exact du seed
   const sortedCategories = [...categories].sort((a, b) => {
@@ -474,5 +517,14 @@ export default function ServicesPage() {
         </div>
       </section>
     </div>
+  );
+}
+
+// Page principale avec Suspense boundary
+export default function ServicesPage() {
+  return (
+    <Suspense fallback={<ServicesPageLoading />}>
+      <ServicesPageContent />
+    </Suspense>
   );
 } 

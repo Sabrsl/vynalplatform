@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { Database } from '@/types/database';
 import { ServiceWithFreelanceAndCategories } from './useServices';
@@ -24,10 +24,11 @@ interface UsePaginatedServicesResult {
   loadMore: () => void;
   hasMore: boolean;
   refresh: () => void;
+  isRefreshing: boolean;
 }
 
 /**
- * Hook pour gérer la pagination des services
+ * Hook pour gérer la pagination des services avec meilleure gestion du cache
  * 
  * @param params - Paramètres de filtrage et pagination
  * @returns Résultat contenant les services, l'état de chargement, et les fonctions de pagination
@@ -47,15 +48,18 @@ export function usePaginatedServices({
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [hasMore, setHasMore] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   // Calcul du nombre total de pages
   const totalPages = Math.ceil(totalCount / pageSize);
   
-  // Fonction pour charger les services
-  const fetchServices = async (page: number, append: boolean = false) => {
+  // Fonction pour charger les services avec gestion de sessions
+  const fetchServices = useCallback(async (page: number, append: boolean = false) => {
     // Si on ajoute les services à la liste existante, ne pas montrer le loader complet
     if (!append) {
       setLoading(true);
+    } else {
+      setIsRefreshing(true);
     }
     
     setError(null);
@@ -65,6 +69,9 @@ export function usePaginatedServices({
       const from = (page - 1) * pageSize;
       const to = from + pageSize - 1;
       
+      // Générer un timestamp unique pour éviter les problèmes de cache du navigateur
+      const cacheBuster = new Date().getTime();
+      
       // Construire la requête
       let query = supabase
         .from('services')
@@ -73,7 +80,8 @@ export function usePaginatedServices({
           profiles (id, username, full_name, avatar_url, bio),
           categories (id, name, slug),
           subcategories (id, name, slug)
-        `, { count: 'exact' });
+        `, { count: 'exact' })
+        .order('created_at', { ascending: false });
       
       // Appliquer les filtres
       if (categoryId) {
@@ -99,7 +107,6 @@ export function usePaginatedServices({
       
       // Pagination avec range
       query = query
-        .order('created_at', { ascending: false })
         .range(from, to);
       
       const { data, error: fetchError, count } = await query;
@@ -108,84 +115,68 @@ export function usePaginatedServices({
         throw fetchError;
       }
       
+      // Traiter les services reçus
+      const formattedServices = data.map((service: any) => ({
+        ...service,
+        freelance: service.profiles,
+        category: service.categories,
+        subcategory: service.subcategories
+      }));
+      
+      // Mise à jour du state en fonction du mode d'ajout
+      if (append && loadMoreMode) {
+        setServices(prevServices => {
+          // Créer un Set des IDs existants pour éviter les doublons
+          const existingIds = new Set(prevServices.map(service => service.id));
+          
+          // Filtrer les nouveaux services pour éviter les doublons
+          const newServices = formattedServices.filter(service => !existingIds.has(service.id));
+          
+          return [...prevServices, ...newServices];
+        });
+      } else {
+        setServices(formattedServices);
+      }
+      
       // Mettre à jour le nombre total d'éléments
       if (count !== null) {
         setTotalCount(count);
-        setHasMore(from + data.length < count);
-      }
-      
-      // Transformer les données
-      const transformedServices = data.map((service: any) => {
-        // Vérifier que les champs essentiels sont présents
-        const hasValidSlug = service.slug && typeof service.slug === 'string' && service.slug.trim() !== '';
-        
-        if (!service.id || !hasValidSlug) {
-          console.warn(`Service potentiellement incomplet: ID=${service.id}, Slug=${service.slug || 'MANQUANT'}`);
-          
-          // Si le slug est manquant ou invalide, créer un slug à partir de l'ID
-          if (!hasValidSlug && service.id) {
-            console.log(`Création d'un slug de substitution pour le service ${service.id}`);
-            service.slug = `service-${service.id}`;
-          }
-        }
-        
-        return {
-          ...service, // Préserver tous les champs du service original
-          profiles: service.profiles || {
-            id: service.freelance_id || '',
-            username: 'utilisateur',
-            full_name: 'Utilisateur',
-            avatar_url: null,
-            bio: null
-          },
-          categories: service.categories || {
-            id: service.category_id || '',
-            name: 'Catégorie',
-            slug: 'categorie'
-          },
-          subcategories: service.subcategories || null
-        };
-      });
-      
-      // Mettre à jour les services (ajouter ou remplacer)
-      if (append) {
-        setServices(prev => [...prev, ...transformedServices]);
-      } else {
-        setServices(transformedServices);
+        setHasMore(from + (data?.length || 0) < count);
       }
     } catch (error: any) {
+      console.error('Erreur lors du chargement des services:', error);
       setError(error.message || 'Une erreur est survenue lors du chargement des services');
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
-  };
+  }, [categoryId, subcategoryId, freelanceId, active, pageSize, loadMoreMode, searchTerm]);
   
   // Changer de page
-  const goToPage = (page: number) => {
-    if (page < 1 || page > totalPages) return;
+  const goToPage = useCallback((page: number) => {
     setCurrentPage(page);
     fetchServices(page, false);
-  };
+  }, [fetchServices]);
   
   // Charger plus de services (mode "Load More")
-  const loadMore = () => {
+  const loadMore = useCallback(() => {
     if (!hasMore) return;
     const nextPage = currentPage + 1;
     setCurrentPage(nextPage);
     fetchServices(nextPage, true);
-  };
+  }, [currentPage, fetchServices, hasMore]);
   
   // Rafraîchir les données
-  const refresh = () => {
+  const refresh = useCallback(() => {
     fetchServices(currentPage, false);
-  };
+  }, [currentPage, fetchServices]);
   
   // Effet pour charger les services au changement des filtres
   useEffect(() => {
     // Réinitialiser la page en cas de changement de filtres
     setCurrentPage(1);
     
-    // En mode "Load More", vider la liste de services
+    // En mode "Load More", vider la liste de services si les filtres changent
     if (!loadMoreMode) {
       setServices([]);
     }
@@ -208,7 +199,31 @@ export function usePaginatedServices({
     return () => {
       servicesSubscription.unsubscribe();
     };
-  }, [categoryId, subcategoryId, freelanceId, active, pageSize, searchTerm]);
+  }, [categoryId, subcategoryId, freelanceId, active, pageSize, searchTerm, fetchServices, loadMoreMode, refresh]);
+  
+  // Écouter les événements d'invalidation du cache (changements de route)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    const handleCacheInvalidation = (event: Event) => {
+      // Forcer un rafraîchissement des données après navigation
+      if (!isRefreshing && !loading) {
+        console.log('Rafraîchissement des services après navigation');
+        
+        // Petite attente pour éviter les conflits avec d'autres processus de rendu
+        setTimeout(() => {
+          refresh();
+        }, 300);
+      }
+    };
+    
+    // Écouter l'événement personnalisé d'invalidation du cache
+    window.addEventListener('vynal:cache-invalidated', handleCacheInvalidation);
+    
+    return () => {
+      window.removeEventListener('vynal:cache-invalidated', handleCacheInvalidation);
+    };
+  }, [isRefreshing, loading, refresh]);
   
   return {
     services,
@@ -220,6 +235,7 @@ export function usePaginatedServices({
     goToPage,
     loadMore,
     hasMore,
-    refresh
+    refresh,
+    isRefreshing
   };
 } 

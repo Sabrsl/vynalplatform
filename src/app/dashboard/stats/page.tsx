@@ -11,9 +11,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   BarChart2, DollarSign, ShoppingBag, Clock, 
   AlertCircle, MessageSquare, TrendingUp, CalendarDays,
-  Loader2, CheckCircle2, Users, Star
+  CheckCircle2, Users, Star
 } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
+import { Loader } from "@/components/ui/loader";
 
 // Données fictives pour les graphiques
 const MOCK_MONTHLY_REVENUE = [
@@ -61,8 +62,8 @@ export default function StatsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader size="lg" variant="primary" showText={true} />
       </div>
     );
   }
@@ -83,7 +84,7 @@ export default function StatsPage() {
           onClick={refreshStats}
           className="flex items-center gap-1"
         >
-          <Loader2 className="h-3.5 w-3.5 mr-1" /> 
+          <Loader size="sm" variant="primary" className="mr-1" /> 
           Actualiser
         </Button>
       </div>
@@ -100,7 +101,7 @@ export default function StatsPage() {
               onClick={refreshStats}
               className="mt-2 text-xs"
             >
-              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+              <Loader size="sm" variant="primary" className="mr-1 animate-spin" />
               Réessayer
             </Button>
           </div>
@@ -227,7 +228,10 @@ export default function StatsPage() {
             </CardHeader>
             <CardContent>
               <div className="h-[300px] flex items-center justify-center">
-                <p className="text-slate-500">Les données détaillées seront disponibles quand vous aurez plus de commandes</p>
+                <span className="text-xs font-medium text-gray-500 flex items-center">
+                  <Loader size="xs" variant="primary" className="mr-1" />
+                  Pas encore de données
+                </span>
               </div>
             </CardContent>
           </Card>
@@ -260,7 +264,10 @@ export default function StatsPage() {
             </CardHeader>
             <CardContent>
               <div className="h-[300px] flex items-center justify-center">
-                <p className="text-slate-500">Les données détaillées seront disponibles quand vous aurez plus de revenus</p>
+                <span className="text-xs font-medium text-gray-500 flex items-center">
+                  <Loader size="xs" variant="primary" className="mr-1" />
+                  Pas encore de données
+                </span>
               </div>
             </CardContent>
           </Card>

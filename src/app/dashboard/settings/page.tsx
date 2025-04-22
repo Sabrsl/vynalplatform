@@ -27,7 +27,29 @@ import {
   Trash2, 
   User, 
   UserCheck,
-  UserCog
+  UserCog,
+  Mail,
+  Lock,
+  CreditCard,
+  Bell,
+  Eye,
+  EyeOff,
+  Building,
+  MapPin,
+  Phone,
+  Globe,
+  PenSquare,
+  Copy,
+  Link,
+  Plus,
+  Trash,
+  ChevronRight,
+  Check,
+  X,
+  ChevronDown,
+  AlertCircle,
+  Save,
+  Upload,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { useUser } from "@/hooks/useUser";
@@ -48,6 +70,7 @@ import {
 } from "./pdfGenerator";
 import { QRCode } from "@/components/ui/qrcode";
 import { signDocument } from "@/utils/document-signing";
+import { Loader } from "@/components/ui/loader";
 
 // Définir une interface pour le profil utilisateur
 interface UserProfile {
@@ -64,7 +87,7 @@ export default function SettingsPage() {
   const router = useRouter();
   const { toast } = useToast();
   const { user: authUser, signOut } = useAuth();
-  const { profile, isLoading: isUserLoading } = useUser();
+  const { profile, loading: isUserLoading } = useUser();
   
   // États pour les paramètres de sécurité
   const [isLoading, setIsLoading] = useState(true);
@@ -1066,7 +1089,7 @@ export default function SettingsPage() {
   if (isLoading || isUserLoading) {
     return (
       <div className="flex h-full w-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-vynal-accent-primary" />
+        <Loader size="lg" variant="primary" showText={true} />
       </div>
     );
   }
@@ -1227,7 +1250,7 @@ export default function SettingsPage() {
                       >
                         {isDeleting ? (
                           <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            <Loader size="xs" variant="primary" className="mr-2" />
                             Suppression...
                           </>
                         ) : (
@@ -1290,7 +1313,7 @@ export default function SettingsPage() {
                     >
                       {isDisabling2FA ? (
                         <>
-                          <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                          <Loader size="xs" variant="primary" className="mr-2" />
                           Désactivation...
                         </>
                       ) : (
@@ -1337,7 +1360,7 @@ export default function SettingsPage() {
                         >
                           {isSendingCode ? (
                             <>
-                              <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                              <Loader size="xs" variant="primary" className="mr-2" />
                               Envoi...
                             </>
                           ) : (
@@ -1351,7 +1374,7 @@ export default function SettingsPage() {
                         >
                           {isVerifying ? (
                             <>
-                              <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                              <Loader size="xs" variant="primary" className="mr-2" />
                               Vérification...
                             </>
                           ) : (
@@ -1367,7 +1390,7 @@ export default function SettingsPage() {
                       >
                         {isSendingCode ? (
                           <>
-                            <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                            <Loader size="xs" variant="primary" className="mr-2" />
                             Envoi...
                           </>
                         ) : (
@@ -1565,7 +1588,7 @@ export default function SettingsPage() {
                   >
                     {exportingPdf ? (
                       <>
-                        <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                        <Loader size="xs" variant="primary" className="mr-2" />
                         Génération du PDF...
                     </>
                     ) : pdfBlockRemainingDays > 0 ? (
@@ -1640,7 +1663,7 @@ export default function SettingsPage() {
                   >
                     {downloadingData ? (
                       <>
-                        <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                        <Loader size="xs" variant="primary" className="mr-2" />
                         Téléchargement...
                       </>
                     ) : blockRemainingDays > 0 ? (

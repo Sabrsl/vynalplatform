@@ -5,7 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, MessageSquare, Star, UserCircle, ArrowLeft, Briefcase, Calendar } from "lucide-react";
+import { Loader } from "@/components/ui/loader";
+import { MessageSquare, Star, UserCircle, ArrowLeft, Briefcase, Calendar } from "lucide-react";
 import { useFreelancerRating } from "@/hooks/useFreelancerRating";
 import Link from "next/link";
 import ServiceCard from "@/components/services/ServiceCard";
@@ -13,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatDate } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import ReviewReplyComponent from '@/components/reviews/ReviewReply';
 /* Imports générant des erreurs - à créer plus tard
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
@@ -54,6 +56,118 @@ type Review = {
     slug: string;
   };
 };
+
+// Données mockées pour les avis (à utiliser pendant le développement)
+const MOCK_REVIEWS: Review[] = [
+  {
+    id: "review-1",
+    created_at: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
+    rating: 5,
+    comment: "Excellent travail ! Le logo est exactement ce que je recherchais. Communication parfaite et livraison rapide.",
+    client_id: "client-2",
+    order_id: "order-past-1",
+    service_id: "service-1",
+    client: {
+      username: "sarahb",
+      full_name: "Sarah Blanc",
+      avatar_url: "/avatars/sarah.jpg"
+    },
+    services: {
+      title: "Création de logo professionnel",
+      slug: "creation-logo-professionnel"
+    }
+  },
+  {
+    id: "review-2",
+    created_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+    rating: 4,
+    comment: "Très bon travail. La première proposition n'était pas tout à fait ce que je voulais mais les ajustements ont été parfaits.",
+    client_id: "client-3",
+    order_id: "order-past-2",
+    service_id: "service-2",
+    client: {
+      username: "thomasv",
+      full_name: "Thomas Vidal",
+      avatar_url: "/avatars/thomas.jpg"
+    },
+    services: {
+      title: "Design de flyer promotionnel",
+      slug: "design-flyer-promotionnel"
+    }
+  },
+  {
+    id: "review-3",
+    created_at: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+    rating: 5,
+    comment: "Article très bien écrit et optimisé pour le SEO. Je recommande vivement !",
+    client_id: "client-4",
+    order_id: "order-past-3",
+    service_id: "service-3",
+    client: {
+      username: "carole_m",
+      full_name: "Carole Mercier",
+      avatar_url: "/avatars/carole.jpg"
+    },
+    services: {
+      title: "Rédaction SEO optimisée",
+      slug: "redaction-seo-optimisee"
+    }
+  },
+  {
+    id: "review-4",
+    created_at: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString(),
+    rating: 3,
+    comment: "Le site web fonctionne correctement mais le design pourrait être amélioré. Délai de livraison respecté.",
+    client_id: "client-5",
+    order_id: "order-past-4",
+    service_id: "service-4",
+    client: {
+      username: "pierre_d",
+      full_name: "Pierre Durand",
+      avatar_url: "/avatars/pierre.jpg"
+    },
+    services: {
+      title: "Création de site web vitrine",
+      slug: "creation-site-web-vitrine"
+    }
+  },
+  {
+    id: "review-5",
+    created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    rating: 2,
+    comment: "Travail décevant. Le résultat final ne correspond pas du tout à ce qui était présenté dans le service.",
+    client_id: "client-6",
+    order_id: "order-past-5",
+    service_id: "service-5",
+    client: {
+      username: "julien_m",
+      full_name: "Julien Martin",
+      avatar_url: "/avatars/julien.jpg"
+    },
+    services: {
+      title: "Montage vidéo promotionnel",
+      slug: "montage-video-promotionnel"
+    }
+  },
+  {
+    id: "review-6",
+    created_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+    rating: 5,
+    comment: "Service impeccable ! Communication claire, processus transparent et résultat au-delà de mes attentes.",
+    client_id: "client-7",
+    order_id: "order-past-6",
+    service_id: "service-6",
+    client: {
+      username: "sophie_l",
+      full_name: "Sophie Laurent",
+      avatar_url: "/avatars/sophie.jpg"
+    },
+    services: {
+      title: "Traduction anglais-français",
+      slug: "traduction-anglais-francais"
+    }
+  }
+];
 
 export default function ProfilePage() {
   const params = useParams();
@@ -110,6 +224,10 @@ export default function ProfilePage() {
           
           setServices(servicesData || []);
           
+          // Utiliser les données mockées pour les avis en développement
+          setReviews(MOCK_REVIEWS);
+          
+          /* Commenté pour utiliser les données mockées
           // Récupérer les avis
           const { data: reviewsData } = await supabase
             .from("reviews")
@@ -122,6 +240,7 @@ export default function ProfilePage() {
             .order("created_at", { ascending: false });
           
           setReviews(reviewsData || []);
+          */
         }
         
         setError(null);
@@ -140,8 +259,7 @@ export default function ProfilePage() {
     return (
       <div className="flex items-center justify-center min-h-screen bg-vynal-purple-dark">
         <div className="flex flex-col items-center">
-          <Loader2 className="animate-spin h-12 w-12 text-vynal-accent-primary mb-4" />
-          <p className="text-vynal-text-secondary text-sm">Chargement du profil...</p>
+          <Loader size="lg" variant="primary" showText={true} />
         </div>
       </div>
     );
@@ -354,6 +472,16 @@ export default function ProfilePage() {
                 )}
               </TabsContent>
             </Tabs>
+            
+            {reviews.length > 6 && (
+              <div className="text-center mt-8">
+                <Button asChild variant="outline" className="border-vynal-accent-primary text-vynal-accent-primary hover:bg-vynal-accent-primary/10">
+                  <Link href={`/profile/${username_display}/reviews`}>
+                    Voir tous les avis ({reviews.length})
+                  </Link>
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -405,6 +533,9 @@ export default function ProfilePage() {
                       </Link>
                     </div>
                   )}
+                  
+                  {/* Ajouter le composant de réponse à l'avis */}
+                  {profile && <ReviewReplyComponent reviewId={review.id} freelanceId={profile.id} />}
                 </div>
               </div>
             </CardContent>

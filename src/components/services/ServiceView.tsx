@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { 
   ChevronRight, 
   Clock, 
@@ -14,7 +14,6 @@ import {
   Shield,
   Package2,
   AlertCircle,
-  Loader2,
   ArrowLeft,
   Tag,
   Image,
@@ -45,6 +44,8 @@ import {
   DialogClose
 } from "@/components/ui/dialog";
 import { OrderButton } from "@/components/orders/OrderButton";
+import ServiceReviews from '../reviews/ServiceReviews';
+import { Loader } from "@/components/ui/loader";
 
 // Animation variants
 const animations = {
@@ -822,6 +823,16 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                     </Link>
                   )}
                 </div>
+              </motion.div>
+            )}
+            
+            {/* Ajout des avis sur le service - après les services connexes */}
+            {!isFreelanceView && service?.id && (
+              <motion.div
+                variants={animations.fadeInUp}
+                className="mt-8 sm:mt-10"
+              >
+                <ServiceReviews serviceId={service.id} />
               </motion.div>
             )}
           </div>

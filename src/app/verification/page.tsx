@@ -7,10 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, Shield, FileText, CheckCircle, XCircle, QrCode } from "lucide-react";
+import { Shield, FileText, CheckCircle, XCircle, QrCode } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { QRCode } from "@/components/ui/qrcode";
+import { Loader } from "@/components/ui/loader";
 
 export default function VerificationPage() {
   const supabase = createClient();
@@ -22,6 +23,7 @@ export default function VerificationPage() {
   const [isVerifying, setIsVerifying] = useState(false);
   const [verificationResult, setVerificationResult] = useState<"success" | "error" | null>(null);
   const [documentInfo, setDocumentInfo] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Vérification par signature HMAC
   const verifySignature = async () => {
@@ -211,7 +213,7 @@ export default function VerificationPage() {
                   >
                     {isVerifying ? (
                       <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        <Loader size="xs" variant="primary" className="mr-2" />
                         Vérification...
                       </>
                     ) : (
@@ -257,7 +259,7 @@ export default function VerificationPage() {
                     >
                       {isVerifying ? (
                         <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          <Loader size="xs" variant="primary" className="mr-2" />
                           Vérification...
                         </>
                       ) : (

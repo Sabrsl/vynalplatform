@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Upload, X, Loader2, Info, AlertCircle } from "lucide-react";
+import { Upload, X, Info, AlertCircle } from "lucide-react";
+import { Loader } from "@/components/ui/loader";
 import { validateImage, processImage } from "@/lib/image-processor";
 
 interface ServiceImageUploaderProps {
@@ -350,7 +351,10 @@ const ServiceImageUploader: React.FC<ServiceImageUploaderProps> = ({
         className="flex items-center gap-2"
       >
         {uploading ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
+          <div className="flex items-center space-x-1 text-xs font-medium">
+            <Loader size="xs" variant="primary" />
+            <span>Téléchargement en cours...</span>
+          </div>
         ) : (
           <Upload className="h-4 w-4" />
         )}
