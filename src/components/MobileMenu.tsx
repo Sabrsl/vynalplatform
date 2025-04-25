@@ -13,7 +13,6 @@ import { useMessageCounts } from "@/hooks/useOptimizedMessageCounts";
 import { signOut } from "@/lib/auth";
 import { UserType } from "@/types";
 import { RefreshIndicator } from "./ui/refresh-indicator";
-import { useOptimizedAuth } from "@/hooks/useOptimizedAuth";
 
 interface NavItemProps {
   href: string;

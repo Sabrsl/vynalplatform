@@ -54,6 +54,8 @@ supabase/config.toml
 **/supabase/sandbox
 **/supabase/.config
 **/supabase/.vercel
+supabase_policies.sql
+fix_admin_direct.sql
 
 # Logs
 logs/

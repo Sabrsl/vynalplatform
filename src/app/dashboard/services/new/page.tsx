@@ -195,7 +195,7 @@ export default function NewServicePage() {
       }
       
       // Vérifier si le service a été créé avec des images
-      if (images.length > 0 && (!result.service.images || result.service.images.length === 0)) {
+      if (images.length > 0 && (!result.data.images || result.data.images.length === 0)) {
         // Le service a été créé mais sans les images
         // On redirige quand même l'utilisateur mais on l'informe du problème
         router.push("/dashboard/services?status=created-without-images");
