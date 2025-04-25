@@ -142,9 +142,9 @@
 
   /* Animations pour ShadCN/UI */
   .animate-in {
-    animation-duration: 300ms;
+    animation-duration: 0.3s;
     animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
-    will-change: transform, opacity;
+    animation-fill-mode: forwards;
   }
 
   .fade-in {
@@ -246,6 +246,63 @@
   .scrollbar-thin::-webkit-scrollbar-thumb {
     background-color: rgba(155, 155, 155, 0.5);
     border-radius: 20px;
+  }
+
+  /* Animation classes pour Tooltip et autres composants */
+  .fade-in-0 {
+    opacity: 0;
+  }
+  
+  .fade-in-100 {
+    opacity: 1;
+  }
+  
+  .zoom-in-95 {
+    transform: scale(0.95);
+  }
+  
+  .zoom-in-100 {
+    transform: scale(1);
+  }
+  
+  .slide-in-from-top-2 {
+    transform: translateY(-0.5rem);
+  }
+  
+  .slide-in-from-bottom-2 {
+    transform: translateY(0.5rem);
+  }
+  
+  .slide-in-from-left-2 {
+    transform: translateX(-0.5rem);
+  }
+  
+  .slide-in-from-right-2 {
+    transform: translateX(0.5rem);
+  }
+  
+  .data-\[state\=closed\]\:animate-out {
+    animation-name: fade-out;
+  }
+  
+  .data-\[state\=closed\]\:fade-out-0 {
+    animation-name: fade-out;
+  }
+  
+  .data-\[state\=closed\]\:zoom-out-95 {
+    animation-name: zoom-out;
+  }
+  
+  @keyframes fade-out {
+    to {
+      opacity: 0;
+    }
+  }
+  
+  @keyframes zoom-out {
+    to {
+      transform: scale(0.95);
+    }
   }
 }
 
@@ -362,4 +419,39 @@
   to {
     transform: translateX(100%);
   }
+}
+
+@keyframes gradient-x {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animate-gradient-x {
+  animation: gradient-x 3s ease infinite;
+}
+
+.bg-size-200 {
+  background-size: 200% 100%;
+}
+
+/* Styles pour les termes recherchés mis en évidence */
+mark {
+  background-color: rgba(var(--vynal-accent-primary-rgb), 0.3);
+  color: inherit;
+  padding: 0 0.15rem;
+  margin: 0 -0.15rem;
+  border-radius: 0.15rem;
+  font-weight: 500;
+  transition: background-color 0.2s ease-in-out;
+}
+
+mark:hover {
+  background-color: rgba(var(--vynal-accent-primary-rgb), 0.5);
 } 

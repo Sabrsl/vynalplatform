@@ -1,5 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Category } from '@/hooks/useCategories';
 import { motion } from 'framer-motion';
 import { getCategoryEmoji } from '@/lib/categoryIcons';
@@ -28,6 +29,8 @@ const CategoriesGrid: React.FC<CategoriesGridProps> = ({
   baseUrl = '/services',
   className = '',
 }) => {
+  const router = useRouter();
+
   // Animation variants
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -44,6 +47,17 @@ const CategoriesGrid: React.FC<CategoriesGridProps> = ({
     show: { opacity: 1, y: 0 }
   };
 
+  // Fonction pour gérer le clic sur une catégorie
+  const handleCategoryClick = (e: React.MouseEvent, categorySlug: string | null) => {
+    e.preventDefault();
+    
+    // Construire l'URL selon que la catégorie est sélectionnée ou non
+    const url = categorySlug ? `${baseUrl}?category=${categorySlug}` : baseUrl;
+    
+    // Navigation programmatique pour garantir que l'état est correctement mis à jour
+    router.push(url);
+  };
+
   return (
     <motion.div 
       className={`mb-3 ${className}`}
@@ -53,7 +67,10 @@ const CategoriesGrid: React.FC<CategoriesGridProps> = ({
     >
       <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-1">
         <motion.div variants={itemVariants} className="flex-shrink-0">
-          <Link href={baseUrl}>
+          <Link 
+            href={baseUrl}
+            onClick={(e) => handleCategoryClick(e, null)}
+          >
             <div 
               className={`flex flex-col items-center justify-center rounded-md backdrop-blur-sm transition-all py-1.5 px-1 h-full ${
                 !selectedCategory 
@@ -73,7 +90,10 @@ const CategoriesGrid: React.FC<CategoriesGridProps> = ({
           
           return (
             <motion.div key={category.id} variants={itemVariants} className="flex-shrink-0">
-              <Link href={`${baseUrl}?category=${category.slug}`}>
+              <Link 
+                href={`${baseUrl}?category=${category.slug}`}
+                onClick={(e) => handleCategoryClick(e, category.slug)}
+              >
                 <div 
                   className={`flex flex-col items-center justify-center rounded-md backdrop-blur-sm transition-all py-1.5 px-1 h-full ${
                     isSelected 

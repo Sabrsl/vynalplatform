@@ -2,13 +2,14 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useUser } from "@/hooks/useUser";
 import { Button } from "@/components/ui/button";
 import SearchBar from "@/components/categories/SearchBar";
 import { supabase } from "@/lib/supabase/client";
 import MobileMenu from "@/components/MobileMenu";
+import { NavigationLoadingState } from "@/app/providers";
 import { 
   User, 
   LogOut, 
@@ -21,13 +22,15 @@ import {
   PlusCircle,
   Search,
   Wallet,
-  ChevronDown
+  ChevronDown,
+  Loader
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useTheme } from "next-themes";
 
 export default function Header() {
   const pathname = usePathname();
+  const router = useRouter();
   const { user, signOut } = useAuth();
   const { profile, isFreelance, isClient, isAdmin } = useUser();
   const { theme } = useTheme();
@@ -40,10 +43,14 @@ export default function Header() {
   const searchButtonRef = useRef<HTMLButtonElement>(null);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [activePath, setActivePath] = useState(pathname || '');
+  const [isNavigating, setIsNavigating] = useState(false);
 
   const isActive = (path: string) => {
     return pathname === path || pathname?.startsWith(`${path}/`);
   };
+
+  // Déterminer si nous sommes dans la section dashboard
+  const isInDashboard = pathname?.startsWith('/dashboard');
 
   // Détecter le défilement pour changer l'apparence du header
   useEffect(() => {
@@ -53,6 +60,20 @@ export default function Header() {
     
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Écouter les changements d'état de navigation
+  useEffect(() => {
+    const handleNavigationStateChange = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      setIsNavigating(customEvent.detail?.isNavigating || false);
+    };
+    
+    window.addEventListener('vynal:navigation-state-changed', handleNavigationStateChange);
+    
+    return () => {
+      window.removeEventListener('vynal:navigation-state-changed', handleNavigationStateChange);
+    };
   }, []);
 
   // Fermer la barre de recherche si l'utilisateur clique en dehors
@@ -102,8 +123,11 @@ export default function Header() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
+      // Indiquer qu'une navigation est en cours
+      NavigationLoadingState.setIsNavigating(true);
+      
       // Rediriger vers la page services avec le paramètre de recherche
-      window.location.href = `/services?search=${encodeURIComponent(searchQuery.trim())}`;
+      router.push(`/services?search=${encodeURIComponent(searchQuery.trim())}`);
       setSearchBarVisible(false);
     }
   };
@@ -121,6 +145,21 @@ export default function Header() {
     }
   };
 
+  // Navigation avec indicateur de chargement
+  const handleNavigation = (href: string) => {
+    // Éviter les navigations redondantes ou pendant un chargement
+    if (href === pathname || isNavigating) {
+      return;
+    }
+    
+    // Mettre à jour l'état de navigation
+    NavigationLoadingState.setIsNavigating(true);
+    setActivePath(href);
+    
+    // Naviguer vers la destination
+    router.push(href);
+  };
+
   // Fonction simplifiée de déconnexion
   const handleLogout = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -130,20 +169,30 @@ export default function Header() {
     setIsLoggingOut(true);
     
     try {
-      // Déconnexion manuelle via Supabase
+      // Utiliser la fonction signOut du hook useAuth
+      await signOut();
+      
+      // Nettoyage supplémentaire du local storage
+      localStorage.removeItem('supabase.auth.token');
+      localStorage.removeItem('sb-refresh-token');
+      localStorage.removeItem('sb-access-token');
+      
+      // Force la déconnexion de Supabase côté client
       await supabase.auth.signOut();
       
-      // Nettoyage du local storage
-      localStorage.removeItem('supabase.auth.token');
-      
-      // Attendre un court instant avant de rediriger
+      // Attendre un délai plus long avant la redirection
       setTimeout(() => {
         // Forcer un rechargement complet de la page
         window.location.href = '/';
-      }, 300);
+      }, 500);
     } catch (error) {
       console.error("Erreur lors de la déconnexion:", error);
       setIsLoggingOut(false);
+      
+      // En cas d'erreur, forcer quand même la redirection après un délai
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 1000);
     }
   };
 
@@ -177,13 +226,16 @@ export default function Header() {
       <div className="container mx-auto px-4 relative z-10">
         <div className="flex justify-between items-center h-16">
           {/* Logo avec animation */}
-          <Link href="/" className="flex items-center group">
+          <div
+            className="flex items-center group cursor-pointer"
+            onClick={() => handleNavigation("/")}
+          >
             <img 
               src="/assets/logo/logo_vynal_platform.webp" 
               alt="Vynal Platform Logo" 
               className="h-6 sm:h-7 md:h-8 w-auto dark:brightness-110 transition-all duration-300 group-hover:scale-105" 
             />
-          </Link>
+          </div>
 
           {/* Search Bar - Desktop */}
           {pathname.includes('/services') && (
@@ -192,36 +244,34 @@ export default function Header() {
                 searchQuery={searchQuery}
                 onSearchChange={setSearchQuery}
                 onSearch={handleSearch}
-                className={`h-9 ${
-                  isDark 
-                    ? "border border-vynal-purple-secondary/30 bg-vynal-purple-dark/50 focus-within:bg-vynal-purple-dark/80 focus-within:border-vynal-accent-primary/60" 
-                    : "border border-vynal-purple-200/50 bg-white/50 focus-within:bg-white/90 focus-within:border-vynal-purple-400/60"
-                } rounded-full shadow-sm transition-all`}
+                className="shadow-sm h-9 border-0 dark:bg-vynal-purple-dark/50 dark:border-vynal-purple-secondary/30"
                 placeholder="Rechercher un service..."
-                showFiltersButton={false}
               />
             </div>
           )}
 
-          {/* Desktop Nav */}
-          <nav className="hidden md:flex items-center space-x-8">
+          {/* Navigation - Desktop */}
+          <nav className="hidden md:flex items-center space-x-1">
             {navigation.map((item) => (
-              <Link
+              <Button
                 key={item.name}
-                href={item.href}
-                className={`text-sm font-medium transition-all duration-300 flex items-center ${
-                  isActive(item.href)
-                    ? isDark 
-                      ? "text-vynal-accent-primary scale-105" 
-                      : "text-vynal-purple-600 scale-105"
-                    : isDark 
-                      ? "text-vynal-text-primary hover:text-vynal-accent-primary hover:scale-105" 
-                      : "text-vynal-purple-dark hover:text-vynal-purple-600 hover:scale-105"
-                }`}
+                variant="ghost"
+                size="sm"
+                className={`text-sm flex items-center gap-2 ${
+                  isActive(item.href) 
+                  ? "text-vynal-purple-600 dark:text-vynal-accent-primary" 
+                  : "text-vynal-purple-dark dark:text-vynal-text-primary"
+                } rounded-lg hover:bg-vynal-purple-100/60 hover:text-vynal-purple-600 dark:hover:bg-vynal-purple-secondary/20 dark:hover:text-vynal-accent-primary`}
+                onClick={() => handleNavigation(item.href)}
+                disabled={isNavigating}
               >
-                <item.icon className="w-3.5 h-3.5 mr-1.5" />
+                {isNavigating && activePath === item.href ? (
+                  <Loader className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <item.icon className="h-3.5 w-3.5" />
+                )}
                 {item.name}
-              </Link>
+              </Button>
             ))}
           </nav>
 
@@ -229,28 +279,95 @@ export default function Header() {
           <div className="hidden md:flex items-center space-x-4">
             {user ? (
               <div className="flex items-center gap-3">
-                <Link href="/dashboard">
-                  <Button 
-                    variant="outline" 
-                    className={`flex items-center gap-2 text-sm group transition-all rounded-full ${
-                      isDark 
+                <Button 
+                  variant="outline" 
+                  className={`flex items-center gap-2 text-sm group transition-all rounded-full ${
+                    isInDashboard 
+                      ? isDark 
+                        ? "bg-vynal-purple-secondary/20 border-vynal-accent-primary/50 text-vynal-accent-primary" 
+                        : "bg-vynal-purple-200/30 border-vynal-purple-400/60 text-vynal-purple-600"
+                      : isDark 
                         ? "border-vynal-purple-secondary/40 text-vynal-text-primary hover:bg-vynal-purple-secondary/20 hover:border-vynal-accent-primary/50" 
                         : "border-vynal-purple-300/50 text-vynal-purple-dark hover:bg-vynal-purple-200/30 hover:border-vynal-purple-400/60"
-                    }`}
-                  >
+                  }`}
+                  onClick={() => {
+                    // Gérer le cas où on est déjà sur le dashboard
+                    const targetPath = "/dashboard";
+                    
+                    // Vérifications de sécurité pour éviter les cascades
+                    if (pathname === targetPath) {
+                      // Si déjà sur le dashboard, rafraîchir la page au lieu de naviguer
+                      console.log("Déjà sur le dashboard, rafraîchissement forcé");
+                      window.location.reload();
+                      return;
+                    }
+                    
+                    if (isNavigating) return; // Navigation déjà en cours
+                    if (NavigationLoadingState.isNavigating) return; // Navigation globale en cours
+                    
+                    // Désactiver immédiatement le bouton via l'état local
+                    setIsNavigating(true);
+                    
+                    try {
+                      // Définir l'état de navigation global
+                      NavigationLoadingState.setIsNavigating(true, pathname, targetPath);
+                      setActivePath(targetPath);
+                      
+                      // Timeout de sécurité pour réinitialiser l'état en cas de problème
+                      const safetyTimeout = setTimeout(() => {
+                        setIsNavigating(false);
+                        NavigationLoadingState.setIsNavigating(false);
+                      }, 5000);
+                      
+                      // Protection contre la navigation bloquée - forcer un rechargement si rien ne se passe
+                      const hardResetTimeout = setTimeout(() => {
+                        console.warn("Navigation vers dashboard bloquée, redirection forcée");
+                        window.location.href = targetPath;
+                      }, 6000);
+                      
+                      // Navigation avec délai pour éviter les cascades
+                      setTimeout(() => {
+                        // Utiliser location.href si on est en développement pour éviter les problèmes de routage Next.js
+                        if (process.env.NODE_ENV === 'development') {
+                          window.location.href = targetPath;
+                        } else {
+                          router.push(targetPath);
+                        }
+                        
+                        // Réinitialiser les timeouts de sécurité
+                        clearTimeout(safetyTimeout);
+                        clearTimeout(hardResetTimeout);
+                      }, 100);
+                    } catch (error) {
+                      console.error("Erreur lors de la navigation vers dashboard:", error);
+                      // Réinitialiser les états en cas d'erreur
+                      setIsNavigating(false);
+                      NavigationLoadingState.setIsNavigating(false);
+                      
+                      // En cas d'erreur, forcer un rechargement direct
+                      setTimeout(() => {
+                        window.location.href = targetPath;
+                      }, 500);
+                    }
+                  }}
+                  disabled={isNavigating}
+                >
+                  {isNavigating && pathname === "/dashboard" ? (
+                    <Loader className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
                     <User className={`w-3.5 h-3.5 ${
-                      isDark 
-                        ? "group-hover:text-vynal-accent-primary" 
+                      isInDashboard || isDark 
+                        ? "text-vynal-accent-primary" 
                         : "group-hover:text-vynal-purple-600"
                     } transition-colors`} />
-                    <span>Dashboard</span>
-                    <ChevronDown className={`w-3.5 h-3.5 ${
-                      isDark 
-                        ? "group-hover:text-vynal-accent-primary" 
-                        : "group-hover:text-vynal-purple-600"
-                    } transition-colors`} />
-                  </Button>
-                </Link>
+                  )}
+                  <span>Dashboard</span>
+                  <ChevronDown className={`w-3.5 h-3.5 ${
+                    isInDashboard || isDark 
+                      ? "text-vynal-accent-primary" 
+                      : "group-hover:text-vynal-purple-600"
+                  } transition-colors`} />
+                </Button>
                 
                 <Button 
                   variant="ghost" 
@@ -279,25 +396,30 @@ export default function Header() {
               </div>
             ) : (
               <>
-                <Link href="/auth/login">
-                  <Button 
-                    variant="ghost" 
-                    className={`text-sm transition-all rounded-full ${
-                      isDark 
-                        ? "text-vynal-text-primary hover:bg-vynal-purple-secondary/20 hover:text-vynal-accent-primary" 
-                        : "text-vynal-purple-dark hover:bg-vynal-purple-200/30 hover:text-vynal-purple-600"
-                    }`}
-                  >
-                    Connexion
-                  </Button>
-                </Link>
-                <Link href="/auth/signup">
-                  <Button 
-                    className="text-sm bg-gradient-button hover:opacity-90 text-white font-medium transition-all duration-300 hover:scale-105 rounded-full"
-                  >
-                    Inscription
-                  </Button>
-                </Link>
+                <Button 
+                  variant="ghost" 
+                  className={`text-sm transition-all rounded-full ${
+                    isDark 
+                      ? "text-vynal-text-primary hover:bg-vynal-purple-secondary/20 hover:text-vynal-accent-primary" 
+                      : "text-vynal-purple-dark hover:bg-vynal-purple-200/30 hover:text-vynal-purple-600"
+                  }`}
+                  onClick={() => handleNavigation("/auth/login")}
+                  disabled={isNavigating}
+                >
+                  {isNavigating ? (
+                    <Loader className="h-3.5 w-3.5 animate-spin mr-1" />
+                  ) : "Connexion"}
+                </Button>
+                
+                <Button 
+                  className="text-sm bg-gradient-button hover:opacity-90 text-white font-medium transition-all duration-300 hover:scale-105 rounded-full"
+                  onClick={() => handleNavigation("/auth/signup")}
+                  disabled={isNavigating}
+                >
+                  {isNavigating ? (
+                    <Loader className="h-3.5 w-3.5 animate-spin mr-1 text-white" />
+                  ) : "Inscription"}
+                </Button>
               </>
             )}
           </div>
@@ -418,6 +540,7 @@ export default function Header() {
         user={user} 
         activePath={activePath}
         setActivePath={setActivePath}
+        isNavigating={isNavigating}
       />
     </header>
   );

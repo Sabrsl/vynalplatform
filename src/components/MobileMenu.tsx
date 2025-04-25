@@ -1,10 +1,9 @@
-// Composant de menu mobile mis à jour pour la production - Force le déploiement
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { 
   User, Settings, FileText, ShoppingBag, MessageSquare, Home, 
   Calendar, CreditCard, BarChart2, BookOpen, Award, HelpCircle,
-  X, ChevronRight, LogOut, Search, Wallet, RefreshCw, PackageOpen
+  X, ChevronRight, LogOut, Search, Wallet, RefreshCw, PackageOpen, Loader
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
@@ -23,6 +22,7 @@ interface NavItemProps {
   isActive: boolean;
   onClick: () => void;
   badgeCount?: number;
+  isNavigating?: boolean;
 }
 
 interface MobileMenuProps {
@@ -31,9 +31,10 @@ interface MobileMenuProps {
   user: UserType | null;
   activePath: string;
   setActivePath: (path: string) => void;
+  isNavigating?: boolean;
 }
 
-const NavItem = ({ href, icon: Icon, label, isActive, onClick, badgeCount }: NavItemProps) => {
+const NavItem = ({ href, icon: Icon, label, isActive, onClick, badgeCount, isNavigating }: NavItemProps) => {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   
@@ -57,7 +58,11 @@ const NavItem = ({ href, icon: Icon, label, isActive, onClick, badgeCount }: Nav
               ? "bg-vynal-purple-secondary/20 text-vynal-accent-primary"
               : "bg-vynal-purple-100 text-vynal-purple-600"
         }`}>
-          <Icon className="h-3.5 w-3.5" />
+          {isNavigating && isActive ? (
+            <Loader className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Icon className="h-3.5 w-3.5" />
+          )}
           {badgeCount !== undefined && badgeCount > 0 && (
             <NotificationBadge count={badgeCount} className="h-4 w-4 min-w-4 text-[10px]" />
           )}
@@ -77,11 +82,11 @@ const NavItem = ({ href, icon: Icon, label, isActive, onClick, badgeCount }: Nav
   );
 };
 
-export default function MobileMenu({ isOpen, onClose, user, activePath, setActivePath }: MobileMenuProps) {
+export default function MobileMenu({ isOpen, onClose, user, activePath, setActivePath, isNavigating }: MobileMenuProps) {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const { totalUnread: totalUnreadCount, isRefreshing: messagesRefreshing, refreshCounts } = useMessageCounts();
-  const { user: authUser } = useOptimizedAuth();
+  const { user: authUser } = useAuth({ useCache: true });
   
   // Déterminer si l'utilisateur est freelance
   const isFreelance = user?.user_metadata?.role === 'freelance' || false;
@@ -226,6 +231,7 @@ export default function MobileMenu({ isOpen, onClose, user, activePath, setActiv
                           setActivePath("/dashboard");
                           onClose();
                         }}
+                        isNavigating={isNavigating}
                       />
                       <NavItem 
                         href="/dashboard/orders" 
@@ -236,6 +242,7 @@ export default function MobileMenu({ isOpen, onClose, user, activePath, setActiv
                           setActivePath("/dashboard/orders");
                           onClose();
                         }}
+                        isNavigating={isNavigating}
                       />
                       <NavItem 
                         href="/dashboard/messages" 
@@ -247,6 +254,7 @@ export default function MobileMenu({ isOpen, onClose, user, activePath, setActiv
                           onClose();
                         }}
                         badgeCount={totalUnreadCount}
+                        isNavigating={isNavigating}
                       />
                       {isFreelance ? (
                         <NavItem 
@@ -258,6 +266,7 @@ export default function MobileMenu({ isOpen, onClose, user, activePath, setActiv
                             setActivePath("/dashboard/wallet");
                             onClose();
                           }}
+                          isNavigating={isNavigating}
                         />
                       ) : (
                         <NavItem 
@@ -269,6 +278,7 @@ export default function MobileMenu({ isOpen, onClose, user, activePath, setActiv
                             setActivePath("/dashboard/payments");
                             onClose();
                           }}
+                          isNavigating={isNavigating}
                         />
                       )}
                     </div>
@@ -292,6 +302,7 @@ export default function MobileMenu({ isOpen, onClose, user, activePath, setActiv
                             setActivePath("/dashboard/services");
                             onClose();
                           }}
+                          isNavigating={isNavigating}
                         />
                         <NavItem 
                           href="/dashboard/orders/delivery" 
@@ -302,6 +313,7 @@ export default function MobileMenu({ isOpen, onClose, user, activePath, setActiv
                             setActivePath("/dashboard/orders/delivery");
                             onClose();
                           }}
+                          isNavigating={isNavigating}
                         />
                         <NavItem 
                           href="/dashboard/stats" 
@@ -312,6 +324,7 @@ export default function MobileMenu({ isOpen, onClose, user, activePath, setActiv
                             setActivePath("/dashboard/stats");
                             onClose();
                           }}
+                          isNavigating={isNavigating}
                         />
                         <NavItem 
                           href="/dashboard/certifications" 
@@ -322,6 +335,7 @@ export default function MobileMenu({ isOpen, onClose, user, activePath, setActiv
                             setActivePath("/dashboard/certifications");
                             onClose();
                           }}
+                          isNavigating={isNavigating}
                         />
                       </div>
                     </div>
@@ -345,6 +359,7 @@ export default function MobileMenu({ isOpen, onClose, user, activePath, setActiv
                             setActivePath("/services");
                             onClose();
                           }}
+                          isNavigating={isNavigating}
                         />
                       </div>
                     </div>
@@ -366,7 +381,7 @@ export default function MobileMenu({ isOpen, onClose, user, activePath, setActiv
                         Paramètres
                       </p>
                     </div>
-                    <div>
+                    <div className="space-y-2">
                       <NavItem 
                         href="/dashboard/profile" 
                         icon={User} 
@@ -376,17 +391,21 @@ export default function MobileMenu({ isOpen, onClose, user, activePath, setActiv
                           setActivePath("/dashboard/profile");
                           onClose();
                         }}
+                        isNavigating={isNavigating}
                       />
+                      
                       <NavItem 
-                        href="/how-it-works" 
+                        href="/resources" 
                         icon={BookOpen} 
                         label="Ressources" 
-                        isActive={isActive("/how-it-works")}
+                        isActive={isActive("/resources")}
                         onClick={() => {
-                          setActivePath("/how-it-works");
+                          setActivePath("/resources");
                           onClose();
                         }}
+                        isNavigating={isNavigating}
                       />
+                      
                       <NavItem 
                         href="/contact" 
                         icon={HelpCircle} 
@@ -396,7 +415,9 @@ export default function MobileMenu({ isOpen, onClose, user, activePath, setActiv
                           setActivePath("/contact");
                           onClose();
                         }}
+                        isNavigating={isNavigating}
                       />
+                      
                       <NavItem 
                         href="/dashboard/settings" 
                         icon={Settings} 
@@ -406,6 +427,7 @@ export default function MobileMenu({ isOpen, onClose, user, activePath, setActiv
                           setActivePath("/dashboard/settings");
                           onClose();
                         }}
+                        isNavigating={isNavigating}
                       />
                     </div>
                   </div>
@@ -477,7 +499,7 @@ export default function MobileMenu({ isOpen, onClose, user, activePath, setActiv
                   
                   <div className="mt-6 border-t w-full pt-6 dark:border-vynal-purple-secondary/20 border-vynal-purple-200/30">
                     <Link 
-                      href="/how-it-works" 
+                      href="/resources" 
                       className="w-full"
                       onClick={onClose}
                     >
@@ -487,7 +509,7 @@ export default function MobileMenu({ isOpen, onClose, user, activePath, setActiv
                           : "text-vynal-purple-400 hover:text-vynal-purple-600"
                       }`}>
                         <BookOpen className="w-3.5 h-3.5 mr-2" />
-                        Comment ça marche
+                        Ressources
                       </button>
                     </Link>
                   </div>

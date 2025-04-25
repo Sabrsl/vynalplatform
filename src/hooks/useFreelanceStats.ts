@@ -1,162 +1,221 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase/client';
+import { 
+  getCachedData, 
+  setCachedData, 
+  invalidateCache, 
+  CACHE_EXPIRY 
+} from '@/lib/optimizations';
 
-interface FreelanceStats {
+// Type pour les statistiques de freelance
+interface FreelanceStatsData {
   active: number;
-  totalRevenue: number;
+  inactive: number;
   totalOrders: number;
   activeOrders: number;
+  completedOrders: number;
+  totalRevenue: number;
   averageRating: number;
-  unreadMessages: number;
-  notifications: number;
+  totalRatings: number;
 }
 
-interface UseFreelanceStatsReturn {
-  stats: FreelanceStats;
-  loading: boolean;
-  error: string | null;
-  refreshStats: () => Promise<void>;
-}
-
-export function useFreelanceStats(freelanceId: string | undefined): UseFreelanceStatsReturn {
-  const [stats, setStats] = useState<FreelanceStats>({
+export function useFreelanceStats(freelanceId: string | undefined) {
+  const [stats, setStats] = useState<FreelanceStatsData>({
     active: 0,
-    totalRevenue: 0,
+    inactive: 0,
     totalOrders: 0,
     activeOrders: 0,
+    completedOrders: 0,
+    totalRevenue: 0,
     averageRating: 0,
-    unreadMessages: 0,
-    notifications: 0
+    totalRatings: 0
   });
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Fonction pour charger les statistiques - mémorisée avec useCallback
-  const fetchStats = useCallback(async () => {
-    if (!freelanceId) return;
-    
-    setLoading(true);
-    setError(null);
+  // Memoize la fonction fetchStats pour éviter les recréations inutiles
+  const fetchStats = useCallback(async (forceRefresh = false) => {
+    if (!freelanceId) {
+      setLoading(false);
+      return;
+    }
+
+    // Vérifie si la fonction est déjà en cours d'exécution
+    if (isRefreshing && !forceRefresh) return;
     
     try {
-      // Récupérer tous les services pour les statistiques
-      const { data: allServicesData, error: allServicesError } = await supabase
-        .from('services')
-        .select('id, active, price')
-        .eq('freelance_id', freelanceId);
-        
-      if (allServicesError) {
-        console.error('Erreur lors du chargement des statistiques de services:', allServicesError);
-        throw new Error('Impossible de charger les données statistiques de vos services.');
-      }
+      setLoading(true);
+      if (forceRefresh) setIsRefreshing(true);
       
-      // Calculer les statistiques de base sur tous les services
-      const activeServices = allServicesData.filter((s: any) => s.active);
+      // Vérifier le cache si ce n'est pas un rafraîchissement forcé
+      const cacheKey = `freelance_stats_${freelanceId}`;
       
-      // Récupérer le wallet du freelance et ses transactions
-      const { data: walletData, error: walletError } = await supabase
-        .from('wallets')
-        .select('balance, transactions(*)')
-        .eq('user_id', freelanceId)
-        .single();
-        
-      // Déterminer le revenu total à partir des transactions du wallet
-      let totalRevenue = 0;
-      if (walletError && walletError.code !== 'PGRST116') { // PGRST116 = "No rows returned"
-        console.error('Erreur lors du chargement des revenus:', walletError);
-      } else if (!walletError && walletData && walletData.transactions) {
-        // Calculer la somme des transactions de type 'earning' (revenus)
-        totalRevenue = walletData.transactions
-          .filter((transaction: any) => transaction.type === 'earning')
-          .reduce((sum: number, transaction: any) => sum + (transaction.amount || 0), 0);
-      }
-      
-      // Récupérer le nombre de commandes pour ce freelance
-      const { data: ordersData, error: ordersError } = await supabase
-        .from('orders')
-        .select('id, status')
-        .eq('freelance_id', freelanceId);
-        
-      if (ordersError) {
-        console.error('Erreur lors du chargement des commandes:', ordersError);
-      }
-      
-      const totalOrders = !ordersError && ordersData ? ordersData.length : 0;
-      // Compter les commandes en cours (status = 'pending', 'in_progress' ou 'revision_requested')
-      const activeOrders = !ordersError && ordersData 
-        ? ordersData.filter((order: any) => 
-            ['pending', 'in_progress', 'revision_requested'].includes(order.status)).length 
-        : 0;
-
-      // Récupérer les messages non lus pour le freelance
-      let unreadMessages = 0;
-      const { data: messagesData, error: messagesError } = await supabase
-        .from('messages')
-        .select('id')
-        .eq('receiver_id', freelanceId)
-        .eq('read', false);
-        
-      if (messagesError) {
-        console.error('Erreur lors du chargement des messages non lus:', messagesError);
-      } else if (messagesData) {
-        unreadMessages = messagesData.length;
-      }
-
-      // Récupérer les notifications non lues pour le freelance
-      let notifications = 0;
-      const { data: notificationsData, error: notificationsError } = await supabase
-        .from('notifications')
-        .select('id')
-        .eq('user_id', freelanceId)
-        .eq('read', false);
-        
-      if (notificationsError) {
-        console.error('Erreur lors du chargement des notifications non lues:', notificationsError);
-      } else if (notificationsData) {
-        notifications = notificationsData.length;
-      }
-
-      // Récupérer les avis pour tous les services de ce freelance
-      let averageRating = 0;
-      
-      if (allServicesData && allServicesData.length > 0) {
-        const serviceIds = allServicesData.map((service: any) => service.id);
-        const { data: reviewsData, error: reviewsError } = await supabase
-          .from('reviews')
-          .select('*')
-          .in('service_id', serviceIds);
-
-        if (reviewsError) {
-          console.error('Erreur lors du chargement des avis:', reviewsError);
-        } else if (reviewsData && reviewsData.length > 0) {
-          // Calculer la note moyenne sur 5
-          const totalRating = reviewsData.reduce((sum: number, review: any) => sum + (review.rating || 0), 0);
-          averageRating = totalRating / reviewsData.length;
+      if (!forceRefresh) {
+        const cachedStats = getCachedData<FreelanceStatsData>(cacheKey);
+        if (cachedStats) {
+          setStats(cachedStats);
+          setLoading(false);
+          setIsRefreshing(false);
+          return;
         }
       }
+
+      // Fetch services stats (active/inactive)
+      const servicesPromise = supabase
+        .from('services')
+        .select('id, active')
+        .eq('freelance_id', freelanceId);
+
+      // Fetch orders stats
+      const ordersPromise = supabase
+        .from('orders')
+        .select('id, status, price')
+        .eq('freelance_id', freelanceId);
+
+      // Fetch ratings stats
+      const ratingsPromise = supabase
+        .from('reviews')
+        .select('id, rating')
+        .eq('freelance_id', freelanceId);
+
+      // Execute all promises in parallel
+      const [servicesResponse, ordersResponse, ratingsResponse] = await Promise.all([
+        servicesPromise,
+        ordersPromise,
+        ratingsPromise
+      ]);
+
+      // Handle errors
+      if (servicesResponse.error) throw servicesResponse.error;
+      if (ordersResponse.error) throw ordersResponse.error;
+      if (ratingsResponse.error) throw ratingsResponse.error;
+
+      // Calculate services stats
+      const activeServices = servicesResponse.data.filter(s => s.active).length;
+      const inactiveServices = servicesResponse.data.filter(s => !s.active).length;
+
+      // Calculate orders stats
+      const activeOrders = ordersResponse.data.filter(o => 
+        ['pending', 'in_progress', 'revision_requested', 'delivered'].includes(o.status)
+      ).length;
       
-      // Mettre à jour toutes les statistiques
-      setStats({
-        active: activeServices.length,
-        totalRevenue,
-        totalOrders,
+      const completedOrders = ordersResponse.data.filter(o => o.status === 'completed').length;
+      
+      const totalRevenue = ordersResponse.data
+        .filter(o => o.status === 'completed')
+        .reduce((sum, order) => sum + (order.price || 0), 0);
+
+      // Calculate ratings stats
+      const ratings = ratingsResponse.data;
+      const totalRatings = ratings.length;
+      const ratingSum = ratings.reduce((sum, r) => sum + r.rating, 0);
+      const avgRating = totalRatings > 0 ? ratingSum / totalRatings : 0;
+
+      // Update state with calculated stats
+      const newStats = {
+        active: activeServices,
+        inactive: inactiveServices,
+        totalOrders: ordersResponse.data.length,
         activeOrders,
-        averageRating,
-        unreadMessages,
-        notifications
+        completedOrders,
+        totalRevenue,
+        averageRating: avgRating,
+        totalRatings
+      };
+      
+      setStats(newStats);
+      setError(null);
+      
+      // Cache the results
+      setCachedData(cacheKey, newStats, { 
+        expiry: CACHE_EXPIRY.DASHBOARD_DATA,
       });
+      
     } catch (err: any) {
-      console.error('Erreur lors du chargement des statistiques:', err);
-      setError(err.message || 'Une erreur est survenue lors du chargement des statistiques');
+      console.error("Error fetching freelance stats:", err);
+      setError(err.message || "Failed to load statistics");
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
-  }, [freelanceId]);
+  }, [freelanceId, isRefreshing]);
 
-  // Charger les statistiques au chargement du composant et lorsque freelanceId change
+  // Initial load and subscription setup
   useEffect(() => {
+    if (!freelanceId) return;
+    
+    // Load stats
     fetchStats();
-  }, [fetchStats]); // Dépendance à fetchStats qui est mémorisée et ne change que lorsque freelanceId change
+    
+    // Set up subscriptions for real-time updates
+    const ordersChannel = supabase.channel('orders-stats-updates')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'orders',
+        filter: `freelance_id=eq.${freelanceId}`
+      }, () => {
+        // Use throttling to avoid too many refreshes
+        if (!isRefreshing) {
+          console.log("Orders changed, refreshing stats");
+          invalidateCache(`freelance_stats_${freelanceId}`);
+          fetchStats(true);
+        }
+      })
+      .subscribe();
+      
+    const servicesChannel = supabase.channel('services-stats-updates')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'services',
+        filter: `freelance_id=eq.${freelanceId}`
+      }, () => {
+        if (!isRefreshing) {
+          console.log("Services changed, refreshing stats");
+          invalidateCache(`freelance_stats_${freelanceId}`);
+          fetchStats(true);
+        }
+      })
+      .subscribe();
+      
+    const reviewsChannel = supabase.channel('reviews-stats-updates')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'reviews',
+        filter: `freelance_id=eq.${freelanceId}`
+      }, () => {
+        if (!isRefreshing) {
+          console.log("Reviews changed, refreshing stats");
+          invalidateCache(`freelance_stats_${freelanceId}`);
+          fetchStats(true);
+        }
+      })
+      .subscribe();
+    
+    return () => {
+      ordersChannel.unsubscribe();
+      servicesChannel.unsubscribe();
+      reviewsChannel.unsubscribe();
+    };
+  }, [freelanceId, fetchStats, isRefreshing]);
 
-  return { stats, loading, error, refreshStats: fetchStats };
+  // Fonction pour forcer le rafraîchissement des statistiques
+  const refreshStats = useCallback(() => {
+    console.log("Manually refreshing freelance stats");
+    if (freelanceId) {
+      invalidateCache(`freelance_stats_${freelanceId}`);
+      fetchStats(true);
+    }
+  }, [freelanceId, fetchStats]);
+
+  return {
+    stats,
+    loading,
+    error,
+    refreshStats,
+    isRefreshing
+  };
 } 

@@ -1,230 +1,379 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase/client';
-import { Database } from '@/types/database';
 import { ServiceWithFreelanceAndCategories } from './useServices';
+import { useToast } from '@/components/ui/use-toast';
+import { addCommonFilters } from '@/lib/search/queryBuilder';
+import { 
+  getCachedData, 
+  setCachedData, 
+  invalidateCache, 
+  CACHE_KEYS, 
+  CACHE_EXPIRY 
+} from '@/lib/optimizations';
 
-interface UsePaginatedServicesParams {
+export interface UsePaginatedServicesParams {
   categoryId?: string;
   subcategoryId?: string;
   freelanceId?: string;
-  active?: boolean;
   pageSize?: number;
+  active?: boolean;
+  featured?: boolean;
   loadMoreMode?: boolean;
   searchTerm?: string;
+  forceRefresh?: boolean;
 }
 
-interface UsePaginatedServicesResult {
-  services: ServiceWithFreelanceAndCategories[];
-  loading: boolean;
-  error: string | null;
-  currentPage: number;
-  totalPages: number;
-  totalCount: number;
-  goToPage: (page: number) => void;
-  loadMore: () => void;
-  hasMore: boolean;
-  refresh: () => void;
-  isRefreshing: boolean;
+export interface UsePaginatedServicesOptions {
+  useCache?: boolean;
 }
 
-/**
- * Hook pour gérer la pagination des services avec meilleure gestion du cache
- * 
- * @param params - Paramètres de filtrage et pagination
- * @returns Résultat contenant les services, l'état de chargement, et les fonctions de pagination
- */
 export function usePaginatedServices({
   categoryId,
   subcategoryId,
   freelanceId,
-  active = true,
   pageSize = 12,
+  active = true,
+  featured,
   loadMoreMode = false,
-  searchTerm = ''
-}: UsePaginatedServicesParams = {}): UsePaginatedServicesResult {
+  searchTerm = '',
+  forceRefresh = false,
+}: UsePaginatedServicesParams, options: UsePaginatedServicesOptions = {}) {
+  const { useCache = false } = options;
   const [services, setServices] = useState<ServiceWithFreelanceAndCategories[]>([]);
   const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  
-  // Calcul du nombre total de pages
-  const totalPages = Math.ceil(totalCount / pageSize);
-  
-  // Fonction pour charger les services avec gestion de sessions
-  const fetchServices = useCallback(async (page: number, append: boolean = false) => {
-    // Si on ajoute les services à la liste existante, ne pas montrer le loader complet
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastParamsRef = useRef<string>('');
+  const requestInProgressRef = useRef<boolean>(false);
+  const { toast } = useToast();
+
+  // Fonction pour construire une chaîne représentant les paramètres actuels pour la comparaison
+  const getParamsString = useCallback(() => {
+    return JSON.stringify({
+      categoryId,
+      subcategoryId,
+      freelanceId,
+      pageSize,
+      active,
+      featured,
+      currentPage,
+      searchTerm
+    });
+  }, [categoryId, subcategoryId, freelanceId, pageSize, active, featured, currentPage, searchTerm]);
+
+  // Génération d'une clé de cache unique basée sur les paramètres
+  const getCacheKey = useCallback((page: number) => {
+    if (!useCache) return null;
+    
+    let key = CACHE_KEYS.SERVICES;
+    key += 'paginated_';
+    
+    if (categoryId) key += `cat_${categoryId}_`;
+    if (subcategoryId) key += `subcat_${subcategoryId}_`;
+    if (freelanceId) key += `freelance_${freelanceId}_`;
+    if (featured !== undefined) key += `featured_${featured}_`;
+    key += `active_${active}_`;
+    key += `size_${pageSize}_`;
+    key += `page_${page}_`;
+    
+    if (searchTerm) key += `search_${searchTerm.trim()}_`;
+    
+    return key;
+  }, [categoryId, subcategoryId, freelanceId, featured, active, pageSize, searchTerm, useCache]);
+
+  // Clé de cache pour le nombre total d'éléments
+  const getTotalCountCacheKey = useCallback(() => {
+    if (!useCache) return null;
+    
+    let key = CACHE_KEYS.SERVICES;
+    key += 'count_';
+    
+    if (categoryId) key += `cat_${categoryId}_`;
+    if (subcategoryId) key += `subcat_${subcategoryId}_`;
+    if (freelanceId) key += `freelance_${freelanceId}_`;
+    if (featured !== undefined) key += `featured_${featured}_`;
+    key += `active_${active}_`;
+    
+    if (searchTerm) key += `search_${searchTerm.trim()}_`;
+    
+    return key;
+  }, [categoryId, subcategoryId, freelanceId, featured, active, searchTerm, useCache]);
+
+  // Rafraîchir en arrière-plan pour maintenir les données à jour
+  const refreshInBackground = useCallback(async (page: number, append: boolean = false) => {
+    if (isRefreshing || !useCache) return;
+    
+    setIsRefreshing(true);
+    await fetchServices(page, append, true);
+  }, [isRefreshing, useCache]);
+
+  // Fonction pour récupérer les services
+  const fetchServices = useCallback(async (page: number, append: boolean = false, forceReFetch: boolean = false) => {
+    // Éviter les requêtes simultanées
+    if (requestInProgressRef.current) {
+      console.log('Request already in progress, skipping...');
+      return;
+    }
+    
+    requestInProgressRef.current = true;
+    
+    // Si c'est un append et pas un chargement initial, ne pas montrer le loader principal
     if (!append) {
       setLoading(true);
-    } else {
+    } else if (!isRefreshing) {
       setIsRefreshing(true);
     }
     
     setError(null);
-    
+
     try {
-      // Calculer l'offset pour la pagination
-      const from = (page - 1) * pageSize;
-      const to = from + pageSize - 1;
-      
-      // Générer un timestamp unique pour éviter les problèmes de cache du navigateur
-      const cacheBuster = new Date().getTime();
-      
-      // Construire la requête
+      // Vérifier le cache si l'option est activée et ce n'est pas un rafraîchissement forcé
+      if (useCache && !forceReFetch && !forceRefresh) {
+        const cacheKey = getCacheKey(page);
+        const countCacheKey = getTotalCountCacheKey();
+        
+        if (cacheKey && countCacheKey) {
+          const cachedServices = getCachedData<ServiceWithFreelanceAndCategories[]>(cacheKey);
+          const cachedCount = getCachedData<number>(countCacheKey);
+          
+          if (cachedServices && cachedCount !== null) {
+            // Mettre à jour l'état avec les données en cache
+            if (append) {
+              setServices(prev => [...prev, ...cachedServices]);
+            } else {
+              setServices(cachedServices);
+            }
+            
+            const totalPages = Math.ceil(cachedCount / pageSize);
+            setTotalCount(cachedCount);
+            setTotalPages(totalPages);
+            setHasMore(page < totalPages);
+            setLoading(false);
+            setInitialLoading(false);
+            
+            // Rafraîchir en arrière-plan pour maintenir les données à jour
+            refreshInBackground(page, append);
+            requestInProgressRef.current = false;
+            return;
+          }
+        }
+      }
+
+      const start = (page - 1) * pageSize;
+      const end = start + pageSize - 1;
+
+      // Construire la requête de base avec un joint explicite pour une meilleure recherche
       let query = supabase
         .from('services')
         .select(`
           *,
           profiles (id, username, full_name, avatar_url, bio),
-          categories (id, name, slug),
+          categories!inner (id, name, slug),
           subcategories (id, name, slug)
-        `, { count: 'exact' })
-        .order('created_at', { ascending: false });
-      
-      // Appliquer les filtres
-      if (categoryId) {
-        query = query.eq('category_id', categoryId);
+        `, { count: 'exact' });
+
+      // Appliquer les filtres de base directement (sans recherche)
+      if (active !== undefined) {
+        query = query.eq('active', active);
       }
-      
-      if (subcategoryId) {
-        query = query.eq('subcategory_id', subcategoryId);
+
+      if (featured !== undefined) {
+        query = query.eq('is_featured', featured);
       }
-      
+
       if (freelanceId) {
         query = query.eq('freelance_id', freelanceId);
       }
-      
-      // Par défaut, ne montrer que les services actifs
-      query = query.eq('active', active);
-      
-      // Appliquer la recherche textuelle si un terme est fourni
+
+      if (categoryId) {
+        query = query.eq('category_id', categoryId);
+      }
+
+      if (subcategoryId) {
+        query = query.eq('subcategory_id', subcategoryId);
+      }
+
+      // Appliquer une recherche textuelle simple et sûre
       if (searchTerm && searchTerm.trim() !== '') {
-        const term = searchTerm.trim();
+        const term = searchTerm.trim().toLowerCase();
+        // Rechercher uniquement dans les champs directs (pas de relation)
         query = query.or(`title.ilike.%${term}%,description.ilike.%${term}%`);
       }
-      
-      // Pagination avec range
+
+      // Pagination
       query = query
-        .range(from, to);
-      
-      const { data, error: fetchError, count } = await query;
-      
-      if (fetchError) {
-        throw fetchError;
+        .order('created_at', { ascending: false })
+        .range(start, end);
+
+      console.log('Fetching services with query:', query);
+      const { data, count, error } = await query;
+
+      if (error) {
+        console.error('Error fetching services:', error);
+        throw error;
       }
-      
-      // Traiter les services reçus
+
+      // Calculer le nombre total de pages
+      const total = count || 0;
+      const pages = Math.ceil(total / pageSize);
+
+      // Transformer les données pour correspondre au type
       const formattedServices = data.map((service: any) => ({
         ...service,
-        freelance: service.profiles,
-        category: service.categories,
-        subcategory: service.subcategories
+        profiles: service.profiles || {
+          id: service.freelance_id || '',
+          username: 'utilisateur',
+          full_name: 'Utilisateur',
+          avatar_url: null,
+          bio: null
+        },
+        categories: service.categories || {
+          id: service.category_id || '',
+          name: 'Catégorie',
+          slug: 'categorie'
+        },
+        subcategories: service.subcategories || null
       }));
-      
-      // Mise à jour du state en fonction du mode d'ajout
-      if (append && loadMoreMode) {
-        setServices(prevServices => {
-          // Créer un Set des IDs existants pour éviter les doublons
-          const existingIds = new Set(prevServices.map(service => service.id));
-          
-          // Filtrer les nouveaux services pour éviter les doublons
-          const newServices = formattedServices.filter(service => !existingIds.has(service.id));
-          
-          return [...prevServices, ...newServices];
-        });
+
+      if (append) {
+        // Ajouter les nouveaux services à la liste existante
+        setServices(prev => [...prev, ...formattedServices]);
       } else {
+        // Remplacer complètement les services
         setServices(formattedServices);
       }
+
+      setTotalCount(total);
+      setTotalPages(pages);
+      setHasMore(page < pages);
       
-      // Mettre à jour le nombre total d'éléments
-      if (count !== null) {
-        setTotalCount(count);
-        setHasMore(from + (data?.length || 0) < count);
+      // Mettre en cache les résultats si l'option est activée
+      if (useCache) {
+        const cacheKey = getCacheKey(page);
+        const countCacheKey = getTotalCountCacheKey();
+        
+        if (cacheKey) {
+          setCachedData<ServiceWithFreelanceAndCategories[]>(
+            cacheKey, 
+            formattedServices,
+            { expiry: CACHE_EXPIRY.SERVICES }
+          );
+        }
+        
+        if (countCacheKey) {
+          setCachedData(countCacheKey, total, { 
+            expiry: CACHE_EXPIRY.SERVICES 
+          });
+        }
       }
-    } catch (error: any) {
-      console.error('Erreur lors du chargement des services:', error);
-      setError(error.message || 'Une erreur est survenue lors du chargement des services');
+      
+    } catch (err: any) {
+      console.error('Error in fetchServices:', err);
+      setError(err.message || 'Une erreur est survenue');
+      
+      toast({
+        title: 'Erreur',
+        description: 'Impossible de charger les services. Veuillez réessayer.',
+        variant: 'destructive'
+      });
     } finally {
       setLoading(false);
+      setInitialLoading(false);
       setIsRefreshing(false);
+      requestInProgressRef.current = false;
     }
-  }, [categoryId, subcategoryId, freelanceId, active, pageSize, loadMoreMode, searchTerm]);
-  
-  // Changer de page
+  }, [
+    categoryId, 
+    subcategoryId, 
+    freelanceId, 
+    pageSize, 
+    active, 
+    featured, 
+    searchTerm, 
+    toast, 
+    useCache, 
+    getCacheKey,
+    getTotalCountCacheKey,
+    forceRefresh,
+    refreshInBackground
+  ]);
+
+  // Changement de page
   const goToPage = useCallback((page: number) => {
+    if (page < 1 || page > totalPages) return;
     setCurrentPage(page);
     fetchServices(page, false);
-  }, [fetchServices]);
-  
-  // Charger plus de services (mode "Load More")
+  }, [totalPages, fetchServices]);
+
+  // Charger plus de services (pour le mode "load more")
   const loadMore = useCallback(() => {
-    if (!hasMore) return;
-    const nextPage = currentPage + 1;
-    setCurrentPage(nextPage);
-    fetchServices(nextPage, true);
-  }, [currentPage, fetchServices, hasMore]);
-  
+    if (currentPage < totalPages && !isRefreshing) {
+      const nextPage = currentPage + 1;
+      setCurrentPage(nextPage);
+      fetchServices(nextPage, true);
+    }
+  }, [currentPage, totalPages, isRefreshing, fetchServices]);
+
   // Rafraîchir les données
   const refresh = useCallback(() => {
-    fetchServices(currentPage, false);
-  }, [currentPage, fetchServices]);
-  
-  // Effet pour charger les services au changement des filtres
-  useEffect(() => {
-    // Réinitialiser la page en cas de changement de filtres
     setCurrentPage(1);
+    fetchServices(1, false, true);
+  }, [fetchServices]);
+
+  // Hook principal pour charger les services lors des changements de paramètres
+  useEffect(() => {
+    const currentParamsString = getParamsString();
+    const paramsChanged = currentParamsString !== lastParamsRef.current || forceRefresh;
     
-    // En mode "Load More", vider la liste de services si les filtres changent
-    if (!loadMoreMode) {
-      setServices([]);
+    // Si les paramètres n'ont pas changé et ce n'est pas un rafraîchissement forcé, ne rien faire
+    if (!paramsChanged && !initialLoading) {
+      return;
     }
     
-    fetchServices(1, false);
-    
-    // Souscrire aux changements des services en temps réel
-    const servicesSubscription = supabase
-      .channel('services-changes')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'services',
-      }, () => {
-        // Recharger les données quand il y a un changement
-        refresh();
-      })
-      .subscribe();
-    
-    return () => {
-      servicesSubscription.unsubscribe();
-    };
-  }, [categoryId, subcategoryId, freelanceId, active, pageSize, searchTerm, fetchServices, loadMoreMode, refresh]);
-  
-  // Écouter les événements d'invalidation du cache (changements de route)
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    
-    const handleCacheInvalidation = (event: Event) => {
-      // Forcer un rafraîchissement des données après navigation
-      if (!isRefreshing && !loading) {
-        console.log('Rafraîchissement des services après navigation');
-        
-        // Petite attente pour éviter les conflits avec d'autres processus de rendu
-        setTimeout(() => {
-          refresh();
-        }, 300);
+    // Si une recherche est en cours, debouncer pour éviter trop de requêtes
+    if (searchTerm && searchTerm.trim() !== '') {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
       }
-    };
+      
+      debounceTimerRef.current = setTimeout(() => {
+        setCurrentPage(1);
+        fetchServices(1, false);
+        lastParamsRef.current = currentParamsString;
+      }, 300);
+      
+      return () => {
+        if (debounceTimerRef.current) {
+          clearTimeout(debounceTimerRef.current);
+        }
+      };
+    }
     
-    // Écouter l'événement personnalisé d'invalidation du cache
-    window.addEventListener('vynal:cache-invalidated', handleCacheInvalidation);
+    // Sinon, charger immédiatement
+    setCurrentPage(1);
+    fetchServices(1, false);
+    lastParamsRef.current = currentParamsString;
     
-    return () => {
-      window.removeEventListener('vynal:cache-invalidated', handleCacheInvalidation);
-    };
-  }, [isRefreshing, loading, refresh]);
-  
+  }, [
+    categoryId, 
+    subcategoryId, 
+    freelanceId, 
+    active, 
+    featured, 
+    pageSize, 
+    searchTerm, 
+    forceRefresh, 
+    getParamsString, 
+    fetchServices, 
+    initialLoading
+  ]);
+
   return {
     services,
     loading,
@@ -238,4 +387,12 @@ export function usePaginatedServices({
     refresh,
     isRefreshing
   };
+}
+
+/**
+ * Re-export du hook usePaginatedServices avec l'ancien nom pour compatibilité
+ * @deprecated Utilisez usePaginatedServices avec l'option {useCache: true}
+ */
+export function useOptimizedPaginatedServices(params: UsePaginatedServicesParams = {}) {
+  return usePaginatedServices(params, { useCache: true });
 } 

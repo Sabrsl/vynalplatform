@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useUser } from './useUser';
 import { supabase } from '@/lib/supabase/client';
-import { useOptimizedUser } from './useOptimizedUser';
 import { 
   getCachedData, 
   setCachedData, 
@@ -15,42 +15,52 @@ interface MessageCounts {
   conversationCounts: Record<string, number>;
 }
 
+interface UseMessageCountsOptions {
+  useCache?: boolean;
+}
+
 /**
- * Hook optimisé pour récupérer et mettre à jour les compteurs de messages non lus
+ * Hook pour récupérer et mettre à jour les compteurs de messages non lus
  */
-export function useMessageCounts() {
-  const { profile } = useOptimizedUser();
+export function useMessageCounts(options: UseMessageCountsOptions = {}) {
+  const { useCache = true } = options;
+  const { profile } = useUser({ useCache });
   const [counts, setCounts] = useState<MessageCounts>({ totalUnread: 0, conversationCounts: {} });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const fetchInProgressRef = useRef<boolean>(false);
   const { lastRefresh, updateLastRefresh, getLastRefreshText } = useLastRefresh();
 
   // Générer une clé de cache unique
   const getCacheKey = useCallback(() => {
-    if (!profile?.id) return null;
+    if (!useCache || !profile?.id) return null;
     return `${CACHE_KEYS.MESSAGE_COUNTS}_${profile.id}`;
-  }, [profile?.id]);
+  }, [profile?.id, useCache]);
 
   // Fonction pour charger les données
   const fetchCounts = useCallback(async (forceRefresh = false) => {
-    if (!profile?.id) {
-      setLoading(false);
+    if (!profile?.id || (fetchInProgressRef.current && !forceRefresh)) {
       return;
     }
 
+    fetchInProgressRef.current = true;
+
     // Vérifier le cache d'abord si ce n'est pas un forceRefresh
-    const cacheKey = getCacheKey();
-    if (!forceRefresh && cacheKey) {
-      const cachedCounts = getCachedData<MessageCounts>(cacheKey);
-      
-      if (cachedCounts) {
-        setCounts(cachedCounts);
-        setLoading(false);
+    if (useCache && !forceRefresh) {
+      const cacheKey = getCacheKey();
+      if (cacheKey) {
+        const cachedCounts = getCachedData<MessageCounts>(cacheKey);
         
-        // Rafraîchir en arrière-plan
-        refreshInBackground();
-        return;
+        if (cachedCounts) {
+          setCounts(cachedCounts);
+          setLoading(false);
+          fetchInProgressRef.current = false;
+          
+          // Rafraîchir en arrière-plan
+          refreshInBackground();
+          return;
+        }
       }
     }
 
@@ -58,77 +68,81 @@ export function useMessageCounts() {
       setLoading(true);
       setError(null);
 
-      // Requête pour obtenir les messages non lus
-      const { data, error } = await supabase
+      // Requête pour obtenir les messages non lus avec timeout pour éviter les blocages
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error("Timeout lors de la récupération des messages")), 5000);
+      });
+      
+      const fetchPromise = supabase
         .from('messages')
-        .select('conversation_id, count')
-        .eq('recipient_id', profile.id)
-        .eq('is_read', false)
         .select('conversation_id')
-        .then(({ data, error }) => {
-          // Traiter les données pour obtenir le comptage par conversation
-          if (data) {
-            const conversationCounts: Record<string, number> = {};
-            
-            data.forEach((message: any) => {
-              const convId = message.conversation_id;
-              conversationCounts[convId] = (conversationCounts[convId] || 0) + 1;
-            });
-            
-            const totalUnread = data.length;
-            
-            return {
-              data: { totalUnread, conversationCounts },
-              error
-            };
-          }
-          
-          return { data: null, error };
-        });
+        .eq('recipient_id', profile.id)
+        .eq('is_read', false);
+      
+      // Utiliser Promise.race pour implémenter le timeout
+      const result = await Promise.race([fetchPromise, timeoutPromise]) as any;
+      const { data, error } = result;
 
       if (error) throw error;
 
       if (data) {
-        setCounts(data);
+        // Traiter les données pour obtenir le comptage par conversation
+        const conversationCounts: Record<string, number> = {};
         
-        // Mettre en cache
-        if (cacheKey) {
-          setCachedData<MessageCounts>(cacheKey, data, { 
-            expiry: CACHE_EXPIRY.DYNAMIC // Cache court pour les messages
-          });
+        data.forEach((message: any) => {
+          const convId = message.conversation_id;
+          conversationCounts[convId] = (conversationCounts[convId] || 0) + 1;
+        });
+        
+        const totalUnread = data.length;
+        const messageData = { totalUnread, conversationCounts };
+        
+        setCounts(messageData);
+        
+        // Mettre en cache si l'option est activée
+        if (useCache) {
+          const cacheKey = getCacheKey();
+          if (cacheKey) {
+            setCachedData<MessageCounts>(cacheKey, messageData, { 
+              expiry: CACHE_EXPIRY.DYNAMIC // Cache court pour les messages
+            });
+          }
         }
         
         // Mettre à jour le dernier rafraîchissement
         updateLastRefresh();
       }
     } catch (err: any) {
+      console.error('Erreur lors de la récupération des messages:', err);
       setError(err.message);
     } finally {
       setLoading(false);
       setIsRefreshing(false);
+      fetchInProgressRef.current = false;
     }
-  }, [profile?.id, getCacheKey, updateLastRefresh]);
+  }, [profile?.id, getCacheKey, updateLastRefresh, useCache]);
 
   // Rafraîchir les données en arrière-plan
   const refreshInBackground = useCallback(() => {
-    if (isRefreshing) return;
+    if (isRefreshing || !useCache) return;
     setIsRefreshing(true);
     fetchCounts(true);
-  }, [isRefreshing, fetchCounts]);
+  }, [isRefreshing, fetchCounts, useCache]);
 
   // Forcer un rafraîchissement complet
   const refreshCounts = useCallback(() => {
-    setLoading(true);
-    
-    // Invalider le cache
-    const cacheKey = getCacheKey();
-    if (cacheKey) {
-      invalidateCache(cacheKey);
+    // Invalider le cache si l'option est activée
+    if (useCache) {
+      const cacheKey = getCacheKey();
+      if (cacheKey) {
+        invalidateCache(cacheKey);
+      }
     }
     
     // Recharger les données
+    setLoading(true);
     fetchCounts(true);
-  }, [getCacheKey, fetchCounts]);
+  }, [getCacheKey, fetchCounts, useCache]);
 
   // S'abonner aux événements de mise à jour des messages
   useEffect(() => {
@@ -166,4 +180,12 @@ export function useMessageCounts() {
     lastRefresh,
     getLastRefreshText
   };
+}
+
+/**
+ * Re-export du hook pour compatibilité
+ * @deprecated Utilisez useMessageCounts avec l'option {useCache: true}
+ */
+export function useOptimizedMessageCounts() {
+  return useMessageCounts({ useCache: true });
 } 

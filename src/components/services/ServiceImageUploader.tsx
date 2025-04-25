@@ -49,6 +49,13 @@ const ServiceImageUploader: React.FC<ServiceImageUploaderProps> = ({
   const preserveContent = true;
   const outputFormat = 'webp' as const;
 
+  // Initialiser les images au démarrage
+  useEffect(() => {
+    if (initialImages && initialImages.length > 0) {
+      setImages(initialImages);
+    }
+  }, [initialImages]);
+
   // Vérification si le service a au moins une image
   useEffect(() => {
     if (isRequired && images.length === 0) {
@@ -144,22 +151,54 @@ const ServiceImageUploader: React.FC<ServiceImageUploaderProps> = ({
           
           const isAdapted = result.width !== originalWidth && result.height !== originalHeight;
           
-          // Générer un nom de fichier unique avec timestamp pour éviter les doublons
-          const timestamp = Date.now();
+          // Générer un nom de fichier unique pour éviter les doublons
+          // Utiliser UUID v4 pour une probabilité négligeable de collision
+          const uniqueId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+          const safeServiceId = serviceId || 'temp';
           const fileExt = outputFormat === 'webp' ? 'webp' : 'jpg';
-          const fileName = `${serviceId || 'temp'}_${timestamp}_${newImageUrls.length}.${fileExt}`;
+          const fileName = `${safeServiceId}_${uniqueId}.${fileExt}`;
           
-          // Upload vers Supabase Storage
-          const { data: uploadData, error: uploadError } = await supabase.storage
-            .from('services')
-            .upload(fileName, result.file, { upsert: true });
+          console.log('Uploading image with filename:', fileName);
           
-          if (uploadError) {
-            console.error('Erreur lors de l\'upload:', uploadError);
-            throw uploadError;
+          // Upload vers Supabase Storage avec retry
+          let uploadAttempt = 0;
+          let uploadSuccess = false;
+          let uploadData;
+          let uploadError;
+          
+          while (uploadAttempt < 3 && !uploadSuccess) {
+            try {
+              const response = await supabase.storage
+                .from('services')
+                .upload(fileName, result.file, { 
+                  upsert: true,
+                  contentType: `image/${fileExt}`
+                });
+              
+              uploadData = response.data;
+              uploadError = response.error;
+              
+              if (!uploadError) {
+                uploadSuccess = true;
+              } else {
+                console.warn(`Tentative d'upload ${uploadAttempt + 1} échouée:`, uploadError);
+                uploadAttempt++;
+                // Attendre un peu avant de réessayer
+                await new Promise(resolve => setTimeout(resolve, 1000));
+              }
+            } catch (err) {
+              console.error('Erreur lors de la tentative d\'upload:', err);
+              uploadAttempt++;
+              // Attendre un peu avant de réessayer
+              await new Promise(resolve => setTimeout(resolve, 1000));
+            }
           }
           
-          // Récupérer l'URL publique
+          if (!uploadSuccess) {
+            throw new Error('Échec de l\'upload de l\'image après plusieurs tentatives');
+          }
+          
+          // Récupérer l'URL publique avec CDN cachable
           const { data } = supabase.storage.from('services').getPublicUrl(fileName);
           
           if (!data || !data.publicUrl) {
@@ -221,17 +260,23 @@ const ServiceImageUploader: React.FC<ServiceImageUploaderProps> = ({
       const fileName = imageToRemove.split('/').pop();
       
       if (fileName) {
-        // Supprimer l'image de Supabase Storage
-        const { error } = await supabase.storage
-          .from('services')
-          .remove([fileName]);
-          
-        if (error) {
-          console.error('Erreur lors de la suppression de l\'image:', error);
+        try {
+          // Supprimer l'image de Supabase Storage
+          const { error } = await supabase.storage
+            .from('services')
+            .remove([fileName]);
+            
+          if (error) {
+            console.error('Erreur lors de la suppression de l\'image:', error);
+            // Continuer malgré l'erreur pour permettre la suppression de l'UI
+          }
+        } catch (err) {
+          console.error('Exception lors de la suppression de l\'image du storage:', err);
+          // Continuer malgré l'erreur pour permettre la suppression de l'UI
         }
       }
       
-      // Mettre à jour l'état des images
+      // Mettre à jour l'état des images (toujours, même si la suppression du storage échoue)
       const updatedImages = [...images];
       updatedImages.splice(index, 1);
       setImages(updatedImages);

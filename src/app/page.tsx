@@ -1,11 +1,47 @@
+"use client";
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowRight, Search, Star, Shield, Clock } from 'lucide-react';
 import PageLayout from '@/components/ui/PageLayout';
 import SpotlightCard from '@/components/ui/SpotlightCard';
 import { TextRevealSection } from '@/components/sections/TextRevealSection';
 import { BorderBeamButton } from '@/components/ui/border-beam-button';
+import PartnersSection from '@/components/sections/PartnersSection';
+import { useCategories } from '@/hooks/useCategories';
+import { findBestCategoryMatch } from '@/lib/search/searchService';
 
 export default function Home() {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const { categories, subcategories } = useCategories();
+  const router = useRouter();
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (searchQuery.trim()) {
+      setIsSearching(true);
+      
+      try {
+        // Rediriger directement vers la page de recherche avec le terme de recherche
+        // Cela activera notre recherche intelligente côté client et améliorera les résultats
+        router.push(`/services?search=${encodeURIComponent(searchQuery.trim())}`);
+      } catch (error) {
+        console.error("Erreur lors de la recherche:", error);
+        // En cas d'erreur, rediriger vers la page services simple
+        router.push(`/services?search=${encodeURIComponent(searchQuery.trim())}`);
+      }
+    }
+  };
+
+  // Fonction pour gérer les clics sur les catégories
+  const handleCategoryClick = (categorySlug: string) => {
+    // Rediriger simplement vers la catégorie sans chercher à atteindre les sous-catégories
+    router.push(`/services?category=${categorySlug}`);
+  };
+
   return (
     <PageLayout fullGradient={true}>
       {/* Hero Section */}
@@ -32,25 +68,82 @@ export default function Home() {
           </div>
           <div className="lg:w-2/5 animate-fade-in">
             <div className="bg-vynal-purple-dark/90 rounded-xl p-6 shadow-lg shadow-vynal-accent-secondary/20 border border-vynal-purple-secondary/30">
-              <div className="flex items-center gap-2 mb-4">
-                <Search size={20} className="text-vynal-accent-primary" />
-                <input 
-                  type="text" 
-                  placeholder="Que recherchez-vous ?" 
-                  className="w-full py-2 px-3 bg-vynal-purple-secondary/30 border border-vynal-purple-secondary/50 rounded-md text-vynal-text-primary focus:outline-none focus:ring-2 focus:ring-vynal-accent-primary focus:border-vynal-accent-primary placeholder:text-vynal-text-secondary/70"
-                />
-              </div>
-              <div className="flex flex-wrap gap-2 mb-4">
-                <span className="bg-vynal-purple-secondary/20 text-vynal-text-secondary text-sm py-1 px-3 rounded-full border border-vynal-purple-secondary/30">Développement Web & Mobile</span>
-                <span className="bg-vynal-purple-secondary/20 text-vynal-text-secondary text-sm py-1 px-3 rounded-full border border-vynal-purple-secondary/30">Design Graphique</span>
-                <span className="bg-vynal-purple-secondary/20 text-vynal-text-secondary text-sm py-1 px-3 rounded-full border border-vynal-purple-secondary/30">Marketing Digital</span>
-                <span className="bg-vynal-purple-secondary/20 text-vynal-text-secondary text-sm py-1 px-3 rounded-full border border-vynal-purple-secondary/30">Agriculture & Élevage</span>
-                <span className="bg-vynal-purple-secondary/20 text-vynal-text-secondary text-sm py-1 px-3 rounded-full border border-vynal-purple-secondary/30">Informatique & Réseaux</span>
-                <span className="bg-vynal-purple-secondary/20 text-vynal-text-secondary text-sm py-1 px-3 rounded-full border border-vynal-purple-secondary/30">Santé & Bien-être</span>
-              </div>
-              <button className="w-full bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-vynal-purple-dark py-2 rounded-md font-medium transition-all">
-                Rechercher
-              </button>
+              <form onSubmit={handleSearch}>
+                <div className="flex items-center gap-2 mb-4">
+                  <Search size={20} className="text-vynal-accent-primary" />
+                  <input 
+                    type="text" 
+                    placeholder="Que recherchez-vous ?" 
+                    className="w-full py-2 px-3 bg-vynal-purple-secondary/30 border border-vynal-purple-secondary/50 rounded-md text-vynal-text-primary focus:outline-none focus:ring-2 focus:ring-vynal-accent-primary focus:border-vynal-accent-primary placeholder:text-vynal-text-secondary/70"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+                <div className="flex flex-wrap gap-2 mb-4">
+                  <Link href="/services?category=developpement-web-mobile" 
+                    className="bg-vynal-purple-secondary/20 text-vynal-text-secondary text-sm py-1 px-3 rounded-full border border-vynal-purple-secondary/30 hover:bg-vynal-purple-secondary/40 transition-all"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleCategoryClick('developpement-web-mobile');
+                    }}>
+                    Développement Web & Mobile
+                  </Link>
+                  <Link href="/services?category=design-graphique" 
+                    className="bg-vynal-purple-secondary/20 text-vynal-text-secondary text-sm py-1 px-3 rounded-full border border-vynal-purple-secondary/30 hover:bg-vynal-purple-secondary/40 transition-all"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleCategoryClick('design-graphique');
+                    }}>
+                    Design Graphique
+                  </Link>
+                  <Link href="/services?category=marketing-digital" 
+                    className="bg-vynal-purple-secondary/20 text-vynal-text-secondary text-sm py-1 px-3 rounded-full border border-vynal-purple-secondary/30 hover:bg-vynal-purple-secondary/40 transition-all"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleCategoryClick('marketing-digital');
+                    }}>
+                    Marketing Digital
+                  </Link>
+                  <Link href="/services?category=agriculture-elevage" 
+                    className="bg-vynal-purple-secondary/20 text-vynal-text-secondary text-sm py-1 px-3 rounded-full border border-vynal-purple-secondary/30 hover:bg-vynal-purple-secondary/40 transition-all"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleCategoryClick('agriculture-elevage');
+                    }}>
+                    Agriculture & Élevage
+                  </Link>
+                  <Link href="/services?category=informatique-reseaux" 
+                    className="bg-vynal-purple-secondary/20 text-vynal-text-secondary text-sm py-1 px-3 rounded-full border border-vynal-purple-secondary/30 hover:bg-vynal-purple-secondary/40 transition-all"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleCategoryClick('informatique-reseaux');
+                    }}>
+                    Informatique & Réseaux
+                  </Link>
+                  <Link href="/services?category=sante-bien-etre" 
+                    className="bg-vynal-purple-secondary/20 text-vynal-text-secondary text-sm py-1 px-3 rounded-full border border-vynal-purple-secondary/30 hover:bg-vynal-purple-secondary/40 transition-all"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleCategoryClick('sante-bien-etre');
+                    }}>
+                    Santé & Bien-être
+                  </Link>
+                </div>
+                <button 
+                  type="submit"
+                  className="w-full bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-vynal-purple-dark py-2 rounded-md font-medium transition-all flex items-center justify-center"
+                  disabled={isSearching}
+                >
+                  {isSearching ? (
+                    <>
+                      <div className="h-4 w-4 border-2 border-vynal-purple-dark border-t-transparent rounded-full animate-spin mr-2"></div>
+                      Recherche en cours...
+                    </>
+                  ) : (
+                    "Rechercher"
+                  )}
+                </button>
+              </form>
             </div>
           </div>
         </div>
@@ -100,6 +193,9 @@ export default function Home() {
 
       {/* Text Reveal Section */}
       <TextRevealSection />
+
+      {/* Partners Section */}
+      <PartnersSection />
 
       {/* Call to Action Section */}
       <section className="text-vynal-text-primary py-16">

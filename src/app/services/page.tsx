@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState, Suspense, useRef } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useCategories } from '@/hooks/useCategories';
@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { testConnection } from '@/lib/supabase/client';
 import { PaginationControls } from '@/components/ui/pagination';
 import ServiceSkeletonLoader from '@/components/services/ServiceSkeletonLoader';
+import { filterServicesBySearchTerm } from '@/lib/search/smartSearch';
 
 // Ordre exact des catégories comme défini dans le seed.sql
 const CATEGORY_ORDER = [
@@ -78,6 +79,8 @@ function ServicesPageContent() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [renderError, setRenderError] = useState<string | null>(null);
+  const lastVisibilityTimeRef = useRef<number>(Date.now());
+  const forceRefreshRef = useRef<boolean>(false);
   
   // Stats data
   const [statsData, setStatsData] = useState({
@@ -105,12 +108,13 @@ function ServicesPageContent() {
     active: true,
     pageSize: 12,
     loadMoreMode: isLoadMoreMode,
-    searchTerm: searchQuery
+    searchTerm: searchQuery,
+    forceRefresh: forceRefreshRef.current
   };
   
   // Hook de pagination des services
   const {
-    services,
+    services: fetchedServices,
     loading: servicesLoading,
     error: servicesError,
     currentPage,
@@ -121,6 +125,11 @@ function ServicesPageContent() {
     hasMore,
     refresh
   } = usePaginatedServices(paginationParams);
+  
+  // Appliquer la recherche intelligente côté client en plus de la recherche serveur
+  const services = searchQuery 
+    ? filterServicesBySearchTerm(fetchedServices, searchQuery)
+    : fetchedServices;
   
   // Mettre à jour l'URL avec les paramètres de pagination
   const updateURLParams = (newPage: number, newSearchQuery?: string) => {
@@ -227,6 +236,49 @@ function ServicesPageContent() {
     };
   }, [isRefreshing]);
 
+  // Écouter les événements de force refresh pour recharger les données après inactivité
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    const handleForceDataReload = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const path = customEvent.detail?.path;
+      
+      // Ne déclencher que si cela concerne cette page
+      if (path && (path === '/services' || path.includes('/services'))) {
+        console.log('Recharger les données de la page services après inactivité');
+        // On utilise un délai court pour s'assurer que la page est prête
+        setTimeout(() => {
+          refreshData();
+        }, 100);
+      }
+    };
+    
+    // Écouteur pour l'événement personnalisé vynal:force-data-reload
+    window.addEventListener('vynal:force-data-reload', handleForceDataReload);
+    
+    // Écouteur pour l'événement force-refresh plus général
+    const handleForceRefresh = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const pathname = customEvent.detail?.pathname;
+      const inactiveDuration = customEvent.detail?.inactiveDuration || 0;
+      
+      // Si nous sommes sur la page des services et que l'inactivité est significative
+      if ((pathname === '/services' || pathname?.includes('/services')) && inactiveDuration > 10000) {
+        console.log('Forcer le rafraîchissement des services après inactivité');
+        refreshData();
+      }
+    };
+    
+    window.addEventListener('vynal:force-refresh', handleForceRefresh);
+    
+    // Nettoyage
+    return () => {
+      window.removeEventListener('vynal:force-data-reload', handleForceDataReload);
+      window.removeEventListener('vynal:force-refresh', handleForceRefresh);
+    };
+  }, []);
+  
   // Tri des catégories selon l'ordre exact du seed
   const sortedCategories = [...categories].sort((a, b) => {
     const indexA = CATEGORY_ORDER.indexOf(a.slug);
@@ -248,6 +300,7 @@ function ServicesPageContent() {
   const refreshData = async () => {
     setIsRefreshing(true);
     setRenderError(null);
+    forceRefreshRef.current = true;
     
     try {
       // Vérifier la connexion
@@ -263,11 +316,92 @@ function ServicesPageContent() {
       setTimeout(() => {
         setIsRefreshing(false);
         setConnectionError(null);
+        forceRefreshRef.current = false;
       }, 1000);
     } catch (error) {
       setIsRefreshing(false);
+      forceRefreshRef.current = false;
     }
   };
+
+  // Gestion du changement de visibilité de la page (retour à l'onglet)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    // Stockage temporaire pour l'état de navigation lors d'une sortie d'onglet
+    const saveTabState = () => {
+      sessionStorage.setItem('vynal_last_page', window.location.href);
+      sessionStorage.setItem('vynal_tab_inactive_time', Date.now().toString());
+    };
+    
+    // Gestionnaire quand le document devient visible (retour à l'onglet)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        const lastInactiveTimeStr = sessionStorage.getItem('vynal_tab_inactive_time');
+        
+        if (lastInactiveTimeStr) {
+          const lastInactiveTime = parseInt(lastInactiveTimeStr, 10);
+          const currentTime = Date.now();
+          const inactiveDuration = currentTime - lastInactiveTime;
+          
+          // Si l'onglet était inactif pendant plus de 10 secondes, forcer le rafraîchissement
+          if (inactiveDuration > 10000 && window.location.pathname === '/services') {
+            console.log('Retour à la page des services après inactivité, rafraîchissement forcé');
+            refreshData();
+          }
+          
+          // Nettoyer le stockage
+          sessionStorage.removeItem('vynal_tab_inactive_time');
+        }
+      } else {
+        // L'onglet devient invisible, sauvegarder l'état
+        saveTabState();
+      }
+    };
+    
+    // Gestionnaire de focus de la fenêtre
+    const handleWindowFocus = () => {
+      const lastInactiveTimeStr = sessionStorage.getItem('vynal_tab_inactive_time');
+      
+      if (lastInactiveTimeStr) {
+        const lastInactiveTime = parseInt(lastInactiveTimeStr, 10);
+        const currentTime = Date.now();
+        const inactiveDuration = currentTime - lastInactiveTime;
+        
+        // Si la fenêtre était inactive pendant plus de 10 secondes, forcer le rafraîchissement
+        if (inactiveDuration > 10000 && window.location.pathname === '/services') {
+          console.log('Focus retourné à la fenêtre des services après inactivité, rafraîchissement forcé');
+          refreshData();
+        }
+        
+        // Nettoyer le stockage
+        sessionStorage.removeItem('vynal_tab_inactive_time');
+      }
+    };
+    
+    // Écouter l'événement personnalisé d'invalidation
+    const handleForceRefresh = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const targetPage = customEvent.detail?.targetPage;
+      
+      // Ne déclencher que si nous sommes sur la page des services
+      if (targetPage === 'services' || !targetPage) {
+        console.log('Rafraîchissement forcé des services demandé par un événement');
+        refreshData();
+      }
+    };
+    
+    // Écouter tous les événements pertinents
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleWindowFocus);
+    window.addEventListener('vynal:force-refresh-after-tab-return', handleForceRefresh);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleWindowFocus);
+      window.removeEventListener('vynal:force-refresh-after-tab-return', handleForceRefresh);
+    };
+  }, []);
 
   // Animation variants
   const fadeInUp = {
@@ -410,13 +544,7 @@ function ServicesPageContent() {
           
           {/* Future section de filtres */}
           <div className="flex items-center">
-            <button 
-              className="flex items-center gap-1 text-sm px-2.5 py-1.5 bg-vynal-purple-secondary/30 border border-vynal-purple-secondary/50 rounded-md text-vynal-text-primary hover:bg-vynal-purple-secondary/50 transition-colors"
-              title="Filtres"
-            >
-              <Filter className="h-3.5 w-3.5" />
-              <span>Filtres</span>
-            </button>
+            {/* Bouton filtre supprimé */}
           </div>
         </div>
         
@@ -432,7 +560,7 @@ function ServicesPageContent() {
               <div>
                 <h3 className="font-medium text-vynal-text-primary">Un problème est survenu</h3>
                 <p className="text-sm text-vynal-text-secondary mt-0.5">
-                  {connectionError || servicesError}
+                  {connectionError || (servicesError ? servicesError.toString() : '')}
                 </p>
                 <button
                   onClick={refreshData}

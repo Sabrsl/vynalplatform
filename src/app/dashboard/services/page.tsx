@@ -17,11 +17,18 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { formatPrice } from "@/lib/utils";
-import { Plus, PenSquare, Trash2, Clock, AlertCircle, BarChart3, CheckCircle2, DollarSign, Layers, Eye, ShoppingBag, MessageSquare } from "lucide-react";
+import { Plus, PenSquare, Trash2, Clock, AlertCircle, BarChart3, CheckCircle2, DollarSign, Layers, Eye, ShoppingBag, MessageSquare, RefreshCw } from "lucide-react";
 import { Loader } from "@/components/ui/loader";
 import { supabase } from "@/lib/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import ServiceCard from "@/components/services/ServiceCard";
+import { 
+  getCachedData, 
+  setCachedData, 
+  invalidateCache, 
+  CACHE_EXPIRY,
+  CACHE_PRIORITIES
+} from '@/lib/optimizations';
 
 export default function ServicesPage() {
   const router = useRouter();
@@ -38,15 +45,39 @@ export default function ServicesPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalServices, setTotalServices] = useState(0);
   const itemsPerPage = 10;
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   
   // Utilisation du hook personnalisé pour les statistiques
   const { stats, loading: loadingStats, error: statsError, refreshStats } = useFreelanceStats(profile?.id);
 
   // Fonction pour charger les services avec pagination - mémorisée avec useCallback
-  const loadServices = useCallback(async (profileId: string) => {
+  const loadServices = useCallback(async (profileId: string, forceRefresh = false) => {
+    if (isRefreshing && !forceRefresh) return;
+
     try {
       setLoading(true);
+      if (forceRefresh) setIsRefreshing(true);
       setError(null);
+      
+      // Vérifier le cache si ce n'est pas un forceRefresh
+      if (!forceRefresh) {
+        const cacheKey = `services_freelance_${profileId}_page_${currentPage}`;
+        const cachedServices = getCachedData<{
+          services: ServiceWithFreelanceAndCategories[],
+          total: number
+        }>(cacheKey);
+        
+        if (cachedServices) {
+          setServices(cachedServices.services);
+          setTotalServices(cachedServices.total);
+          setLoading(false);
+          setLastRefresh(new Date());
+          
+          // Ne pas rafraîchir en arrière-plan à chaque rendu
+          return;
+        }
+      }
       
       // Récupérer d'abord le nombre total de services pour la pagination
       const { count, error: countError } = await supabase
@@ -89,13 +120,28 @@ export default function ServicesPage() {
       }));
       
       setServices(transformedServices);
+      
+      // Mettre en cache les résultats
+      const cacheKey = `services_freelance_${profileId}_page_${currentPage}`;
+      setCachedData(
+        cacheKey, 
+        { services: transformedServices, total: count || 0 },
+        { 
+          expiry: CACHE_EXPIRY.SERVICES,
+          priority: CACHE_PRIORITIES.HIGH
+        }
+      );
+      
+      // Mettre à jour le timestamp de dernier rafraîchissement
+      setLastRefresh(new Date());
     } catch (err: any) {
       console.error('Erreur lors du chargement des services:', err);
       setError(err.message || 'Une erreur est survenue lors du chargement des services');
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
-  }, [currentPage, itemsPerPage]);
+  }, [currentPage, itemsPerPage, isRefreshing]);
 
   // Fonction pour gérer la suppression d'un service - mémorisée avec useCallback
   const handleDeleteService = useCallback(async (serviceId: string) => {
@@ -112,6 +158,14 @@ export default function ServicesPage() {
         
         // Mettre à jour la liste des services après suppression
         setServices(services.filter((service: ServiceWithFreelanceAndCategories) => service.id !== serviceId));
+        
+        // Invalider le cache des services
+        if (profile?.id) {
+          invalidateCache(`services_freelance_${profile.id}`);
+        }
+        
+        // Rafraîchir les statistiques
+        refreshStats();
         
         // Afficher un message de confirmation positif (optionnel)
         setError(null); // Effacer les erreurs précédentes
@@ -133,12 +187,31 @@ export default function ServicesPage() {
         setIsDeleting(null);
       }
     }
-  }, [deleteService, services]);
+  }, [deleteService, services, profile?.id, refreshStats]);
 
   // Fonction pour changer de page - mémorisée avec useCallback
   const handlePageChange = useCallback((page: number) => {
     setCurrentPage(page);
   }, []);
+
+  // Fonction pour rafraîchir manuellement les données
+  const refreshData = useCallback(() => {
+    if (!profile?.id || isRefreshing) return;
+    
+    setIsRefreshing(true);
+    
+    // Invalider explicitement tous les caches liés aux services du freelance
+    invalidateCache(`services_freelance_${profile.id}`);
+    invalidateCache(`dashboard_stats_freelance_${profile.id}`);
+    
+    // Forcer le rechargement complet sans utiliser le cache
+    loadServices(profile.id, true).then(() => {
+      // Actualiser aussi les statistiques du freelance
+      refreshStats();
+    }).finally(() => {
+      setIsRefreshing(false);
+    });
+  }, [profile?.id, isRefreshing, loadServices, refreshStats]);
 
   // Effet #1: Redirection si l'utilisateur n'est pas freelance - simplifié
   useEffect(() => {
@@ -152,8 +225,10 @@ export default function ServicesPage() {
     // Ne rien faire si aucun profil n'est disponible
     if (!profile?.id) return;
     
-    // Fonction pour charger les données initiales
+    // Variable pour le suivi du montage du composant
     let isMounted = true;
+    
+    // Fonction pour charger les données initiales
     const initialLoad = async () => {
       try {
         // Charger les services (une seule fois)
@@ -163,10 +238,10 @@ export default function ServicesPage() {
       }
     };
     
-    // Exécuter le chargement initial
+    // Exécuter le chargement initial seulement une fois
     initialLoad();
     
-    // Configurer l'abonnement aux changements
+    // Configurer l'abonnement aux changements - limiter les événements
     const servicesSubscription = supabase
       .channel('services-changes')
       .on('postgres_changes', {
@@ -174,12 +249,20 @@ export default function ServicesPage() {
         schema: 'public',
         table: 'services',
         filter: `freelance_id=eq.${profile.id}`
-      }, () => {
-        // Recharger uniquement si le composant est toujours monté
-        if (isMounted) {
+      }, (payload) => {
+        // Recharger uniquement si le composant est toujours monté et pas déjà en train de recharger
+        if (isMounted && !isRefreshing) {
           console.log("Changement détecté, rechargement des données...");
-          loadServices(profile.id);
-          refreshStats();
+          // Utiliser une seule méthode de rechargement pour éviter les doublons
+          if (payload.eventType === 'DELETE') {
+            // Si suppression, mettre à jour localement sans requête API
+            setServices(prev => prev.filter(s => s.id !== payload.old.id));
+          } else {
+            // Sinon charger depuis l'API
+            loadServices(profile.id, true);
+            // Recharger les stats seulement si nécessaire (création/modification)
+            refreshStats();
+          }
         }
       })
       .subscribe();
@@ -189,7 +272,28 @@ export default function ServicesPage() {
       isMounted = false;
       servicesSubscription.unsubscribe();
     };
-  }, [profile, loadServices, refreshStats]);
+  }, [profile?.id, loadServices, refreshStats, isRefreshing]);
+
+  // Effet pour recharger les services quand la pagination change
+  useEffect(() => {
+    // Ne pas recharger si on n'a pas de profil
+    if (!profile?.id) return;
+    
+    // Vérifier d'abord le cache avant de faire l'appel réseau
+    const cacheKey = `services_freelance_${profile.id}_page_${currentPage}`;
+    const cachedServices = getCachedData<{
+      services: ServiceWithFreelanceAndCategories[],
+      total: number
+    }>(cacheKey);
+    
+    if (cachedServices) {
+      setServices(cachedServices.services);
+      setTotalServices(cachedServices.total);
+      // N'appelez pas loadServices ici pour éviter le cycle
+    } else {
+      loadServices(profile.id);
+    }
+  }, [currentPage, profile?.id, loadServices]);
 
   // Vérifier si on vient de créer un service sans images
   useEffect(() => {
@@ -204,6 +308,66 @@ export default function ServicesPage() {
     }
   }, []);
 
+  // Écouter les événements d'invalidation du cache - optimisé
+  useEffect(() => {
+    if (!profile?.id || typeof window === 'undefined') return;
+    
+    // Utiliser un debounce pour éviter les rechargements multiples
+    let debounceTimer: NodeJS.Timeout;
+    
+    const handleCacheInvalidation = () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        if (!isRefreshing) {
+          console.log('Cache invalidé - rechargement des services');
+          loadServices(profile.id, true);
+        }
+      }, 300);
+    };
+    
+    window.addEventListener('vynal:cache-invalidated', handleCacheInvalidation);
+    
+    return () => {
+      window.removeEventListener('vynal:cache-invalidated', handleCacheInvalidation);
+      clearTimeout(debounceTimer);
+    };
+  }, [profile?.id, loadServices, isRefreshing]);
+
+  // Écouter les événements de service pour rafraîchir la liste - avec debounce
+  useEffect(() => {
+    if (!profile?.id) return;
+    
+    let debounceTimer: NodeJS.Timeout;
+    
+    const handleServiceEvent = (event: Event) => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        if (!isRefreshing) {
+          console.log('Service event detected, refreshing services list');
+          // Invalider le cache et recharger les services
+          if (profile?.id) {
+            const cacheKey = `services_freelance_${profile.id}_page_${currentPage}`;
+            invalidateCache(cacheKey);
+            loadServices(profile.id, true);
+          }
+        }
+      }, 300);
+    };
+    
+    // Ajouter les écouteurs pour tous les types d'événements de service
+    window.addEventListener('vynal:service-created', handleServiceEvent);
+    window.addEventListener('vynal:service-updated', handleServiceEvent);
+    window.addEventListener('vynal:service-deleted', handleServiceEvent);
+    
+    // Nettoyer les écouteurs lors du démontage
+    return () => {
+      window.removeEventListener('vynal:service-created', handleServiceEvent);
+      window.removeEventListener('vynal:service-updated', handleServiceEvent);
+      window.removeEventListener('vynal:service-deleted', handleServiceEvent);
+      clearTimeout(debounceTimer);
+    };
+  }, [profile?.id, currentPage, loadServices, isRefreshing]);
+
   // Filtrer les services en fonction de l'onglet actif
   const filteredServices = services.filter((service: ServiceWithFreelanceAndCategories) => {
     if (activeTab === 'all') return true;
@@ -215,6 +379,19 @@ export default function ServicesPage() {
   // Calculer le nombre total de pages
   const totalPages = Math.ceil(totalServices / itemsPerPage);
 
+  // Obtenir le texte de dernière mise à jour
+  const getLastRefreshText = useCallback(() => {
+    if (!lastRefresh) return 'Jamais rafraîchi';
+    
+    const now = new Date();
+    const diff = Math.floor((now.getTime() - lastRefresh.getTime()) / 1000);
+    
+    if (diff < 60) return 'Il y a quelques secondes';
+    if (diff < 3600) return `Il y a ${Math.floor(diff / 60)} min`;
+    if (diff < 86400) return `Il y a ${Math.floor(diff / 3600)} h`;
+    return `Il y a ${Math.floor(diff / 86400)} j`;
+  }, [lastRefresh]);
+
   return (
     <div>
       {/* Tableau de bord du services avec statistiques */}
@@ -225,12 +402,28 @@ export default function ServicesPage() {
             <p className="text-slate-500 mt-1 text-sm">Gérez et améliorez vos prestations pour attirer plus de clients</p>
           </div>
           
-          <Button 
-            onClick={() => router.push("/dashboard/services/new")} 
-            className="w-full sm:w-auto bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 transition-all"
-          >
-            <Plus className="mr-2 h-4 w-4" /> Ajouter un service
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              onClick={refreshData}
+              disabled={isRefreshing}
+              variant="outline"
+              size="sm"
+              className="bg-white"
+            >
+              {isRefreshing ? (
+                <div className="animate-spin h-4 w-4 border-2 border-indigo-600 rounded-full border-t-transparent"></div>
+              ) : (
+                <RefreshCw className="h-4 w-4 text-indigo-600" />
+              )}
+            </Button>
+            
+            <Button 
+              onClick={() => router.push("/dashboard/services/new")} 
+              className="w-full sm:w-auto bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 transition-all"
+            >
+              <Plus className="mr-2 h-4 w-4" /> Ajouter un service
+            </Button>
+          </div>
         </div>
 
         {/* Statistiques en cards */}
@@ -336,6 +529,11 @@ export default function ServicesPage() {
             </Card>
           </div>
         )}
+
+        {/* Ajouter l'indicateur de dernière mise à jour */}
+        <div className="text-xs text-slate-400 dark:text-slate-500 text-right mt-4">
+          {isRefreshing ? 'Rafraîchissement en cours...' : `Dernière mise à jour: ${getLastRefreshText()}`}
+        </div>
       </div>
 
       {error && (
@@ -470,9 +668,9 @@ export default function ServicesPage() {
               isManageable={true}
               isDeletable={true}
               isDeleting={isDeleting === service.id}
-              onView={() => router.push(`/dashboard/services/${service.id}`)}
-              onEdit={() => router.push(`/dashboard/services/edit/${service.id}`)}
-              onDelete={() => handleDeleteService(service.id)}
+              onView={(id) => router.push(`/dashboard/services/${id}`)}
+              onEdit={(id) => router.push(`/dashboard/services/edit/${id}`)}
+              onDelete={(id) => handleDeleteService(id)}
             />
           ))}
         </div>

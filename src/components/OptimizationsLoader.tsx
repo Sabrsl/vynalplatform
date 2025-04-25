@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { initializeOptimizations } from '@/lib/optimizations';
 import { preloadResources } from '@/lib/optimizations/network';
+import { usePathname } from 'next/navigation';
+import { NavigationLoadingState } from '@/app/providers';
 
 // Ressources importantes à précharger pour améliorer l'expérience utilisateur
 const CRITICAL_RESOURCES = [
@@ -34,7 +36,9 @@ interface OptimizationsLoaderProps {
  */
 export function OptimizationsLoader({ children }: OptimizationsLoaderProps) {
   const [isLoaded, setIsLoaded] = useState(false);
+  const pathname = usePathname();
 
+  // Initialisation des optimisations au chargement
   useEffect(() => {
     // Ne rien faire côté serveur
     if (typeof window === 'undefined') return;
@@ -83,6 +87,21 @@ export function OptimizationsLoader({ children }: OptimizationsLoaderProps) {
 
     return () => clearTimeout(idleTimer);
   }, [isLoaded]);
+
+  // Détection des changements de route et déclenchement des événements de navigation
+  useEffect(() => {
+    // Mettre l'état de navigation à true au début d'un changement de route
+    if (typeof window !== 'undefined' && isLoaded) {
+      NavigationLoadingState.setIsNavigating(true);
+      
+      // Réinitialiser l'état après un délai
+      const timer = setTimeout(() => {
+        NavigationLoadingState.setIsNavigating(false);
+      }, 800); // Délai suffisant pour que la page se charge
+      
+      return () => clearTimeout(timer);
+    }
+  }, [pathname, isLoaded]);
 
   // Optimisation du rendu initial
   return (

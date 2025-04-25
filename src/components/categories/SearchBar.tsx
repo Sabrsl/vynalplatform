@@ -28,7 +28,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
   onSearch,
   className = '',
   placeholder = 'Rechercher un service...',
-  showFiltersButton = true,
+  showFiltersButton = false,
 }) => {
   return (
     <motion.form 

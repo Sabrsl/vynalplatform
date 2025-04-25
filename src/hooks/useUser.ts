@@ -1,7 +1,15 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { useAuth } from './useAuth';
 import { Database } from '@/types/database';
+import { 
+  getCachedData, 
+  setCachedData, 
+  invalidateCache, 
+  CACHE_KEYS, 
+  CACHE_EXPIRY 
+} from '@/lib/optimizations';
+import { useLastRefresh } from './useLastRefresh';
 
 // Type pour le profil utilisateur
 export interface UserProfile {
@@ -19,38 +27,174 @@ export interface UserProfile {
   phone: string | null;
 }
 
-export function useUser() {
-  const { user } = useAuth();
+interface UseUserOptions {
+  useCache?: boolean;
+}
+
+export function useUser(options: UseUserOptions = {}) {
+  const { useCache = false } = options;
+  const { user } = useAuth({ useCache });
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updateError, setUpdateError] = useState<any>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const { lastRefresh, updateLastRefresh, getLastRefreshText } = useLastRefresh();
   
-  // Définir les rôles dérivés directement pour réduire les calculs répétés
-  // Vérifier d'abord dans user_metadata pour une réponse immédiate si possible
-  const isClient = user?.user_metadata?.role === 'client' || profile?.role === 'client';
-  const isFreelance = user?.user_metadata?.role === 'freelance' || profile?.role === 'freelance';
-  const isAdmin = user?.user_metadata?.role === 'admin' || profile?.role === 'admin';
-
-  // Memoizer les fonctions pour éviter des recalculs
-  const canAccess = useCallback((requiredRoles: Array<'client' | 'freelance' | 'admin'>) => {
-    // Vérifier d'abord user_metadata pour éviter des requêtes inutiles
-    if (user?.user_metadata?.role && requiredRoles.includes(user.user_metadata.role as any)) {
-      return true;
-    }
-    
-    // Ensuite vérifier le profil
-    if (profile?.role && requiredRoles.includes(profile.role as any)) {
-      return true;
-    }
-    
-    return false;
-  }, [user?.user_metadata?.role, profile?.role]);
+  // Référence unique pour éviter les requêtes simultanées
+  const fetchingRef = useRef<boolean>(false);
   
-  const getUserRole = useCallback(() => {
+  // Calcul memoïsé du rôle pour éviter les recalculs inutiles
+  const userRole = useMemo(() => {
     return user?.user_metadata?.role || profile?.role || null;
   }, [user?.user_metadata?.role, profile?.role]);
+  
+  // Définir les rôles dérivés directement des valeurs calculées
+  const isClient = userRole === 'client';
+  const isFreelance = userRole === 'freelance';
+  const isAdmin = userRole === 'admin';
+
+  // Fonction memoïsée pour vérifier les permissions selon le rôle
+  const canAccess = useCallback((requiredRoles: Array<'client' | 'freelance' | 'admin'>) => {
+    return requiredRoles.includes(userRole as any);
+  }, [userRole]);
+
+  // Clé de cache simplifiée
+  const getProfileCacheKey = useCallback(() => {
+    if (!useCache) return null;
+    return user?.id ? `${CACHE_KEYS.USER_PROFILE}_${user.id}` : null;
+  }, [user?.id, useCache]);
+
+  // Fonction centralisée pour récupérer le profil utilisateur
+  const fetchProfile = useCallback(async (forceRefresh = false) => {
+    if (!user) {
+      setProfile(null);
+      setLoading(false);
+      return;
+    }
+    
+    // Éviter les requêtes simultanées
+    if (fetchingRef.current) return;
+    fetchingRef.current = true;
+    
+    try {
+      setLoading(true);
+      
+      // Déterminer la clé de cache
+      const cacheKey = getProfileCacheKey();
+      
+      // Vérifier le cache si l'option est activée et pas de rafraîchissement forcé
+      if (useCache && !forceRefresh && cacheKey) {
+        const cachedProfile = getCachedData<UserProfile>(cacheKey);
+        const cacheTimestamp = getCachedData<number>(`${cacheKey}_timestamp`);
+        const isCacheValid = cacheTimestamp && (Date.now() - cacheTimestamp < 300000); // 5 minutes
+        
+        if (cachedProfile && isCacheValid) {
+          setProfile(cachedProfile);
+          setLoading(false);
+          fetchingRef.current = false;
+          return;
+        }
+      }
+
+      // Créer un profil partiel si le rôle est disponible en métadonnées et si l'option de cache est activée
+      if (user.user_metadata?.role && !forceRefresh && useCache) {
+        const partialProfile: UserProfile = {
+          id: user.id,
+          role: user.user_metadata.role as any,
+          email: user.email || '',
+          username: user.user_metadata?.username || null,
+          full_name: user.user_metadata?.full_name || null,
+          avatar_url: user.user_metadata?.avatar_url || null,
+          bio: null,
+          created_at: '',
+          updated_at: '',
+          verification_level: null,
+          last_seen: null,
+          phone: null
+        };
+        
+        setProfile(partialProfile);
+        setLoading(false);
+        
+        // Mettre en cache provisoire et continuer le chargement complet en arrière-plan
+        if (cacheKey) {
+          setCachedData(cacheKey, partialProfile, { expiry: CACHE_EXPIRY.USER_SESSION_PARTIAL });
+          setCachedData(`${cacheKey}_timestamp`, Date.now());
+        }
+        
+        // Chargement en arrière-plan du profil complet
+        supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single()
+          .then(({ data, error }) => {
+            if (!error && data) {
+              setProfile(data);
+              if (cacheKey) {
+                setCachedData(cacheKey, data, { expiry: CACHE_EXPIRY.USER_PROFILE });
+                setCachedData(`${cacheKey}_timestamp`, Date.now());
+              }
+              updateLastRefresh();
+            }
+          })
+          .then(undefined, (e: Error) => {
+            // Ignorer les erreurs en arrière-plan
+            console.debug('Erreur lors du chargement du profil en arrière-plan:', e);
+          })
+          .then(() => {
+            fetchingRef.current = false;
+          });
+          
+        return;
+      }
+
+      // Chargement du profil complet directement
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (error) throw error;
+
+      // Synchroniser le rôle si nécessaire
+      if (data && !data.role && user.user_metadata?.role) {
+        data.role = user.user_metadata.role;
+        
+        // Mise à jour en arrière-plan dans la base de données
+        supabase
+          .from('profiles')
+          .update({ role: user.user_metadata.role })
+          .eq('id', user.id)
+          .then(() => {
+            // Mise à jour réussie
+          })
+          .then(undefined, (e: Error) => {
+            // Ignorer les erreurs en arrière-plan
+            console.debug('Erreur lors de la mise à jour du rôle:', e);
+          });
+      }
+
+      // Mise à jour de l'état et du cache
+      setProfile(data);
+      if (useCache && cacheKey) {
+        setCachedData(cacheKey, data, { expiry: CACHE_EXPIRY.USER_PROFILE });
+        setCachedData(`${cacheKey}_timestamp`, Date.now());
+      }
+      if (useCache) {
+        updateLastRefresh();
+      }
+      
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+      setIsRefreshing(false);
+      fetchingRef.current = false;
+    }
+  }, [user, getProfileCacheKey, updateLastRefresh, useCache]);
 
   // Fonction pour mettre à jour le profil utilisateur
   const updateProfile = useCallback(async (updates: Partial<UserProfile>) => {
@@ -72,122 +216,79 @@ export function useUser() {
       }
       
       setProfile(data);
+      
+      // Mettre à jour le cache si l'option est activée
+      if (useCache) {
+        const cacheKey = getProfileCacheKey();
+        if (cacheKey) {
+          setCachedData(cacheKey, data, { expiry: CACHE_EXPIRY.USER_PROFILE });
+          setCachedData(`${cacheKey}_timestamp`, Date.now());
+        }
+        updateLastRefresh();
+      }
+      
       return { success: true, data };
     } catch (error: any) {
       setUpdateError(error);
       return { success: false, error };
     }
-  }, [user]);
+  }, [user, getProfileCacheKey, updateLastRefresh, useCache]);
 
-  // Fonction pour rafraîchir explicitement le profil utilisateur
-  const refreshProfile = useCallback(async () => {
-    if (!user) {
-      setProfile(null);
-      setLoading(false);
-      return;
-    }
+  // Fonction publique pour forcer le rafraîchissement du profil
+  const refreshProfile = useCallback(() => {
+    if (isRefreshing) return;
     
     setIsRefreshing(true);
     
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-        
-      if (error) throw error;
-      
-      setProfile(data);
-    } catch (err: any) {
-      console.error('Erreur lors du rafraîchissement du profil:', err);
-    } finally {
-      setIsRefreshing(false);
+    // Nettoyer le cache si l'option est activée
+    if (useCache) {
+      const cacheKey = getProfileCacheKey();
+      if (cacheKey) {
+        invalidateCache(cacheKey);
+      }
     }
-  }, [user]);
-
-  // Récupérer le profil utilisateur depuis Supabase, mais seulement si nécessaire
-  useEffect(() => {
-    const fetchProfile = async () => {
-      // Si l'utilisateur n'est pas connecté, réinitialiser le profil
-      if (!user) {
-        setProfile(null);
-        setLoading(false);
-        return;
-      }
-      
-      // Si le rôle est déjà dans user_metadata, pas besoin de chercher tout de suite
-      if (user.user_metadata?.role) {
-        setLoading(false);
-        
-        // Fetch profile in background for complete data
-        try {
-          const { data, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', user.id)
-            .single();
-            
-          if (!error && data) {
-            setProfile(data);
-          }
-        } catch (err) {
-          // Ignorer les erreurs en arrière-plan
-        }
-        
-        return;
-      }
-
-      // Sinon, chercher le profil complet
-      try {
-        setLoading(true);
-        setError(null);
-
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
-
-        if (error) throw error;
-
-        // Si le profil existe mais que le rôle est manquant, utiliser celui des métadonnées
-        if (data && !data.role && user.user_metadata?.role) {
-          // Mettre à jour le profil avec le rôle des métadonnées utilisateur
-          await supabase
-            .from('profiles')
-            .update({ role: user.user_metadata.role })
-            .eq('id', user.id);
-            
-          data.role = user.user_metadata.role;
-        }
-
-        setProfile(data);
-      } catch (err: any) {
-        // Supprimer le log d'erreur en production, utiliser seulement pour le débogage
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProfile();
-  }, [user]);
-
-  // Écouter les changements de route pour rafraîchir le profil
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
     
-    const handleRouteChange = () => {
+    // Recharger les données
+    fetchProfile(true);
+  }, [getProfileCacheKey, fetchProfile, isRefreshing, useCache]);
+
+  // Initialisation et nettoyage au montage/démontage
+  useEffect(() => {
+    if (user) {
+      fetchProfile();
+    } else {
+      setProfile(null);
+      setLoading(false);
+    }
+  }, [user?.id, fetchProfile]);
+
+  // Écouteur unifié d'événements d'application
+  useEffect(() => {
+    if (typeof window === 'undefined' || !useCache) return;
+    
+    const handleRefreshTrigger = () => {
       if (!isRefreshing && user) {
         refreshProfile();
       }
     };
     
-    // Écouter l'événement popstate pour les retours en arrière
+    const isProfileRoute = (path: string) => 
+      path?.includes('/profile') || path?.includes('/settings');
+    
+    const handleRouteChange = () => {
+      if (isProfileRoute(window.location.pathname)) {
+        handleRefreshTrigger();
+      }
+    };
+    
+    // Écouter les événements personnalisés de l'application
+    window.addEventListener('cache-invalidation', handleRefreshTrigger);
+    window.addEventListener('profile-refresh', handleRefreshTrigger);
+    
+    // Écouter les changements de route
     window.addEventListener('popstate', handleRouteChange);
     
-    // Intercepter les méthodes history.pushState et history.replaceState
+    // Intercepter les méthodes history
     const originalPushState = history.pushState;
     const originalReplaceState = history.replaceState;
     
@@ -201,29 +302,28 @@ export function useUser() {
       handleRouteChange();
     };
     
-    // Écouter l'événement personnalisé d'invalidation du cache
-    window.addEventListener('vynal:cache-invalidated', handleRouteChange);
-    
     return () => {
+      window.removeEventListener('cache-invalidation', handleRefreshTrigger);
+      window.removeEventListener('profile-refresh', handleRefreshTrigger);
       window.removeEventListener('popstate', handleRouteChange);
-      window.removeEventListener('vynal:cache-invalidated', handleRouteChange);
       history.pushState = originalPushState;
       history.replaceState = originalReplaceState;
     };
-  }, [user, isRefreshing, refreshProfile]);
+  }, [user, refreshProfile, isRefreshing, useCache]);
 
   return {
     profile,
     loading,
     error,
     updateError,
+    updateProfile,
+    refreshProfile,
     isClient,
     isFreelance,
     isAdmin,
     canAccess,
-    getUserRole,
-    updateProfile,
-    refreshProfile,
+    lastRefresh: useCache ? lastRefresh : null,
+    getLastRefreshText: useCache ? getLastRefreshText : () => '',
     isRefreshing
   };
 } 

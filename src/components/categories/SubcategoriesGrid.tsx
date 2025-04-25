@@ -1,5 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Category, Subcategory } from '@/hooks/useCategories';
 import { motion } from 'framer-motion';
 
@@ -19,6 +20,8 @@ const SubcategoriesGrid: React.FC<SubcategoriesGridProps> = ({
   selectedSubcategory,
   className = '',
 }) => {
+  const router = useRouter();
+  
   // Vérifie s'il y a des sous-catégories disponibles
   const hasSubcategories = subcategories.length > 0;
 
@@ -36,6 +39,14 @@ const SubcategoriesGrid: React.FC<SubcategoriesGridProps> = ({
   const itemVariants = {
     hidden: { opacity: 0, y: 5 },
     show: { opacity: 1, y: 0 }
+  };
+
+  // Gestion du clic sur une sous-catégorie
+  const handleSubcategoryClick = (e: React.MouseEvent, subcategorySlug: string) => {
+    e.preventDefault();
+    
+    // Navigation programmatique pour garantir la mise à jour correcte de l'état
+    router.push(`/services?category=${category.slug}&subcategory=${subcategorySlug}`);
   };
 
   // Trie les sous-catégories par ordre alphabétique
@@ -56,7 +67,10 @@ const SubcategoriesGrid: React.FC<SubcategoriesGridProps> = ({
             const isSelected = selectedSubcategory === subcategory.slug;
             return (
               <motion.div key={subcategory.id} variants={itemVariants} className="flex-shrink-0">
-                <Link href={`/services?category=${category.slug}&subcategory=${subcategory.slug}`}>
+                <Link 
+                  href={`/services?category=${category.slug}&subcategory=${subcategory.slug}`}
+                  onClick={(e) => handleSubcategoryClick(e, subcategory.slug)}
+                >
                   <div
                     className={`flex items-center justify-start rounded-md backdrop-blur-sm transition-all px-2 py-1 ${
                       isSelected

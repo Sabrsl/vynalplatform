@@ -4,7 +4,7 @@ const http = require('http');
 
 console.log('Démarrage du serveur Next.js...');
 
-const nextProcess = spawn('npx', ['next', 'dev', '-p', '3002'], {
+const nextProcess = spawn('npx', ['next', 'dev', '-p', '3000'], {
   stdio: 'inherit',
   shell: true
 });
@@ -13,7 +13,7 @@ const nextProcess = spawn('npx', ['next', 'dev', '-p', '3002'], {
 setTimeout(() => {
   console.log('Vérification si le serveur répond...');
   
-  http.get('http://localhost:3002', (res) => {
+  http.get('http://localhost:3000', (res) => {
     console.log(`Statut de la réponse: ${res.statusCode}`);
     console.log('Le serveur Next.js fonctionne correctement!');
     

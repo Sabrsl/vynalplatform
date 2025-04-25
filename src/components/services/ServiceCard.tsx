@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useCallback, memo } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { 
   Card, CardContent, CardFooter, CardTitle 
 } from "@/components/ui/card";
@@ -15,6 +15,7 @@ import { CURRENCY } from "@/lib/constants";
 import { ServiceWithFreelanceAndCategories } from "@/hooks/useServices";
 import { useFreelancerRating } from "@/hooks/useFreelancerRating";
 import { Loader } from "@/components/ui/loader";
+import { highlightSearchTerms } from '@/lib/search/smartSearch';
 
 // Extension du type pour inclure les propriétés supplémentaires
 interface ExtendedService extends ServiceWithFreelanceAndCategories {
@@ -38,7 +39,7 @@ interface ServiceCardProps {
 /**
  * Carte de service réutilisable pour l'affichage dans les listes, grilles et pages de recherche
  */
-const ServiceCard: React.FC<ServiceCardProps> = ({
+const ServiceCard: React.FC<ServiceCardProps> = memo(({
   service,
   isManageable = false,
   isDeletable = false,
@@ -51,11 +52,25 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
   className = "",
 }) => {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const searchQuery = searchParams.get('search') || '';
   const [imageError, setImageError] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
   
   // Récupération des données de notation
   const { averageRating, reviewCount } = useFreelancerRating(service.profiles?.id);
+  
+  // Fonction pour vérifier si un service est nouveau (moins de 30 jours)
+  const isNewService = useCallback(() => {
+    if (!service.created_at) return false;
+    
+    const serviceDate = new Date(service.created_at);
+    const currentDate = new Date();
+    const diffTime = currentDate.getTime() - serviceDate.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    return diffDays <= 30;
+  }, [service.created_at]);
   
   // Vérifier la validité de l'image
   const hasValidImage = !imageError && 
@@ -74,8 +89,13 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
     ? (service.title.length > 83 ? service.title.substring(0, 83) + '...' : service.title)
     : "Service sans titre";
 
+  // Mettre en évidence les termes de recherche dans le titre et la description si une recherche est active
+  const highlightedTitle = searchQuery 
+    ? <span dangerouslySetInnerHTML={{ __html: highlightSearchTerms(limitedTitle, searchQuery) }} />
+    : limitedTitle;
+
   // Navigation vers la page de détails du service
-  const handleCardClick = (e: React.MouseEvent) => {
+  const handleCardClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     
     if (!service?.id) {
@@ -96,31 +116,37 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
     
     console.log("Navigation vers:", targetPath);
     router.push(targetPath);
-  };
+  }, [service?.id, service?.slug, isManageable, onView, useDemo, router]);
 
   // Navigation vers le profil du freelance
-  const goToFreelanceProfile = (e: React.MouseEvent) => {
+  const goToFreelanceProfile = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     if (service.profiles?.id) {
       router.push(`/freelance/${service.profiles.id}`);
     }
-  };
+  }, [service.profiles?.id, router]);
   
   // Gestionnaires d'action
-  const handleView = (e: React.MouseEvent) => { 
+  const handleView = useCallback((e: React.MouseEvent) => { 
     e.stopPropagation();
-    onView?.(service.id);
-  };
+    if (onView && service.id) {
+      onView(service.id);
+    }
+  }, [onView, service.id]);
   
-  const handleEdit = (e: React.MouseEvent) => {
+  const handleEdit = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    onEdit?.(service.id); 
-  };
+    if (onEdit && service.id) {
+      onEdit(service.id);
+    }
+  }, [onEdit, service.id]);
   
-  const handleDelete = (e: React.MouseEvent) => {
+  const handleDelete = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    onDelete?.(service.id);
-  };
+    if (onDelete && service.id) {
+      onDelete(service.id);
+    }
+  }, [onDelete, service.id]);
 
   return (
     <Card 
@@ -211,8 +237,24 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
                   ({reviewCount})
                 </span>
               </>
+            ) : isNewService() ? (
+              <span className="text-[10px] text-vynal-text-secondary">
+                Nouveau
+              </span>
             ) : (
-              <span className="text-[10px] text-vynal-text-secondary">Nouveau</span>
+              <>
+                <div className="flex space-x-0.5">
+                  {[1, 2, 3, 4, 5].map((s) => (
+                    <Star 
+                      key={s}
+                      className="h-3 w-3 text-vynal-purple-secondary/50"
+                    />
+                  ))}
+                </div>
+                <span className="text-[10px] ml-1 text-vynal-text-secondary">
+                  (0)
+                </span>
+              </>
             )}
           </div>
         </div>
@@ -220,7 +262,7 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
         {/* Titre et description */}
         <div className="mb-2 mt-1.5">
           <h3 className="text-sm font-medium leading-tight text-vynal-text-primary">
-            {limitedTitle}
+            {highlightedTitle}
           </h3>
           
           {service.short_description && (
@@ -299,6 +341,8 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
       </div>
     </Card>
   );
-};
+});
+
+ServiceCard.displayName = 'ServiceCard';
 
 export default ServiceCard;

@@ -7,7 +7,8 @@ import {
   createCacheManager, 
   getCachedData, 
   setCachedData, 
-  invalidateCache 
+  invalidateCache,
+  CACHE_EXPIRY as DEFAULT_CACHE_EXPIRY
 } from './cache';
 import { setupServiceWorker } from './service-worker';
 import { optimizedFetchWithRetry } from './network';
@@ -27,15 +28,43 @@ export const CACHE_KEYS = {
 
 // Durées d'expiration du cache en millisecondes
 export const CACHE_EXPIRY = {
-  CATEGORIES: 30 * 60 * 1000, // 30 minutes
-  SERVICES: 5 * 60 * 1000,    // 5 minutes
-  USER_DATA: 60 * 60 * 1000,  // 1 heure
-  USER_PROFILE: 60 * 60 * 1000, // 1 heure
+  // Données relativement statiques
+  CATEGORIES: 2 * 60 * 60 * 1000,    // 2 heures
+  SUBCATEGORIES: 2 * 60 * 60 * 1000, // 2 heures
+  
+  // Données des services (listing)
+  SERVICES: 10 * 60 * 1000,          // 10 minutes
+  SERVICES_DETAILS: 5 * 60 * 1000,   // 5 minutes
+  
+  // Données utilisateur
+  USER_DATA: 60 * 60 * 1000,         // 1 heure
+  USER_PROFILE: 60 * 60 * 1000,      // 1 heure 
   USER_SESSION: 24 * 60 * 60 * 1000, // 24 heures
   USER_SESSION_PARTIAL: 5 * 60 * 1000, // 5 minutes
   EXTENDED_SESSION: 30 * 24 * 60 * 60 * 1000, // 30 jours
-  DASHBOARD_DATA: 5 * 60 * 1000, // 5 minutes
-  DYNAMIC: 60 * 1000           // 1 minute (pour les données très dynamiques)
+  
+  // Données du tableau de bord
+  DASHBOARD_DATA: 5 * 60 * 1000,     // 5 minutes
+  DASHBOARD_STATS: 5 * 60 * 1000,    // 5 minutes
+  DASHBOARD_ACTIVITIES: 5 * 60 * 1000, // 5 minutes
+  
+  // Données dynamiques
+  MESSAGES: 2 * 60 * 1000,           // 2 minutes
+  MESSAGE_COUNTS: 1 * 60 * 1000,     // 1 minute
+  NOTIFICATIONS: 60 * 1000,          // 1 minute
+  WALLET: 5 * 60 * 1000,             // 5 minutes
+  
+  // Divers
+  DYNAMIC: 60 * 1000,                // 1 minute (pour les données très dynamiques)
+  SETTINGS: 12 * 60 * 60 * 1000,     // 12 heures
+  SEARCH_RESULTS: 3 * 60 * 1000      // 3 minutes
+};
+
+// Configurer les priorités de cache pour différents types de données
+export const CACHE_PRIORITIES = {
+  HIGH: 'high' as const,
+  MEDIUM: 'medium' as const,
+  LOW: 'low' as const
 };
 
 // Configuration des tentatives de récupération de données

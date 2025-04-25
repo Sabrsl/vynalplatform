@@ -50,6 +50,7 @@ import {
   AlertCircle,
   Save,
   Upload,
+  Crown,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { useUser } from "@/hooks/useUser";

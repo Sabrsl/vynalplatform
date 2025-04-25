@@ -60,37 +60,75 @@ export default function ServiceDetailsPage({
       try {
         console.log("Chargement du service avec ID:", serviceId);
         
-        // Appel direct à Supabase pour éviter les problèmes potentiels
-        const { data, error: fetchError } = await supabase
-          .from('services')
-          .select(`
-            *,
-            profiles!services_freelance_id_fkey (
-              id, 
-              username, 
-              full_name, 
-              avatar_url, 
-              email, 
-              role,
-              bio
-            ),
-            categories (id, name, slug),
-            subcategories (id, name, slug)
-          `)
-          .eq('id', serviceId)
-          .single();
+        // Appel direct à Supabase avec timeout et retry
+        const fetchServiceWithRetry = async (retries = 3, delay = 1000) => {
+          let attempt = 0;
+          
+          while (attempt < retries) {
+            try {
+              // Créer une Promise avec timeout
+              const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => reject(new Error("Timeout lors de la récupération du service")), 8000);
+              });
+              
+              // Faire la requête Supabase
+              const supabasePromise = supabase
+                .from('services')
+                .select(`
+                  *,
+                  profiles!services_freelance_id_fkey (
+                    id, 
+                    username, 
+                    full_name, 
+                    avatar_url, 
+                    email, 
+                    role,
+                    bio
+                  ),
+                  categories (id, name, slug),
+                  subcategories (id, name, slug)
+                `)
+                .eq('id', serviceId)
+                .single();
+              
+              // Utiliser Promise.race pour implémenter le timeout
+              const result = await Promise.race([supabasePromise, timeoutPromise]) as any;
+              
+              if (result.error) {
+                throw result.error;
+              }
+              
+              return result.data;
+            } catch (error: any) {
+              console.warn(`Tentative ${attempt + 1} échouée:`, error);
+              
+              // Si c'est la dernière tentative, relancer l'erreur
+              if (attempt === retries - 1) {
+                throw error;
+              }
+              
+              // Sinon, attendre et réessayer
+              await new Promise(resolve => setTimeout(resolve, delay));
+              attempt++;
+            }
+          }
+          
+          // Si on arrive ici, c'est qu'on a épuisé toutes les tentatives
+          throw new Error("Impossible de récupérer le service après plusieurs tentatives");
+        };
         
-        if (fetchError) {
-          console.error("Erreur Supabase:", fetchError);
-          throw new Error(fetchError.message);
-        }
+        const data = await fetchServiceWithRetry();
         
         if (!data) {
           throw new Error("Service non trouvé");
         }
         
         // Vérifier que le service appartient bien au freelancer connecté
-        if (profile && data.freelance_id !== profile.id && profile.role !== 'admin') {
+        // On permet l'accès si c'est le propriétaire ou un admin
+        const isOwnService = data.freelance_id === profile.id;
+        const isAdmin = profile.role === 'admin';
+        
+        if (!isOwnService && !isAdmin) {
           throw new Error("Vous n'êtes pas autorisé à voir ce service");
         }
         
@@ -127,14 +165,85 @@ export default function ServiceDetailsPage({
   
   // Handlers
   const handleBack = () => router.push("/dashboard/services");
-  const handleView = () => service && router.push(`/services/${service.id}`);
+  const handleView = () => service && router.push(`/services/${service.slug || service.id}`);
   const handleEdit = () => service && router.push(`/dashboard/services/edit/${service.id}`);
-  const handleDelete = () => {
-    setIsDeleteDialogOpen(false)
-    // Add your service deletion logic here
-    console.log('Service deleted')
-    router.push('/dashboard/services')
-  }
+  const handleDelete = async () => {
+    if (!service || !profile) return;
+    
+    setIsDeleteDialogOpen(false);
+    
+    try {
+      console.log("Tentative de suppression du service:", service.id);
+      
+      // Vérifier que l'utilisateur est bien le propriétaire ou un admin
+      if (service.freelance_id !== profile.id && profile.role !== 'admin') {
+        throw new Error("Vous n'êtes pas autorisé à supprimer ce service");
+      }
+      
+      // Supprimer les images associées au service
+      if (service.images && service.images.length > 0) {
+        // Extraire les noms de fichiers des URL
+        const fileNames = service.images.map(url => {
+          const parts = url.split('/');
+          return parts[parts.length - 1];
+        }).filter(Boolean);
+        
+        if (fileNames.length > 0) {
+          console.log("Suppression des images:", fileNames);
+          
+          try {
+            const { error: deleteImagesError } = await supabase.storage
+              .from('services')
+              .remove(fileNames);
+              
+            if (deleteImagesError) {
+              console.warn("Erreur lors de la suppression des images:", deleteImagesError);
+              // Continuer malgré l'erreur pour supprimer le service
+            }
+          } catch (err) {
+            console.warn("Exception lors de la suppression des images:", err);
+            // Continuer malgré l'erreur
+          }
+        }
+      }
+      
+      // Supprimer le service directement avec Supabase
+      const { error: deleteError } = await supabase
+        .from('services')
+        .delete()
+        .eq('id', service.id);
+        
+      if (deleteError) {
+        throw deleteError;
+      }
+      
+      console.log("Service supprimé avec succès");
+      
+      toast({
+        title: "Succès",
+        description: "Service supprimé avec succès"
+      });
+      
+      // Publier un événement personnalisé pour informer les autres composants
+      window.dispatchEvent(new CustomEvent('vynal:service-deleted', { 
+        detail: { 
+          serviceId: service.id
+        } 
+      }));
+      
+      // Rediriger vers la liste des services
+      router.push('/dashboard/services');
+      
+    } catch (err: any) {
+      console.error("Erreur lors de la suppression du service:", err);
+      
+      toast({
+        title: "Erreur",
+        description: err.message || "Une erreur est survenue lors de la suppression du service",
+        variant: "destructive"
+      });
+    }
+  };
   
   return (
     <div className="container max-w-6xl mt-6 flex flex-col gap-6">
@@ -162,14 +271,7 @@ export default function ServiceDetailsPage({
             description="Êtes-vous sûr de vouloir supprimer ce service ? Cette action est irréversible."
             confirmText="Supprimer"
             variant="destructive"
-            onConfirm={() => {
-              console.log("Service deleted");
-              toast({
-                title: "Succès",
-                description: "Service supprimé avec succès"
-              });
-              router.push('/dashboard/services');
-            }}
+            onConfirm={handleDelete}
             trigger={
               <Button 
                 variant="destructive" 

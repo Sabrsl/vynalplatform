@@ -33,41 +33,31 @@ import {
 } from "@/components/ui/dialog";
 
 import {
+  AlertCircle,
   AlertTriangle,
   ArrowLeft,
+  ArrowRightCircle,
   Ban,
   Calendar,
-  Check,
   CheckCircle,
+  CheckCircle2,
   Clock,
-  Copy,
   CreditCard,
   Download,
   FileCheck,
+  FileIcon,
   FileText,
   FileType,
-  FileUp,
-  FileIcon,
-  Inbox,
   Loader,
   MessageSquare,
   Package,
-  PackageOpen,
   RefreshCw,
-  Search,
   Send,
   ShoppingBag,
-  Trash,
+  Star,
   Upload,
   X,
-  AlertCircle,
-  Star,
-  ClipboardList,
-  CheckCircle2,
-  XCircle,
-  BarChart4,
-  ArrowRightCircle,
-  DollarSign
+  XCircle
 } from "lucide-react";
 
 // Types pour le statut des commandes et les données

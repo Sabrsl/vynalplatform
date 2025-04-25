@@ -1,20 +1,24 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import React, { useState, useEffect, useCallback } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { OrderCard } from "@/components/orders/OrderCard";
-import { useAuth } from "@/hooks/useAuth";
-import { Search, Filter, ShoppingBag, Clock, CheckCircle, HistoryIcon, AlertCircle, BarChart, ChevronLeft, ChevronRight, Package } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Search, Filter, ShoppingBag, Clock, CheckCircle, BarChart, ChevronLeft, ChevronRight, Package } from "lucide-react";
 import { InfoTooltip } from "@/components/ui/InfoTooltip";
 import Link from "next/link";
 import { formatPrice } from "@/lib/utils";
-import { useRouter } from "next/navigation";
 import { useUser } from "@/hooks/useUser";
 import { supabase } from "@/lib/supabase/client";
+import { 
+  getCachedData, 
+  setCachedData, 
+  invalidateCache,
+  CACHE_EXPIRY,
+  CACHE_PRIORITIES 
+} from '@/lib/optimizations';
 
 // Type definition for order status
 type OrderStatus = "pending" | "in_progress" | "completed" | "delivered" | "revision_requested" | "cancelled";
@@ -179,24 +183,18 @@ const MOCK_ORDERS_FREELANCE: Order[] = [
 ];
 
 export default function OrdersPage() {
-  const router = useRouter();
-  const { user } = useAuth();
   const { profile, isClient, isFreelance } = useUser();
   const [activeTab, setActiveTab] = useState<TabValue>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const ordersPerPage = 9;
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [orders, setOrders] = useState<any[]>([]);
+  const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+  const [totalOrders, setTotalOrders] = useState(0);
   
-  // Adapter le titre et les fonctionnalités selon le rôle
-  const pageTitle = isFreelance ? "Commandes reçues" : "Mes commandes";
-  
-  // Utiliser les données appropriées selon le rôle de l'utilisateur
-  const [filteredOrders, setFilteredOrders] = useState<Order[]>(
-    isFreelance ? MOCK_ORDERS_FREELANCE : MOCK_ORDERS_CLIENT
-  );
-
   // Pour la démo, ajoutons plus de commandes fictives
   const generateMoreMockOrders = (baseOrders: Order[], count: number): Order[] => {
     const result = [...baseOrders];
@@ -227,78 +225,179 @@ export default function OrdersPage() {
   const totalOrdersValue = allOrders.reduce((sum, order) => sum + order.service.price, 0);
 
   // Fonction pour récupérer les commandes
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async (forceRefresh = false) => {
     if (!profile?.id) return;
+    if (isRefreshing && !forceRefresh) return;
+    
+    const cacheKey = `orders_${isFreelance ? 'freelance' : 'client'}_${profile.id}_${activeTab}_page_${currentPage}`;
+    
+    // Si ce n'est pas un forceRefresh, vérifier d'abord le cache
+    if (!forceRefresh) {
+      const cachedOrders = getCachedData<{orders: any[], total: number}>(cacheKey);
+      
+      if (cachedOrders) {
+        setOrders(cachedOrders.orders);
+        setFilteredOrders(cachedOrders.orders);
+        setTotalOrders(cachedOrders.total);
+        setLoading(false);
+        setLastRefresh(new Date());
+        
+        // Rafraîchir en arrière-plan après un court délai 
+        setTimeout(() => fetchOrders(true), 500);
+        return;
+      }
+    }
     
     setLoading(true);
+    if (forceRefresh) setIsRefreshing(true);
     
     try {
-      // Adapter la requête selon le rôle (client_id vs freelance_id)
-      const { data, error } = await supabase
+      // Construire la requête de base
+      let query = supabase
         .from('orders')
         .select(`
           *,
           services (*),
           profiles!orders_client_id_fkey (id, username, full_name, avatar_url),
           freelance:profiles!orders_freelance_id_fkey (id, username, full_name, avatar_url)
-        `)
-        .eq(isFreelance ? 'freelance_id' : 'client_id', profile.id)
+        `, { count: 'exact' })
+        .eq(isFreelance ? 'freelance_id' : 'client_id', profile.id);
+      
+      // Filtrer par statut si nécessaire
+      if (activeTab !== 'all') {
+        query = query.eq('status', activeTab);
+      }
+      
+      // Appliquer la recherche si elle est définie
+      if (searchQuery.trim()) {
+        query = query.or(`services.title.ilike.%${searchQuery}%,services.description.ilike.%${searchQuery}%`);
+      }
+      
+      // Appliquer la pagination
+      query = query
+        .range((currentPage - 1) * ordersPerPage, currentPage * ordersPerPage - 1)
         .order('created_at', { ascending: false });
+      
+      // Exécuter la requête
+      const { data, error, count } = await query;
       
       if (error) {
         console.error("Erreur lors de la récupération des commandes:", error);
-        return;
+        throw error;
       }
       
-      if (data) {
-        setOrders(data);
-      }
-    } catch (err) {
-      console.error("Erreur lors de la récupération des commandes:", err);
+      // Transformer les données pour correspondre au format attendu
+      const transformedOrders = data.map((order: any) => ({
+        ...order,
+        service: order.services,
+        freelance: order.freelance,
+        client: order.profiles,
+        is_client_view: !isFreelance
+      }));
+      
+      setOrders(transformedOrders);
+      setFilteredOrders(transformedOrders);
+      setTotalOrders(count || 0);
+      
+      // Mettre en cache les résultats
+      setCachedData(cacheKey, { orders: transformedOrders, total: count || 0 }, {
+        expiry: CACHE_EXPIRY.DASHBOARD_DATA,
+        priority: CACHE_PRIORITIES.HIGH
+      });
+      
+      // Mettre à jour le timestamp de dernier rafraîchissement
+      setLastRefresh(new Date());
+    } catch (error: any) {
+      console.error("Erreur lors du chargement des commandes:", error);
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
-  };
-  
-  // Appeler fetchOrders au chargement du composant
+  }, [profile?.id, isFreelance, activeTab, currentPage, searchQuery, isRefreshing]);
+
+  // Chargement initial
   useEffect(() => {
     if (profile?.id) {
       fetchOrders();
+    } else {
+      // Initialiser avec les données de démonstration si pas encore connecté
+      setFilteredOrders(isFreelance ? MOCK_ORDERS_FREELANCE : MOCK_ORDERS_CLIENT);
     }
-  }, [profile?.id, isFreelance]);
+  }, [profile?.id, activeTab, currentPage, fetchOrders, isFreelance]);
 
-  // Dans le début du composant
+  // Mettre à jour filteredOrders quand les orders changent
   useEffect(() => {
-    // Filtrer par statut
-    let filtered: Order[] = isFreelance ? extendedOrdersFreelance : extendedOrdersClient;
-    
-    if (activeTab !== "all") {
-      filtered = filtered.filter((order) => order.status === activeTab) as Order[];
+    if (orders.length > 0) {
+      setFilteredOrders(orders);
     }
-    
-    // Filtrer par recherche
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter((order) => 
-        order.service.title.toLowerCase().includes(query) ||
-        (isFreelance ? 
-          order.client.full_name?.toLowerCase().includes(query) : 
-          order.freelance.full_name?.toLowerCase().includes(query))
-      ) as Order[];
-    }
-    
-    setFilteredOrders(filtered);
-    setCurrentPage(1); // Réinitialiser à la première page lors d'un changement de filtre
-  }, [activeTab, searchQuery, isFreelance]);
+  }, [orders]);
 
-  // Pagination
-  const totalPages = Math.ceil(filteredOrders.length / ordersPerPage);
-  const indexOfLastOrder = currentPage * ordersPerPage;
-  const indexOfFirstOrder = indexOfLastOrder - ordersPerPage;
-  const currentOrders = filteredOrders.slice(indexOfFirstOrder, indexOfLastOrder);
-  
+  // Abonnement aux changements en temps réel
+  useEffect(() => {
+    if (!profile?.id) return;
+    
+    // Configurer l'abonnement aux changements
+    const ordersSubscription = supabase
+      .channel('orders-changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'orders',
+        filter: isFreelance 
+          ? `freelance_id=eq.${profile.id}` 
+          : `client_id=eq.${profile.id}`
+      }, () => {
+        console.log("Changement détecté dans les commandes, rechargement...");
+        fetchOrders(true);
+      })
+      .subscribe();
+    
+    return () => {
+      ordersSubscription.unsubscribe();
+    };
+  }, [profile?.id, isFreelance, fetchOrders]);
+
+  // Écouter les événements d'invalidation du cache
+  useEffect(() => {
+    if (!profile?.id || typeof window === 'undefined') return;
+    
+    const handleCacheInvalidation = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const { fromPath, toPath } = customEvent.detail || {};
+      
+      // Si on navigue vers ou depuis les commandes, rafraîchir les données
+      if (
+        (fromPath && fromPath.includes('/dashboard/orders')) || 
+        (toPath && toPath.includes('/dashboard/orders'))
+      ) {
+        console.log('Cache invalidé - rechargement des commandes');
+        fetchOrders(true);
+      }
+    };
+    
+    window.addEventListener('vynal:cache-invalidated', handleCacheInvalidation);
+    
+    return () => {
+      window.removeEventListener('vynal:cache-invalidated', handleCacheInvalidation);
+    };
+  }, [profile?.id, fetchOrders]);
+
+  // Changement de tab
+  const handleTabChange = (value: TabValue) => {
+    setActiveTab(value);
+    setCurrentPage(1); // Réinitialiser la pagination lors du changement de filtre
+  };
+
+  // Effectuer une recherche
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    setCurrentPage(1); // Réinitialiser la pagination lors d'une nouvelle recherche
+    fetchOrders(true);
+  };
+
+  // Navigation dans la pagination
   const goToNextPage = () => {
-    if (currentPage < totalPages) {
+    if (currentPage < Math.ceil(totalOrders / ordersPerPage)) {
       setCurrentPage(currentPage + 1);
     }
   };
@@ -313,15 +412,19 @@ export default function OrdersPage() {
     setCurrentPage(pageNumber);
   };
 
-  const statusColors = {
-    pending: "bg-amber-100 text-amber-800 border-amber-200",
-    in_progress: "bg-vynal-accent-secondary/10 text-vynal-accent-secondary border-vynal-accent-secondary/20",
-    completed: "bg-emerald-100 text-emerald-800 border-emerald-200",
-    delivered: "bg-vynal-accent-primary/10 text-vynal-accent-primary border-vynal-accent-primary/20",
-    revision_requested: "bg-vynal-purple-secondary/10 text-vynal-purple-secondary border-vynal-purple-secondary/20",
-    cancelled: "bg-red-100 text-red-800 border-red-200",
-  };
-  
+  // Obtenir le texte de dernière mise à jour
+  const getLastRefreshText = useCallback(() => {
+    if (!lastRefresh) return 'Jamais rafraîchi';
+    
+    const now = new Date();
+    const diff = Math.floor((now.getTime() - lastRefresh.getTime()) / 1000);
+    
+    if (diff < 60) return 'Il y a quelques secondes';
+    if (diff < 3600) return `Il y a ${Math.floor(diff / 60)} min`;
+    if (diff < 86400) return `Il y a ${Math.floor(diff / 3600)} h`;
+    return `Il y a ${Math.floor(diff / 86400)} j`;
+  }, [lastRefresh]);
+
   const statusLabels = {
     pending: "En attente",
     in_progress: "En cours",
@@ -537,7 +640,7 @@ export default function OrdersPage() {
             {filteredOrders.length > 0 ? (
               <>
                 <div className="grid grid-cols-1 gap-3 sm:gap-4">
-                  {currentOrders.map((order) => (
+                  {filteredOrders.map((order) => (
                     <OrderCard
                       key={order.id}
                       order={{
@@ -548,7 +651,7 @@ export default function OrdersPage() {
                   ))}
                 </div>
                 
-                {totalPages > 1 && (
+                {totalOrders > ordersPerPage && (
                   <div className="flex justify-center items-center mt-8 space-x-2">
                     <Button
                       variant="outline"
@@ -561,13 +664,13 @@ export default function OrdersPage() {
                     </Button>
                     
                     <div className="flex items-center space-x-1">
-                      {Array.from({ length: totalPages }, (_, i) => i + 1)
+                      {Array.from({ length: Math.ceil(totalOrders / ordersPerPage) }, (_, i) => i + 1)
                         .filter(page => {
                           // Afficher seulement les pages proches de la page actuelle
                           const range = 1; // +/- 1 page
                           return (
                             page === 1 || 
-                            page === totalPages || 
+                            page === Math.ceil(totalOrders / ordersPerPage) || 
                             (page >= currentPage - range && page <= currentPage + range)
                           );
                         })
@@ -616,7 +719,7 @@ export default function OrdersPage() {
                       variant="outline"
                       size="sm"
                       onClick={goToNextPage}
-                      disabled={currentPage === totalPages}
+                      disabled={currentPage === Math.ceil(totalOrders / ordersPerPage)}
                       className="h-8 w-8 p-0 flex items-center justify-center border-vynal-purple-secondary/20 text-vynal-purple-secondary hover:text-vynal-accent-primary hover:border-vynal-accent-primary/30 dark:border-vynal-purple-secondary/30 dark:text-vynal-text-secondary"
                     >
                       <ChevronRight className="h-4 w-4" />
@@ -647,7 +750,7 @@ export default function OrdersPage() {
               {filteredOrders.length > 0 ? (
                 <>
                   <div className="grid grid-cols-1 gap-3 sm:gap-4">
-                    {currentOrders.map((order) => (
+                    {filteredOrders.map((order) => (
                       <OrderCard
                         key={order.id}
                         order={{
@@ -658,7 +761,7 @@ export default function OrdersPage() {
                     ))}
                   </div>
                   
-                  {totalPages > 1 && (
+                  {totalOrders > ordersPerPage && (
                     <div className="flex justify-center items-center mt-8 space-x-2">
                       <Button
                         variant="outline"
@@ -671,13 +774,13 @@ export default function OrdersPage() {
                       </Button>
                       
                       <div className="flex items-center space-x-1">
-                        {Array.from({ length: totalPages }, (_, i) => i + 1)
+                        {Array.from({ length: Math.ceil(totalOrders / ordersPerPage) }, (_, i) => i + 1)
                           .filter(page => {
                             // Afficher seulement les pages proches de la page actuelle
                             const range = 1; // +/- 1 page
                             return (
                               page === 1 || 
-                              page === totalPages || 
+                              page === Math.ceil(totalOrders / ordersPerPage) || 
                               (page >= currentPage - range && page <= currentPage + range)
                             );
                           })
@@ -726,7 +829,7 @@ export default function OrdersPage() {
                         variant="outline"
                         size="sm"
                         onClick={goToNextPage}
-                        disabled={currentPage === totalPages}
+                        disabled={currentPage === Math.ceil(totalOrders / ordersPerPage)}
                         className="h-8 w-8 p-0 flex items-center justify-center border-vynal-purple-secondary/20 text-vynal-purple-secondary hover:text-vynal-accent-primary hover:border-vynal-accent-primary/30 dark:border-vynal-purple-secondary/30 dark:text-vynal-text-secondary"
                       >
                         <ChevronRight className="h-4 w-4" />
@@ -750,6 +853,11 @@ export default function OrdersPage() {
             </TabsContent>
           ))}
         </Tabs>
+
+        {/* Ajouter l'indicateur de dernière mise à jour */}
+        <div className="text-xs text-slate-400 dark:text-slate-500 text-right mt-4">
+          {isRefreshing ? 'Rafraîchissement en cours...' : `Dernière mise à jour: ${getLastRefreshText()}`}
+        </div>
       </div>
     </div>
   );

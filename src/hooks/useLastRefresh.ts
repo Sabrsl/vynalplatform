@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 
 interface UseLastRefreshResult {
-  lastRefresh: Date | null;
+  lastRefresh: number | null;
   updateLastRefresh: () => void;
   getLastRefreshText: (shortFormat?: boolean) => string;
 }
@@ -11,19 +11,20 @@ interface UseLastRefreshResult {
  * et de générer un texte formaté pour l'affichage
  */
 export function useLastRefresh(): UseLastRefreshResult {
-  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+  // Utiliser un timestamp (number) au lieu d'un objet Date pour éviter les problèmes de sérialisation
+  const [lastRefresh, setLastRefresh] = useState<number | null>(null);
 
   const updateLastRefresh = useCallback(() => {
-    setLastRefresh(new Date());
+    setLastRefresh(Date.now());
   }, []);
 
   const getLastRefreshText = useCallback((shortFormat = false) => {
-    if (!lastRefresh) {
+    if (!lastRefresh || isNaN(lastRefresh)) {
       return shortFormat ? "Jamais" : "Données jamais actualisées";
     }
 
-    const now = new Date();
-    const diff = now.getTime() - lastRefresh.getTime();
+    const now = Date.now();
+    const diff = now - lastRefresh;
     const seconds = Math.floor(diff / 1000);
     
     if (seconds < 60) {

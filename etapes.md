@@ -57,8 +57,8 @@ Nous avons posé les fondations de la plateforme Vynal. Voici les prochaines ét
 
 - [x] Système de messagerie par commande
 - [ ] Notifications en temps réel
-- [ ] Système d'avis et évaluations
-- [ ] Affichage des avis sur les profils freelance
+- [x] Système d'avis et évaluations
+- [x] Affichage des avis sur les profils freelance
 - [ ] Système de réponse aux avis
 - [x] Gestion des disputes et réclamations
 
@@ -66,7 +66,7 @@ Nous avons posé les fondations de la plateforme Vynal. Voici les prochaines ét
 
 - [x] Dashboard freelance complet
 - [x] Dashboard client complet
-- [ ] Dashboard admin
+- [x] Dashboard admin
 - [ ] Statistiques et analyses
 - [ ] Système de suivi des performances
 

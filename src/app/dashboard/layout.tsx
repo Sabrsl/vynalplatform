@@ -1,18 +1,19 @@
 "use client";
 
 import { useAuth } from "@/hooks/useAuth";
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, useRef } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { 
   User, Settings, FileText, ShoppingBag, MessageSquare, Home, 
   Calendar, CreditCard, BarChart2, BookOpen, Award, HelpCircle,
-  Menu, X, ChevronRight, LogOut, Bell, Search, Wallet, RefreshCw, PackageOpen, AlertTriangle, Users, ShieldCheck
+  Menu, X, ChevronRight, LogOut, Bell, Search, Wallet, RefreshCw, PackageOpen, AlertTriangle, Users, ShieldCheck, Loader
 } from "lucide-react";
 import MobileMenu from "@/components/MobileMenu";
 import { cn } from "@/lib/utils";
 import useTotalUnreadMessages from "@/hooks/useTotalUnreadMessages";
 import NotificationBadge from "@/components/ui/notification-badge";
+import { NavigationLoadingState } from "@/app/providers";
 
 interface NavItemProps {
   href: string;
@@ -28,13 +29,18 @@ export default function DashboardLayout({
 }) {
   const { user, loading, signOut } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activePath, setActivePath] = useState("");
   const { totalUnreadCount } = useTotalUnreadMessages();
+  const [isNavigating, setIsNavigating] = useState(false);
+  const previousPathnameRef = useRef<string | null>(null);
   
+  // Détecter les changements de route pour la navigation
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      setActivePath(window.location.pathname);
+      setActivePath(pathname || '');
+      previousPathnameRef.current = pathname;
       
       // Gestion des changements de route pour maintenir activePath à jour
       const handleRouteChange = () => {
@@ -44,13 +50,52 @@ export default function DashboardLayout({
       window.addEventListener('popstate', handleRouteChange);
       return () => window.removeEventListener('popstate', handleRouteChange);
     }
+  }, [pathname]);
+
+  // Écouter les changements d'état de navigation
+  useEffect(() => {
+    const handleNavigationStateChange = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      setIsNavigating(customEvent.detail?.isNavigating || false);
+    };
+    
+    window.addEventListener('vynal:navigation-state-changed', handleNavigationStateChange);
+    
+    return () => {
+      window.removeEventListener('vynal:navigation-state-changed', handleNavigationStateChange);
+    };
   }, []);
+
+  // Forcer l'invalidation du cache lors des changements de route
+  useEffect(() => {
+    if (previousPathnameRef.current && previousPathnameRef.current !== pathname) {
+      // Émission de l'événement d'invalidation du cache
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('vynal:cache-invalidated', {
+          detail: { 
+            fromPath: previousPathnameRef.current,
+            toPath: pathname
+          }
+        }));
+      }
+      
+      // Mettre à jour la référence
+      previousPathnameRef.current = pathname;
+    }
+  }, [pathname]);
 
   useEffect(() => {
     if (!loading && !user) {
       router.push("/auth/login");
     }
   }, [user, loading, router]);
+
+  // Mettre à jour l'état activePath quand le pathname change
+  useEffect(() => {
+    if (pathname) {
+      setActivePath(pathname);
+    }
+  }, [pathname]);
 
   if (loading) {
     return (
@@ -63,16 +108,91 @@ export default function DashboardLayout({
     );
   }
 
-  const isActive = (path: string) => activePath === path;
+  const isActive = (path: string) => {
+    // Vérifier si le chemin correspond exactement ou s'il s'agit d'un sous-chemin
+    if (path === '/dashboard' && pathname === '/dashboard') {
+      return true;
+    }
+    
+    // Pour les autres routes, vérifier si le pathname commence par le path
+    // mais s'assurer que c'est un sous-chemin complet (pour éviter les correspondances partielles)
+    if (path !== '/dashboard' && pathname && pathname.startsWith(path)) {
+      // Si le pathname est exactement égal au path ou suivi par un slash
+      return pathname === path || pathname.startsWith(`${path}/`);
+    }
+    
+    return false;
+  };
+
+  // Navigation avec indicateur de chargement et gestion du cache
+  const handleNavigation = (href: string) => {
+    // Prévenir les navigations redondantes ou pendant un chargement
+    if (href === activePath || isNavigating) {
+      return;
+    }
+    
+    try {
+      // Vérifier que la route est valide (basique)
+      if (!href || typeof href !== 'string' || href.trim() === '') {
+        console.error("URL de navigation invalide:", href);
+        return;
+      }
+      
+      // Définir l'état de navigation avant la navigation réelle
+      NavigationLoadingState.setIsNavigating(true);
+      
+      // Stocker l'ancien chemin avant la navigation
+      const oldPath = activePath;
+      
+      // Mettre à jour le chemin actif immédiatement pour l'UI
+      setActivePath(href);
+      
+      // Ajouter un délai pour éviter les cascades de navigation
+      const navigationTimeout = setTimeout(() => {
+        // Utiliser try/catch pour capturer les erreurs de navigation
+        try {
+          // Déclencher la navigation de manière sécurisée
+          router.push(href);
+          
+          // Émettre un événement pour invalider le cache si nécessaire
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('vynal:cache-invalidated', {
+              detail: { 
+                fromPath: oldPath,
+                toPath: href
+              }
+            }));
+          }
+        } catch (navErr) {
+          console.error("Erreur lors de la navigation:", navErr);
+          // Réinitialiser l'état en cas d'erreur
+          NavigationLoadingState.setIsNavigating(false);
+          setActivePath(oldPath);
+        }
+        
+        // Sécurité: force la fin de l'état de navigation après un certain temps
+        const safetyTimeout = setTimeout(() => {
+          if (NavigationLoadingState.isNavigating) {
+            NavigationLoadingState.setIsNavigating(false);
+          }
+        }, 5000); // 5 secondes max pour la navigation
+        
+        // Nettoyer le timeout de sécurité si le composant est démonté
+        return () => clearTimeout(safetyTimeout);
+      }, 100); // Court délai pour permettre aux états de se mettre à jour
+      
+      // Nettoyer le timeout de navigation si le composant est démonté
+      return () => clearTimeout(navigationTimeout);
+    } catch (err) {
+      console.error("Erreur de préparation de navigation:", err);
+      NavigationLoadingState.setIsNavigating(false);
+    }
+  };
 
   const NavItem = ({ href, icon: Icon, label, badgeCount }: NavItemProps) => (
-    <Link
-      href={href}
-      onClick={() => {
-        setActivePath(href);
-        setMobileMenuOpen(false);
-      }}
-      className={`flex items-center justify-between my-0.5 transition-all duration-200 rounded-lg ${
+    <div
+      onClick={() => handleNavigation(href)}
+      className={`flex items-center justify-between my-0.5 transition-all duration-200 rounded-lg cursor-pointer ${
         isActive(href)
           ? "bg-gradient-to-r from-purple-600 to-violet-700 text-white dark:from-vynal-accent-primary dark:to-vynal-accent-secondary dark:text-vynal-text-primary shadow-md group-hover:px-3 group-hover:py-2.5"
           : "hover:bg-slate-100 text-slate-600 hover:text-purple-600 dark:hover:bg-vynal-purple-secondary/20 dark:text-vynal-text-secondary dark:hover:text-vynal-accent-primary group-hover:px-3 group-hover:py-2.5"
@@ -84,7 +204,11 @@ export default function DashboardLayout({
             ? "bg-white/20 text-white dark:bg-vynal-purple-dark/30 dark:text-vynal-text-primary" 
             : "bg-slate-100 text-purple-600 dark:bg-vynal-purple-dark/20 dark:text-vynal-accent-primary"
         }`}>
-          <Icon className="h-3.5 w-3.5" />
+          {isNavigating && isActive(href) ? (
+            <Loader className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Icon className="h-3.5 w-3.5" />
+          )}
           {badgeCount !== undefined && badgeCount > 0 && <NotificationBadge count={badgeCount} className="h-4 w-4 min-w-4 text-[10px]" />}
         </div>
         <span className={`ml-2.5 text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap ${
@@ -94,8 +218,101 @@ export default function DashboardLayout({
       {isActive(href) && (
         <ChevronRight className="w-3 h-3 text-white dark:text-vynal-text-primary opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
       )}
-    </Link>
+    </div>
   );
+
+  // Version sécurisée du NavItem spécifiquement pour le dashboard
+  // Elle empêche les clics répétés qui causent les cascades d'erreurs
+  const SafeDashboardNavItem = ({ icon: Icon, label }: Omit<NavItemProps, 'href'>) => {
+    const href = '/dashboard';
+    const [isClicked, setIsClicked] = useState(false);
+    
+    const handleDashboardClick = () => {
+      // Si déjà sur le dashboard ou en cours de navigation, ne rien faire
+      if (isActive(href) || isNavigating || isClicked) {
+        return;
+      }
+      
+      // Bloquer les clics multiples
+      setIsClicked(true);
+      
+      // Mettre à jour l'état de navigation avec plus de prudence
+      try {
+        // Indiquer la navigation active
+        setActivePath(href);
+        
+        // Définir l'état de navigation global avec un délai de sécurité
+        NavigationLoadingState.setIsNavigating(true, activePath, href);
+        
+        // Naviguer vers le dashboard après un court délai
+        setTimeout(() => {
+          try {
+            router.push(href);
+            
+            // Émettre un événement pour invalider le cache après la navigation
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('vynal:cache-invalidated', {
+                detail: { 
+                  fromPath: activePath,
+                  toPath: href
+                }
+              }));
+            }
+          } catch (error: unknown) {
+            console.error("Erreur lors de la navigation vers le dashboard:", error);
+            NavigationLoadingState.setIsNavigating(false);
+          }
+        }, 100);
+        
+        // Réinitialiser l'état de clic après un délai
+        setTimeout(() => {
+          setIsClicked(false);
+        }, 2000);
+        
+        // Sécurité: forcer la fin de l'état de navigation après un délai maximal
+        setTimeout(() => {
+          if (NavigationLoadingState.isNavigating) {
+            NavigationLoadingState.setIsNavigating(false);
+          }
+        }, 5000);
+      } catch (error: unknown) {
+        console.error("Erreur de navigation vers le dashboard:", error);
+        setIsClicked(false);
+        NavigationLoadingState.setIsNavigating(false);
+      }
+    };
+    
+    return (
+      <div
+        onClick={handleDashboardClick}
+        className={`flex items-center justify-between my-0.5 transition-all duration-200 rounded-lg cursor-pointer ${
+          isActive(href)
+            ? "bg-gradient-to-r from-purple-600 to-violet-700 text-white dark:from-vynal-accent-primary dark:to-vynal-accent-secondary dark:text-vynal-text-primary shadow-md group-hover:px-3 group-hover:py-2.5"
+            : "hover:bg-slate-100 text-slate-600 hover:text-purple-600 dark:hover:bg-vynal-purple-secondary/20 dark:text-vynal-text-secondary dark:hover:text-vynal-accent-primary group-hover:px-3 group-hover:py-2.5"
+        } ${!isActive(href) ? "px-2 py-2.5" : "px-2 py-2.5"}`}
+      >
+        <div className="flex items-center">
+          <div className={`p-1.5 rounded-md relative ${
+            isActive(href) 
+              ? "bg-white/20 text-white dark:bg-vynal-purple-dark/30 dark:text-vynal-text-primary" 
+              : "bg-slate-100 text-purple-600 dark:bg-vynal-purple-dark/20 dark:text-vynal-accent-primary"
+          }`}>
+            {(isNavigating && isActive(href)) || isClicked ? (
+              <Loader className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Icon className="h-3.5 w-3.5" />
+            )}
+          </div>
+          <span className={`ml-2.5 text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap ${
+            isActive(href) ? "text-white dark:text-vynal-text-primary" : "text-slate-700 dark:text-vynal-text-secondary"
+          }`}>{label}</span>
+        </div>
+        {isActive(href) && (
+          <ChevronRight className="w-3 h-3 text-white dark:text-vynal-text-primary opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+        )}
+      </div>
+    );
+  };
 
   // Simplifier la détection du rôle pour éviter les calculs redondants
   const getUserRole = () => {
@@ -136,7 +353,7 @@ export default function DashboardLayout({
               <p className="px-2 text-[10px] font-bold text-slate-400 uppercase mb-1.5 dark:text-vynal-text-secondary opacity-0 group-hover:opacity-100 transition-opacity duration-200 hidden group-hover:block">Principal</p>
               
               <div>
-                <NavItem href="/dashboard" icon={Home} label="Tableau de bord" />
+                <SafeDashboardNavItem icon={Home} label="Tableau de bord" />
                 <NavItem 
                   href="/dashboard/orders" 
                   icon={ShoppingBag} 
@@ -193,32 +410,6 @@ export default function DashboardLayout({
                 <NavItem href="/dashboard/settings" icon={Settings} label="Paramètres" />
               </div>
             </div>
-
-            {/* Admin section temporarily commented out due to typing issues */}
-            {/* {isAdmin && (
-              <div className="space-y-3">
-                <h2 className="px-2 text-lg font-semibold tracking-tight text-vynal-purple-light dark:text-vynal-text-primary">
-                  Administration
-                </h2>
-                <div className="space-y-1">
-                  <NavItem
-                    href="/admin/users"
-                    icon={Users}
-                    label="Gestion utilisateurs"
-                  />
-                  <NavItem
-                    href="/admin/verify-document"
-                    icon={ShieldCheck}
-                    label="Vérification documents"
-                  />
-                  <NavItem
-                    href="/admin/settings"
-                    icon={Settings}
-                    label="Paramètres plateforme"
-                  />
-                </div>
-              </div>
-            )} */}
           </nav>
         </div>
 
@@ -252,7 +443,10 @@ export default function DashboardLayout({
         {/* Top Header - now visible for all users, with different content based on role */}
         <header className="bg-white h-16 flex items-center justify-between px-4 sticky top-0 z-20 border-b border-slate-100 shadow-sm hidden md:flex dark:bg-vynal-purple-dark dark:border-vynal-purple-secondary/20 dark:shadow-vynal-purple-secondary/10">
           <div className="hidden md:block">
-            <h2 className="text-lg font-bold text-vynal-purple-light dark:text-vynal-text-primary">
+            <h2 className="text-lg font-bold text-vynal-purple-light dark:text-vynal-text-primary flex items-center">
+              {isNavigating && (
+                <Loader className="h-4 w-4 mr-2 animate-spin text-vynal-accent-primary" />
+              )}
               {activePath === "/dashboard" && "Tableau de bord"}
               {activePath === "/dashboard/orders" && (isFreelance ? "Commandes reçues" : "Mes commandes")}
               {activePath === "/dashboard/messages" && "Messages"}
@@ -296,6 +490,7 @@ export default function DashboardLayout({
           user={user}
           activePath={activePath}
           setActivePath={setActivePath}
+          isNavigating={isNavigating}
         />
 
         {/* Page Content */}
