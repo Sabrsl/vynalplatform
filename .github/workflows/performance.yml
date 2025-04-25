@@ -1,0 +1,70 @@
+name: Performance and Accessibility
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * 1' # Exécuter tous les lundis à minuit
+
+jobs:
+  lighthouse:
+    name: Lighthouse Performance Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build project
+        run: npm run build
+
+      - name: Run Lighthouse CI
+        run: |
+          npm install -g @lhci/cli@0.11.x
+          npm run start:prod & # Démarrer le serveur en arrière-plan
+          lhci autorun --collect.url=http://localhost:3000 --collect.numberOfRuns=3
+        env:
+          LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN || '' }}
+
+  a11y:
+    name: Accessibility Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build project
+        run: npm run build
+
+      - name: Install pa11y
+        run: npm install -g pa11y-ci
+
+      - name: Run pa11y
+        run: |
+          npm run start:prod & # Démarrer le serveur en arrière-plan
+          sleep 10 # Attendre que le serveur démarre
+          pa11y-ci --json --reporter pa11y-reporter-html http://localhost:3000 > pa11y-report.html
+
+      - name: Upload accessibility report
+        uses: actions/upload-artifact@v3
+        with:
+          name: accessibility-report
+          path: pa11y-report.html 

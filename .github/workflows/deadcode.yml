@@ -1,0 +1,43 @@
+name: Dead Code Detection
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  detect-deadcode:
+    name: Detect unused code and imports
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install ts-prune
+        run: npm install -g ts-prune
+
+      - name: Run ts-prune to find unused exports
+        run: ts-prune | tee deadcode.txt
+
+      - name: Check for unused imports
+        run: |
+          echo "Checking for unused imports..."
+          # Using regex to find unused imports with ESLint
+          npx eslint --no-eslintrc --parser @typescript-eslint/parser --plugin import --rule 'import/no-unused-modules: [1, {"unusedExports": true}]' 'src/**/*.{ts,tsx}' | tee -a deadcode.txt
+      
+      - name: Upload dead code report
+        uses: actions/upload-artifact@v3
+        with:
+          name: deadcode-report
+          path: deadcode.txt
+          if-no-files-found: ignore 

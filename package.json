@@ -6,9 +6,16 @@
     "dev": "cross-env NODE_ENV=development next dev",
     "build": "cross-env NODE_ENV=production next build",
     "start": "cross-env NODE_ENV=production next start",
+    "start:prod": "next start -p 3000",
     "lint": "next lint",
+    "lint:fix": "next lint --fix",
+    "typecheck": "tsc --noEmit",
+    "check:all": "npm run lint && npm run typecheck",
     "clear": "if exist .next rmdir /s /q .next && npm run dev",
-    "update-types": "npx supabase gen types typescript --project-id cybeqoprsggfgippxtvt --schema public > src/types/database.ts"
+    "update-types": "npx supabase gen types typescript --project-id cybeqoprsggfgippxtvt --schema public > src/types/database.ts",
+    "find:deadcode": "npx ts-prune",
+    "security:audit": "npm audit --production --audit-level=high",
+    "prepare": "if test -f .git/hooks/pre-commit; then rm .git/hooks/pre-commit; fi; npx husky install"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.4",
@@ -71,9 +78,22 @@
     "autoprefixer": "^10.4.17",
     "eslint": "^8.56.0",
     "eslint-config-next": "14.1.0",
+    "eslint-plugin-import": "^2.28.1",
+    "husky": "^8.0.0",
+    "lint-staged": "^15.0.2",
     "postcss": "^8.4.35",
     "postcss-import": "^16.1.0",
     "tailwindcss": "^3.4.1",
+    "ts-prune": "^0.10.3",
     "typescript": "^5.3.3"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,css,md}": [
+      "prettier --write"
+    ]
   }
 }

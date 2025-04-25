@@ -1,0 +1,13 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+# Vérifier les erreurs de linting et de typage sur les fichiers en staging
+npx lint-staged
+
+# Vérifier le code mort et les imports non utilisés
+echo "🔍 Vérification du code mort..."
+npm run find:deadcode
+
+# Vérifier les vulnérabilités de sécurité
+echo "🔒 Vérification des vulnérabilités de sécurité dans les dépendances..."
+npm run security:audit 

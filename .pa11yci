@@ -1,0 +1,20 @@
+{
+  "defaults": {
+    "standard": "WCAG2AA",
+    "reporters": ["cli", "html"],
+    "includeNotices": true,
+    "includeWarnings": true,
+    "timeout": 30000,
+    "wait": 2000,
+    "viewport": {
+      "width": 1280,
+      "height": 1024
+    },
+    "hideElements": "#skip-link"
+  },
+  "urls": [
+    "http://localhost:3000/",
+    "http://localhost:3000/auth/login",
+    "http://localhost:3000/auth/signup"
+  ]
+} 
