@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Mail, Lock, Loader2, AlertCircle, Eye, EyeOff } from "lucide-react";
 import { RefreshIndicator } from "@/components/ui/refresh-indicator";
+import { supabase } from "@/lib/supabase/client";
 
 // Constantes pour la limitation des tentatives
 const MAX_LOGIN_ATTEMPTS = 5;
@@ -20,7 +21,7 @@ interface LoginFormProps {
 
 export default function LoginForm({ redirectPath = "/dashboard" }: LoginFormProps) {
   const router = useRouter();
-  const { signIn, signInWithGoogle, signInWithGithub, signInWithLinkedIn } = useAuth({ useCache: true });
+  const { signIn, signInWithGoogle } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [formData, setFormData] = useState({
@@ -165,7 +166,14 @@ export default function LoginForm({ redirectPath = "/dashboard" }: LoginFormProp
     setError("");
     
     try {
-      await signInWithGithub();
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'github',
+        options: {
+          redirectTo: window.location.origin + '/auth/callback'
+        }
+      });
+      
+      if (error) throw error;
       // La redirection est gérée par le provider OAuth
     } catch (err) {
       setError("Une erreur est survenue avec la connexion GitHub.");
@@ -180,7 +188,14 @@ export default function LoginForm({ redirectPath = "/dashboard" }: LoginFormProp
     setError("");
     
     try {
-      await signInWithLinkedIn();
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'linkedin',
+        options: {
+          redirectTo: window.location.origin + '/auth/callback'
+        }
+      });
+      
+      if (error) throw error;
       // La redirection est gérée par le provider OAuth
     } catch (err) {
       setError("Une erreur est survenue avec la connexion LinkedIn.");

@@ -182,6 +182,10 @@ const RefreshButton = memo(({ onClick, isRefreshing, lastRefreshText }: {
 
 RefreshButton.displayName = 'RefreshButton';
 
+// Configuration globale pour le dashboard
+// Forcer le rendu dynamique pour résoudre les erreurs de revalidation
+export const dynamic = 'force-dynamic';
+
 // Composant principal optimisé
 export default function DashboardPage() {
   const { user } = useAuth();

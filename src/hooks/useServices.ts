@@ -42,6 +42,10 @@ interface UseServicesParams {
 interface CreateServiceParams extends Omit<Partial<Service>, 'id' | 'created_at' | 'updated_at'> {
   freelance_id: string;
   images?: string[];
+  delivery_time?: number;
+  slug?: string;
+  active?: boolean;
+  subcategory_id?: string | null;
 }
 
 interface UpdateServiceParams extends Omit<Partial<Service>, 'id' | 'created_at' | 'updated_at' | 'freelance_id'> {

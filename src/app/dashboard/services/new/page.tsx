@@ -191,13 +191,12 @@ export default function NewServicePage() {
       });
       
       if (!result.success) {
-        throw new Error(result.error);
+        throw new Error(String(result.error));
       }
       
       // Vérifier si le service a été créé avec des images
-      if (images.length > 0 && (!result.service.images || result.service.images.length === 0)) {
-        // Le service a été créé mais sans les images
-        // On redirige quand même l'utilisateur mais on l'informe du problème
+      if (images.length > 0) {
+        // Si on a des images, on suppose que le service peut ne pas les avoir reçues correctement
         router.push("/dashboard/services?status=created-without-images");
       } else {
         // Rediriger vers la liste des services du freelance

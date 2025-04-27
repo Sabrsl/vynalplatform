@@ -4,50 +4,59 @@ import { cookies } from 'next/headers';
 import { 
   sendWelcomeEmail, 
   sendOrderConfirmationEmail, 
-  sendPasswordResetEmail 
+  sendPasswordResetEmail,
+  sendEmail,
+  sendTemplateEmail,
+  verifyEmailService
 } from '@/lib/email';
+import { processNotifications } from '@/lib/workers/notificationWorker';
 
 /**
  * API pour l'envoi d'emails
  * @param req Requête entrante
  */
-export async function POST(req: NextRequest) {
+export async function POST(request: Request) {
   try {
-    const body = await req.json();
-    const { to, subject, html, text } = body;
-    
-    // Validation basique
-    if (!to || !subject || (!html && !text)) {
-      return NextResponse.json(
-        { success: false, message: 'Paramètres manquants: to, subject, et html/text sont requis' },
-        { status: 400 }
-      );
+    const { action, ...params } = await request.json();
+
+    switch (action) {
+      case 'send':
+        const emailSent = await sendEmail(params);
+        return NextResponse.json({ success: emailSent });
+      
+      case 'sendTemplate':
+        const templateSent = await sendTemplateEmail(
+          params.to,
+          params.subject,
+          params.templatePath,
+          params.variables,
+          params.options
+        );
+        return NextResponse.json({ success: templateSent });
+      
+      case 'verify':
+        const isVerified = await verifyEmailService();
+        return NextResponse.json({ success: isVerified });
+      
+      case 'processNotifications':
+        await processNotifications();
+        return NextResponse.json({ success: true });
+      
+      default:
+        return NextResponse.json({ error: 'Action non valide' }, { status: 400 });
     }
-    
-    // Placeholder - ici vous intégreriez votre service d'email
-    console.log('Envoi d\'email:', { to, subject });
-    
-    // Simuler un envoi réussi
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Email envoyé avec succès',
-      messageId: `msg_${Date.now()}`
-    });
-    
   } catch (error) {
-    console.error('Erreur lors de l\'envoi d\'email:', error);
-    return NextResponse.json(
-      { success: false, message: 'Erreur lors de l\'envoi de l\'email' },
-      { status: 500 }
-    );
+    console.error('Erreur API email:', error);
+    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
   }
 }
 
-// Pour vérifier l'état du serveur d'email
+// Route pour vérifier l'état du service d'email
 export async function GET() {
-  return NextResponse.json({
-    status: 'OK',
-    provider: process.env.EMAIL_SMTP_HOST,
-    from: process.env.EMAIL_FROM_ADDRESS
-  });
+  try {
+    const isVerified = await verifyEmailService();
+    return NextResponse.json({ status: isVerified ? 'active' : 'inactive' });
+  } catch (error) {
+    return NextResponse.json({ status: 'error', error: 'Erreur serveur' }, { status: 500 });
+  }
 } 

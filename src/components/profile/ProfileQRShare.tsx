@@ -127,7 +127,7 @@ export function ProfileQRShare({ profileData, baseUrl }: ProfileQRShareProps) {
       ctx.shadowOffsetY = 0;
       
       // Charger l'image du QR code
-      const qrImg = new Image();
+      const qrImg = document.createElement('img');
       qrImg.src = qrDataUrl;
       
       await new Promise((resolve) => {
@@ -152,7 +152,7 @@ export function ProfileQRShare({ profileData, baseUrl }: ProfileQRShareProps) {
       ctx.fill();
       
       // Charger et ajouter la photo de profil au centre
-      const avatarImg = new Image();
+      const avatarImg = document.createElement('img');
       avatarImg.crossOrigin = "anonymous";
       avatarImg.src = profileData.avatar_url;
       
@@ -204,7 +204,7 @@ export function ProfileQRShare({ profileData, baseUrl }: ProfileQRShareProps) {
       ctx.fill();
       
       // Charger le logo Vynal Platform 
-      const logoImg = new Image();
+      const logoImg = document.createElement('img');
       logoImg.crossOrigin = "anonymous";
       logoImg.src = "/assets/logo/logo_vynal_platform_simple.webp";
       

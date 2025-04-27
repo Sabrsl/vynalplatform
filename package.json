@@ -20,6 +20,7 @@
     "test:email": "node src/scripts/test-email.js"
   },
   "dependencies": {
+    "@heroicons/react": "^2.2.0",
     "@hookform/resolvers": "^3.3.4",
     "@radix-ui/react-alert-dialog": "^1.1.7",
     "@radix-ui/react-avatar": "^1.0.4",
@@ -58,6 +59,7 @@
     "lodash-es": "^4.17.21",
     "lucide-react": "^0.488.0",
     "next": "^14.2.28",
+    "next-intl": "^4.1.0",
     "next-themes": "^0.2.1",
     "nodemailer": "^6.10.1",
     "qrcode": "^1.5.4",

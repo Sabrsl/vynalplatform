@@ -129,7 +129,7 @@ export const createCacheManager = createCacheMgr;
 // Méthode pour préparer l'application et optimiser le chargement initial
 export const initializeOptimizations = () => {
   // Configuration du gestionnaire de cache
-  createCacheMgr();
+  createCacheMgr('vynal');
   
   // Activer le service worker en production
   if (typeof window !== 'undefined' && process.env.NODE_ENV === 'production') {

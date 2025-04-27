@@ -12,6 +12,11 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { formatCurrency } from "@/lib/utils/format";
 import { debounce } from "lodash";
 import { useCallback } from "react";
+import { Badge } from "@/components/ui/badge";
+import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
+
+// Force dynamic rendering pour éviter erreurs de static generation
+export const dynamic = 'force-dynamic';
 
 export interface Transaction {
   id: string;

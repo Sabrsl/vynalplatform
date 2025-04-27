@@ -11,11 +11,9 @@ export const service: ServiceWithFreelanceAndCategories & { images?: string[] } 
   title: "Service de démonstration",
   description: "Ceci est un service de démonstration pour tester les fonctionnalités de commande.",
   price: 25000,
-  delivery_time: 5,
   category_id: "cat-001",
-  subcategory_id: "subcat-001",
   freelance_id: "user-001",
-  active: true,
+  status: "active",
   slug: "service-demo",
   images: [],
   profiles: {

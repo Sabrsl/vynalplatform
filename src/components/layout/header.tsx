@@ -310,7 +310,7 @@ export default function Header() {
             {!userStatus.isAuthenticated && !userStatus.authLoading ? (
               // Options pour utilisateur non connecté
               <>
-                <Link href="/auth?mode=signup" passHref>
+                <Link href="/auth/signup" passHref>
                   <Button 
                     variant="ghost" 
                     size="sm" 
@@ -320,7 +320,7 @@ export default function Header() {
                     S'inscrire
                   </Button>
                 </Link>
-                <Link href="/auth" passHref>
+                <Link href="/auth/login" passHref>
                   <Button 
                     variant="default" 
                     size="sm" 

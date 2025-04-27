@@ -18,7 +18,7 @@ export default function NotFound() {
   useEffect(() => {
     // Enregistrer l'erreur de navigation
     if (typeof window !== 'undefined' && pathname) {
-      NavigationLoadingState.recordNavigationError(pathname);
+      NavigationLoadingState.recordNavigationError();
     }
 
     // Redirection automatique pour les erreurs dans le dashboard

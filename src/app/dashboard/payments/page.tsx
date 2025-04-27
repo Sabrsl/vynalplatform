@@ -1,8 +1,6 @@
-"use client";
-
 import { Suspense } from "react";
 import { Metadata } from "next";
-import { PaymentsContent } from "@/components/payments/PaymentsContent";
+import { PaymentsPageClient } from "./PaymentsPageClient";
 import { PaymentsPageSkeleton } from "@/components/skeletons/PaymentsPageSkeleton";
 
 export const metadata: Metadata = {
@@ -12,11 +10,8 @@ export const metadata: Metadata = {
 
 export default function PaymentsPage() {
   return (
-    <div className="flex flex-col gap-6">
-      <h1 className="text-2xl md:text-3xl font-bold">Mes paiements</h1>
-      <Suspense fallback={<PaymentsPageSkeleton />}>
-        <PaymentsContent />
-      </Suspense>
-    </div>
+    <Suspense fallback={<PaymentsPageSkeleton />}>
+      <PaymentsPageClient />
+    </Suspense>
   );
 } 

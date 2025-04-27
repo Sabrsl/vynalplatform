@@ -472,7 +472,7 @@ export default function ServicesPage() {
         cacheKey, 
         { services: transformedServices, total: count || 0 },
         { 
-          expiry: CACHE_EXPIRY.SERVICES,
+          expiry: CACHE_EXPIRY.SHORT,
           priority: forceRefresh ? 'medium' : 'high'
         }
       );
