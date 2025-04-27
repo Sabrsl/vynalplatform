@@ -64,7 +64,7 @@ jobs:
           pa11y-ci --json --reporter pa11y-reporter-html http://localhost:3000 > pa11y-report.html
 
       - name: Upload accessibility report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: accessibility-report
           path: pa11y-report.html 

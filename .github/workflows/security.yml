@@ -78,7 +78,7 @@ jobs:
           trufflehog --json --regex --entropy=False git file://. > secrets-report.txt || true
           
       - name: Upload Secrets Scan Results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: secrets-scan-report
           path: secrets-report.txt

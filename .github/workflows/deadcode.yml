@@ -36,7 +36,7 @@ jobs:
           npx eslint --no-eslintrc --parser @typescript-eslint/parser --plugin import --rule 'import/no-unused-modules: [1, {"unusedExports": true}]' 'src/**/*.{ts,tsx}' | tee -a deadcode.txt
       
       - name: Upload dead code report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: deadcode-report
           path: deadcode.txt
