@@ -49,6 +49,10 @@ next-env.d.ts
 supabase/
 supabase_policies.sql
 fix_admin_direct.sql
+# NE PAS IGNORER CES FICHIERS POUR VERCEL
+!src/lib/supabase/file-upload.ts
+!src/lib/supabase/order-files.ts
+!src/lib/supabase/wallets.ts
 
 # Logs
 logs/
