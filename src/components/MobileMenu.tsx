@@ -1,18 +1,37 @@
-import { useState, useEffect } from "react";
-import Link from "next/link";
+import React from 'react';
+import Link from 'next/link';
+import { useTheme } from 'next-themes';
+import { User } from '@supabase/supabase-js';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
+import { useAuth } from '@/hooks/useAuth';
+import { UserAvatar } from '@/components/user/UserAvatar';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { useUserNotifications } from '@/hooks/useUserNotifications';
+import { Badge } from '@/components/ui/badge';
+import { useRouter } from 'next/navigation';
+
 import { 
-  User, Settings, FileText, ShoppingBag, MessageSquare, Home, 
-  Calendar, CreditCard, BarChart2, BookOpen, Award, HelpCircle,
-  X, ChevronRight, LogOut, Search, Wallet, RefreshCw, PackageOpen, Loader
-} from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
-import { useTheme } from "@/hooks/useTheme";
-import { AnimatePresence, motion } from "framer-motion";
-import NotificationBadge from "@/components/ui/notification-badge";
-import { useMessageCounts } from "@/hooks/useOptimizedMessageCounts";
-import { signOut } from "@/lib/auth";
-import { UserType } from "@/types";
-import { RefreshIndicator } from "./ui/refresh-indicator";
+  X,
+  Home, 
+  MessageSquare, 
+  ShoppingBag, 
+  AlertTriangle, 
+  CreditCard, 
+  FileText, 
+  BarChart2, 
+  Award, 
+  PackageOpen,
+  Settings,
+  LogOut,
+  User as UserIcon,
+  UserPlus,
+  FileSpreadsheet,
+  MessageCircle,
+  Bell,
+  Heart
+} from 'lucide-react';
 
 interface NavItemProps {
   href: string;
@@ -20,504 +39,319 @@ interface NavItemProps {
   label: string;
   isActive: boolean;
   onClick: () => void;
+  isNavigating: boolean;
   badgeCount?: number;
-  isNavigating?: boolean;
 }
 
-interface MobileMenuProps {
-  isOpen: boolean;
-  onClose: () => void;
-  user: UserType | null;
-  activePath: string;
-  setActivePath: (path: string) => void;
-  isNavigating?: boolean;
-}
-
-const NavItem = ({ href, icon: Icon, label, isActive, onClick, badgeCount, isNavigating }: NavItemProps) => {
+const NavItem: React.FC<NavItemProps> = ({ 
+  href, 
+  icon: Icon, 
+  label, 
+  isActive, 
+  onClick,
+  isNavigating,
+  badgeCount
+}) => {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   
   return (
-    <Link
+    <Link 
       href={href}
+      className={`
+        flex items-center px-2 py-2 rounded-md mb-1
+        ${isActive 
+          ? `bg-vynal-accent-primary/10 text-vynal-accent-primary font-medium` 
+          : `hover:bg-slate-100 text-slate-700 dark:text-vynal-text-secondary dark:hover:bg-vynal-purple-secondary/10`
+        }
+        ${isNavigating ? 'opacity-70 pointer-events-none' : ''}
+      `}
       onClick={onClick}
-      className={`flex items-center justify-between px-3 py-2.5 rounded-lg my-0.5 transition-all duration-200 ${
-        isActive
-          ? "bg-gradient-to-r from-vynal-purple-500 to-vynal-accent-primary text-white shadow-md dark:shadow-vynal-purple-900/40 shadow-vynal-purple-200/50"
-          : `hover:bg-vynal-purple-100/50 dark:hover:bg-vynal-purple-dark/50 
-             text-vynal-purple-dark dark:text-vynal-text-primary 
-             hover:text-vynal-purple-600 dark:hover:text-vynal-accent-primary`
-      }`}
     >
-      <div className="flex items-center">
-        <div className={`p-1.5 rounded-md relative ${
-          isActive
-            ? "bg-white/20 text-white" 
-            : isDark
-              ? "bg-vynal-purple-secondary/20 text-vynal-accent-primary"
-              : "bg-vynal-purple-100 text-vynal-purple-600"
-        }`}>
-          {isNavigating && isActive ? (
-            <Loader className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <Icon className="h-3.5 w-3.5" />
-          )}
-          {badgeCount !== undefined && badgeCount > 0 && (
-            <NotificationBadge count={badgeCount} className="h-4 w-4 min-w-4 text-[10px]" />
-          )}
-        </div>
-        <span className={`ml-2.5 text-xs font-medium ${
-          isActive 
-            ? "text-white" 
-            : isDark
-              ? "text-vynal-text-primary"
-              : "text-vynal-purple-dark"
-        }`}>{label}</span>
+      <div className="mr-2 flex items-center justify-center w-5">
+        <Icon className={`
+          ${isActive 
+            ? 'text-vynal-accent-primary' 
+            : 'text-slate-500 dark:text-vynal-text-secondary/70'
+          } 
+          h-4 w-4
+          ${isNavigating ? 'animate-pulse' : ''}
+        `} />
       </div>
-      {isActive && (
-        <ChevronRight className="w-3 h-3 text-white" />
+      <span className="text-xs">{label}</span>
+      
+      {badgeCount !== undefined && badgeCount > 0 && (
+        <Badge className="ml-auto bg-vynal-accent-secondary/90 text-white text-[0.65rem] px-1.5 min-w-[1.25rem]">
+          {badgeCount > 99 ? '99+' : badgeCount}
+        </Badge>
       )}
     </Link>
   );
 };
 
+interface MobileMenuProps {
+  isOpen: boolean;
+  onClose: () => void;
+  user: User | null;
+  activePath: string;
+  setActivePath: (path: string) => void;
+  isNavigating: boolean;
+}
+
 export default function MobileMenu({ isOpen, onClose, user, activePath, setActivePath, isNavigating }: MobileMenuProps) {
   const { theme } = useTheme();
-  const isDark = theme === 'dark';
-  const { totalUnread: totalUnreadCount, isRefreshing: messagesRefreshing, refreshCounts } = useMessageCounts();
-  const { user: authUser } = useAuth({ useCache: true });
-  
-  // Déterminer si l'utilisateur est freelance
-  const isFreelance = user?.user_metadata?.role === 'freelance' || false;
-  
-  // Import de la fonction de déconnexion
   const { signOut } = useAuth();
+  const isDark = theme === 'dark';
+  const router = useRouter();
+  
+  // Notifications non lues
+  const { totalUnreadCount } = useUserNotifications(user?.id);
   
   const isActive = (path: string) => activePath === path;
-
+  
+  const handleSignOut = () => {
+    signOut();
+    onClose();
+  };
+  
+  // Fonction pour naviguer vers la page d'accueil via le logo
+  const navigateToHome = (e: React.MouseEvent) => {
+    e.preventDefault();
+    onClose();
+    router.push('/');
+  };
+  
+  // Empêcher le scroll du body quand le menu est ouvert
+  React.useEffect(() => {
+    if (isOpen) {
+      // Sauvegarder la position de scroll
+      const scrollY = window.scrollY;
+      
+      // Fixer le body pour éviter le décalage
+      document.body.style.position = 'fixed';
+      document.body.style.width = '100%';
+      document.body.style.top = `-${scrollY}px`;
+    } else {
+      // Restaurer la position
+      const scrollY = parseInt(document.body.style.top || '0') * -1;
+      document.body.style.position = '';
+      document.body.style.width = '';
+      document.body.style.top = '';
+      window.scrollTo(0, scrollY);
+    }
+    
+    return () => {
+      // Nettoyer en cas de démontage
+      document.body.style.position = '';
+      document.body.style.width = '';
+      document.body.style.top = '';
+    };
+  }, [isOpen]);
+  
   return (
-    <AnimatePresence mode="wait">
-      {isOpen && (
-        <>
-          <motion.div 
-            className="fixed inset-0 z-40 bg-vynal-purple-dark/60 backdrop-blur-sm"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.25 }}
-            onClick={onClose}
-          />
-          <motion.aside 
-            className={`fixed inset-y-0 left-0 max-w-[280px] w-full z-50 flex flex-col
-              ${isDark 
-                ? "bg-gradient-vynal border-r border-vynal-purple-secondary/20" 
-                : "bg-gradient-to-br from-white to-vynal-purple-50 border-r border-vynal-purple-200/30"
-              }
-            `}
-            initial={{ x: "-100%" }}
-            animate={{ x: 0 }}
-            exit={{ x: "-100%" }}
-            transition={{ 
-              type: "spring", 
-              stiffness: 350, 
-              damping: 30,
-              mass: 0.8,
-              restDelta: 0.001
-            }}
-          >
-            {/* Éléments décoratifs */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-              <motion.div 
-                className={`absolute -top-24 -right-24 w-60 h-60 rounded-full blur-3xl opacity-0 ${
-                  isDark ? "bg-vynal-accent-secondary/10" : "bg-vynal-purple-300/20"
-                }`}
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 0.5, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                transition={{ delay: 0.1, duration: 0.5 }}
-              />
-              <motion.div 
-                className={`absolute -bottom-24 -left-24 w-60 h-60 rounded-full blur-3xl opacity-0 ${
-                  isDark ? "bg-vynal-accent-primary/10" : "bg-vynal-purple-400/15"
-                }`}
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 0.5, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                transition={{ delay: 0.2, duration: 0.5 }}
-              />
-              
-              {/* Grille décorative en arrière-plan */}
-              <motion.div 
-                className={`absolute inset-0 bg-[url('/img/grid-pattern.svg')] bg-center ${
-                  isDark ? "opacity-0" : "opacity-0"
-                }`}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: isDark ? 0.05 : 0.1 }}
-                exit={{ opacity: 0 }}
-                transition={{ delay: 0.1, duration: 0.4 }}
-              />
-            </div>
-            
-            <div className={`flex items-center justify-between h-16 px-4 relative z-10 border-b ${
-              isDark ? "border-vynal-purple-secondary/20" : "border-vynal-purple-200/30"
-            }`}>
-              <div className="flex items-center gap-3">
-                <div className="flex flex-row items-center gap-2.5">
-                  <div className="bg-gradient-to-br from-vynal-purple-500 to-vynal-accent-primary h-8 w-8 rounded-lg shadow-md shadow-vynal-purple-200/40 dark:shadow-vynal-purple-900/30">
-                  </div>
-                  <h1 className="text-base font-bold text-vynal-accent-primary">VY</h1>
-                </div>
-                
-                {user && (
-                  <div className={`px-2 py-0.5 rounded-sm text-[9px] font-medium tracking-wide ${
-                    isFreelance
-                      ? isDark
-                        ? "bg-amber-500/20 text-amber-300"
-                        : "bg-amber-100 text-amber-700"
-                      : isDark
-                        ? "bg-blue-500/20 text-blue-300"
-                        : "bg-blue-100 text-blue-700"
-                  }`}>
-                    {isFreelance ? "Freelance" : "Client"}
-                  </div>
-                )}
-              </div>
-              <button 
-                onClick={onClose}
-                className={`p-1.5 rounded-lg transition-all ${
-                  isDark 
-                    ? "text-vynal-text-secondary hover:bg-vynal-purple-secondary/20 hover:text-vynal-accent-primary" 
-                    : "text-vynal-purple-400 hover:bg-vynal-purple-100/70 hover:text-vynal-purple-600"
-                }`}
-                aria-label="Fermer le menu"
+    <Sheet open={isOpen} onOpenChange={onClose}>
+      <SheetContent side="left" className={`w-[280px] p-0 ${isDark ? 'bg-vynal-purple-dark border-vynal-purple-secondary/20' : 'bg-white'}`}>
+        <div className="flex flex-col h-full">
+          {/* En-tête */}
+          <div className="p-3 flex items-center justify-between border-b dark:border-vynal-purple-secondary/20">
+            <div className="flex items-center space-x-2">
+              <span 
+                className="bg-gradient-to-br from-vynal-accent-primary to-vynal-accent-secondary h-7 w-7 rounded-lg flex items-center justify-center shadow-md shadow-vynal-accent-primary/20 cursor-pointer hover:scale-105 transition-transform"
+                onClick={navigateToHome}
               >
-                <X className="h-5 w-5" />
-              </button>
+                <span className="text-white font-bold text-xs">VY</span>
+              </span>
+              <div 
+                className="cursor-pointer"
+                onClick={navigateToHome}
+              >
+                <h1 className="text-xs font-bold text-vynal-purple-light dark:text-vynal-text-primary">Vynal Platform</h1>
+                <p className="text-[9px] text-vynal-purple-secondary dark:text-vynal-text-secondary">Espace Freelance</p>
+              </div>
             </div>
-            
-            <div className="flex-1 overflow-y-auto p-4 relative z-10 scrollbar-none" 
-              style={{ 
-                scrollbarWidth: 'none', 
-                msOverflowStyle: 'none' 
-              }}
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={onClose}
+              className="text-slate-500 hover:text-slate-700 dark:text-vynal-text-secondary dark:hover:text-vynal-text-primary"
             >
-              {/* Masquer la barre de défilement WebKit */}
-              <style jsx>{`
-                div::-webkit-scrollbar {
-                  display: none;
-                  width: 0;
-                  height: 0;
-                }
-              `}</style>
-              
-              {user ? (
-                // Contenu pour utilisateur connecté
-                <nav className="space-y-4">
-                  {/* Éléments essentiels */}
-                  <div>
-                    <p className={`px-2 text-xs font-semibold uppercase mb-2 ${
-                      isDark ? "text-vynal-text-secondary" : "text-vynal-purple-400"
-                    }`}>
-                      Principal
-                    </p>
-                    <div>
-                      <NavItem 
-                        href="/dashboard" 
-                        icon={Home} 
-                        label="Tableau de bord" 
-                        isActive={isActive("/dashboard")}
-                        onClick={() => {
-                          setActivePath("/dashboard");
-                          onClose();
-                        }}
-                        isNavigating={isNavigating}
-                      />
-                      <NavItem 
-                        href="/dashboard/orders" 
-                        icon={ShoppingBag} 
-                        label={isFreelance ? "Commandes reçues" : "Mes commandes"} 
-                        isActive={isActive("/dashboard/orders")}
-                        onClick={() => {
-                          setActivePath("/dashboard/orders");
-                          onClose();
-                        }}
-                        isNavigating={isNavigating}
-                      />
-                      <NavItem 
-                        href="/dashboard/messages" 
-                        icon={MessageSquare} 
-                        label="Messages" 
-                        isActive={isActive("/dashboard/messages")}
-                        onClick={() => {
-                          setActivePath("/dashboard/messages");
-                          onClose();
-                        }}
-                        badgeCount={totalUnreadCount}
-                        isNavigating={isNavigating}
-                      />
-                      {isFreelance ? (
-                        <NavItem 
-                          href="/dashboard/wallet" 
-                          icon={CreditCard} 
-                          label="Paiements" 
-                          isActive={isActive("/dashboard/wallet")}
-                          onClick={() => {
-                            setActivePath("/dashboard/wallet");
-                            onClose();
-                          }}
-                          isNavigating={isNavigating}
-                        />
-                      ) : (
-                        <NavItem 
-                          href="/dashboard/payments" 
-                          icon={CreditCard} 
-                          label="Paiements" 
-                          isActive={isActive("/dashboard/payments")}
-                          onClick={() => {
-                            setActivePath("/dashboard/payments");
-                            onClose();
-                          }}
-                          isNavigating={isNavigating}
-                        />
-                      )}
-                    </div>
-                  </div>
-                  
-                  {/* Section pour Freelance uniquement */}
-                  {isFreelance && (
-                    <div>
-                      <p className={`px-2 text-xs font-semibold uppercase mb-2 ${
-                        isDark ? "text-vynal-text-secondary" : "text-vynal-purple-400"
-                      }`}>
-                        Services
-                      </p>
-                      <div>
-                        <NavItem 
-                          href="/dashboard/services" 
-                          icon={FileText} 
-                          label="Mes services" 
-                          isActive={isActive("/dashboard/services")}
-                          onClick={() => {
-                            setActivePath("/dashboard/services");
-                            onClose();
-                          }}
-                          isNavigating={isNavigating}
-                        />
-                        <NavItem 
-                          href="/dashboard/orders/delivery" 
-                          icon={PackageOpen} 
-                          label="Livrer un travail" 
-                          isActive={isActive("/dashboard/orders/delivery")}
-                          onClick={() => {
-                            setActivePath("/dashboard/orders/delivery");
-                            onClose();
-                          }}
-                          isNavigating={isNavigating}
-                        />
-                        <NavItem 
-                          href="/dashboard/stats" 
-                          icon={BarChart2} 
-                          label="Statistiques" 
-                          isActive={isActive("/dashboard/stats")}
-                          onClick={() => {
-                            setActivePath("/dashboard/stats");
-                            onClose();
-                          }}
-                          isNavigating={isNavigating}
-                        />
-                        <NavItem 
-                          href="/dashboard/certifications" 
-                          icon={Award} 
-                          label="Certifications" 
-                          isActive={isActive("/dashboard/certifications")}
-                          onClick={() => {
-                            setActivePath("/dashboard/certifications");
-                            onClose();
-                          }}
-                          isNavigating={isNavigating}
-                        />
-                      </div>
-                    </div>
-                  )}
-                  
-                  {/* Section client uniquement */}
-                  {!isFreelance && (
-                    <div>
-                      <p className={`px-2 text-xs font-semibold uppercase mb-2 ${
-                        isDark ? "text-vynal-text-secondary" : "text-vynal-purple-400"
-                      }`}>
-                        Actions
-                      </p>
-                      <div>
-                        <NavItem 
-                          href="/services" 
-                          icon={FileText} 
-                          label="Trouver un service" 
-                          isActive={isActive("/services")}
-                          onClick={() => {
-                            setActivePath("/services");
-                            onClose();
-                          }}
-                          isNavigating={isNavigating}
-                        />
-                      </div>
-                    </div>
-                  )}
-                  
-                  {/* Section profil et configuration */}
-                  <div className="mt-2">
-                    <div className={`flex items-center gap-2 px-2 py-1.5 mb-3 rounded-md ${
-                      isDark 
-                        ? "bg-vynal-purple-secondary/20" 
-                        : "bg-vynal-purple-100/50"
-                    }`}>
-                      <Settings className={`h-3.5 w-3.5 ${
-                        isDark ? "text-vynal-accent-primary" : "text-vynal-purple-600"
-                      }`} />
-                      <p className={`text-xs font-semibold ${
-                        isDark ? "text-vynal-text-primary" : "text-vynal-purple-600"
-                      }`}>
-                        Paramètres
-                      </p>
-                    </div>
-                    <div className="space-y-2">
-                      <NavItem 
-                        href="/dashboard/profile" 
-                        icon={User} 
-                        label="Mon profil" 
-                        isActive={isActive("/dashboard/profile")}
-                        onClick={() => {
-                          setActivePath("/dashboard/profile");
-                          onClose();
-                        }}
-                        isNavigating={isNavigating}
-                      />
-                      
-                      <NavItem 
-                        href="/resources" 
-                        icon={BookOpen} 
-                        label="Ressources" 
-                        isActive={isActive("/resources")}
-                        onClick={() => {
-                          setActivePath("/resources");
-                          onClose();
-                        }}
-                        isNavigating={isNavigating}
-                      />
-                      
-                      <NavItem 
-                        href="/contact" 
-                        icon={HelpCircle} 
-                        label="Support" 
-                        isActive={isActive("/contact")}
-                        onClick={() => {
-                          setActivePath("/contact");
-                          onClose();
-                        }}
-                        isNavigating={isNavigating}
-                      />
-                      
-                      <NavItem 
-                        href="/dashboard/settings" 
-                        icon={Settings} 
-                        label="Paramètres" 
-                        isActive={isActive("/dashboard/settings")}
-                        onClick={() => {
-                          setActivePath("/dashboard/settings");
-                          onClose();
-                        }}
-                        isNavigating={isNavigating}
-                      />
-                    </div>
-                  </div>
-                  
-                  {/* Bouton de déconnexion */}
-                  <div className="mt-6 pt-6 border-t dark:border-vynal-purple-secondary/20 border-vynal-purple-200/30">
-                    <button 
-                      onClick={() => {
-                        signOut();
-                        onClose();
-                      }}
-                      className={`flex items-center w-full px-3 py-2 rounded-lg transition-all 
-                        ${isDark 
-                          ? "text-vynal-text-primary hover:bg-vynal-purple-secondary/20 hover:text-vynal-accent-primary" 
-                          : "text-vynal-purple-dark hover:bg-vynal-purple-100/50 hover:text-vynal-purple-600"
-                        }`}
-                    >
-                      <div className={`p-1.5 rounded-md ${
-                        isDark
-                          ? "bg-vynal-purple-secondary/20 text-vynal-accent-primary"
-                          : "bg-vynal-purple-100 text-vynal-purple-600"
-                      }`}>
-                        <LogOut className="h-3.5 w-3.5" />
-                      </div>
-                      <span className="ml-2.5 text-xs font-medium">Déconnexion</span>
-                    </button>
-                  </div>
-                </nav>
-              ) : (
-                // Contenu pour utilisateur non connecté - uniquement connexion/inscription
-                <div className="flex flex-col gap-4 items-center justify-center h-full">
-                  <div className="text-center mb-4">
-                    <h3 className={`text-base font-semibold mb-1 ${
-                      isDark ? "text-vynal-text-primary" : "text-vynal-purple-dark"
-                    }`}>
-                      Bienvenue sur Vynal
-                    </h3>
-                    <p className={`text-xs ${
-                      isDark ? "text-vynal-text-secondary" : "text-vynal-purple-500"
-                    }`}>
-                      Connectez-vous pour accéder à toutes les fonctionnalités
-                    </p>
-                  </div>
-                  
-                  <Link 
-                    href="/auth/login" 
-                    className="w-full"
-                    onClick={onClose}
-                  >
-                    <button className={`w-full py-2.5 px-4 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-all ${
-                      isDark 
-                        ? "bg-vynal-purple-secondary/20 text-vynal-text-primary hover:bg-vynal-purple-secondary/30 hover:text-vynal-accent-primary" 
-                        : "bg-vynal-purple-100/80 text-vynal-purple-dark hover:bg-vynal-purple-200/80 hover:text-vynal-purple-600"
-                    }`}>
-                      <User className="w-4 h-4" />
-                      Connexion
-                    </button>
-                  </Link>
-                  
-                  <Link 
-                    href="/auth/signup" 
-                    className="w-full"
-                    onClick={onClose}
-                  >
-                    <button className="w-full py-2.5 px-4 rounded-lg bg-gradient-to-r from-vynal-purple-500 to-vynal-accent-primary text-white text-sm font-medium flex items-center justify-center gap-2 transition-all hover:opacity-90">
-                      Inscription
-                    </button>
-                  </Link>
-                  
-                  <div className="mt-6 border-t w-full pt-6 dark:border-vynal-purple-secondary/20 border-vynal-purple-200/30">
-                    <Link 
-                      href="/resources" 
-                      className="w-full"
-                      onClick={onClose}
-                    >
-                      <button className={`w-full py-2 px-4 rounded-lg text-xs flex items-center justify-center transition-all ${
-                        isDark 
-                          ? "text-vynal-text-secondary hover:text-vynal-accent-primary" 
-                          : "text-vynal-purple-400 hover:text-vynal-purple-600"
-                      }`}>
-                        <BookOpen className="w-3.5 h-3.5 mr-2" />
-                        Ressources
-                      </button>
-                    </Link>
-                  </div>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          
+          {/* Navigation */}
+          <ScrollArea className="flex-1">
+            <div className="p-3">
+              {/* Principal */}
+              <div>
+                <p className={`px-2 text-[10px] font-semibold uppercase mb-1 ${
+                  isDark ? "text-vynal-text-secondary" : "text-vynal-purple-400"
+                }`}>
+                  Principal
+                </p>
+                <div>
+                  <NavItem 
+                    href="/dashboard" 
+                    icon={Home} 
+                    label="Tableau de bord" 
+                    isActive={isActive("/dashboard")}
+                    onClick={() => {
+                      setActivePath("/dashboard");
+                      onClose();
+                    }}
+                    isNavigating={isNavigating}
+                  />
+                  <NavItem 
+                    href="/dashboard/orders" 
+                    icon={ShoppingBag} 
+                    label="Commandes reçues" 
+                    isActive={isActive("/dashboard/orders")}
+                    onClick={() => {
+                      setActivePath("/dashboard/orders");
+                      onClose();
+                    }}
+                    isNavigating={isNavigating}
+                  />
+                  <NavItem 
+                    href="/dashboard/messages" 
+                    icon={MessageSquare} 
+                    label="Messages" 
+                    isActive={isActive("/dashboard/messages")}
+                    onClick={() => {
+                      setActivePath("/dashboard/messages");
+                      onClose();
+                    }}
+                    isNavigating={isNavigating}
+                    badgeCount={totalUnreadCount}
+                  />
+                  <NavItem 
+                    href="/dashboard/disputes" 
+                    icon={AlertTriangle} 
+                    label="Litiges" 
+                    isActive={isActive("/dashboard/disputes")}
+                    onClick={() => {
+                      setActivePath("/dashboard/disputes");
+                      onClose();
+                    }}
+                    isNavigating={isNavigating}
+                  />
+                  <NavItem 
+                    href="/dashboard/wallet" 
+                    icon={CreditCard} 
+                    label="Paiements" 
+                    isActive={isActive("/dashboard/wallet")}
+                    onClick={() => {
+                      setActivePath("/dashboard/wallet");
+                      onClose();
+                    }}
+                    isNavigating={isNavigating}
+                  />
                 </div>
-              )}
+              </div>
+              
+              {/* Section services */}
+              <div>
+                <p className={`px-2 text-[10px] font-semibold uppercase mb-1 mt-4 ${
+                  isDark ? "text-vynal-text-secondary" : "text-vynal-purple-400"
+                }`}>
+                  Services
+                </p>
+                <div>
+                  <NavItem 
+                    href="/dashboard/services" 
+                    icon={FileText} 
+                    label="Mes services" 
+                    isActive={isActive("/dashboard/services")}
+                    onClick={() => {
+                      setActivePath("/dashboard/services");
+                      onClose();
+                    }}
+                    isNavigating={isNavigating}
+                  />
+                  <NavItem 
+                    href="/dashboard/orders/delivery" 
+                    icon={PackageOpen} 
+                    label="Livrer un travail" 
+                    isActive={isActive("/dashboard/orders/delivery")}
+                    onClick={() => {
+                      setActivePath("/dashboard/orders/delivery");
+                      onClose();
+                    }}
+                    isNavigating={isNavigating}
+                  />
+                  <NavItem 
+                    href="/dashboard/stats" 
+                    icon={BarChart2} 
+                    label="Statistiques" 
+                    isActive={isActive("/dashboard/stats")}
+                    onClick={() => {
+                      setActivePath("/dashboard/stats");
+                      onClose();
+                    }}
+                    isNavigating={isNavigating}
+                  />
+                  <NavItem 
+                    href="/dashboard/certifications" 
+                    icon={Award} 
+                    label="Certifications" 
+                    isActive={isActive("/dashboard/certifications")}
+                    onClick={() => {
+                      setActivePath("/dashboard/certifications");
+                      onClose();
+                    }}
+                    isNavigating={isNavigating}
+                  />
+                </div>
+              </div>
+              
+              {/* Section profil et configuration */}
+              <div>
+                <p className={`px-2 text-[10px] font-semibold uppercase mb-1 mt-4 ${
+                  isDark ? "text-vynal-text-secondary" : "text-vynal-purple-400"
+                }`}>
+                  Profil
+                </p>
+                <div>
+                  <NavItem 
+                    href="/dashboard/profile" 
+                    icon={UserIcon} 
+                    label="Mon profil" 
+                    isActive={isActive("/dashboard/profile")}
+                    onClick={() => {
+                      setActivePath("/dashboard/profile");
+                      onClose();
+                    }}
+                    isNavigating={isNavigating}
+                  />
+                  <NavItem 
+                    href="/dashboard/settings" 
+                    icon={Settings} 
+                    label="Paramètres" 
+                    isActive={isActive("/dashboard/settings")}
+                    onClick={() => {
+                      setActivePath("/dashboard/settings");
+                      onClose();
+                    }}
+                    isNavigating={isNavigating}
+                  />
+                </div>
+              </div>
             </div>
-          </motion.aside>
-        </>
-      )}
-    </AnimatePresence>
+          </ScrollArea>
+          
+          {/* Actions bas de page */}
+          <div className="border-t p-3 dark:border-vynal-purple-secondary/20">
+            <Button 
+              variant="ghost" 
+              className="w-full justify-start py-2 text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-900/10"
+              onClick={handleSignOut}
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              <span className="text-xs">Déconnexion</span>
+            </Button>
+          </div>
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 } 

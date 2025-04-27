@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { MessageSquare, Send } from 'lucide-react';
@@ -285,6 +285,9 @@ const MessagingDialog: React.FC<MessagingDialogProps> = ({
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
               <DialogTitle>Envoyer un message à {freelanceName}</DialogTitle>
+              <DialogDescription>
+                Utilisez ce formulaire pour envoyer un message direct au freelance.
+              </DialogDescription>
             </DialogHeader>
             
             {error && (

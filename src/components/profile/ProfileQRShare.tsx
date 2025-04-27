@@ -28,6 +28,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import Image from 'next/image';
 
 interface ProfileQRShareProps {
   profileData: {
@@ -436,10 +437,14 @@ export function ProfileQRShare({ profileData, baseUrl }: ProfileQRShareProps) {
                       qrWithLogo ? (
                         <div className="relative group transform transition-all duration-500 hover:scale-105">
                           <div className="absolute inset-0 bg-gradient-to-br from-vynal-accent-primary to-blue-600 rounded-2xl blur-xl opacity-30 group-hover:opacity-40 transition-opacity"></div>
-                          <img 
+                          <Image 
                             src={qrWithLogo} 
                             alt="QR Code personnalisé Vynal Platform" 
                             className="relative w-[300px] h-[300px] rounded-2xl shadow-2xl hover:shadow-vynal-accent-primary/20 transition-all duration-500 z-10" 
+                            width={300}
+                            height={300}
+                            priority
+                            quality={95}
                           />
                           <div className="absolute inset-0 bg-gradient-to-tr from-black/10 to-transparent opacity-0 group-hover:opacity-10 transition-opacity duration-500 rounded-2xl z-20"></div>
                         </div>

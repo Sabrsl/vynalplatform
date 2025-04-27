@@ -1,52 +1,121 @@
 "use client";
 
-import { useEffect } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 
+// Chemins à exclure (où le comportement standard est conservé)
+const EXCLUDED_PATHS = ['/messages', '/chat', '/inbox'];
+
 /**
- * Hook pour empêcher le défilement automatique vers le bas lors des navigations
+ * Hook optimisé pour empêcher le reset du scroll lors des navigations tout en préservant la performance
  */
 export function usePreventScrollReset() {
   const pathname = usePathname();
   const router = useRouter();
-
-  useEffect(() => {
-    // Fonction qui gère les clics sur les liens
-    const handleLinkClick = (e: MouseEvent) => {
+  
+  // Référence pour suivre la position de défilement actuelle
+  const scrollPositionRef = useRef<number>(0);
+  
+  // Référence pour éviter les navigations multiples rapidement
+  const navigationInProgressRef = useRef<boolean>(false);
+  
+  // Détecter si le chemin actuel est exclu du comportement personnalisé
+  const isExcludedPath = useCallback((): boolean => {
+    if (!pathname) return false;
+    return EXCLUDED_PATHS.some(path => pathname.includes(path));
+  }, [pathname]);
+  
+  // Mémoriser le gestionnaire d'événements pour éviter les recréations inutiles
+  const handleLinkClick = useCallback((e: MouseEvent): void => {
+    // Ignorer si une navigation est déjà en cours
+    if (navigationInProgressRef.current) return;
+    
+    try {
+      // Détection optimisée des éléments de lien
       const target = e.target as HTMLElement;
-      const link = target.closest('a');
       
-      // Ignore si ce n'est pas un lien ou s'il n'a pas d'attribut href
+      // N'utiliser closest que si on a potentiellement un lien (optimisation)
+      if (!target || (target.tagName !== 'A' && !target.closest('a'))) return;
+      
+      const link = target.tagName === 'A' ? target as HTMLAnchorElement : target.closest('a') as HTMLAnchorElement;
+      
+      // Validations de sécurité et d'exclusion
       if (!link || !link.href) return;
-      
-      // Ignore les liens externes
       if (!(link.href.startsWith(window.location.origin) || link.href.startsWith('/'))) return;
-      
-      // Ignore les liens qui s'ouvrent dans un nouvel onglet
       if (link.hasAttribute('target') && link.getAttribute('target') === '_blank') return;
+      if (link.hasAttribute('rel') && link.getAttribute('rel')?.includes('external')) return;
+      if (link.hasAttribute('download')) return;
       
-      // Ignorer les pages de messagerie où ce comportement n'est pas souhaité
-      if (pathname?.includes('/messages') || pathname?.includes('/chat')) return;
+      // Si on est sur un chemin exclu, utiliser le comportement de navigation standard
+      if (isExcludedPath()) return;
+      
+      // Empêcher les navigations multiples
+      if (navigationInProgressRef.current) return;
       
       // Prévenir le comportement par défaut
       e.preventDefault();
       
-      // Extraire l'URL relative
+      // Marquer la navigation comme en cours
+      navigationInProgressRef.current = true;
+      
+      // Sauvegarder la position de défilement
+      scrollPositionRef.current = window.scrollY;
+      
+      // Extraire l'URL relative avec gestion des cas particuliers
       let href = link.getAttribute('href') || '';
       if (href.startsWith(window.location.origin)) {
-        href = href.substring(window.location.origin.length);
+        href = href.substring(window.location.origin.length) || '/';
       }
       
       // Utiliser le router Next.js pour la navigation
-      router.push(href);
-    };
+      router.push(href, { scroll: false });
+      
+      // Réinitialiser l'état après un délai
+      setTimeout(() => {
+        // Restaurer la position de défilement si nécessaire
+        if (window.scrollY !== scrollPositionRef.current) {
+          window.scrollTo(0, scrollPositionRef.current);
+        }
+        
+        // Réinitialiser l'indicateur de navigation
+        navigationInProgressRef.current = false;
+      }, 100);
+    } catch (error) {
+      // En cas d'erreur, laisser le comportement par défaut se produire
+      console.warn('Error in navigation handler:', error);
+      navigationInProgressRef.current = false;
+    }
+  }, [router, isExcludedPath]);
 
-    document.addEventListener('click', handleLinkClick, { capture: true });
+  // Effet pour gérer les événements de clic
+  useEffect(() => {
+    // Ajouter l'écouteur d'événement pour intercepter les clics
+    document.addEventListener('click', handleLinkClick, { 
+      capture: true,  // Capturer les clics avant qu'ils n'atteignent leur cible
+      passive: false  // Non passif pour permettre preventDefault()
+    });
+    
+    // Nettoyer lors du démontage
+    return () => {
+      document.removeEventListener('click', handleLinkClick, { 
+        capture: true 
+      });
+    };
+  }, [handleLinkClick]);
+  
+  // Effet pour gérer la navigation par l'historique (retour/avant)
+  useEffect(() => {
+    const handlePopState = () => {
+      // Réinitialiser l'indicateur de navigation
+      navigationInProgressRef.current = false;
+    };
+    
+    window.addEventListener('popstate', handlePopState);
     
     return () => {
-      document.removeEventListener('click', handleLinkClick, { capture: true });
+      window.removeEventListener('popstate', handlePopState);
     };
-  }, [pathname, router]);
+  }, []);
 }
 
 export default usePreventScrollReset; 

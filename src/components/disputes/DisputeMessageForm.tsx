@@ -1,26 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState, FormEvent } from 'react';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { Paperclip, Send, Loader2 } from 'lucide-react';
-import { addDisputeMessage, uploadDisputeAttachment } from '@/lib/supabase/disputes';
+import { cn } from '@/lib/utils';
 
-interface DisputeMessageFormProps {
+export interface DisputeMessageFormProps {
   disputeId: string;
-  userId: string;
-  onMessageSent: () => void;
+  onSendMessage: (message: string, attachmentUrl?: string) => Promise<boolean>;
   disabled?: boolean;
 }
 
 export function DisputeMessageForm({ 
   disputeId, 
-  userId, 
-  onMessageSent,
+  onSendMessage, 
   disabled = false 
 }: DisputeMessageFormProps) {
   const [message, setMessage] = useState('');
   const [file, setFile] = useState<File | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
   
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -29,48 +28,52 @@ export function DisputeMessageForm({
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     
-    if (!message.trim() && !file) {
-      toast({
-        title: "Message vide",
-        description: "Veuillez saisir un message ou joindre un fichier.",
-        variant: "destructive"
-      });
+    if (!message.trim()) {
       return;
     }
     
-    setIsSubmitting(true);
+    if (disabled || isSending) {
+      return;
+    }
     
     try {
+      setIsSending(true);
+      setError(null);
+      
       let attachmentUrl: string | undefined = undefined;
       
       // Upload du fichier si présent
       if (file) {
-        const fileName = `${Date.now()}-${file.name}`;
-        const uploadedUrl = await uploadDisputeAttachment(disputeId, fileName, file);
-        
-        if (!uploadedUrl) {
+        try {
+          const formData = new FormData();
+          formData.append('file', file);
+          
+          const response = await fetch(`/api/disputes/${disputeId}/upload`, {
+            method: 'POST',
+            body: formData
+          });
+          
+          if (!response.ok) {
+            throw new Error("Échec de l'upload du fichier");
+          }
+          
+          const data = await response.json();
+          attachmentUrl = data.url;
+        } catch (uploadError) {
           toast({
             title: "Erreur",
             description: "L'upload du fichier a échoué.",
             variant: "destructive"
           });
-          setIsSubmitting(false);
+          setIsSending(false);
           return;
         }
-        
-        attachmentUrl = uploadedUrl;
       }
       
-      // Ajout du message
-      const success = await addDisputeMessage(
-        disputeId,
-        userId,
-        message.trim(),
-        attachmentUrl
-      );
+      const success = await onSendMessage(message, attachmentUrl);
       
       if (success) {
         setMessage('');
@@ -79,41 +82,40 @@ export function DisputeMessageForm({
         const fileInput = document.getElementById('attachment') as HTMLInputElement;
         if (fileInput) fileInput.value = '';
         
-        onMessageSent();
-        
         toast({
           title: "Message envoyé",
           description: "Votre message a été envoyé avec succès."
         });
       } else {
-        toast({
-          title: "Erreur",
-          description: "L'envoi du message a échoué.",
-          variant: "destructive"
-        });
+        setError("Échec de l'envoi du message. Veuillez réessayer.");
       }
-    } catch (error) {
-      console.error('Error sending message:', error);
-      toast({
-        title: "Erreur",
-        description: "Une erreur est survenue lors de l'envoi du message.",
-        variant: "destructive"
-      });
+    } catch (err) {
+      console.error('Error sending message:', err);
+      setError("Une erreur est survenue lors de l'envoi du message.");
     } finally {
-      setIsSubmitting(false);
+      setIsSending(false);
     }
   };
   
   return (
-    <form onSubmit={handleSubmit} className="bg-white dark:bg-vynal-purple-dark p-3 sm:p-4 border-t border-slate-100 dark:border-vynal-purple-secondary/20">
-      <div className="flex flex-col space-y-1.5 sm:space-y-2">
+    <form className="w-full" onSubmit={handleSubmit}>
+      <div className="space-y-2">
         <Textarea
+          placeholder="Écrivez votre message ici..."
           value={message}
           onChange={(e) => setMessage(e.target.value)}
-          placeholder="Écrivez votre message..."
-          className="resize-none text-xs sm:text-sm min-h-[60px] sm:min-h-[80px] border-slate-200 bg-white text-slate-700 focus:border-blue-200 focus-visible:ring-blue-400/30 dark:border-vynal-purple-secondary/30 dark:bg-transparent dark:text-vynal-text-primary"
-          disabled={disabled || isSubmitting}
+          className={cn(
+            "min-h-[80px] resize-none bg-white dark:bg-vynal-purple-dark/50 border-slate-200 dark:border-vynal-purple-secondary/30 text-sm",
+            disabled ? "opacity-60 cursor-not-allowed" : ""
+          )}
+          disabled={disabled || isSending}
         />
+        
+        {error && (
+          <div className="text-xs text-red-600 dark:text-red-400">
+            {error}
+          </div>
+        )}
         
         <div className="flex justify-between items-center">
           <div className="flex items-center">
@@ -129,22 +131,23 @@ export function DisputeMessageForm({
               id="attachment"
               className="hidden"
               onChange={handleFileChange}
-              disabled={disabled || isSubmitting}
+              disabled={disabled || isSending}
             />
           </div>
           
           <Button
             type="submit"
-            disabled={disabled || isSubmitting || (!message.trim() && !file)}
-            className="flex items-center h-7 sm:h-8 text-[10px] sm:text-xs bg-gradient-to-r from-vynal-accent-primary to-vynal-accent-secondary hover:from-vynal-accent-primary/90 hover:to-vynal-accent-secondary/90 text-white"
+            variant="default"
             size="sm"
+            disabled={!message.trim() || disabled || isSending}
+            className="text-xs bg-vynal-accent-secondary hover:bg-vynal-accent-primary text-white flex items-center gap-1"
           >
-            {isSubmitting ? (
-              <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 mr-0.5 sm:mr-1 animate-spin" />
+            {isSending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
             ) : (
-              <Send className="h-3 w-3 sm:h-4 sm:w-4 mr-0.5 sm:mr-1" />
+              <Send className="h-3.5 w-3.5" />
             )}
-            Envoyer
+            <span>Envoyer</span>
           </Button>
         </div>
       </div>

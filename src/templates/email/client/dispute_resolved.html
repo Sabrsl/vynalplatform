@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contestation résolue</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            background-color: #f9f9f9;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 4px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .header {
+            background-color: white;
+            text-align: center;
+            padding: 20px;
+        }
+        .logo {
+            max-width: 120px;
+            height: auto;
+        }
+        .content {
+            padding: 20px;
+        }
+        .notification-badge {
+            display: inline-block;
+            background-color: #22c55e;
+            color: white;
+            font-weight: bold;
+            padding: 5px 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+        .success-box {
+            background-color: #ecfdf5;
+            border-left: 4px solid #22c55e;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+        .order-details {
+            background-color: #f3f4f6;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .order-details table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .order-details th {
+            text-align: left;
+            padding: 8px 5px;
+            border-bottom: 1px solid #ddd;
+        }
+        .order-details td {
+            padding: 8px 5px;
+            border-bottom: 1px solid #ddd;
+        }
+        .resolution-details {
+            background-color: #f0f9ff;
+            border-left: 4px solid #0ea5e9;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+        .button {
+            display: inline-block;
+            background-color: #111827;
+            color: white;
+            text-decoration: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            font-weight: bold;
+            margin-top: 15px;
+        }
+        .footer {
+            background-color: #f3f4f6;
+            padding: 20px;
+            text-align: center;
+            font-size: 14px;
+            color: #6b7280;
+        }
+        .social-links {
+            margin: 15px 0;
+        }
+        .social-link {
+            display: inline-block;
+            margin: 0 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <img src="https://vynalplatform.com/assets/logo/logo_vynal_platform_simple.webp" alt="Vynal Logo" class="logo">
+        </div>
+        
+        <div class="content">
+            <div class="notification-badge">Contestation résolue</div>
+            
+            <p>Bonjour {{client_name}},</p>
+            
+            <div class="success-box">
+                <h3>Bonne nouvelle !</h3>
+                <p>La contestation concernant votre commande a été résolue avec succès.</p>
+            </div>
+            
+            <p>Voici les détails de la commande concernée :</p>
+            
+            <div class="order-details">
+                <table>
+                    <tr>
+                        <th>Service</th>
+                        <td>{{service_title}}</td>
+                    </tr>
+                    <tr>
+                        <th>Commande N°</th>
+                        <td>{{order_id}}</td>
+                    </tr>
+                    <tr>
+                        <th>Freelance</th>
+                        <td>{{freelancer_name}}</td>
+                    </tr>
+                    <tr>
+                        <th>Montant</th>
+                        <td>{{order_amount}} {{currency}}</td>
+                    </tr>
+                </table>
+            </div>
+            
+            <div class="resolution-details">
+                <h3>Détails de la résolution</h3>
+                <p><strong>Date de résolution :</strong> {{resolution_date}}</p>
+                <p><strong>Type de résolution :</strong> {{resolution_type}}</p>
+                
+                {{#if has_resolution_notes}}
+                <p><strong>Notes de résolution :</strong></p>
+                <p>{{resolution_notes}}</p>
+                {{/if}}
+                
+                {{#if has_refund}}
+                <p><strong>Remboursement :</strong> {{refund_amount}} {{currency}}</p>
+                {{/if}}
+            </div>
+            
+            <p>Suite à cette résolution, le statut de votre commande est maintenant : <strong>{{new_order_status}}</strong>.</p>
+            
+            <p>Vous pouvez consulter tous les détails de cette commande en cliquant sur le bouton ci-dessous :</p>
+            
+            <div style="text-align: center;">
+                <a href="{{order_url}}" class="button">Voir la commande</a>
+            </div>
+            
+            <p style="margin-top: 25px;">Nous vous remercions pour votre collaboration dans la résolution de ce différend. Votre confiance est importante pour nous.</p>
+            
+            <p>Si vous avez des questions concernant cette résolution, n'hésitez pas à contacter notre équipe support.</p>
+            
+            <p>Cordialement,<br>L'équipe Vynal</p>
+        </div>
+        
+        <div class="footer">
+            <p>© {{current_year}} Vynal Platform. Tous droits réservés.</p>
+            <div class="social-links">
+                <a href="https://twitter.com/vynalplatform" class="social-link">Twitter</a>
+                <a href="https://www.instagram.com/vynalplatform" class="social-link">Instagram</a>
+                <a href="https://www.linkedin.com/company/vynal" class="social-link">LinkedIn</a>
+            </div>
+            <p>Vous recevez cet email car vous êtes inscrit sur la plateforme Vynal.</p>
+        </div>
+    </div>
+</body>
+</html> 

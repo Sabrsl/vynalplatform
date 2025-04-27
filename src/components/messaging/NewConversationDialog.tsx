@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useCallback } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Search, Plus, Send, ArrowRight, Loader2, UserCheck, UserPlus, X } from 'lucide-react';
@@ -120,6 +120,11 @@ const NewConversationDialog: React.FC<NewConversationDialogProps> = ({
               ? "Démarrer une conversation avec un client" 
               : "Contacter un freelance"}
           </DialogTitle>
+          <DialogDescription>
+            {isFreelance 
+              ? "Recherchez un client pour commencer une nouvelle conversation." 
+              : "Trouvez un freelance pour discuter de vos projets."}
+          </DialogDescription>
         </DialogHeader>
         
         <div className="pt-4 pb-2 space-y-4">

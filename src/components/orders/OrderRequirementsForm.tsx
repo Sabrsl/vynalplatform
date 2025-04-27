@@ -26,6 +26,7 @@ interface OrderRequirementsFormProps {
   error: string | null;
   onBack: () => void;
   onNext: () => void;
+  isTestMode?: boolean;
 }
 
 export function OrderRequirementsForm({
@@ -38,7 +39,8 @@ export function OrderRequirementsForm({
   setFiles,
   error,
   onBack,
-  onNext
+  onNext,
+  isTestMode = false
 }: OrderRequirementsFormProps) {
   const [fileError, setFileError] = useState<string | null>(null);
   const [response, setResponse] = useState("");
@@ -161,6 +163,20 @@ export function OrderRequirementsForm({
             </div>
           </div>
         </div>
+        
+        {isTestMode && (
+          <div className="p-3 bg-amber-500/20 border border-amber-500/40 rounded-lg">
+            <div className="flex items-start">
+              <AlertCircle className="h-4 w-4 text-amber-500 mt-0.5 mr-2 flex-shrink-0" />
+              <div>
+                <h3 className="text-sm font-medium text-amber-500">Mode Test activé</h3>
+                <p className="text-xs text-amber-400/80 mt-1">
+                  Cette commande sera marquée comme un TEST. Les champs obligatoires ne sont plus requis.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
         
         {/* Formulaire d'exigences */}
         <div className="space-y-4">

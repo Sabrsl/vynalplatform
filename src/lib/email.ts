@@ -1,10 +1,12 @@
 /**
  * Module de gestion des emails pour Vynal Platform
- * Ce module utilise Resend comme fournisseur d'email
+ * Ce module utilise Nodemailer comme fournisseur d'email
  */
 
 import { APP_CONFIG } from './constants';
-import nodemailer from 'nodemailer';
+import nodemailer, { Transporter, TransportOptions, createTransport } from 'nodemailer';
+import fs from 'fs';
+import path from 'path';
 
 // Types
 interface EmailOptions {
@@ -15,6 +17,8 @@ interface EmailOptions {
   from?: string;
   replyTo?: string;
   attachments?: EmailAttachment[];
+  cc?: string | string[];
+  bcc?: string | string[];
 }
 
 interface EmailAttachment {
@@ -46,41 +50,144 @@ interface PasswordResetOptions {
   resetLink: string;
 }
 
-// Configuration du transporteur d'email
-const createTransporter = () => {
+// Cache pour le transporteur
+let transporter: Transporter | null = null;
+
+// Configuration et création du transporteur d'email
+const createTransporter = (): Transporter => {
+  // Si le transporteur est déjà créé, le retourner
+  if (transporter) {
+    return transporter;
+  }
+
+  const host = process.env.EMAIL_SMTP_HOST;
+  const port = parseInt(process.env.EMAIL_SMTP_PORT || '587', 10);
+  const user = process.env.EMAIL_SMTP_USER;
+  const pass = process.env.EMAIL_SMTP_PASSWORD;
+
+  // Vérifier que les paramètres essentiels sont définis
+  if (!host || !user || !pass) {
+    throw new Error(
+      'Configuration SMTP incomplète. Vérifiez les variables d\'environnement EMAIL_SMTP_HOST, EMAIL_SMTP_USER et EMAIL_SMTP_PASSWORD.'
+    );
+  }
+
   const transportConfig = {
-    host: process.env.EMAIL_SMTP_HOST,
-    port: parseInt(process.env.EMAIL_SMTP_PORT || '587', 10),
-    secure: process.env.EMAIL_SMTP_PORT === '465',
+    host,
+    port,
+    secure: port === 465, // true pour 465, false pour les autres ports
     auth: {
-      user: process.env.EMAIL_SMTP_USER,
-      pass: process.env.EMAIL_SMTP_PASSWORD,
+      user,
+      pass,
     },
+    // Options supplémentaires pour améliorer la livraison et la sécurité
+    connectionTimeout: 10000, // 10 secondes de timeout
+    greetingTimeout: 10000,
+    socketTimeout: 30000,
   };
 
-  return nodemailer.createTransport(transportConfig);
+  // Ajouter une option de pool pour gérer plusieurs connexions simultanées
+  if (process.env.NODE_ENV === 'production') {
+    (transportConfig as any).pool = {
+      maxConnections: 5,
+      maxMessages: 100,
+      rateDelta: 1000,
+      rateLimit: 10,
+    };
+  }
+
+  // Créer et stocker le transporteur
+  transporter = createTransport(transportConfig);
+  return transporter;
+};
+
+// Logger spécifique aux emails pour faciliter le débogage
+const emailLogger = {
+  info: (message: string) => {
+    if (process.env.NODE_ENV !== 'production' || process.env.EMAIL_DEBUG === 'true') {
+      console.log(`[EMAIL INFO] ${message}`);
+    }
+  },
+  error: (message: string, error?: any) => {
+    console.error(`[EMAIL ERROR] ${message}`, error || '');
+  }
+};
+
+// Fonction pour lire un template HTML
+const readEmailTemplate = (templatePath: string): string => {
+  try {
+    const fullPath = path.join(process.cwd(), templatePath);
+    return fs.readFileSync(fullPath, 'utf8');
+  } catch (error) {
+    emailLogger.error(`Erreur lors de la lecture du template ${templatePath}`, error);
+    throw new Error(`Impossible de lire le template d'email: ${templatePath}`);
+  }
+};
+
+// Fonction pour remplacer les variables dans le template
+const replaceTemplateVariables = (template: string, variables: Record<string, string>): string => {
+  let result = template;
+  
+  for (const [key, value] of Object.entries(variables)) {
+    const regex = new RegExp(`{{${key}}}`, 'g');
+    result = result.replace(regex, value);
+  }
+  
+  // Remplacer les variables standards
+  result = result.replace(/{{contactEmail}}/g, APP_CONFIG.contactEmail);
+  result = result.replace(/{{currentYear}}/g, new Date().getFullYear().toString());
+  result = result.replace(/{{siteName}}/g, APP_CONFIG.siteName);
+  
+  return result;
 };
 
 // Fonction de base pour l'envoi d'emails
 export const sendEmail = async (options: EmailOptions): Promise<boolean> => {
   try {
-    const transporter = createTransporter();
+    const emailTransporter = createTransporter();
 
+    // Ajout d'un ID unique pour le traçage
+    const messageId = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
+    
     const mailOptions = {
-      from: options.from || `"${process.env.EMAIL_FROM_NAME}" <${process.env.EMAIL_FROM_ADDRESS}>`,
+      from: options.from || `"${process.env.EMAIL_FROM_NAME || APP_CONFIG.siteName}" <${process.env.EMAIL_FROM_ADDRESS || APP_CONFIG.contactEmail}>`,
       to: Array.isArray(options.to) ? options.to.join(',') : options.to,
       subject: options.subject,
       text: options.text,
       html: options.html,
-      replyTo: options.replyTo || process.env.EMAIL_FROM_ADDRESS,
+      replyTo: options.replyTo || process.env.EMAIL_REPLY_TO || process.env.EMAIL_FROM_ADDRESS || APP_CONFIG.contactEmail,
       attachments: options.attachments,
+      cc: options.cc,
+      bcc: options.bcc,
+      headers: {
+        'X-Message-ID': messageId,
+        'X-Mailer': 'Vynal Platform Mailer',
+      },
     };
 
-    await transporter.sendMail(mailOptions);
-    console.log(`Email envoyé à ${options.to}`);
+    emailLogger.info(`Envoi d'email [${messageId}] à ${options.to}`);
+    await emailTransporter.sendMail(mailOptions);
+    emailLogger.info(`Email [${messageId}] envoyé avec succès à ${options.to}`);
     return true;
   } catch (error) {
-    console.error('Erreur lors de l\'envoi de l\'email:', error);
+    emailLogger.error(`Erreur lors de l'envoi de l'email à ${options.to}:`, error);
+    // Enregistrer l'erreur pour analyse ultérieure dans un système de monitoring
+    if (process.env.NODE_ENV === 'production') {
+      // TODO: Ajouter l'intégration avec un service de monitoring d'erreurs
+    }
+    return false;
+  }
+};
+
+// Vérification de la disponibilité du service d'email
+export const verifyEmailService = async (): Promise<boolean> => {
+  try {
+    const emailTransporter = createTransporter();
+    await emailTransporter.verify();
+    emailLogger.info('Service d\'email vérifié avec succès');
+    return true;
+  } catch (error) {
+    emailLogger.error('Échec de la vérification du service d\'email:', error);
     return false;
   }
 };
@@ -94,6 +201,7 @@ export const canSendEmailToUser = (email: string): boolean => {
   const rateLimitSeconds = parseInt(process.env.EMAIL_RATE_LIMIT_SECONDS || '60', 10);
   
   if (now - lastSent < rateLimitSeconds * 1000) {
+    emailLogger.info(`Limitation de taux pour l'email à ${email}. Dernier envoi il y a ${Math.floor((now - lastSent) / 1000)}s`);
     return false;
   }
   
@@ -101,237 +209,108 @@ export const canSendEmailToUser = (email: string): boolean => {
   return true;
 };
 
-// Templates HTML
-const getWelcomeEmailTemplate = (name: string, role: 'client' | 'freelance'): string => {
-  const roleText = role === 'freelance' 
-    ? 'en tant que freelance' 
-    : 'en tant que client';
-
-  return `
-  <!DOCTYPE html>
-  <html>
-  <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bienvenue sur Vynal Platform</title>
-    <style>
-      body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-      .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-      .header { text-align: center; margin-bottom: 30px; }
-      .logo { max-width: 150px; height: auto; }
-      .content { background-color: #f9f9f9; padding: 20px; border-radius: 5px; }
-      .button { display: inline-block; background-color: #6554AF; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; }
-      .footer { margin-top: 30px; font-size: 12px; color: #777; text-align: center; }
-    </style>
-  </head>
-  <body>
-    <div class="container">
-      <div class="header">
-        <img src="https://vynalplatform.com/assets/logo/logo_vynal_platform_simple.webp" alt="Vynal Platform Logo" class="logo">
-      </div>
-      
-      <div class="content">
-        <h2>Bienvenue sur Vynal Platform, ${name} !</h2>
-        
-        <p>Nous sommes ravis de vous accueillir ${roleText} sur Vynal Platform, la plateforme de mise en relation entre freelances et clients au Sénégal.</p>
-        
-        <p>Votre compte est maintenant actif et vous pouvez commencer à ${role === 'freelance' ? 'proposer vos services' : 'explorer les services proposés par nos freelances'}.</p>
-        
-        <p>N'hésitez pas à compléter votre profil pour ${role === 'freelance' ? 'attirer plus de clients potentiels' : 'faciliter vos interactions avec les freelances'}.</p>
-        
-        <div style="text-align: center; margin: 30px 0;">
-          <a href="https://vynalplatform.com/dashboard" class="button">Accéder à mon tableau de bord</a>
-        </div>
-        
-        <p>Si vous avez des questions, n'hésitez pas à contacter notre équipe de support à l'adresse <a href="mailto:${APP_CONFIG.contactEmail}">${APP_CONFIG.contactEmail}</a>.</p>
-      </div>
-      
-      <div class="footer">
-        <p>&copy; ${new Date().getFullYear()} Vynal Platform. Tous droits réservés.</p>
-        <p>
-          <a href="https://vynalplatform.com/terms-of-service">Conditions d'utilisation</a> | 
-          <a href="https://vynalplatform.com/privacy-policy">Politique de confidentialité</a>
-        </p>
-      </div>
-    </div>
-  </body>
-  </html>
-  `;
-};
-
-const getOrderConfirmationTemplate = (options: OrderConfirmationOptions): string => {
-  return `
-  <!DOCTYPE html>
-  <html>
-  <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Confirmation de commande - Vynal Platform</title>
-    <style>
-      body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-      .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-      .header { text-align: center; margin-bottom: 30px; }
-      .logo { max-width: 150px; height: auto; }
-      .content { background-color: #f9f9f9; padding: 20px; border-radius: 5px; }
-      .order-details { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
-      .button { display: inline-block; background-color: #6554AF; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; }
-      .footer { margin-top: 30px; font-size: 12px; color: #777; text-align: center; }
-    </style>
-  </head>
-  <body>
-    <div class="container">
-      <div class="header">
-        <img src="https://vynalplatform.com/assets/logo/logo_vynal_platform_simple.webp" alt="Vynal Platform Logo" class="logo">
-      </div>
-      
-      <div class="content">
-        <h2>Votre commande est confirmée !</h2>
-        
-        <p>Cher(e) ${options.buyerName},</p>
-        
-        <p>Nous vous confirmons que votre commande a bien été enregistrée sur Vynal Platform.</p>
-        
-        <div class="order-details">
-          <h3>Détails de la commande</h3>
-          <p><strong>Numéro de commande:</strong> ${options.orderNumber}</p>
-          <p><strong>Date de commande:</strong> ${options.orderDate}</p>
-          <p><strong>Service:</strong> ${options.serviceName}</p>
-          <p><strong>Montant:</strong> ${options.amount} ${options.currency}</p>
-          <p><strong>Date de livraison estimée:</strong> ${options.deliveryDate}</p>
-          <p><strong>Freelance:</strong> ${options.sellerName}</p>
-        </div>
-        
-        <p>Vous pouvez suivre l'état de votre commande et communiquer avec ${options.sellerName} depuis votre espace client.</p>
-        
-        <div style="text-align: center; margin: 30px 0;">
-          <a href="https://vynalplatform.com/dashboard/orders" class="button">Suivre ma commande</a>
-        </div>
-        
-        <p>Si vous avez des questions concernant votre commande, n'hésitez pas à contacter notre équipe de support à l'adresse <a href="mailto:${APP_CONFIG.contactEmail}">${APP_CONFIG.contactEmail}</a>.</p>
-      </div>
-      
-      <div class="footer">
-        <p>&copy; ${new Date().getFullYear()} Vynal Platform. Tous droits réservés.</p>
-        <p>
-          <a href="https://vynalplatform.com/terms-of-service">Conditions d'utilisation</a> | 
-          <a href="https://vynalplatform.com/privacy-policy">Politique de confidentialité</a>
-        </p>
-      </div>
-    </div>
-  </body>
-  </html>
-  `;
-};
-
-const getPasswordResetTemplate = (options: PasswordResetOptions): string => {
-  return `
-  <!DOCTYPE html>
-  <html>
-  <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Réinitialisation de mot de passe - Vynal Platform</title>
-    <style>
-      body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-      .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-      .header { text-align: center; margin-bottom: 30px; }
-      .logo { max-width: 150px; height: auto; }
-      .content { background-color: #f9f9f9; padding: 20px; border-radius: 5px; }
-      .button { display: inline-block; background-color: #6554AF; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; }
-      .security-note { margin-top: 20px; font-size: 13px; padding: 10px; background-color: #fffaed; border-left: 4px solid #ffc107; }
-      .footer { margin-top: 30px; font-size: 12px; color: #777; text-align: center; }
-    </style>
-  </head>
-  <body>
-    <div class="container">
-      <div class="header">
-        <img src="https://vynalplatform.com/assets/logo/logo_vynal_platform_simple.webp" alt="Vynal Platform Logo" class="logo">
-      </div>
-      
-      <div class="content">
-        <h2>Réinitialisation de votre mot de passe</h2>
-        
-        <p>Vous avez demandé la réinitialisation de votre mot de passe sur Vynal Platform.</p>
-        
-        <p>Cliquez sur le bouton ci-dessous pour définir un nouveau mot de passe :</p>
-        
-        <div style="text-align: center; margin: 30px 0;">
-          <a href="${options.resetLink}" class="button">Réinitialiser mon mot de passe</a>
-        </div>
-        
-        <p>Si vous n'êtes pas à l'origine de cette demande, vous pouvez ignorer cet email en toute sécurité.</p>
-        
-        <div class="security-note">
-          <p><strong>Note de sécurité :</strong> Ce lien expire dans 24 heures. Si vous avez besoin d'un nouveau lien, veuillez renouveler votre demande de réinitialisation.</p>
-        </div>
-      </div>
-      
-      <div class="footer">
-        <p>&copy; ${new Date().getFullYear()} Vynal Platform. Tous droits réservés.</p>
-        <p>
-          <a href="https://vynalplatform.com/terms-of-service">Conditions d'utilisation</a> | 
-          <a href="https://vynalplatform.com/privacy-policy">Politique de confidentialité</a>
-        </p>
-      </div>
-    </div>
-  </body>
-  </html>
-  `;
-};
-
-// Fonctions exportées pour les différents types d'emails
-export const sendWelcomeEmail = async (options: WelcomeEmailOptions): Promise<boolean> => {
-  if (!canSendEmailToUser(options.to)) {
-    console.log(`Limite de taux dépassée pour l'email ${options.to}`);
+// Fonction pour envoyer un email en utilisant un template HTML
+export const sendTemplateEmail = async (
+  to: string | string[],
+  subject: string, 
+  templatePath: string, 
+  variables: Record<string, string>,
+  options: Partial<EmailOptions> = {}
+): Promise<boolean> => {
+  try {
+    // Lire le template
+    const template = readEmailTemplate(templatePath);
+    
+    // Remplacer les variables
+    const html = replaceTemplateVariables(template, variables);
+    
+    // Créer un texte simple alternatif (version sans HTML)
+    const text = html.replace(/<[^>]*>/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    
+    // Envoyer l'email
+    return await sendEmail({
+      to,
+      subject,
+      html,
+      text,
+      ...options
+    });
+  } catch (error) {
+    emailLogger.error('Erreur lors de l\'envoi du template d\'email:', error);
     return false;
   }
+};
+
+// Templates pour les emails courants
+export const sendWelcomeEmail = async (options: WelcomeEmailOptions): Promise<boolean> => {
+  const templatePath = options.role === 'client' 
+    ? 'src/templates/email/client/welcome.html'
+    : 'src/templates/email/freelance/welcome.html';
   
-  const emailContent = getWelcomeEmailTemplate(options.name, options.role);
+  const variables = {
+    clientName: options.name,
+    dashboardLink: `${APP_URLS.baseUrl}/dashboard`,
+  };
   
-  return sendEmail({
-    to: options.to,
-    subject: `Bienvenue sur Vynal Platform, ${options.name} !`,
-    html: emailContent,
-  });
+  return await sendTemplateEmail(
+    options.to,
+    `Bienvenue sur ${APP_CONFIG.siteName} !`,
+    templatePath,
+    variables
+  );
 };
 
 export const sendOrderConfirmationEmail = async (options: OrderConfirmationOptions): Promise<boolean> => {
-  if (!canSendEmailToUser(options.to)) {
-    console.log(`Limite de taux dépassée pour l'email ${options.to}`);
-    return false;
-  }
+  const templatePath = 'src/templates/email/client/order_confirmation.html';
   
-  const emailContent = getOrderConfirmationTemplate(options);
+  const variables = {
+    buyerName: options.buyerName,
+    orderNumber: options.orderNumber,
+    orderDate: options.orderDate,
+    serviceName: options.serviceName,
+    amount: options.amount.toString(),
+    currency: options.currency,
+    deliveryDate: options.deliveryDate,
+    sellerName: options.sellerName,
+    orderLink: `${APP_URLS.baseUrl}/dashboard/orders/${options.orderNumber}`,
+  };
   
-  return sendEmail({
-    to: options.to,
-    subject: `Confirmation de votre commande #${options.orderNumber} - Vynal Platform`,
-    html: emailContent,
-  });
+  return await sendTemplateEmail(
+    options.to,
+    `Confirmation de votre commande #${options.orderNumber}`,
+    templatePath,
+    variables
+  );
 };
 
 export const sendPasswordResetEmail = async (options: PasswordResetOptions): Promise<boolean> => {
-  if (!canSendEmailToUser(options.to)) {
-    console.log(`Limite de taux dépassée pour l'email ${options.to}`);
-    return false;
-  }
+  const templatePath = 'src/templates/email/password_reset.html';
   
-  const emailContent = getPasswordResetTemplate(options);
+  const variables = {
+    resetLink: options.resetLink,
+    expiryTime: '1 heure',
+  };
   
-  return sendEmail({
-    to: options.to,
-    subject: `Réinitialisation de votre mot de passe - Vynal Platform`,
-    html: emailContent,
-  });
+  return await sendTemplateEmail(
+    options.to,
+    `Réinitialisation de votre mot de passe ${APP_CONFIG.siteName}`,
+    templatePath,
+    variables
+  );
 };
 
-// Fonction utilitaire pour formater la date en français
+// Utilitaires de formatage pour les emails
 export const formatDateFr = (date: Date): string => {
   return new Intl.DateTimeFormat('fr-FR', {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
+    hour: 'numeric',
+    minute: 'numeric'
   }).format(date);
-}; 
+};
+
+// Exporter les URLs de l'application
+import { APP_URLS } from './constants'; 

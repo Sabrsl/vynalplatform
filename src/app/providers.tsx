@@ -4,173 +4,66 @@ import React, { useEffect, useState, useRef } from 'react';
 import { ThemeProvider } from 'next-themes';
 import { Toaster } from '@/components/ui/toaster';
 import NotificationListener from '@/components/notifications/NotificationListener';
-import { OptimizationsLoader } from '@/components/OptimizationsLoader';
 import { usePathname, useSearchParams, useRouter } from 'next/navigation';
+import { ErrorBoundary, FallbackProps } from 'react-error-boundary';
+import { OrderNotificationProvider } from "@/components/notifications/OrderNotificationProvider";
 
-// État global pour le chargement entre navigations
-export const NavigationLoadingState = {
+// État global pour le chargement entre navigations - ULTRA SIMPLIFIÉ
+const initialNavigationState = {
   isNavigating: false,
   lastNavigationTimestamp: 0,
-  activeNavigation: {
-    from: '',
-    to: '',
-  },
-  navigationErrors: {
-    lastErrorTimestamp: 0,
-    errorCount: 0,
-    lastErrorPath: '',
-  },
-  resetErrorState: () => {
-    NavigationLoadingState.navigationErrors = {
-      lastErrorTimestamp: 0,
-      errorCount: 0,
-      lastErrorPath: '',
-    };
-  },
-  recordNavigationError: (path: string) => {
-    const now = Date.now();
-    const { lastErrorTimestamp, errorCount, lastErrorPath } = NavigationLoadingState.navigationErrors;
-    
-    // Si c'est la même erreur répétée rapidement
-    if (lastErrorPath === path && now - lastErrorTimestamp < 5000) {
-      NavigationLoadingState.navigationErrors = {
-        lastErrorTimestamp: now,
-        errorCount: errorCount + 1,
-        lastErrorPath: path,
-      };
-      
-      // Si trop d'erreurs répétées, rediriger vers le dashboard principal comme fallback
-      if (errorCount >= 2 && path.startsWith('/dashboard/')) {
-        if (typeof window !== 'undefined') {
-          window.location.href = '/dashboard';
-        }
-      }
-    } else {
-      // Nouvelle erreur
-      NavigationLoadingState.navigationErrors = {
-        lastErrorTimestamp: now,
-        errorCount: 1,
-        lastErrorPath: path,
-      };
-    }
-  },
+  activePath: '',
+};
+
+// Utilisation d'une simple variable de référence pour éviter les rendus inutiles
+export const NavigationLoadingState = {
+  ...initialNavigationState,
+  
+  // Fonction simplifiée pour mise à jour de l'état de navigation
   setIsNavigating: (value: boolean, fromPath?: string, toPath?: string) => {
-    // Mémoriser l'horodatage précédent avant de mettre à jour
-    const previousTimestamp = NavigationLoadingState.lastNavigationTimestamp;
-    
-    // Protection critique contre les doubles navigations vers le dashboard
-    if (value && toPath === '/dashboard' && NavigationLoadingState.isNavigating) {
-      console.warn("Double navigation vers dashboard détectée, ignorée");
-      return;
-    }
-    
-    // Protection renforcée: si on navigue vers le dashboard depuis le header et que 
-    // le dashboard est déjà actif, forcer un rechargement complet de la page
-    if (value && toPath === '/dashboard' && fromPath !== '/dashboard' && 
-        window.location.pathname === '/dashboard') {
-      console.warn("Navigation redondante vers dashboard détectée, rechargement forcé");
-      setTimeout(() => {
-        window.location.reload();
-      }, 100);
-      return;
-    }
-    
-    // Protection contre le blocage lors de la navigation vers le dashboard
-    if (value && toPath === '/dashboard' && NavigationLoadingState.activeNavigation.to === '/dashboard') {
-      console.warn("Navigation vers dashboard déjà active, réinitialisation forcée");
-      NavigationLoadingState.isNavigating = false;
-      
-      // Manipuler l'indicateur de progression
-      if (typeof window !== 'undefined') {
-        const indicator = document.getElementById('navigation-progress-indicator');
-        if (indicator) {
-          indicator.classList.add('hidden');
-        }
-      }
-      
-      // Petite pause avant de permettre une nouvelle tentative
-      setTimeout(() => {
-        NavigationLoadingState.isNavigating = value;
-        NavigationLoadingState.lastNavigationTimestamp = Date.now();
-        NavigationLoadingState.activeNavigation = { from: fromPath || '', to: toPath || '' };
-        
-        // Mettre à jour l'indicateur visuel
-        if (typeof window !== 'undefined') {
-          const indicator = document.getElementById('navigation-progress-indicator');
-          if (indicator) {
-            indicator.classList.remove('hidden');
-          }
-        }
-      }, 200);
-      
-      return;
-    }
-    
     NavigationLoadingState.isNavigating = value;
     
     if (value) {
-      // Nouvelle navigation démarre
       NavigationLoadingState.lastNavigationTimestamp = Date.now();
-      if (fromPath && toPath) {
-        NavigationLoadingState.activeNavigation = { from: fromPath, to: toPath };
-      }
-      
-      // Sécurité: si une navigation précédente était bloquée depuis trop longtemps
-      if (previousTimestamp > 0 && (Date.now() - previousTimestamp > 10000)) {
-        console.warn("Navigation précédente bloquée détectée, réinitialisation forcée");
-      }
-    } else {
-      // Navigation terminée
-      NavigationLoadingState.activeNavigation = { from: '', to: '' };
     }
     
-    // Manipuler directement l'indicateur de progression
+    // Émettre l'événement uniquement en cas de changement significatif
     if (typeof window !== 'undefined') {
-      const indicator = document.getElementById('navigation-progress-indicator');
-      if (indicator) {
-        if (value) {
-          indicator.classList.remove('hidden');
-        } else {
-          indicator.classList.add('hidden');
-        }
-      }
-      
-      // Événement unifié pour informer l'application
-      window.dispatchEvent(new CustomEvent('vynal:navigation-state-changed', {
-        detail: { 
-          isNavigating: value,
-          fromPath,
-          toPath
-        }
+      window.dispatchEvent(new CustomEvent('vynal:navigation-changed', {
+        detail: { isNavigating: value }
       }));
-      
-      // Créer également un événement générique pour la cohérence
-      window.dispatchEvent(new CustomEvent('vynal:app-state-changed', {
-        detail: { 
-          type: 'navigation',
-          isNavigating: value,
-          fromPath,
-          toPath
-        }
-      }));
-      
-      // Ajouter une protection contre les blocages de navigation
-      if (value) {
-        // Définir un timeout de sécurité pour réinitialiser après un long délai
-        setTimeout(() => {
-          if (NavigationLoadingState.isNavigating && 
-              NavigationLoadingState.lastNavigationTimestamp === NavigationLoadingState.lastNavigationTimestamp) {
-            console.warn("Navigation bloquée détectée, réinitialisation");
-            NavigationLoadingState.setIsNavigating(false);
-          }
-        }, 8000); // 8 secondes max pour toute navigation
-      }
     }
-  }
+  },
+
+  setActivePath: (path: string) => {
+    NavigationLoadingState.activePath = path;
+  },
+  
+  // Méthodes nécessaires pour assurer la compatibilité
+  resetErrorState: () => {
+    Object.assign(NavigationLoadingState, initialNavigationState);
+  },
+  recordNavigationError: () => {}
 };
 
-// État global pour l'état de visibilité de la page - simplifié
-export const VisibilityState = {
+// État global pour la visibilité - simplifié et typé correctement
+interface VisibilityStateType {
+  lastVisible: number;
+  lastHidden: number;
+  isInactiveTab: boolean;
+  setVisible: () => void;
+  setHidden: () => void;
+}
+
+// Déclarer l'extension de Window pour TypeScript
+declare global {
+  interface Window {
+    VisibilityState?: VisibilityStateType;
+  }
+}
+
+// Export pour utilisation globale
+export const VisibilityState: VisibilityStateType = {
   lastVisible: Date.now(),
   lastHidden: 0,
   isInactiveTab: false,
@@ -201,125 +94,89 @@ export const VisibilityState = {
   }
 };
 
-// Composant optimisé pour détecter les changements de route
+// Composant de fallback d'erreur
+function ErrorFallback({ error, resetErrorBoundary }: FallbackProps) {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen bg-white dark:bg-gray-900 text-center p-4">
+      <div className="max-w-md mx-auto p-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+        <h2 className="text-2xl font-bold text-red-600 dark:text-red-400 mb-4">
+          Une erreur est survenue
+        </h2>
+        <p className="text-gray-700 dark:text-gray-300 mb-4">
+          Nous n'avons pas pu charger cette page correctement. Veuillez réessayer.
+        </p>
+        <button
+          onClick={resetErrorBoundary}
+          className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md"
+        >
+          Réessayer
+        </button>
+        <button
+          onClick={() => window.location.href = '/'}
+          className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-md ml-2"
+        >
+          Retour à l'accueil
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Gestionnaire d'événements de navigation ultra simplifié
 function NavigationEventHandler() {
   const pathname = usePathname();
-  const previousPathRef = useRef<string | null>(null);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const isFirstRenderRef = useRef(true);
+  const router = useRouter();
+  const pathnameRef = useRef(pathname);
 
+  // Effet minimal pour détecter uniquement les changements de route
   useEffect(() => {
-    // Pour éviter une invalidation au premier rendu
-    if (isFirstRenderRef.current) {
-      isFirstRenderRef.current = false;
-      previousPathRef.current = pathname;
-      return;
+    if (typeof window === 'undefined') return;
+    
+    // Mettre à jour la référence
+    pathnameRef.current = pathname;
+    
+    // Indiquer que la navigation est terminée
+    if (NavigationLoadingState.isNavigating) {
+      NavigationLoadingState.setIsNavigating(false);
     }
-
-    // Nettoyer timeout précédent
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
-
-    // Vérifier si c'est un changement réel de route
-    if (previousPathRef.current === pathname) {
-      return;
-    }
-
-    // Indiquer que la navigation est en cours
-    const prevPath = previousPathRef.current || '';
-    NavigationLoadingState.setIsNavigating(true, prevPath, pathname);
-
-    // Simplifier l'invalidation du cache et la fin de navigation
-    timeoutRef.current = setTimeout(() => {
-      // Mettre à jour la référence
-      previousPathRef.current = pathname;
-      
-      // Un seul événement pour l'invalidation du cache
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('vynal:app-state-changed', {
-          detail: { 
-            type: 'route_change',
-            fromPath: prevPath,
-            toPath: pathname
-          }
-        }));
-      }
-      
-      // Fin de navigation après un délai adapté au type de page
-      const isComplexNavigation = pathname?.includes('/dashboard');
-      const resetDelay = isComplexNavigation ? 400 : 200;
-      
-      setTimeout(() => {
-        NavigationLoadingState.setIsNavigating(false);
-      }, resetDelay);
-    }, 50);
-
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-    };
   }, [pathname]);
-
-  // Détecter les erreurs 404 et les gérer
-  useEffect(() => {
-    const handleNavigationError = () => {
-      // Si nous sommes sur une page d'erreur 404, enregistrer l'erreur
-      if (document.title.includes('404') || 
-          document.body.innerHTML.includes('404') || 
-          document.body.innerHTML.includes('Page introuvable')) {
-        NavigationLoadingState.recordNavigationError(window.location.pathname);
-        NavigationLoadingState.setIsNavigating(false);
-      }
-    };
-
-    if (typeof window !== 'undefined') {
-      // Vérifier après le chargement complet de la page
-      window.addEventListener('load', handleNavigationError);
-      
-      // Nettoyage
-      return () => {
-        window.removeEventListener('load', handleNavigationError);
-      };
-    }
-  }, []);
 
   return null;
 }
 
-// Composant unifié pour gérer l'état de visibilité
+// Composant pour gérer l'état de visibilité de la page
 function VisibilityStateHandler() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    
+
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        VisibilityState.setVisible();
-      } else {
-        VisibilityState.setHidden();
+      try {
+        if (document.visibilityState === 'visible') {
+          if (typeof window.VisibilityState !== 'undefined') {
+            window.VisibilityState.setVisible();
+          }
+        } else if (document.visibilityState === 'hidden') {
+          if (typeof window.VisibilityState !== 'undefined') {
+            window.VisibilityState.setHidden();
+          }
+        }
+      } catch (e) {
+        console.error("Erreur lors du changement d'état de visibilité", e);
       }
     };
-    
-    // Initialisation
-    if (document.visibilityState === 'visible') {
-      VisibilityState.setVisible();
-    } else {
-      VisibilityState.setHidden();
+
+    // Initialiser l'objet global
+    if (typeof window !== 'undefined') {
+      window.VisibilityState = VisibilityState;
     }
-    
-    // Ajouter les écouteurs essentiels uniquement
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', VisibilityState.setVisible);
-    window.addEventListener('blur', VisibilityState.setHidden);
-    
+
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', VisibilityState.setVisible);
-      window.removeEventListener('blur', VisibilityState.setHidden);
     };
   }, []);
-  
+
   return null;
 }
 
@@ -332,16 +189,31 @@ export function Providers({ children }: { children: React.ReactNode }) {
     setMounted(true);
   }, []);
 
+  // Options pour éviter les rendus inutiles dans ErrorBoundary
+  const onError = (error: Error, info: React.ErrorInfo) => {
+    console.error("Erreur capturée par ErrorBoundary:", error, info);
+  };
+
   return (
-    <OptimizationsLoader>
+    <ErrorBoundary 
+      FallbackComponent={ErrorFallback}
+      onError={onError}
+      onReset={() => {
+        // Réinitialiser l'état de navigation
+        NavigationLoadingState.isNavigating = false;
+        NavigationLoadingState.resetErrorState();
+      }}
+    >
       <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={true}>
-        {/* N'afficher le contenu dépendant du thème que côté client */}
-        {mounted ? children : <div style={{ visibility: 'hidden' }}>{children}</div>}
+        <OrderNotificationProvider>
+          {/* N'afficher le contenu dépendant du thème que côté client */}
+          {mounted ? children : <div style={{ visibility: 'hidden' }}>{children}</div>}
+        </OrderNotificationProvider>
         <Toaster />
         <NotificationListener />
         <NavigationEventHandler />
         <VisibilityStateHandler />
       </ThemeProvider>
-    </OptimizationsLoader>
+    </ErrorBoundary>
   );
 } 

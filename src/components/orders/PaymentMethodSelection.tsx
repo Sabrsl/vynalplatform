@@ -24,6 +24,7 @@ interface PaymentMethodSelectionProps {
   onBack: () => void;
   onNext: () => void;
   loading: boolean;
+  isTestMode?: boolean;
 }
 
 export function PaymentMethodSelection({
@@ -36,7 +37,8 @@ export function PaymentMethodSelection({
   error,
   onBack,
   onNext,
-  loading
+  loading,
+  isTestMode = false
 }: PaymentMethodSelectionProps) {
   
   return (
@@ -49,6 +51,21 @@ export function PaymentMethodSelection({
       </DialogHeader>
       
       <div className="space-y-4 py-2 px-4">
+        {/* Message de mode test si activé */}
+        {isTestMode && (
+          <div className="p-3 bg-amber-500/20 border border-amber-500/40 rounded-lg">
+            <div className="flex items-start">
+              <AlertCircle className="h-4 w-4 text-amber-500 mt-0.5 mr-2 flex-shrink-0" />
+              <div>
+                <h3 className="text-sm font-medium text-amber-500">Mode Test activé</h3>
+                <p className="text-xs text-amber-400/80 mt-1">
+                  Cette commande sera traitée comme un paiement fictif pour des fins de test.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+        
         {/* Résumé du service commandé */}
         <div className="bg-vynal-purple-secondary/10 rounded-lg p-4 border border-vynal-purple-secondary/30">
           <div className="flex items-start gap-3">

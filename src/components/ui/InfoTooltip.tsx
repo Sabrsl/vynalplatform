@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createPortal } from "react-dom";
@@ -20,7 +20,7 @@ export function InfoTooltip({
 }: InfoTooltipProps) {
   const [isVisible, setIsVisible] = useState(false);
   const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0 });
-  const [buttonRef, setButtonRef] = useState<HTMLButtonElement | null>(null);
+  const buttonRef = React.useRef<HTMLButtonElement | null>(null);
 
   const sizeClasses = {
     xs: "w-3 h-3",
@@ -28,10 +28,10 @@ export function InfoTooltip({
     md: "w-4 h-4"
   };
 
-  const calculatePosition = () => {
-    if (!buttonRef) return;
+  const calculatePosition = useCallback(() => {
+    if (!buttonRef.current) return;
     
-    const rect = buttonRef.getBoundingClientRect();
+    const rect = buttonRef.current.getBoundingClientRect();
     const scrollLeft = window.scrollX || document.documentElement.scrollLeft;
     const scrollTop = window.scrollY || document.documentElement.scrollTop;
     
@@ -58,12 +58,22 @@ export function InfoTooltip({
     }
     
     setTooltipPosition({ top, left });
-  };
+  }, [position]);
 
-  const handleMouseEnter = () => {
+  // Calculer la position uniquement quand isVisible change
+  useEffect(() => {
+    if (isVisible) {
+      calculatePosition();
+    }
+  }, [isVisible, calculatePosition]);
+
+  const handleMouseEnter = useCallback(() => {
     setIsVisible(true);
-    calculatePosition();
-  };
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    setIsVisible(false);
+  }, []);
 
   const positionStyles = {
     top: position === "bottom" ? `${tooltipPosition.top}px` : position === "top" ? `${tooltipPosition.top - 40}px` : `${tooltipPosition.top - 16}px`,
@@ -83,16 +93,16 @@ export function InfoTooltip({
   return (
     <div className={cn("relative inline-flex items-center justify-center", className)}>
       <button
-        ref={setButtonRef}
+        ref={buttonRef}
         type="button"
         className={cn(
           "text-vynal-accent-primary/70 dark:text-vynal-accent-primary/90 hover:text-vynal-accent-primary dark:hover:text-vynal-accent-primary transition-colors", 
           sizeClasses[size]
         )}
         onMouseEnter={handleMouseEnter}
-        onMouseLeave={() => setIsVisible(false)}
+        onMouseLeave={handleMouseLeave}
         onFocus={handleMouseEnter}
-        onBlur={() => setIsVisible(false)}
+        onBlur={handleMouseLeave}
         aria-label="Information"
       >
         <Info className="w-full h-full" />

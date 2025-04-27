@@ -1,15 +1,12 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase/client';
+import { PostgrestError } from '@supabase/supabase-js';
 import { ServiceWithFreelanceAndCategories } from './useServices';
 import { useToast } from '@/components/ui/use-toast';
-import { addCommonFilters } from '@/lib/search/queryBuilder';
-import { 
-  getCachedData, 
-  setCachedData, 
-  invalidateCache, 
-  CACHE_KEYS, 
-  CACHE_EXPIRY 
-} from '@/lib/optimizations';
+import { usePathname, useSearchParams } from 'next/navigation';
+
+// Vérifier si nous sommes côté client
+const isClient = typeof window !== 'undefined';
 
 export interface UsePaginatedServicesParams {
   categoryId?: string;
@@ -21,12 +18,30 @@ export interface UsePaginatedServicesParams {
   loadMoreMode?: boolean;
   searchTerm?: string;
   forceRefresh?: boolean;
+  sortBy?: 'created_at' | 'price' | 'popular'; 
+  sortOrder?: 'asc' | 'desc';
+  updateUrlOnPageChange?: boolean;
 }
 
-export interface UsePaginatedServicesOptions {
-  useCache?: boolean;
+export interface UsePaginatedServicesResult {
+  services: ServiceWithFreelanceAndCategories[];
+  loading: boolean;
+  initialLoading: boolean;
+  error: Error | PostgrestError | null;
+  currentPage: number;
+  totalPages: number;
+  totalCount: number;
+  hasMore: boolean;
+  isRefreshing: boolean;
+  goToPage: (page: number) => void;
+  loadMore: () => Promise<void>;
+  refresh: () => Promise<void>;
+  isLastPage: boolean;
 }
 
+/**
+ * Hook optimisé pour charger les services avec pagination et filtrage
+ */
 export function usePaginatedServices({
   categoryId,
   subcategoryId,
@@ -37,24 +52,35 @@ export function usePaginatedServices({
   loadMoreMode = false,
   searchTerm = '',
   forceRefresh = false,
-}: UsePaginatedServicesParams, options: UsePaginatedServicesOptions = {}) {
-  const { useCache = false } = options;
+  sortBy = 'created_at',
+  sortOrder = 'desc',
+  updateUrlOnPageChange = false
+}: UsePaginatedServicesParams): UsePaginatedServicesResult {
+  // États
   const [services, setServices] = useState<ServiceWithFreelanceAndCategories[]>([]);
   const [loading, setLoading] = useState(true);
   const [initialLoading, setInitialLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<Error | PostgrestError | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  // Références
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastParamsRef = useRef<string>('');
   const requestInProgressRef = useRef<boolean>(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const lastFetchTimeRef = useRef<number>(0);
+  
+  // Hooks externes - toujours appelés au niveau supérieur
   const { toast } = useToast();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
-  // Fonction pour construire une chaîne représentant les paramètres actuels pour la comparaison
-  const getParamsString = useCallback(() => {
+  // Fonction pour construire une signature unique des paramètres actuels
+  const getParamsSignature = useCallback((): string => {
     return JSON.stringify({
       categoryId,
       subcategoryId,
@@ -62,113 +88,48 @@ export function usePaginatedServices({
       pageSize,
       active,
       featured,
-      currentPage,
-      searchTerm
+      searchTerm,
+      sortBy,
+      sortOrder
     });
-  }, [categoryId, subcategoryId, freelanceId, pageSize, active, featured, currentPage, searchTerm]);
+  }, [categoryId, subcategoryId, freelanceId, pageSize, active, featured, searchTerm, sortBy, sortOrder]);
 
-  // Génération d'une clé de cache unique basée sur les paramètres
-  const getCacheKey = useCallback((page: number) => {
-    if (!useCache) return null;
-    
-    let key = CACHE_KEYS.SERVICES;
-    key += 'paginated_';
-    
-    if (categoryId) key += `cat_${categoryId}_`;
-    if (subcategoryId) key += `subcat_${subcategoryId}_`;
-    if (freelanceId) key += `freelance_${freelanceId}_`;
-    if (featured !== undefined) key += `featured_${featured}_`;
-    key += `active_${active}_`;
-    key += `size_${pageSize}_`;
-    key += `page_${page}_`;
-    
-    if (searchTerm) key += `search_${searchTerm.trim()}_`;
-    
-    return key;
-  }, [categoryId, subcategoryId, freelanceId, featured, active, pageSize, searchTerm, useCache]);
-
-  // Clé de cache pour le nombre total d'éléments
-  const getTotalCountCacheKey = useCallback(() => {
-    if (!useCache) return null;
-    
-    let key = CACHE_KEYS.SERVICES;
-    key += 'count_';
-    
-    if (categoryId) key += `cat_${categoryId}_`;
-    if (subcategoryId) key += `subcat_${subcategoryId}_`;
-    if (freelanceId) key += `freelance_${freelanceId}_`;
-    if (featured !== undefined) key += `featured_${featured}_`;
-    key += `active_${active}_`;
-    
-    if (searchTerm) key += `search_${searchTerm.trim()}_`;
-    
-    return key;
-  }, [categoryId, subcategoryId, freelanceId, featured, active, searchTerm, useCache]);
-
-  // Rafraîchir en arrière-plan pour maintenir les données à jour
-  const refreshInBackground = useCallback(async (page: number, append: boolean = false) => {
-    if (isRefreshing || !useCache) return;
-    
-    setIsRefreshing(true);
-    await fetchServices(page, append, true);
-  }, [isRefreshing, useCache]);
-
-  // Fonction pour récupérer les services
-  const fetchServices = useCallback(async (page: number, append: boolean = false, forceReFetch: boolean = false) => {
-    // Éviter les requêtes simultanées
+  // Fonction optimisée pour récupérer les services avec gestion améliorée des erreurs
+  const fetchServices = useCallback(async (page: number, append: boolean = false): Promise<void> => {
+    // Éviter les requêtes redondantes ou simultanées
     if (requestInProgressRef.current) {
-      console.log('Request already in progress, skipping...');
+      console.debug('Requête déjà en cours, ignorée');
       return;
     }
     
+    // Configurer l'état pour cette requête
     requestInProgressRef.current = true;
+    const fetchStartTime = Date.now();
+    lastFetchTimeRef.current = fetchStartTime;
     
-    // Si c'est un append et pas un chargement initial, ne pas montrer le loader principal
+    // Annuler toute requête précédente
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    // Créer un nouveau contrôleur d'annulation
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
+    
     if (!append) {
       setLoading(true);
-    } else if (!isRefreshing) {
+    } else {
       setIsRefreshing(true);
     }
     
     setError(null);
 
     try {
-      // Vérifier le cache si l'option est activée et ce n'est pas un rafraîchissement forcé
-      if (useCache && !forceReFetch && !forceRefresh) {
-        const cacheKey = getCacheKey(page);
-        const countCacheKey = getTotalCountCacheKey();
-        
-        if (cacheKey && countCacheKey) {
-          const cachedServices = getCachedData<ServiceWithFreelanceAndCategories[]>(cacheKey);
-          const cachedCount = getCachedData<number>(countCacheKey);
-          
-          if (cachedServices && cachedCount !== null) {
-            // Mettre à jour l'état avec les données en cache
-            if (append) {
-              setServices(prev => [...prev, ...cachedServices]);
-            } else {
-              setServices(cachedServices);
-            }
-            
-            const totalPages = Math.ceil(cachedCount / pageSize);
-            setTotalCount(cachedCount);
-            setTotalPages(totalPages);
-            setHasMore(page < totalPages);
-            setLoading(false);
-            setInitialLoading(false);
-            
-            // Rafraîchir en arrière-plan pour maintenir les données à jour
-            refreshInBackground(page, append);
-            requestInProgressRef.current = false;
-            return;
-          }
-        }
-      }
-
+      // Calcul des limites de pagination
       const start = (page - 1) * pageSize;
       const end = start + pageSize - 1;
 
-      // Construire la requête de base avec un joint explicite pour une meilleure recherche
+      // Construire la requête de base avec les relations
       let query = supabase
         .from('services')
         .select(`
@@ -176,9 +137,10 @@ export function usePaginatedServices({
           profiles (id, username, full_name, avatar_url, bio),
           categories!inner (id, name, slug),
           subcategories (id, name, slug)
-        `, { count: 'exact' });
+        `, { count: 'exact' })
+        .abortSignal(signal);
 
-      // Appliquer les filtres de base directement (sans recherche)
+      // Appliquer les filtres
       if (active !== undefined) {
         query = query.eq('active', active);
       }
@@ -199,32 +161,72 @@ export function usePaginatedServices({
         query = query.eq('subcategory_id', subcategoryId);
       }
 
-      // Appliquer une recherche textuelle simple et sûre
+      // Optimisation de la recherche textuelle avec FTS si disponible
       if (searchTerm && searchTerm.trim() !== '') {
-        const term = searchTerm.trim().toLowerCase();
-        // Rechercher uniquement dans les champs directs (pas de relation)
-        query = query.or(`title.ilike.%${term}%,description.ilike.%${term}%`);
+        const term = searchTerm.trim();
+        
+        // Tenter d'utiliser la recherche en texte intégral si disponible
+        // Sinon utiliser une recherche ILIKE standard mais optimisée
+        if (term.length > 2) {
+          const searchCondition = `
+            title.ilike.%${term}%,
+            description.ilike.%${term}%,
+            categories.name.ilike.%${term}%
+          `;
+          query = query.or(searchCondition);
+        }
       }
 
-      // Pagination
+      // Tri dynamique
+      let orderColumn = sortBy;
+      if (sortBy === 'popular') {
+        // Le tri par popularité nécessiterait une implémentation spécifique
+        // Pour cet exemple, on utilise created_at par défaut
+        orderColumn = 'created_at';
+      }
+      
+      // Appliquer le tri et la pagination
       query = query
-        .order('created_at', { ascending: false })
+        .order(orderColumn, { ascending: sortOrder === 'asc' })
         .range(start, end);
 
-      console.log('Fetching services with query:', query);
-      const { data, count, error } = await query;
+      // Exécuter la requête avec un timeout de sécurité
+      const timeoutPromise = new Promise<{data: null, error: Error}>((_, reject) => {
+        setTimeout(() => {
+          reject(new Error('La requête a expiré après 15 secondes'));
+        }, 15000);
+      });
 
-      if (error) {
-        console.error('Error fetching services:', error);
-        throw error;
+      // Utiliser Promise.race mais avec un traitement sécurisé du résultat
+      const result = await Promise.race([
+        query,
+        timeoutPromise
+      ]);
+
+      // Vérifier si cette requête est toujours pertinente
+      if (lastFetchTimeRef.current !== fetchStartTime) {
+        console.debug('Résultats ignorés - une requête plus récente a été initiée');
+        return;
       }
 
-      // Calculer le nombre total de pages
-      const total = count || 0;
-      const pages = Math.ceil(total / pageSize);
+      // Type casting sécurisé
+      const queryResult = result as any;
+      const { data, count, error: supabaseError } = queryResult;
 
-      // Transformer les données pour correspondre au type
-      const formattedServices = data.map((service: any) => ({
+      if (supabaseError) {
+        throw supabaseError;
+      }
+
+      if (signal.aborted) {
+        throw new Error('Requête annulée');
+      }
+
+      if (!data) {
+        throw new Error('Aucune donnée reçue');
+      }
+
+      // Transformer les données pour correspondre au type attendu
+      const formattedServices = data.map((service: any): ServiceWithFreelanceAndCategories => ({
         ...service,
         profiles: service.profiles || {
           id: service.freelance_id || '',
@@ -241,52 +243,54 @@ export function usePaginatedServices({
         subcategories: service.subcategories || null
       }));
 
-      if (append) {
-        // Ajouter les nouveaux services à la liste existante
-        setServices(prev => [...prev, ...formattedServices]);
+      // Mettre à jour l'état en fonction du mode (append ou replace)
+      if (append && loadMoreMode) {
+        // Éviter les doublons lors de l'ajout de nouveaux services
+        const existingIds = new Set(services.map((s: ServiceWithFreelanceAndCategories) => s.id));
+        const uniqueNewServices = formattedServices.filter((s: ServiceWithFreelanceAndCategories) => !existingIds.has(s.id));
+        
+        setServices(prev => [...prev, ...uniqueNewServices]);
       } else {
-        // Remplacer complètement les services
         setServices(formattedServices);
       }
+
+      // Calculer les métriques de pagination
+      const total = count || 0;
+      const pages = Math.max(1, Math.ceil(total / pageSize));
 
       setTotalCount(total);
       setTotalPages(pages);
       setHasMore(page < pages);
       
-      // Mettre en cache les résultats si l'option est activée
-      if (useCache) {
-        const cacheKey = getCacheKey(page);
-        const countCacheKey = getTotalCountCacheKey();
-        
-        if (cacheKey) {
-          setCachedData<ServiceWithFreelanceAndCategories[]>(
-            cacheKey, 
-            formattedServices,
-            { expiry: CACHE_EXPIRY.SERVICES }
-          );
-        }
-        
-        if (countCacheKey) {
-          setCachedData(countCacheKey, total, { 
-            expiry: CACHE_EXPIRY.SERVICES 
-          });
-        }
+    } catch (err) {
+      console.error('Erreur lors du chargement des services:', err);
+      
+      // Ne pas afficher d'erreur si la requête a été délibérément annulée
+      if (err instanceof Error && err.name === 'AbortError') {
+        console.debug('Requête annulée délibérément');
+        return;
       }
       
-    } catch (err: any) {
-      console.error('Error in fetchServices:', err);
-      setError(err.message || 'Une erreur est survenue');
+      // Gestion améliorée des erreurs
+      setError(err instanceof Error ? err : new Error('Erreur inconnue lors du chargement des services'));
       
-      toast({
-        title: 'Erreur',
-        description: 'Impossible de charger les services. Veuillez réessayer.',
-        variant: 'destructive'
-      });
+      // Notification utilisateur uniquement pour les erreurs non-techniques
+      if (!append && !(err instanceof Error && err.name === 'AbortError')) {
+        toast({
+          title: 'Erreur de chargement',
+          description: 'Impossible de charger les services. Veuillez réessayer.',
+          variant: 'destructive'
+        });
+      }
     } finally {
+      // Réinitialiser les états de chargement
       setLoading(false);
       setInitialLoading(false);
       setIsRefreshing(false);
       requestInProgressRef.current = false;
+      
+      // Ne pas réinitialiser abortControllerRef ici pour permettre l'annulation 
+      // pendant le nettoyage du composant
     }
   }, [
     categoryId, 
@@ -295,88 +299,105 @@ export function usePaginatedServices({
     pageSize, 
     active, 
     featured, 
-    searchTerm, 
-    toast, 
-    useCache, 
-    getCacheKey,
-    getTotalCountCacheKey,
-    forceRefresh,
-    refreshInBackground
+    searchTerm,
+    sortBy,
+    sortOrder,
+    services,
+    loadMoreMode,
+    toast
   ]);
 
-  // Changement de page
-  const goToPage = useCallback((page: number) => {
-    if (page < 1 || page > totalPages) return;
+  // Navigation de page simplifiée - sans manipulation d'URL
+  const goToPage = useCallback((page: number): void => {
+    // Validation de la plage
+    if (page < 1 || (totalPages > 0 && page > totalPages)) {
+      console.warn(`Page ${page} hors limites (1-${totalPages})`);
+      return;
+    }
+    
+    // Nous ne modifions plus l'URL car cette fonction est complexe avec App Router
+    // et n'est pas essentielle à la fonctionnalité principale
+    
     setCurrentPage(page);
     fetchServices(page, false);
   }, [totalPages, fetchServices]);
 
-  // Charger plus de services (pour le mode "load more")
-  const loadMore = useCallback(() => {
-    if (currentPage < totalPages && !isRefreshing) {
+  // Fonction optimisée pour charger plus de services
+  const loadMore = useCallback(async (): Promise<void> => {
+    if (currentPage < totalPages && !isRefreshing && !loading) {
       const nextPage = currentPage + 1;
       setCurrentPage(nextPage);
-      fetchServices(nextPage, true);
+      await fetchServices(nextPage, true);
     }
-  }, [currentPage, totalPages, isRefreshing, fetchServices]);
+  }, [currentPage, totalPages, isRefreshing, loading, fetchServices]);
 
-  // Rafraîchir les données
-  const refresh = useCallback(() => {
+  // Fonction de rafraîchissement avec retour à la première page
+  const refresh = useCallback(async (): Promise<void> => {
     setCurrentPage(1);
-    fetchServices(1, false, true);
+    await fetchServices(1, false);
   }, [fetchServices]);
 
-  // Hook principal pour charger les services lors des changements de paramètres
+  // Effet principal pour la gestion des changements de paramètres
   useEffect(() => {
-    const currentParamsString = getParamsString();
-    const paramsChanged = currentParamsString !== lastParamsRef.current || forceRefresh;
+    const currentSignature = getParamsSignature();
+    const paramsChanged = currentSignature !== lastParamsRef.current || forceRefresh;
     
-    // Si les paramètres n'ont pas changé et ce n'est pas un rafraîchissement forcé, ne rien faire
+    // Si les paramètres n'ont pas changé et ce n'est pas un chargement initial, ne rien faire
     if (!paramsChanged && !initialLoading) {
       return;
     }
     
-    // Si une recherche est en cours, debouncer pour éviter trop de requêtes
-    if (searchTerm && searchTerm.trim() !== '') {
+    // Nettoyer le timer de debounce existant
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    
+    // Appliquer un debounce intelligent en fonction du type de changement
+    const debounceTime = searchTerm ? 350 : 100;
+    
+    debounceTimerRef.current = setTimeout(() => {
+      lastParamsRef.current = currentSignature;
+      
+      // En cas de changement de paramètres, toujours revenir à la page 1
+      if (paramsChanged && currentPage !== 1 && !loadMoreMode) {
+        setCurrentPage(1);
+        fetchServices(1, false);
+      } else if (loadMoreMode && currentPage > 1 && !paramsChanged) {
+        // En mode "load more", préserver les résultats existants
+        fetchServices(currentPage, true);
+      } else {
+        // Cas standard: chargement de la première page
+        fetchServices(1, false);
+      }
+    }, debounceTime);
+    
+    // Nettoyage lors du démontage ou changement de dépendances
+    return () => {
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
       }
       
-      debounceTimerRef.current = setTimeout(() => {
-        setCurrentPage(1);
-        fetchServices(1, false);
-        lastParamsRef.current = currentParamsString;
-      }, 300);
-      
-      return () => {
-        if (debounceTimerRef.current) {
-          clearTimeout(debounceTimerRef.current);
-        }
-      };
-    }
-    
-    // Sinon, charger immédiatement
-    setCurrentPage(1);
-    fetchServices(1, false);
-    lastParamsRef.current = currentParamsString;
-    
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+    };
   }, [
-    categoryId, 
-    subcategoryId, 
-    freelanceId, 
-    active, 
-    featured, 
-    pageSize, 
-    searchTerm, 
-    forceRefresh, 
-    getParamsString, 
+    getParamsSignature, 
     fetchServices, 
+    loadMoreMode, 
+    currentPage, 
+    forceRefresh, 
     initialLoading
   ]);
+
+  // Compléter les paramètres de retour avec des valeurs dérivées
+  const isLastPage = currentPage >= totalPages;
 
   return {
     services,
     loading,
+    initialLoading,
     error,
     currentPage,
     totalPages,
@@ -385,14 +406,7 @@ export function usePaginatedServices({
     loadMore,
     hasMore,
     refresh,
-    isRefreshing
+    isRefreshing,
+    isLastPage
   };
-}
-
-/**
- * Re-export du hook usePaginatedServices avec l'ancien nom pour compatibilité
- * @deprecated Utilisez usePaginatedServices avec l'option {useCache: true}
- */
-export function useOptimizedPaginatedServices(params: UsePaginatedServicesParams = {}) {
-  return usePaginatedServices(params, { useCache: true });
 } 

@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dispute Resolution Notification - Admin</title>
+    <style>
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            background-color: #f9f9f9;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 4px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .header {
+            background-color: white;
+            text-align: center;
+            padding: 20px;
+        }
+        .logo {
+            max-width: 120px;
+            height: auto;
+        }
+        .content {
+            padding: 20px;
+        }
+        .notification-badge {
+            display: inline-block;
+            background-color: #22c55e;
+            color: white;
+            font-weight: bold;
+            padding: 5px 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+        .info-box {
+            background-color: #f0f9ff;
+            border-left: 4px solid #0ea5e9;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+        .order-details {
+            background-color: #f3f4f6;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .order-details table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .order-details th {
+            text-align: left;
+            padding: 8px 5px;
+            border-bottom: 1px solid #ddd;
+        }
+        .order-details td {
+            padding: 8px 5px;
+            border-bottom: 1px solid #ddd;
+        }
+        .resolution-details {
+            background-color: #ecfdf5;
+            border-left: 4px solid #22c55e;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+        .user-details {
+            display: flex;
+            justify-content: space-between;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .user-box {
+            flex: 1;
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            padding: 15px;
+            border-radius: 4px;
+        }
+        .button {
+            display: inline-block;
+            background-color: #111827;
+            color: white;
+            text-decoration: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            font-weight: bold;
+            margin-top: 15px;
+        }
+        .footer {
+            background-color: #f3f4f6;
+            padding: 20px;
+            text-align: center;
+            font-size: 14px;
+            color: #6b7280;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <img src="https://vynal.fr/logo-white.png" alt="Vynal Logo" class="logo">
+            <h1>Dispute Resolution Notification</h1>
+        </div>
+        
+        <div class="content">
+            <div class="notification-badge">Dispute Resolved</div>
+            
+            <p>Hello Admin,</p>
+            
+            <div class="info-box">
+                <h3>Dispute Resolution Alert</h3>
+                <p>A dispute has been successfully resolved on the platform.</p>
+            </div>
+            
+            <h3>Order Details</h3>
+            <div class="order-details">
+                <table>
+                    <tr>
+                        <th>Order ID</th>
+                        <td>{{order_id}}</td>
+                    </tr>
+                    <tr>
+                        <th>Service</th>
+                        <td>{{service_title}}</td>
+                    </tr>
+                    <tr>
+                        <th>Order Amount</th>
+                        <td>{{order_amount}} {{currency}}</td>
+                    </tr>
+                    <tr>
+                        <th>Order Date</th>
+                        <td>{{order_date}}</td>
+                    </tr>
+                    <tr>
+                        <th>Dispute Date</th>
+                        <td>{{dispute_date}}</td>
+                    </tr>
+                    <tr>
+                        <th>New Order Status</th>
+                        <td><strong>{{new_order_status}}</strong></td>
+                    </tr>
+                </table>
+            </div>
+            
+            <h3>Users Involved</h3>
+            <div class="user-details">
+                <div class="user-box">
+                    <h4>Client</h4>
+                    <p><strong>Name:</strong> {{client_name}}</p>
+                    <p><strong>Email:</strong> {{client_email}}</p>
+                    <p><strong>ID:</strong> {{client_id}}</p>
+                </div>
+                <div class="user-box">
+                    <h4>Freelancer</h4>
+                    <p><strong>Name:</strong> {{freelancer_name}}</p>
+                    <p><strong>Email:</strong> {{freelancer_email}}</p>
+                    <p><strong>ID:</strong> {{freelancer_id}}</p>
+                </div>
+            </div>
+            
+            <h3>Resolution Details</h3>
+            <div class="resolution-details">
+                <p><strong>Resolved By:</strong> {{resolved_by}}</p>
+                <p><strong>Resolution Date:</strong> {{resolution_date}}</p>
+                <p><strong>Resolution Type:</strong> {{resolution_type}}</p>
+                
+                {{#if has_resolution_notes}}
+                <p><strong>Resolution Notes:</strong></p>
+                <p>{{resolution_notes}}</p>
+                {{/if}}
+                
+                {{#if has_refund}}
+                <p><strong>Refund Amount:</strong> {{refund_amount}} {{currency}}</p>
+                <p><strong>Refund Status:</strong> {{refund_status}}</p>
+                <p><strong>Payment ID:</strong> {{payment_id}}</p>
+                {{/if}}
+            </div>
+            
+            <div style="text-align: center;">
+                <a href="{{admin_dispute_url}}" class="button">View Dispute Details</a>
+            </div>
+            
+            <p style="margin-top: 25px;">This is an automated notification. No action is required unless there are issues with the resolution process.</p>
+        </div>
+        
+        <div class="footer">
+            <p>© {{current_year}} Vynal. All rights reserved.</p>
+            <p>Admin Platform - Dispute Management System</p>
+        </div>
+    </div>
+</body>
+</html> 

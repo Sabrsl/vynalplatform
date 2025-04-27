@@ -4,6 +4,12 @@ import type { Database } from '@/types/database';
 import { StateCreator } from 'zustand';
 import { UserProfile } from '@/hooks/useUser';
 import { validateMessage } from '@/lib/message-validation';
+import { measure, PerformanceEventType } from '@/lib/performance/metrics';
+import { 
+  compressMessageData, 
+  compressConversationData, 
+  shouldCompressMessages 
+} from '@/lib/optimizations/compression';
 
 export type Message = Database['public']['Tables']['messages']['Row'] & {
   sender?: UserProfile;
@@ -31,9 +37,9 @@ type MessagingState = {
   isLoading: boolean;
   error: string | null;
   isTyping: { [userId: string]: boolean };
-  fetchConversations: (userId: string) => Promise<void>;
-  fetchMessages: (conversationId: string) => Promise<void>;
-  sendMessage: (conversationId: string, senderId: string, content: string, attachmentUrl?: string, attachmentType?: string, attachmentName?: string) => Promise<void>;
+  fetchConversations: (userId: string) => Promise<Conversation[] | undefined>;
+  fetchMessages: (conversationId: string) => Promise<Message[]>;
+  sendMessage: (conversationId: string, senderId: string, content: string, attachmentUrl?: string, attachmentType?: string, attachmentName?: string) => Promise<Message | null>;
   createConversation: (participants: string[], initialMessage?: string) => Promise<string | null>;
   markAsRead: (conversationId: string, userId: string) => Promise<void>;
   setIsTyping: (conversationId: string, userId: string, isTyping: boolean) => Promise<void>;
@@ -52,310 +58,363 @@ export const useMessagingStore = create<MessagingState>(
     isTyping: {},
 
     fetchConversations: async (userId: string) => {
-      set({ isLoading: true, error: null });
-      try {
-        console.log("Récupération des conversations pour l'utilisateur:", userId);
-        
-        // Vérifier que l'ID est valide
-        if (!userId) {
-          console.error("ID utilisateur non valide");
-          throw new Error("ID utilisateur non valide");
-        }
-        
-        // Vérifier que l'utilisateur est bien authentifié
-        const { data: userSession } = await supabase.auth.getSession();
-        const sessionUserId = userSession?.session?.user?.id;
-        
-        if (!sessionUserId) {
-          console.error("Utilisateur non authentifié");
-          throw new Error("Vous devez être connecté pour accéder aux conversations");
-        }
-        
-        // Vérifier que l'ID demandé correspond à l'utilisateur authentifié
-        if (userId !== sessionUserId) {
-          console.error("Tentative d'accès aux conversations d'un autre utilisateur");
-          throw new Error("Vous n'êtes pas autorisé à voir ces conversations");
-        }
-        
-        console.log("Authentification vérifiée, récupération des conversations...");
-        
-        // Approche simplifiée: récupérer les conversations à partir des participants avec jointure
-        const { data, error } = await supabase
-          .from('conversation_participants')
-          .select(`
-            conversation_id,
-            unread_count,
-            conversations:conversation_id (
-              id, 
-              created_at, 
-              updated_at, 
-              last_message_id,
-              last_message_time
-            )
-          `)
-          .eq('participant_id', userId);
-        
-        if (error) {
-          console.error("Erreur lors de la récupération des conversations:", error);
-          throw new Error(`Erreur de récupération des conversations: ${error.message}`);
-        }
-        
-        if (!data || data.length === 0) {
-          console.log("Aucune conversation trouvée pour l'utilisateur");
-          set({ conversations: [], isLoading: false });
-          return;
-        }
-        
-        console.log(`${data.length} conversations trouvées pour l'utilisateur:`, data);
-        
-        // Récupérer les IDs de conversations valides
-        const validConversations = data.filter(item => item.conversations);
-        const conversationIds = validConversations.map(item => item.conversation_id);
-        
-        if (conversationIds.length === 0) {
-          console.log("Aucune conversation valide trouvée");
-          set({ conversations: [], isLoading: false });
-          return;
-        }
-        
-        console.log("Liste des IDs de conversations valides:", conversationIds);
-        
-        // Récupérer tous les participants pour ces conversations
-        const { data: allParticipantsData, error: participantsError } = await supabase
-          .from('conversation_participants')
-          .select(`
-            conversation_id,
-            unread_count,
-            profiles:participant_id (
-              id,
-              username,
-              full_name,
-              avatar_url,
-              bio,
-              role,
-              email,
-              created_at,
-              updated_at,
-              last_seen
-            )
-          `)
-          .in('conversation_id', conversationIds);
-        
-        if (participantsError) {
-          console.error("Erreur lors de la récupération des participants:", participantsError);
-          throw new Error(`Erreur de récupération des participants: ${participantsError.message}`);
-        }
-        
-        if (!allParticipantsData || allParticipantsData.length === 0) {
-          console.error("Aucun participant trouvé pour les conversations");
-          throw new Error("Erreur de données: participants manquants");
-        }
-        
-        console.log(`${allParticipantsData.length} participants trouvés au total`);
-        
-        // Récupérer les derniers messages
-        const lastMessageIds = validConversations
-          .filter(conv => (conv.conversations as any)?.last_message_id)
-          .map(conv => (conv.conversations as any).last_message_id);
-          
-        let lastMessages: Record<string, any> = {};
-        
-        if (lastMessageIds.length > 0) {
-          const { data: messagesData, error: messagesError } = await supabase
-            .from('messages')
-            .select('id, content, created_at, sender_id')
-            .in('id', lastMessageIds);
+      return measure(
+        PerformanceEventType.CONVERSATIONS_LOAD,
+        async () => {
+          set({ isLoading: true, error: null });
+          try {
+            console.log("Récupération des conversations pour l'utilisateur:", userId);
             
-          if (messagesError) {
-            console.error("Erreur lors de la récupération des derniers messages:", messagesError);
-          } else if (messagesData) {
-            messagesData.forEach(msg => {
-              lastMessages[msg.id] = msg;
-            });
-          }
-        }
-        
-        // Construire les objets Conversation
-        const processedConversations: Conversation[] = validConversations.map(convItem => {
-          const conv = convItem.conversations as any;
-          
-          // Regrouper les participants par conversation
-          const participants = allParticipantsData
-            .filter(p => p.conversation_id === convItem.conversation_id)
-            .map(p => {
-              const profile = Array.isArray(p.profiles) ? p.profiles[0] as UserProfile : p.profiles as UserProfile;
+            // Vérifier que l'ID est valide
+            if (!userId) {
+              console.error("ID utilisateur non valide");
+              set({ error: "ID utilisateur non valide", isLoading: false });
+              return;
+            }
+            
+            // Vérifier que l'utilisateur est bien authentifié
+            const { data: userSession } = await supabase.auth.getSession();
+            const sessionUserId = userSession?.session?.user?.id;
+            
+            if (!sessionUserId) {
+              console.error("Utilisateur non authentifié");
+              set({ error: "Vous devez être connecté pour accéder aux conversations", isLoading: false });
+              return;
+            }
+            
+            // Vérifier que l'ID demandé correspond à l'utilisateur authentifié
+            if (userId !== sessionUserId) {
+              console.error("Tentative d'accès aux conversations d'un autre utilisateur");
+              set({ error: "Vous n'êtes pas autorisé à voir ces conversations", isLoading: false });
+              return;
+            }
+            
+            console.log("Authentification vérifiée, récupération des conversations...");
+            
+            // CORRECTION: Utiliser une requête plus simple et robuste pour éviter les erreurs 500
+            try {
+              // D'abord vérifier si la table de messages est accessible
+              const healthCheck = await supabase
+                .from('messages')
+                .select('count', { count: 'exact', head: true })
+                .limit(1);
               
-              // Vérifier si l'utilisateur est en ligne (actif dans les 2 dernières minutes)
-              const isOnline = (lastSeen: any): boolean => {
-                if (!lastSeen) return false;
+              if (healthCheck.error) {
+                console.error("Erreur lors de la vérification de la table messages:", healthCheck.error);
+                set({ error: "La base de données est temporairement indisponible", isLoading: false, conversations: [] });
+                return;
+              }
+            } catch (innerError) {
+              console.error("Erreur de connexion à la base de données:", innerError);
+              set({ error: "Impossible de se connecter à la base de données", isLoading: false, conversations: [] });
+              return;
+            }
+            
+            // Approche simplifiée: récupérer les conversations à partir des participants avec jointure
+            const { data, error } = await supabase
+              .from('conversation_participants')
+              .select(`
+                conversation_id,
+                unread_count,
+                conversations:conversation_id (
+                  id, 
+                  created_at, 
+                  updated_at, 
+                  last_message_id,
+                  last_message_time
+                )
+              `)
+              .eq('participant_id', userId);
+            
+            if (error) {
+              console.error("Erreur lors de la récupération des conversations:", error);
+              set({ error: `Erreur de récupération des conversations: ${error.message}`, isLoading: false, conversations: [] });
+              return;
+            }
+            
+            if (!data || data.length === 0) {
+              console.log("Aucune conversation trouvée pour l'utilisateur");
+              set({ conversations: [], isLoading: false });
+              return;
+            }
+            
+            console.log(`${data.length} conversations trouvées pour l'utilisateur:`, data);
+            
+            // Récupérer les IDs de conversations valides
+            const validConversations = data.filter(item => item.conversations);
+            const conversationIds = validConversations.map(item => item.conversation_id);
+            
+            if (conversationIds.length === 0) {
+              console.log("Aucune conversation valide trouvée");
+              set({ conversations: [], isLoading: false });
+              return;
+            }
+            
+            console.log("Liste des IDs de conversations valides:", conversationIds);
+            
+            // Récupérer tous les participants pour ces conversations
+            const { data: allParticipantsData, error: participantsError } = await supabase
+              .from('conversation_participants')
+              .select(`
+                conversation_id,
+                unread_count,
+                profiles:participant_id (
+                  id,
+                  username,
+                  full_name,
+                  avatar_url,
+                  bio,
+                  role,
+                  email,
+                  created_at,
+                  updated_at,
+                  last_seen
+                )
+              `)
+              .in('conversation_id', conversationIds);
+            
+            if (participantsError) {
+              console.error("Erreur lors de la récupération des participants:", participantsError);
+              throw new Error(`Erreur de récupération des participants: ${participantsError.message}`);
+            }
+            
+            if (!allParticipantsData || allParticipantsData.length === 0) {
+              console.error("Aucun participant trouvé pour les conversations");
+              throw new Error("Erreur de données: participants manquants");
+            }
+            
+            console.log(`${allParticipantsData.length} participants trouvés au total`);
+            
+            // Récupérer les derniers messages
+            const lastMessageIds = validConversations
+              .filter(conv => (conv.conversations as any)?.last_message_id)
+              .map(conv => (conv.conversations as any).last_message_id);
+              
+            let lastMessages: Record<string, any> = {};
+            
+            if (lastMessageIds.length > 0) {
+              const { data: messagesData, error: messagesError } = await supabase
+                .from('messages')
+                .select('id, content, created_at, sender_id')
+                .in('id', lastMessageIds);
                 
-                try {
-                  const now = new Date();
-                  const lastSeenDate = new Date(lastSeen);
-                  const twoMinutesAgo = new Date(now.getTime() - 2 * 60 * 1000);
+              if (messagesError) {
+                console.error("Erreur lors de la récupération des derniers messages:", messagesError);
+              } else if (messagesData) {
+                messagesData.forEach(msg => {
+                  lastMessages[msg.id] = msg;
+                });
+              }
+            }
+            
+            // Construire les objets Conversation
+            const processedConversations: Conversation[] = validConversations.map(convItem => {
+              const conv = convItem.conversations as any;
+              
+              // Regrouper les participants par conversation
+              const participants = allParticipantsData
+                .filter(p => p.conversation_id === convItem.conversation_id)
+                .map(p => {
+                  const profile = Array.isArray(p.profiles) ? p.profiles[0] as UserProfile : p.profiles as UserProfile;
                   
-                  return lastSeenDate >= twoMinutesAgo;
-                } catch (error) {
-                  console.error('Erreur lors de la vérification du statut en ligne:', error);
-                  return false;
-                }
-              };
+                  // Vérifier si l'utilisateur est en ligne (actif dans les 2 dernières minutes)
+                  const isOnline = (lastSeen: any): boolean => {
+                    if (!lastSeen) return false;
+                    
+                    try {
+                      const now = new Date();
+                      const lastSeenDate = new Date(lastSeen);
+                      const twoMinutesAgo = new Date(now.getTime() - 2 * 60 * 1000);
+                      
+                      return lastSeenDate >= twoMinutesAgo;
+                    } catch (error) {
+                      console.error('Erreur lors de la vérification du statut en ligne:', error);
+                      return false;
+                    }
+                  };
 
+                  return {
+                    ...profile,
+                    unread_count: profile.id === userId ? p.unread_count : 0,
+                    online: isOnline(profile.last_seen)
+                  } as ConversationParticipant;
+                });
+                
+              // Récupérer le dernier message
+              const lastMessage = conv.last_message_id 
+                ? lastMessages[conv.last_message_id] 
+                : undefined;
+                
               return {
-                ...profile,
-                unread_count: profile.id === userId ? p.unread_count : 0,
-                online: isOnline(profile.last_seen)
-              } as ConversationParticipant;
+                id: conv.id,
+                created_at: conv.created_at,
+                updated_at: conv.updated_at,
+                last_message_id: conv.last_message_id,
+                last_message_time: conv.last_message_time,
+                participants,
+                last_message: lastMessage
+              } as Conversation;
             });
             
-          // Récupérer le dernier message
-          const lastMessage = conv.last_message_id 
-            ? lastMessages[conv.last_message_id] 
-            : undefined;
-            
-          return {
-            id: conv.id,
-            created_at: conv.created_at,
-            updated_at: conv.updated_at,
-            last_message_id: conv.last_message_id,
-            last_message_time: conv.last_message_time,
-            participants,
-            last_message: lastMessage
-          } as Conversation;
-        });
-        
-        // Récupérer le rôle de l'utilisateur courant
-        const { data: userData, error: userError } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', userId)
-          .single();
+            // Récupérer le rôle de l'utilisateur courant
+            const { data: userData, error: userError } = await supabase
+              .from('profiles')
+              .select('role')
+              .eq('id', userId)
+              .single();
 
-        if (userError) {
-          console.error("Erreur lors de la récupération du rôle de l'utilisateur:", userError);
-        } else {
-          const userRole = userData?.role;
-          console.log(`Rôle de l'utilisateur actuel: ${userRole}`);
+            if (userError) {
+              console.error("Erreur lors de la récupération du rôle de l'utilisateur:", userError);
+            } else {
+              const userRole = userData?.role;
+              console.log(`Rôle de l'utilisateur actuel: ${userRole}`);
 
-          // Filtrer les conversations pour ne montrer que celles avec des utilisateurs du rôle complémentaire
-          if (userRole) {
-            const compatibleRole = userRole === 'freelance' ? 'client' : 'freelance';
+              // Filtrer les conversations pour ne montrer que celles avec des utilisateurs du rôle complémentaire
+              if (userRole) {
+                const compatibleRole = userRole === 'freelance' ? 'client' : 'freelance';
+                
+                const filteredConversations = processedConversations.filter(conversation => {
+                  // Trouver l'autre participant (autre que l'utilisateur actuel)
+                  const otherParticipant = conversation.participants.find(p => p.id !== userId);
+                  // Vérifier si l'autre participant a le rôle compatible
+                  return otherParticipant?.role === compatibleRole;
+                });
+                
+                console.log(`${filteredConversations.length}/${processedConversations.length} conversations filtrées par rôle`);
+                set({ conversations: filteredConversations, isLoading: false });
+                return;
+              }
+            }
+
+            // Si pas de filtrage par rôle (erreur ou rôle non défini), on garde toutes les conversations
+            console.log(`${processedConversations.length} conversations traitées avec succès`);
+            set({ conversations: processedConversations, isLoading: false });
+
+            if (processedConversations.length > 10) {
+              // Compresser les données si trop nombreuses
+              const compressedData = compressConversationData(processedConversations);
+              set({ conversations: compressedData as Conversation[], isLoading: false });
+            }
             
-            const filteredConversations = processedConversations.filter(conversation => {
-              // Trouver l'autre participant (autre que l'utilisateur actuel)
-              const otherParticipant = conversation.participants.find(p => p.id !== userId);
-              // Vérifier si l'autre participant a le rôle compatible
-              return otherParticipant?.role === compatibleRole;
+            return processedConversations;
+          } catch (err: any) {
+            console.error('Erreur détaillée lors de la récupération des conversations:', err);
+            set({ 
+              error: `Impossible de récupérer les conversations: ${err.message || 'Erreur inconnue'}`, 
+              isLoading: false,
+              conversations: []
             });
-            
-            console.log(`${filteredConversations.length}/${processedConversations.length} conversations filtrées par rôle`);
-            set({ conversations: filteredConversations, isLoading: false });
-            return;
+            throw err;
           }
-        }
-
-        // Si pas de filtrage par rôle (erreur ou rôle non défini), on garde toutes les conversations
-        console.log(`${processedConversations.length} conversations traitées avec succès`);
-        set({ conversations: processedConversations, isLoading: false });
-      } catch (err: any) {
-        console.error('Erreur détaillée lors de la récupération des conversations:', err);
-        set({ 
-          error: `Impossible de récupérer les conversations: ${err.message || 'Erreur inconnue'}`, 
-          isLoading: false,
-          conversations: []
-        });
-      }
+        },
+        { userId }
+      );
     },
 
     fetchMessages: async (conversationId: string) => {
-      set({ isLoading: true, error: null });
-      try {
-        console.log(`Récupération des messages pour la conversation ${conversationId}...`);
-        
-        if (!conversationId) {
-          console.error("ID de conversation non valide");
-          throw new Error("ID de conversation non valide");
-        }
-        
-        // 1. Vérifier si l'utilisateur a accès à cette conversation
-        const { data: userSession } = await supabase.auth.getSession();
-        const userId = userSession?.session?.user?.id;
-        
-        if (!userId) {
-          console.error("Utilisateur non authentifié");
-          throw new Error("Vous devez être connecté pour accéder aux messages");
-        }
-        
-        console.log(`Vérification des permissions pour l'utilisateur ${userId}...`);
-        
-        const { data: participantCheck, error: participantError } = await supabase
-          .from('conversation_participants')
-          .select('conversation_id')
-          .eq('conversation_id', conversationId)
-          .eq('participant_id', userId)
-          .maybeSingle();
-        
-        if (participantError) {
-          console.error("Erreur lors de la vérification des permissions:", participantError);
-          throw new Error(`Permission refusée: ${participantError.message}`);
-        }
-        
-        if (!participantCheck) {
-          console.error("L'utilisateur n'a pas accès à cette conversation");
-          throw new Error("Vous n'avez pas accès à cette conversation");
-        }
-        
-        console.log("Accès vérifié, récupération des messages...");
-        
-        const { data, error } = await supabase
-          .from('messages')
-          .select(`
-            *,
-            profiles:sender_id (
-              id,
-              username,
-              full_name,
-              avatar_url,
-              bio,
-              role,
-              email,
-              created_at,
-              updated_at
-            )
-          `)
-          .eq('conversation_id', conversationId)
-          .order('created_at', { ascending: true });
+      return measure(
+        PerformanceEventType.MESSAGES_LOAD,
+        async () => {
+          set({ isLoading: true, error: null });
+          try {
+            console.log(`Récupération des messages pour la conversation ${conversationId}...`);
+            
+            if (!conversationId) {
+              console.error("ID de conversation non valide");
+              throw new Error("ID de conversation non valide");
+            }
+            
+            // 1. Vérifier si l'utilisateur a accès à cette conversation
+            const { data: userSession } = await supabase.auth.getSession();
+            const userId = userSession?.session?.user?.id;
+            
+            if (!userId) {
+              console.error("Utilisateur non authentifié");
+              throw new Error("Vous devez être connecté pour accéder aux messages");
+            }
+            
+            console.log(`Vérification des permissions pour l'utilisateur ${userId}...`);
+            
+            const { data: participantCheck, error: participantError } = await supabase
+              .from('conversation_participants')
+              .select('conversation_id')
+              .eq('conversation_id', conversationId)
+              .eq('participant_id', userId)
+              .maybeSingle();
+            
+            if (participantError) {
+              console.error("Erreur lors de la vérification des permissions:", participantError);
+              throw new Error(`Permission refusée: ${participantError.message}`);
+            }
+            
+            if (!participantCheck) {
+              console.error("L'utilisateur n'a pas accès à cette conversation");
+              throw new Error("Vous n'avez pas accès à cette conversation");
+            }
+            
+            console.log("Accès vérifié, récupération des messages...");
+            
+            const { data, error } = await supabase
+              .from('messages')
+              .select(`
+                *,
+                profiles:sender_id (
+                  id,
+                  username,
+                  full_name,
+                  avatar_url,
+                  bio,
+                  role,
+                  email,
+                  created_at,
+                  updated_at
+                )
+              `)
+              .eq('conversation_id', conversationId)
+              .order('created_at', { ascending: true });
 
-        if (error) {
-          console.error("Erreur lors de la récupération des messages:", error);
-          throw error;
-        }
-        
-        console.log(`${data?.length || 0} messages récupérés avec succès`);
+            if (error) {
+              console.error("Erreur lors de la récupération des messages:", error);
+              throw error;
+            }
+            
+            console.log(`${data?.length || 0} messages récupérés avec succès`);
 
-        const messages = data.map((msg: any) => ({
-          ...msg,
-          sender: msg.profiles
-        }));
+            const messages = data.map((msg: any) => ({
+              ...msg,
+              sender: msg.profiles
+            }));
 
-        set({ messages, isLoading: false });
-        
-        // Mettre à jour la conversation active
-        const { conversations } = get();
-        const activeConversation = conversations.find((c: Conversation) => c.id === conversationId) || null;
-        
-        if (!activeConversation) {
-          console.warn(`Conversation active non trouvée dans les conversations chargées (ID: ${conversationId})`);
-        }
-        
-        set({ activeConversation });
-      } catch (err: any) {
-        console.error('Erreur détaillée lors de la récupération des messages:', err);
-        set({ 
-          error: `Impossible de récupérer les messages: ${err.message || 'Erreur inconnue'}`, 
-          isLoading: false 
-        });
-      }
+            if (shouldCompressMessages(messages, 30)) {
+              // Compresser si plus de 30 messages
+              const compressedMessages = compressMessageData(messages);
+              set({ messages: compressedMessages as Message[], isLoading: false });
+            } else {
+              set({ messages, isLoading: false });
+            }
+            
+            // Mettre à jour la conversation active
+            const { conversations } = get();
+            const activeConversation = conversations.find((c: Conversation) => c.id === conversationId) || null;
+            
+            if (!activeConversation) {
+              console.warn(`Conversation active non trouvée dans les conversations chargées (ID: ${conversationId})`);
+            }
+            
+            set({ activeConversation });
+
+            return messages;
+          } catch (err: any) {
+            console.error('Erreur détaillée lors de la récupération des messages:', err);
+            set({ 
+              error: `Impossible de récupérer les messages: ${err.message || 'Erreur inconnue'}`, 
+              isLoading: false 
+            });
+            throw err;
+          }
+        },
+        { conversationId }
+      );
     },
 
     sendMessage: async (
@@ -366,92 +425,105 @@ export const useMessagingStore = create<MessagingState>(
       attachmentType?: string, 
       attachmentName?: string
     ) => {
-      set({ isLoading: true, error: null });
-      try {
-        console.log(`Envoi d'un message dans la conversation ${conversationId} par ${senderId}`);
-        
-        // Créer un nouveau message
-        console.log("Insertion du message dans la base de données...");
-        const { data, error } = await supabase
-          .from('messages')
-          .insert({
-            conversation_id: conversationId,
-            sender_id: senderId,
-            content,
-            read: false,
-            attachment_url: attachmentUrl || null,
-            attachment_type: attachmentType || null,
-            attachment_name: attachmentName || null,
-            is_typing: false
-          })
-          .select()
-          .single();
+      return measure(
+        PerformanceEventType.MESSAGE_SEND,
+        async () => {
+          set({ isLoading: true, error: null });
+          try {
+            console.log(`Envoi d'un message dans la conversation ${conversationId} par ${senderId}`);
+            
+            // Créer un nouveau message
+            console.log("Insertion du message dans la base de données...");
+            const { data, error } = await supabase
+              .from('messages')
+              .insert({
+                conversation_id: conversationId,
+                sender_id: senderId,
+                content,
+                read: false,
+                attachment_url: attachmentUrl || null,
+                attachment_type: attachmentType || null,
+                attachment_name: attachmentName || null,
+                is_typing: false
+              })
+              .select()
+              .single();
 
-        if (error) {
-          console.error("Erreur lors de l'insertion du message:", error);
-          throw error;
-        }
-        
-        console.log("Message inséré avec succès:", data);
+            if (error) {
+              console.error("Erreur lors de l'insertion du message:", error);
+              throw error;
+            }
+            
+            console.log("Message inséré avec succès:", data);
 
-        // Mettre à jour le dernier message de la conversation
-        console.log("Mise à jour du dernier message de la conversation...");
-        const { error: updateError } = await supabase
-          .from('conversations')
-          .update({
-            last_message_id: data.id,
-            last_message_time: data.created_at,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', conversationId);
-          
-        if (updateError) {
-          console.error("Erreur lors de la mise à jour du dernier message:", updateError);
-        } else {
-          console.log("Dernier message mis à jour avec succès");
-        }
+            // Mettre à jour le dernier message de la conversation
+            console.log("Mise à jour du dernier message de la conversation...");
+            const { error: updateError } = await supabase
+              .from('conversations')
+              .update({
+                last_message_id: data.id,
+                last_message_time: data.created_at,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', conversationId);
+              
+            if (updateError) {
+              console.error("Erreur lors de la mise à jour du dernier message:", updateError);
+            } else {
+              console.log("Dernier message mis à jour avec succès");
+            }
 
-        // Mettre à jour les compteurs de messages non lus pour tous les participants sauf l'expéditeur
-        console.log("Mise à jour des compteurs de messages non lus...");
-        try {
-          await supabase.rpc('increment_unread_count', {
-            p_conversation_id: conversationId,
-            p_sender_id: senderId
-          });
-          console.log("Compteurs de messages non lus mis à jour");
-        } catch (incrementError) {
-          console.error("Erreur lors de la mise à jour des compteurs:", incrementError);
-        }
+            // Mettre à jour les compteurs de messages non lus pour tous les participants sauf l'expéditeur
+            console.log("Mise à jour des compteurs de messages non lus...");
+            try {
+              await supabase.rpc('increment_unread_count', {
+                p_conversation_id: conversationId,
+                p_sender_id: senderId
+              });
+              console.log("Compteurs de messages non lus mis à jour");
+            } catch (incrementError) {
+              console.error("Erreur lors de la mise à jour des compteurs:", incrementError);
+            }
 
-        // Ajouter le message à la liste des messages
-        console.log("Récupération des informations de l'expéditeur...");
-        const { data: senderData, error: senderError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', senderId)
-          .single();
-          
-        if (senderError) {
-          console.error("Erreur lors de la récupération des informations de l'expéditeur:", senderError);
-        } else {
-          console.log("Informations de l'expéditeur récupérées avec succès");
-        }
+            // Ajouter le message à la liste des messages
+            console.log("Récupération des informations de l'expéditeur...");
+            const { data: senderData, error: senderError } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', senderId)
+              .single();
+              
+            if (senderError) {
+              console.error("Erreur lors de la récupération des informations de l'expéditeur:", senderError);
+            } else {
+              console.log("Informations de l'expéditeur récupérées avec succès");
+            }
 
-        const newMessage: Message = {
-          ...data,
-          sender: senderData || undefined
-        };
+            const newMessage: Message = {
+              ...data,
+              sender: senderData || undefined
+            };
 
-        set((state: MessagingState) => ({
-          messages: [...state.messages, newMessage],
-          isLoading: false
-        }));
-        
-        console.log("Message envoyé avec succès");
-      } catch (err) {
-        console.error('Erreur détaillée lors de l\'envoi du message:', err);
-        set({ error: 'Impossible d\'envoyer le message', isLoading: false });
-      }
+            set((state: MessagingState) => ({
+              messages: [...state.messages, newMessage],
+              isLoading: false
+            }));
+            
+            console.log("Message envoyé avec succès");
+
+            // Ajouter ces métriques avec les données de performances
+            const messageSize = content.length;
+            const hasAttachment = !!attachmentUrl;
+            
+            return data;
+          } catch (err) {
+            console.error('Erreur détaillée lors de l\'envoi du message:', err);
+            set({ error: 'Impossible d\'envoyer le message', isLoading: false });
+            throw err;
+          }
+        },
+        { conversationId, senderId, messageSize: content.length, hasAttachment: !!attachmentUrl }
+      );
     },
 
     createConversation: async (participants: string[], initialMessage?: string) => {

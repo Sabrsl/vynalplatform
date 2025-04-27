@@ -1,437 +1,52 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { OrderCard } from "@/components/orders/OrderCard";
-import { Search, Filter, ShoppingBag, Clock, CheckCircle, BarChart, ChevronLeft, ChevronRight, Package } from "lucide-react";
-import { InfoTooltip } from "@/components/ui/InfoTooltip";
+import { Search, Filter, ShoppingBag, Clock, CheckCircle, BarChart, ChevronLeft, ChevronRight, RefreshCcw } from 'lucide-react';
 import Link from "next/link";
 import { formatPrice } from "@/lib/utils";
 import { useUser } from "@/hooks/useUser";
-import { supabase } from "@/lib/supabase/client";
-import { 
-  getCachedData, 
-  setCachedData, 
-  invalidateCache,
-  CACHE_EXPIRY,
-  CACHE_PRIORITIES 
-} from '@/lib/optimizations';
-
-// Type definition for order status
-type OrderStatus = "pending" | "in_progress" | "completed" | "delivered" | "revision_requested" | "cancelled";
-
-// Type for tab values
-type TabValue = OrderStatus | "all";
-
-// Type definition for order objects
-type Order = {
-  id: string;
-  created_at: string;
-  status: OrderStatus;
-  service: {
-    id: string;
-    title: string;
-    price: number;
-  };
-  freelance: {
-    id: string;
-    username: string;
-    full_name: string;
-  };
-  client: {
-    id: string;
-    username: string;
-    full_name: string;
-  };
-  is_client_view: boolean;
-};
-
-// Données fictives pour la démo
-const MOCK_ORDERS_CLIENT: Order[] = [
-  {
-    id: "order-1",
-    created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-    status: "in_progress" as const,
-    service: {
-      id: "service-1",
-      title: "Création d'un logo professionnel",
-      price: 150,
-    },
-    freelance: {
-      id: "freelance-1",
-      username: "designpro",
-      full_name: "Marie Dupont",
-    },
-    client: {
-      id: "client-1",
-      username: "clientuser",
-      full_name: "Jean Martin",
-    },
-    is_client_view: true,
-  },
-  {
-    id: "order-2",
-    created_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-    status: "delivered" as const,
-    service: {
-      id: "service-2",
-      title: "Rédaction d'un article SEO optimisé",
-      price: 85,
-    },
-    freelance: {
-      id: "freelance-2",
-      username: "contentwizard",
-      full_name: "Lucas Bernard",
-    },
-    client: {
-      id: "client-1",
-      username: "clientuser",
-      full_name: "Jean Martin",
-    },
-    is_client_view: true,
-  },
-  {
-    id: "order-3",
-    created_at: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
-    status: "completed" as const,
-    service: {
-      id: "service-3",
-      title: "Développement d'une landing page responsive",
-      price: 350,
-    },
-    freelance: {
-      id: "freelance-3",
-      username: "webdev",
-      full_name: "Sophie Moreau",
-    },
-    client: {
-      id: "client-1",
-      username: "clientuser",
-      full_name: "Jean Martin",
-    },
-    is_client_view: true,
-  },
-];
-
-const MOCK_ORDERS_FREELANCE: Order[] = [
-  {
-    id: "order-4",
-    created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-    status: "pending" as const,
-    service: {
-      id: "service-4",
-      title: "Design d'interface pour application mobile",
-      price: 250,
-    },
-    freelance: {
-      id: "freelance-1",
-      username: "designpro",
-      full_name: "Marie Dupont",
-    },
-    client: {
-      id: "client-2",
-      username: "entreprise_xyz",
-      full_name: "Entreprise XYZ",
-    },
-    is_client_view: false,
-  },
-  {
-    id: "order-5",
-    created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-    status: "in_progress" as const,
-    service: {
-      id: "service-5",
-      title: "Création d'identité visuelle complète",
-      price: 500,
-    },
-    freelance: {
-      id: "freelance-1",
-      username: "designpro",
-      full_name: "Marie Dupont",
-    },
-    client: {
-      id: "client-3",
-      username: "startup_abc",
-      full_name: "Startup ABC",
-    },
-    is_client_view: false,
-  },
-  {
-    id: "order-6",
-    created_at: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000).toISOString(),
-    status: "revision_requested" as const,
-    service: {
-      id: "service-6",
-      title: "Conception de mascotte de marque",
-      price: 300,
-    },
-    freelance: {
-      id: "freelance-1",
-      username: "designpro",
-      full_name: "Marie Dupont",
-    },
-    client: {
-      id: "client-4",
-      username: "boutique_locale",
-      full_name: "Boutique Locale",
-    },
-    is_client_view: false,
-  },
-];
+import { useOrders } from "@/hooks/useOrders";
 
 export default function OrdersPage() {
-  const { profile, isClient, isFreelance } = useUser();
-  const [activeTab, setActiveTab] = useState<TabValue>("all");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const ordersPerPage = 9;
-  const [loading, setLoading] = useState(true);
-  const [orders, setOrders] = useState<any[]>([]);
-  const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
-  const [totalOrders, setTotalOrders] = useState(0);
+  const { isFreelance } = useUser();
+  const [tempSearchQuery, setTempSearchQuery] = useState("");
   
-  // Pour la démo, ajoutons plus de commandes fictives
-  const generateMoreMockOrders = (baseOrders: Order[], count: number): Order[] => {
-    const result = [...baseOrders];
-    
-    for (let i = 0; i < count; i++) {
-      const baseOrder = baseOrders[i % baseOrders.length];
-      result.push({
-        ...baseOrder,
-        id: `${baseOrder.id}-${i + baseOrders.length}`,
-        created_at: new Date(Date.now() - (i * 3 * 24 * 60 * 60 * 1000)).toISOString()
-      });
-    }
-    
-    return result;
-  };
+  const { 
+    orders,
+    loading,
+    isRefreshing,
+    activeTab,
+    searchQuery,
+    currentPage,
+    totalCount,
+    itemsPerPage,
+    stats,
+    statusLabels,
+    setTab,
+    setSearch,
+    goToNextPage,
+    goToPreviousPage,
+    goToPage,
+    refreshOrders,
+    getLastRefreshText
+  } = useOrders({
+    initialTab: 'all',
+    itemsPerPage: 9,
+    useCache: true
+  });
+
+  // Calculer le nombre total de pages
+  const totalPages = Math.ceil(totalCount / itemsPerPage);
   
-  // Générer plus de commandes pour la démonstration de la pagination
-  const extendedOrdersClient = generateMoreMockOrders(MOCK_ORDERS_CLIENT, 20);
-  const extendedOrdersFreelance = generateMoreMockOrders(MOCK_ORDERS_FREELANCE, 15);
-  
-  // Statistiques des commandes
-  const allOrders = isFreelance ? extendedOrdersFreelance : extendedOrdersClient;
-  const activeOrders = allOrders.filter(o => o.status === 'in_progress' || o.status === 'pending' || o.status === 'revision_requested').length;
-  const completedOrders = allOrders.filter(o => o.status === 'completed').length;
-  const pendingDelivery = allOrders.filter(o => o.status === 'delivered').length;
-
-  // Calculer le montant total des commandes
-  const totalOrdersValue = allOrders.reduce((sum, order) => sum + order.service.price, 0);
-
-  // Fonction pour récupérer les commandes
-  const fetchOrders = useCallback(async (forceRefresh = false) => {
-    if (!profile?.id) return;
-    if (isRefreshing && !forceRefresh) return;
-    
-    const cacheKey = `orders_${isFreelance ? 'freelance' : 'client'}_${profile.id}_${activeTab}_page_${currentPage}`;
-    
-    // Si ce n'est pas un forceRefresh, vérifier d'abord le cache
-    if (!forceRefresh) {
-      const cachedOrders = getCachedData<{orders: any[], total: number}>(cacheKey);
-      
-      if (cachedOrders) {
-        setOrders(cachedOrders.orders);
-        setFilteredOrders(cachedOrders.orders);
-        setTotalOrders(cachedOrders.total);
-        setLoading(false);
-        setLastRefresh(new Date());
-        
-        // Rafraîchir en arrière-plan après un court délai 
-        setTimeout(() => fetchOrders(true), 500);
-        return;
-      }
-    }
-    
-    setLoading(true);
-    if (forceRefresh) setIsRefreshing(true);
-    
-    try {
-      // Construire la requête de base
-      let query = supabase
-        .from('orders')
-        .select(`
-          *,
-          services (*),
-          profiles!orders_client_id_fkey (id, username, full_name, avatar_url),
-          freelance:profiles!orders_freelance_id_fkey (id, username, full_name, avatar_url)
-        `, { count: 'exact' })
-        .eq(isFreelance ? 'freelance_id' : 'client_id', profile.id);
-      
-      // Filtrer par statut si nécessaire
-      if (activeTab !== 'all') {
-        query = query.eq('status', activeTab);
-      }
-      
-      // Appliquer la recherche si elle est définie
-      if (searchQuery.trim()) {
-        query = query.or(`services.title.ilike.%${searchQuery}%,services.description.ilike.%${searchQuery}%`);
-      }
-      
-      // Appliquer la pagination
-      query = query
-        .range((currentPage - 1) * ordersPerPage, currentPage * ordersPerPage - 1)
-        .order('created_at', { ascending: false });
-      
-      // Exécuter la requête
-      const { data, error, count } = await query;
-      
-      if (error) {
-        console.error("Erreur lors de la récupération des commandes:", error);
-        throw error;
-      }
-      
-      // Transformer les données pour correspondre au format attendu
-      const transformedOrders = data.map((order: any) => ({
-        ...order,
-        service: order.services,
-        freelance: order.freelance,
-        client: order.profiles,
-        is_client_view: !isFreelance
-      }));
-      
-      setOrders(transformedOrders);
-      setFilteredOrders(transformedOrders);
-      setTotalOrders(count || 0);
-      
-      // Mettre en cache les résultats
-      setCachedData(cacheKey, { orders: transformedOrders, total: count || 0 }, {
-        expiry: CACHE_EXPIRY.DASHBOARD_DATA,
-        priority: CACHE_PRIORITIES.HIGH
-      });
-      
-      // Mettre à jour le timestamp de dernier rafraîchissement
-      setLastRefresh(new Date());
-    } catch (error: any) {
-      console.error("Erreur lors du chargement des commandes:", error);
-    } finally {
-      setLoading(false);
-      setIsRefreshing(false);
-    }
-  }, [profile?.id, isFreelance, activeTab, currentPage, searchQuery, isRefreshing]);
-
-  // Chargement initial
-  useEffect(() => {
-    if (profile?.id) {
-      fetchOrders();
-    } else {
-      // Initialiser avec les données de démonstration si pas encore connecté
-      setFilteredOrders(isFreelance ? MOCK_ORDERS_FREELANCE : MOCK_ORDERS_CLIENT);
-    }
-  }, [profile?.id, activeTab, currentPage, fetchOrders, isFreelance]);
-
-  // Mettre à jour filteredOrders quand les orders changent
-  useEffect(() => {
-    if (orders.length > 0) {
-      setFilteredOrders(orders);
-    }
-  }, [orders]);
-
-  // Abonnement aux changements en temps réel
-  useEffect(() => {
-    if (!profile?.id) return;
-    
-    // Configurer l'abonnement aux changements
-    const ordersSubscription = supabase
-      .channel('orders-changes')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'orders',
-        filter: isFreelance 
-          ? `freelance_id=eq.${profile.id}` 
-          : `client_id=eq.${profile.id}`
-      }, () => {
-        console.log("Changement détecté dans les commandes, rechargement...");
-        fetchOrders(true);
-      })
-      .subscribe();
-    
-    return () => {
-      ordersSubscription.unsubscribe();
-    };
-  }, [profile?.id, isFreelance, fetchOrders]);
-
-  // Écouter les événements d'invalidation du cache
-  useEffect(() => {
-    if (!profile?.id || typeof window === 'undefined') return;
-    
-    const handleCacheInvalidation = (event: Event) => {
-      const customEvent = event as CustomEvent;
-      const { fromPath, toPath } = customEvent.detail || {};
-      
-      // Si on navigue vers ou depuis les commandes, rafraîchir les données
-      if (
-        (fromPath && fromPath.includes('/dashboard/orders')) || 
-        (toPath && toPath.includes('/dashboard/orders'))
-      ) {
-        console.log('Cache invalidé - rechargement des commandes');
-        fetchOrders(true);
-      }
-    };
-    
-    window.addEventListener('vynal:cache-invalidated', handleCacheInvalidation);
-    
-    return () => {
-      window.removeEventListener('vynal:cache-invalidated', handleCacheInvalidation);
-    };
-  }, [profile?.id, fetchOrders]);
-
-  // Changement de tab
-  const handleTabChange = (value: TabValue) => {
-    setActiveTab(value);
-    setCurrentPage(1); // Réinitialiser la pagination lors du changement de filtre
-  };
-
   // Effectuer une recherche
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    setCurrentPage(1); // Réinitialiser la pagination lors d'une nouvelle recherche
-    fetchOrders(true);
-  };
-
-  // Navigation dans la pagination
-  const goToNextPage = () => {
-    if (currentPage < Math.ceil(totalOrders / ordersPerPage)) {
-      setCurrentPage(currentPage + 1);
-    }
-  };
-  
-  const goToPreviousPage = () => {
-    if (currentPage > 1) {
-      setCurrentPage(currentPage - 1);
-    }
-  };
-  
-  const goToPage = (pageNumber: number) => {
-    setCurrentPage(pageNumber);
-  };
-
-  // Obtenir le texte de dernière mise à jour
-  const getLastRefreshText = useCallback(() => {
-    if (!lastRefresh) return 'Jamais rafraîchi';
-    
-    const now = new Date();
-    const diff = Math.floor((now.getTime() - lastRefresh.getTime()) / 1000);
-    
-    if (diff < 60) return 'Il y a quelques secondes';
-    if (diff < 3600) return `Il y a ${Math.floor(diff / 60)} min`;
-    if (diff < 86400) return `Il y a ${Math.floor(diff / 3600)} h`;
-    return `Il y a ${Math.floor(diff / 86400)} j`;
-  }, [lastRefresh]);
-
-  const statusLabels = {
-    pending: "En attente",
-    in_progress: "En cours",
-    completed: "Terminée",
-    delivered: "Livrée",
-    revision_requested: "Révision demandée",
-    cancelled: "Annulée",
+    setSearch(tempSearchQuery);
   };
 
   return (
@@ -439,425 +54,231 @@ export default function OrdersPage() {
       <div className="p-2 sm:p-4 space-y-4 sm:space-y-6 pb-8 sm:pb-12 max-w-[1600px] mx-auto">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
           <div>
+            <h1 className="text-xl md:text-2xl font-bold text-vynal-purple-light dark:text-vynal-text-primary">
+              Mes commandes
+            </h1>
+            <p className="text-sm text-vynal-purple-secondary dark:text-vynal-text-secondary">
+              {isFreelance 
+                ? "Gérez les commandes de vos services" 
+                : "Suivez les commandes de services que vous avez passées"}
+            </p>
           </div>
-          {!isFreelance && (
-            <Button asChild>
-              <Link href="/services">
-                <ShoppingBag className="h-4 w-4 mr-2" />
-                Trouver un service
-              </Link>
+          
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={refreshOrders}
+              variant="outline"
+              size="sm"
+              disabled={isRefreshing}
+              className="flex gap-1 items-center text-xs text-vynal-purple-secondary hover:text-vynal-accent-secondary dark:text-vynal-text-secondary dark:hover:text-vynal-accent-primary"
+            >
+              <RefreshCcw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+              <span>Actualiser</span>
             </Button>
-          )}
-        </div>
-
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
-          <Card className="overflow-hidden border border-vynal-accent-primary/20 shadow-sm bg-white relative before:absolute before:inset-0 before:bg-gradient-to-br before:from-vynal-accent-primary/20 before:via-vynal-accent-primary/10 before:to-white before:rounded-lg dark:bg-vynal-purple-dark/20 dark:before:from-vynal-accent-primary/20 dark:before:via-vynal-purple-secondary/10 dark:before:to-transparent hover:shadow-md transition-shadow duration-300">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-2 pt-2 sm:px-6 sm:pt-6 relative z-10">
-              <CardTitle className="text-xs sm:text-base md:text-lg font-medium">
-                <div className="flex items-center">
-                  <div className="mr-2 p-1 sm:p-1.5 rounded-full bg-gradient-to-tr from-vynal-accent-primary/40 to-vynal-accent-primary/20 shadow-sm dark:from-vynal-purple-secondary/30 dark:to-vynal-purple-secondary/20 flex-shrink-0">
-                    <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-vynal-accent-primary dark:text-vynal-accent-primary" />
-                  </div>
-                  <span className="truncate text-vynal-purple-light dark:text-vynal-text-primary">En cours</span>
-                </div>
-              </CardTitle>
-              <InfoTooltip 
-                text="Les commandes en cours comprennent celles en statut 'En attente', 'En cours' et 'Révision demandée'. Ce sont les commandes qui nécessitent une action ou sont en train d'être traitées."
-                position="bottom"
-                size="xs"
-              />
-            </CardHeader>
-            <CardContent className="px-2 pb-2 sm:px-6 sm:pb-6 relative z-10">
-              <div className="text-lg sm:text-2xl font-bold text-vynal-purple-light dark:text-vynal-text-primary">
-                {activeOrders}
-              </div>
-              <div className="flex items-center mt-1">
-                <div className="h-2 w-2 rounded-full bg-gradient-to-r from-vynal-accent-primary to-vynal-accent-secondary mr-1"></div>
-                <p className="text-[10px] sm:text-xs text-vynal-accent-secondary dark:text-emerald-400 truncate">
-                  Commandes actives
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="overflow-hidden border border-vynal-accent-secondary/20 shadow-sm bg-white relative before:absolute before:inset-0 before:bg-gradient-to-br before:from-vynal-accent-secondary/20 before:via-vynal-accent-secondary/10 before:to-white before:rounded-lg dark:bg-vynal-purple-dark/20 dark:before:from-vynal-accent-secondary/20 dark:before:via-vynal-purple-secondary/10 dark:before:to-transparent hover:shadow-md transition-shadow duration-300">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-2 pt-2 sm:px-6 sm:pt-6 relative z-10">
-              <CardTitle className="text-xs sm:text-base md:text-lg font-medium">
-                <div className="flex items-center">
-                  <div className="mr-2 p-1 sm:p-1.5 rounded-full bg-gradient-to-tr from-vynal-accent-secondary/40 to-vynal-accent-secondary/20 shadow-sm dark:from-vynal-purple-secondary/30 dark:to-vynal-purple-secondary/20 flex-shrink-0">
-                    <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 text-vynal-accent-secondary dark:text-vynal-accent-secondary" />
-                  </div>
-                  <span className="truncate text-vynal-purple-light dark:text-vynal-text-primary">Complétées</span>
-                </div>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="px-2 pb-2 sm:px-6 sm:pb-6 relative z-10">
-              <div className="text-lg sm:text-2xl font-bold text-vynal-purple-light dark:text-vynal-text-primary">
-                {completedOrders}
-              </div>
-              <div className="flex items-center mt-1">
-                <div className="text-[10px] sm:text-xs px-1.5 py-0.5 bg-gradient-to-r from-vynal-accent-secondary/30 to-vynal-accent-secondary/20 text-vynal-accent-secondary rounded-md dark:from-vynal-purple-secondary/30 dark:to-vynal-purple-secondary/20 dark:text-vynal-accent-secondary truncate">
-                  Terminées
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="overflow-hidden border border-vynal-purple-secondary/20 shadow-sm bg-white relative before:absolute before:inset-0 before:bg-gradient-to-br before:from-vynal-purple-secondary/20 before:via-vynal-purple-secondary/10 before:to-white before:rounded-lg dark:bg-vynal-purple-dark/20 dark:before:from-amber-400/20 dark:before:via-vynal-purple-secondary/10 dark:before:to-transparent hover:shadow-md transition-shadow duration-300">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-2 pt-2 sm:px-6 sm:pt-6 relative z-10">
-              <CardTitle className="text-xs sm:text-base md:text-lg font-medium">
-                <div className="flex items-center">
-                  <div className="mr-2 p-1 sm:p-1.5 rounded-full bg-gradient-to-tr from-vynal-purple-secondary/40 to-vynal-purple-secondary/20 shadow-sm dark:from-vynal-purple-secondary/30 dark:to-vynal-purple-secondary/20 flex-shrink-0">
-                    <Package className="h-3 w-3 sm:h-4 sm:w-4 text-vynal-purple-secondary dark:text-amber-400" />
-                  </div>
-                  <span className="truncate text-vynal-purple-light dark:text-vynal-text-primary">Livrées</span>
-                </div>
-              </CardTitle>
-              <InfoTooltip 
-                text="Les commandes livrées sont celles que le freelance a terminées et livrées, mais que vous n'avez pas encore validées. Vous devez les vérifier et les accepter ou demander une révision."
-                position="bottom"
-                size="xs"
-              />
-            </CardHeader>
-            <CardContent className="px-2 pb-2 sm:px-6 sm:pb-6 relative z-10">
-              <div className="text-lg sm:text-2xl font-bold text-vynal-purple-light dark:text-vynal-text-primary">
-                {pendingDelivery}
-              </div>
-              <div className="flex items-center mt-1">
-                <div className="text-[10px] sm:text-xs px-1.5 py-0.5 bg-gradient-to-r from-vynal-purple-secondary/30 to-vynal-purple-secondary/20 text-vynal-purple-secondary rounded-md dark:from-vynal-purple-secondary/30 dark:to-vynal-purple-secondary/20 dark:text-amber-400 truncate">
-                  En attente de validation
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="overflow-hidden border border-vynal-accent-primary/20 shadow-sm bg-white relative before:absolute before:inset-0 before:bg-gradient-to-br before:from-vynal-accent-primary/20 before:via-vynal-accent-primary/10 before:to-white before:rounded-lg dark:bg-vynal-purple-dark/20 dark:before:from-emerald-400/20 dark:before:via-vynal-purple-secondary/10 dark:before:to-transparent hover:shadow-md transition-shadow duration-300">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-2 pt-2 sm:px-6 sm:pt-6 relative z-10">
-              <CardTitle className="text-xs sm:text-base md:text-lg font-medium">
-                <div className="flex items-center">
-                  <div className="mr-2 p-1 sm:p-1.5 rounded-full bg-gradient-to-tr from-vynal-accent-primary/40 to-vynal-accent-primary/20 shadow-sm dark:from-vynal-purple-secondary/30 dark:to-vynal-purple-secondary/20 flex-shrink-0">
-                    <BarChart className="h-3 w-3 sm:h-4 sm:w-4 text-vynal-accent-primary dark:text-emerald-400" />
-                  </div>
-                  <span className="truncate text-vynal-purple-light dark:text-vynal-text-primary">Total</span>
-                </div>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="px-2 pb-2 sm:px-6 sm:pb-6 relative z-10">
-              <div className="text-lg sm:text-2xl font-bold text-vynal-purple-light dark:text-vynal-text-primary">
-                {formatPrice(totalOrdersValue)}
-              </div>
-              <div className="flex items-center mt-1">
-                <div className="text-[10px] sm:text-xs px-1.5 py-0.5 bg-gradient-to-r from-vynal-accent-primary/30 to-vynal-accent-primary/20 text-vynal-accent-primary rounded-md dark:from-vynal-purple-secondary/30 dark:to-vynal-purple-secondary/20 dark:text-emerald-400 truncate">
-                  Valeur commandes
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Search & Filter */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
-          <Card className="md:col-span-2 border border-vynal-purple-secondary/10 shadow-sm bg-white dark:bg-vynal-purple-dark/10">
-            <CardContent className="p-3 sm:p-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-vynal-purple-secondary dark:text-vynal-accent-secondary/80" />
-                <Input
-                  placeholder="Rechercher une commande..."
-                  className="pl-9 text-xs sm:text-sm h-9 sm:h-10 border-vynal-purple-secondary/20 focus-visible:ring-vynal-accent-primary dark:bg-vynal-purple-dark/30 dark:border-vynal-purple-secondary/30 dark:text-vynal-text-primary"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="border border-vynal-purple-secondary/10 shadow-sm bg-white dark:bg-vynal-purple-dark/10">
-            <CardContent className="p-3 sm:p-4 flex justify-between items-center">
-              <div className="flex items-center">
-                <Filter className="h-4 w-4 mr-2 text-vynal-purple-secondary dark:text-vynal-accent-secondary/80" />
-                <span className="text-xs sm:text-sm font-medium text-vynal-purple-light dark:text-vynal-text-primary">Filtrer</span>
-              </div>
-              <Button 
-                size="sm" 
-                className="text-xs sm:text-sm h-7 sm:h-8 px-2 sm:px-3 border-vynal-purple-secondary/20 text-vynal-purple-secondary hover:text-vynal-accent-secondary hover:border-vynal-accent-secondary/30 dark:border-vynal-purple-secondary/30 dark:text-vynal-accent-secondary"
-                variant="outline"
-              >
-                Appliquer
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Tabs */}
-        <Tabs 
-          defaultValue="all" 
-          value={activeTab} 
-          onValueChange={(value) => setActiveTab(value as TabValue)}
-          className="space-y-4"
-        >
-          <div className="overflow-x-auto pb-1 scrollbar-hide">
-            <TabsList className="bg-white/80 dark:bg-vynal-purple-dark/20 border border-vynal-purple-secondary/10 p-1 rounded-lg inline-flex whitespace-nowrap w-max min-w-full">
-              <TabsTrigger 
-                value="all" 
-                className="text-[10px] sm:text-xs data-[state=active]:bg-gradient-to-r data-[state=active]:from-vynal-accent-primary data-[state=active]:to-vynal-accent-secondary data-[state=active]:text-white dark:data-[state=active]:text-vynal-text-primary"
-              >
-                Toutes
-              </TabsTrigger>
-              <TabsTrigger 
-                value="pending"
-                className="text-[10px] sm:text-xs data-[state=active]:bg-gradient-to-r data-[state=active]:from-vynal-accent-primary data-[state=active]:to-vynal-accent-secondary data-[state=active]:text-white dark:data-[state=active]:text-vynal-text-primary"
-              >
-                En attente
-              </TabsTrigger>
-              <TabsTrigger 
-                value="in_progress"
-                className="text-[10px] sm:text-xs data-[state=active]:bg-gradient-to-r data-[state=active]:from-vynal-accent-primary data-[state=active]:to-vynal-accent-secondary data-[state=active]:text-white dark:data-[state=active]:text-vynal-text-primary"
-              >
-                En cours
-              </TabsTrigger>
-              <TabsTrigger 
-                value="delivered"
-                className="text-[10px] sm:text-xs data-[state=active]:bg-gradient-to-r data-[state=active]:from-vynal-accent-primary data-[state=active]:to-vynal-accent-secondary data-[state=active]:text-white dark:data-[state=active]:text-vynal-text-primary"
-              >
-                Livrées
-              </TabsTrigger>
-              <TabsTrigger 
-                value="revision_requested"
-                className="text-[10px] sm:text-xs data-[state=active]:bg-gradient-to-r data-[state=active]:from-vynal-accent-primary data-[state=active]:to-vynal-accent-secondary data-[state=active]:text-white dark:data-[state=active]:text-vynal-text-primary"
-              >
-                Révision
-              </TabsTrigger>
-              <TabsTrigger 
-                value="completed"
-                className="text-[10px] sm:text-xs data-[state=active]:bg-gradient-to-r data-[state=active]:from-vynal-accent-primary data-[state=active]:to-vynal-accent-secondary data-[state=active]:text-white dark:data-[state=active]:text-vynal-text-primary"
-              >
-                Terminées
-              </TabsTrigger>
-            </TabsList>
+            
+            <div className="text-xs text-vynal-purple-secondary/70 dark:text-vynal-text-secondary/70">
+              {getLastRefreshText()}
+            </div>
           </div>
-          
-          <TabsContent value="all" className="space-y-4 m-0">
-            {filteredOrders.length > 0 ? (
-              <>
-                <div className="grid grid-cols-1 gap-3 sm:gap-4">
-                  {filteredOrders.map((order) => (
-                    <OrderCard
-                      key={order.id}
-                      order={{
-                        ...order,
-                        is_client_view: !isFreelance
-                      }}
-                    />
-                  ))}
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+          <Card className="bg-white dark:bg-vynal-purple-dark dark:border-vynal-purple-secondary/20 dark:shadow-vynal-purple-secondary/5">
+            <CardContent className="p-3 sm:p-4 md:p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-vynal-purple-secondary dark:text-vynal-text-secondary">Total des commandes</p>
+                  <h2 className="text-xl sm:text-2xl font-bold text-vynal-purple-dark dark:text-vynal-text-primary">
+                    {loading ? "..." : stats.totalCount}
+                  </h2>
                 </div>
+                <div className="h-10 w-10 rounded-lg bg-vynal-purple-light/10 flex items-center justify-center dark:bg-vynal-purple-secondary/20">
+                  <ShoppingBag className="h-5 w-5 text-vynal-purple-light dark:text-vynal-accent-primary" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white dark:bg-vynal-purple-dark dark:border-vynal-purple-secondary/20 dark:shadow-vynal-purple-secondary/5">
+            <CardContent className="p-3 sm:p-4 md:p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-vynal-purple-secondary dark:text-vynal-text-secondary">Commandes actives</p>
+                  <h2 className="text-xl sm:text-2xl font-bold text-vynal-purple-dark dark:text-vynal-text-primary">
+                    {loading ? "..." : stats.activeOrders}
+                  </h2>
+                </div>
+                <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center dark:bg-blue-900/20">
+                  <Clock className="h-5 w-5 text-blue-500 dark:text-blue-400" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white dark:bg-vynal-purple-dark dark:border-vynal-purple-secondary/20 dark:shadow-vynal-purple-secondary/5">
+            <CardContent className="p-3 sm:p-4 md:p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-vynal-purple-secondary dark:text-vynal-text-secondary">Commandes terminées</p>
+                  <h2 className="text-xl sm:text-2xl font-bold text-vynal-purple-dark dark:text-vynal-text-primary">
+                    {loading ? "..." : stats.completedOrders}
+                  </h2>
+                </div>
+                <div className="h-10 w-10 rounded-lg bg-green-100 flex items-center justify-center dark:bg-green-900/20">
+                  <CheckCircle className="h-5 w-5 text-green-500 dark:text-green-400" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white dark:bg-vynal-purple-dark dark:border-vynal-purple-secondary/20 dark:shadow-vynal-purple-secondary/5">
+            <CardContent className="p-3 sm:p-4 md:p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-vynal-purple-secondary dark:text-vynal-text-secondary">Valeur totale</p>
+                  <h2 className="text-xl sm:text-2xl font-bold text-vynal-purple-dark dark:text-vynal-text-primary">
+                    {loading ? "..." : formatPrice(stats.totalValue)}
+                  </h2>
+                </div>
+                <div className="h-10 w-10 rounded-lg bg-purple-100 flex items-center justify-center dark:bg-vynal-purple-secondary/20">
+                  <BarChart className="h-5 w-5 text-vynal-accent-secondary dark:text-vynal-accent-primary" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <Card className="bg-white border border-gray-100 dark:bg-vynal-purple-dark dark:border-vynal-purple-secondary/20 dark:shadow-vynal-purple-secondary/5">
+          <CardHeader>
+            <div className="flex flex-col sm:flex-row gap-2 sm:items-center justify-between">
+              <CardTitle className="text-lg sm:text-xl text-vynal-purple-light dark:text-vynal-text-primary">
+                Liste des commandes
+              </CardTitle>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <form onSubmit={handleSearch} className="relative">
+                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-vynal-purple-secondary dark:text-vynal-text-secondary" />
+                  <Input
+                    type="text"
+                    placeholder="Rechercher..."
+                    className="pl-8 bg-white dark:bg-vynal-purple-dark/50 border-vynal-purple-secondary/20 dark:border-vynal-purple-secondary/30 w-full sm:w-[200px] text-sm text-vynal-purple-dark dark:text-vynal-text-primary"
+                    value={tempSearchQuery}
+                    onChange={(e) => setTempSearchQuery(e.target.value)}
+                  />
+                </form>
                 
-                {totalOrders > ordersPerPage && (
-                  <div className="flex justify-center items-center mt-8 space-x-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={goToPreviousPage}
-                      disabled={currentPage === 1}
-                      className="h-8 w-8 p-0 flex items-center justify-center border-vynal-purple-secondary/20 text-vynal-purple-secondary hover:text-vynal-accent-primary hover:border-vynal-accent-primary/30 dark:border-vynal-purple-secondary/30 dark:text-vynal-text-secondary"
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                    </Button>
+                <Button variant="outline" size="icon" disabled>
+                  <Filter className="h-4 w-4 text-vynal-purple-secondary dark:text-vynal-text-secondary" />
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <Tabs value={activeTab} onValueChange={(value) => setTab(value as typeof activeTab)}>
+            <div className="px-4 sm:px-6">
+              <TabsList className="w-full max-w-3xl overflow-x-auto scrollbar-hide mb-4 bg-white dark:bg-vynal-purple-dark/50">
+                <TabsTrigger value="all" className="text-xs sm:text-sm">
+                  Toutes
+                </TabsTrigger>
+                <TabsTrigger value="pending" className="text-xs sm:text-sm">
+                  En attente
+                </TabsTrigger>
+                <TabsTrigger value="in_progress" className="text-xs sm:text-sm">
+                  En cours
+                </TabsTrigger>
+                <TabsTrigger value="revision_requested" className="text-xs sm:text-sm">
+                  Révision
+                </TabsTrigger>
+                <TabsTrigger value="delivered" className="text-xs sm:text-sm">
+                  Livrées
+                </TabsTrigger>
+                <TabsTrigger value="completed" className="text-xs sm:text-sm">
+                  Terminées
+                </TabsTrigger>
+              </TabsList>
+            </div>
+            <CardContent>
+              <TabsContent value={activeTab} className="mt-0">
+                {loading ? (
+                  <div className="flex justify-center items-center py-20">
+                    <div className="flex flex-col items-center space-y-2">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-vynal-accent-secondary"></div>
+                      <p className="text-sm text-vynal-purple-secondary dark:text-vynal-text-secondary">Chargement des commandes...</p>
+                    </div>
+                  </div>
+                ) : orders.length > 0 ? (
+                  <div className="grid grid-cols-1 gap-4">
+                    {orders.map((order) => (
+                      <OrderCard key={order.id} order={order} />
+                    ))}
                     
-                    <div className="flex items-center space-x-1">
-                      {Array.from({ length: Math.ceil(totalOrders / ordersPerPage) }, (_, i) => i + 1)
-                        .filter(page => {
-                          // Afficher seulement les pages proches de la page actuelle
-                          const range = 1; // +/- 1 page
-                          return (
-                            page === 1 || 
-                            page === Math.ceil(totalOrders / ordersPerPage) || 
-                            (page >= currentPage - range && page <= currentPage + range)
-                          );
-                        })
-                        .map((page, index, array) => {
-                          // Ajouter des points de suspension si nécessaire
-                          if (index > 0 && array[index - 1] !== page - 1) {
-                            return (
-                              <React.Fragment key={`ellipsis-${page}`}>
-                                <span className="text-vynal-purple-secondary/60 dark:text-vynal-text-secondary/60 text-xs px-1">...</span>
-                                <Button
-                                  variant={currentPage === page ? "default" : "outline"}
-                                  size="sm"
-                                  onClick={() => goToPage(page)}
-                                  className={`h-8 w-8 p-0 text-xs ${
-                                    currentPage === page 
-                                      ? "bg-gradient-to-r from-vynal-accent-primary to-vynal-accent-secondary text-white"
-                                      : "border-vynal-purple-secondary/20 text-vynal-purple-secondary hover:text-vynal-accent-primary hover:border-vynal-accent-primary/30 dark:border-vynal-purple-secondary/30 dark:text-vynal-text-secondary"
-                                  }`}
-                                >
-                                  {page}
-                                </Button>
-                              </React.Fragment>
-                            );
+                    {/* Pagination */}
+                    {totalPages > 1 && (
+                      <div className="flex justify-center items-center mt-6 space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={goToPreviousPage}
+                          disabled={currentPage === 1}
+                          className="h-8 w-8 p-0 flex items-center justify-center"
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        
+                        {/* Page buttons */}
+                        {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                          // Calculate which page numbers to show
+                          let pageNum = i + 1;
+                          if (totalPages > 5 && currentPage > 3) {
+                            pageNum = Math.min(currentPage - 3 + i, totalPages);
+                            if (pageNum > totalPages - 4 && i < 4) {
+                              pageNum = totalPages - 4 + i;
+                            }
                           }
                           
                           return (
                             <Button
-                              key={page}
-                              variant={currentPage === page ? "default" : "outline"}
+                              key={`page-${pageNum}`}
+                              variant={currentPage === pageNum ? "default" : "outline"}
                               size="sm"
-                              onClick={() => goToPage(page)}
-                              className={`h-8 w-8 p-0 text-xs ${
-                                currentPage === page 
-                                  ? "bg-gradient-to-r from-vynal-accent-primary to-vynal-accent-secondary text-white"
-                                  : "border-vynal-purple-secondary/20 text-vynal-purple-secondary hover:text-vynal-accent-primary hover:border-vynal-accent-primary/30 dark:border-vynal-purple-secondary/30 dark:text-vynal-text-secondary"
-                              }`}
+                              onClick={() => goToPage(pageNum)}
+                              className="h-8 w-8 p-0"
                             >
-                              {page}
+                              {pageNum}
                             </Button>
                           );
-                        })
-                      }
+                        })}
+                        
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={goToNextPage}
+                          disabled={currentPage === totalPages}
+                          className="h-8 w-8 p-0 flex items-center justify-center"
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-20">
+                    <div className="text-vynal-purple-secondary dark:text-vynal-text-secondary">
+                      {searchQuery 
+                        ? "Aucune commande trouvée correspondant à votre recherche" 
+                        : isFreelance 
+                          ? "Vous n'avez pas encore de commandes pour vos services" 
+                          : "Vous n'avez pas encore passé de commande"}
                     </div>
-                    
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={goToNextPage}
-                      disabled={currentPage === Math.ceil(totalOrders / ordersPerPage)}
-                      className="h-8 w-8 p-0 flex items-center justify-center border-vynal-purple-secondary/20 text-vynal-purple-secondary hover:text-vynal-accent-primary hover:border-vynal-accent-primary/30 dark:border-vynal-purple-secondary/30 dark:text-vynal-text-secondary"
-                    >
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
+                    {!searchQuery && !isFreelance && (
+                      <Button asChild className="mt-4">
+                        <Link href="/services">Explorer les services</Link>
+                      </Button>
+                    )}
                   </div>
                 )}
-              </>
-            ) : (
-              <Card className="border border-vynal-purple-secondary/10 shadow-sm bg-white dark:bg-vynal-purple-dark/20">
-                <CardContent className="flex flex-col items-center justify-center py-10 sm:py-12 px-4 text-center">
-                  <div className="h-14 w-14 sm:h-16 sm:w-16 bg-vynal-accent-primary/10 dark:bg-vynal-purple-secondary/20 rounded-full flex items-center justify-center mb-3 sm:mb-4">
-                    <ShoppingBag className="h-7 w-7 sm:h-8 sm:w-8 text-vynal-accent-primary dark:text-vynal-accent-secondary" />
-                  </div>
-                  <h3 className="text-base sm:text-lg font-medium text-vynal-purple-light mb-1 dark:text-vynal-text-primary">Aucune commande trouvée</h3>
-                  <p className="text-sm text-vynal-purple-secondary max-w-md mb-4 sm:mb-6 dark:text-vynal-text-secondary">
-                    {isFreelance 
-                      ? "Vous n'avez pas encore reçu de commandes correspondant à ces critères."
-                      : "Vous n'avez pas encore passé de commandes correspondant à ces critères."}
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-          
-          {/* Les autres TabsContent pour chaque statut */}
-          {["pending", "in_progress", "delivered", "revision_requested", "completed"].map((status) => (
-            <TabsContent key={status} value={status} className="space-y-4 m-0">
-              {filteredOrders.length > 0 ? (
-                <>
-                  <div className="grid grid-cols-1 gap-3 sm:gap-4">
-                    {filteredOrders.map((order) => (
-                      <OrderCard
-                        key={order.id}
-                        order={{
-                          ...order,
-                          is_client_view: !isFreelance
-                        }}
-                      />
-                    ))}
-                  </div>
-                  
-                  {totalOrders > ordersPerPage && (
-                    <div className="flex justify-center items-center mt-8 space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={goToPreviousPage}
-                        disabled={currentPage === 1}
-                        className="h-8 w-8 p-0 flex items-center justify-center border-vynal-purple-secondary/20 text-vynal-purple-secondary hover:text-vynal-accent-primary hover:border-vynal-accent-primary/30 dark:border-vynal-purple-secondary/30 dark:text-vynal-text-secondary"
-                      >
-                        <ChevronLeft className="h-4 w-4" />
-                      </Button>
-                      
-                      <div className="flex items-center space-x-1">
-                        {Array.from({ length: Math.ceil(totalOrders / ordersPerPage) }, (_, i) => i + 1)
-                          .filter(page => {
-                            // Afficher seulement les pages proches de la page actuelle
-                            const range = 1; // +/- 1 page
-                            return (
-                              page === 1 || 
-                              page === Math.ceil(totalOrders / ordersPerPage) || 
-                              (page >= currentPage - range && page <= currentPage + range)
-                            );
-                          })
-                          .map((page, index, array) => {
-                            // Ajouter des points de suspension si nécessaire
-                            if (index > 0 && array[index - 1] !== page - 1) {
-                              return (
-                                <React.Fragment key={`ellipsis-${page}`}>
-                                  <span className="text-vynal-purple-secondary/60 dark:text-vynal-text-secondary/60 text-xs px-1">...</span>
-                                  <Button
-                                    variant={currentPage === page ? "default" : "outline"}
-                                    size="sm"
-                                    onClick={() => goToPage(page)}
-                                    className={`h-8 w-8 p-0 text-xs ${
-                                      currentPage === page 
-                                        ? "bg-gradient-to-r from-vynal-accent-primary to-vynal-accent-secondary text-white"
-                                        : "border-vynal-purple-secondary/20 text-vynal-purple-secondary hover:text-vynal-accent-primary hover:border-vynal-accent-primary/30 dark:border-vynal-purple-secondary/30 dark:text-vynal-text-secondary"
-                                    }`}
-                                  >
-                                    {page}
-                                  </Button>
-                                </React.Fragment>
-                              );
-                            }
-                            
-                            return (
-                              <Button
-                                key={page}
-                                variant={currentPage === page ? "default" : "outline"}
-                                size="sm"
-                                onClick={() => goToPage(page)}
-                                className={`h-8 w-8 p-0 text-xs ${
-                                  currentPage === page 
-                                    ? "bg-gradient-to-r from-vynal-accent-primary to-vynal-accent-secondary text-white"
-                                    : "border-vynal-purple-secondary/20 text-vynal-purple-secondary hover:text-vynal-accent-primary hover:border-vynal-accent-primary/30 dark:border-vynal-purple-secondary/30 dark:text-vynal-text-secondary"
-                                }`}
-                              >
-                                {page}
-                              </Button>
-                            );
-                          })
-                        }
-                      </div>
-                      
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={goToNextPage}
-                        disabled={currentPage === Math.ceil(totalOrders / ordersPerPage)}
-                        className="h-8 w-8 p-0 flex items-center justify-center border-vynal-purple-secondary/20 text-vynal-purple-secondary hover:text-vynal-accent-primary hover:border-vynal-accent-primary/30 dark:border-vynal-purple-secondary/30 dark:text-vynal-text-secondary"
-                      >
-                        <ChevronRight className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <Card className="border border-vynal-purple-secondary/10 shadow-sm bg-white dark:bg-vynal-purple-dark/20">
-                  <CardContent className="flex flex-col items-center justify-center py-10 sm:py-12 px-4 text-center">
-                    <div className="h-14 w-14 sm:h-16 sm:w-16 bg-vynal-accent-primary/10 dark:bg-vynal-purple-secondary/20 rounded-full flex items-center justify-center mb-3 sm:mb-4">
-                      <ShoppingBag className="h-7 w-7 sm:h-8 sm:w-8 text-vynal-accent-primary dark:text-vynal-accent-secondary" />
-                    </div>
-                    <h3 className="text-base sm:text-lg font-medium text-vynal-purple-light mb-1 dark:text-vynal-text-primary">Aucune commande {statusLabels[status as OrderStatus].toLowerCase()}</h3>
-                    <p className="text-sm text-vynal-purple-secondary max-w-md mb-4 sm:mb-6 dark:text-vynal-text-secondary">
-                      Vous n'avez pas de commandes avec le statut "{statusLabels[status as OrderStatus].toLowerCase()}" pour le moment.
-                    </p>
-                  </CardContent>
-                </Card>
-              )}
-            </TabsContent>
-          ))}
-        </Tabs>
-
-        {/* Ajouter l'indicateur de dernière mise à jour */}
-        <div className="text-xs text-slate-400 dark:text-slate-500 text-right mt-4">
-          {isRefreshing ? 'Rafraîchissement en cours...' : `Dernière mise à jour: ${getLastRefreshText()}`}
-        </div>
+              </TabsContent>
+            </CardContent>
+          </Tabs>
+        </Card>
       </div>
     </div>
   );

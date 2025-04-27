@@ -110,15 +110,16 @@ export default function ProfilePage() {
       } else if (error) {
         console.error("Erreur lors de la mise à jour:", error);
         
-        // Afficher un message d'erreur spécifique en fonction du code d'erreur
-        if (error.code === '23505') {
+        // Vérifier si error a une propriété code
+        const errorObj = error as any;
+        if (errorObj.code === '23505') {
           setUpdateError("Ce nom d'utilisateur est déjà utilisé. Veuillez en choisir un autre.");
-        } else if (error.code === '23502') {
+        } else if (errorObj.code === '23502') {
           setUpdateError("Un champ obligatoire est manquant.");
-        } else if (error.code === '23503') {
+        } else if (errorObj.code === '23503') {
           setUpdateError("Une référence invalide a été détectée.");
         } else {
-          setUpdateError(error.message || "Une erreur s'est produite lors de la mise à jour du profil.");
+          setUpdateError(errorObj.message || "Une erreur s'est produite lors de la mise à jour du profil.");
         }
       }
     } catch (error: any) {

@@ -38,6 +38,9 @@ function isValidRoute(pathname: string): boolean {
   );
 }
 
+// Ne pas rediriger ces routes même si l'utilisateur est authentifié
+const noRedirectRoutes = ['/', '/services', '/about', '/how-it-works', '/contact'];
+
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
   const supabase = createMiddlewareClient({ req, res });
@@ -53,6 +56,13 @@ export async function middleware(req: NextRequest) {
   const isAuthRoute = pathname.startsWith('/auth');
   const isDashboardRoute = pathname.startsWith('/dashboard');
   const isAdminRoute = pathname.startsWith('/admin');
+  const isPublicRoute = noRedirectRoutes.includes(pathname) || 
+                      noRedirectRoutes.some(route => pathname.startsWith(`${route}/`));
+  
+  // Si l'utilisateur est sur une route publique, ne jamais le rediriger automatiquement
+  if (isPublicRoute) {
+    return res;
+  }
   
   // Si l'utilisateur est connecté et tente d'accéder à une page d'auth, le rediriger vers le dashboard
   if (session && isAuthRoute) {
@@ -111,7 +121,7 @@ export async function middleware(req: NextRequest) {
 // Spécifier les chemins concernés par le middleware
 export const config = {
   matcher: [
-    // Routes à protéger
+    // Routes à protéger - uniquement celles qui nécessitent une authentification
     '/dashboard/:path*',
     '/admin/:path*',
     // Routes d'authentification à gérer

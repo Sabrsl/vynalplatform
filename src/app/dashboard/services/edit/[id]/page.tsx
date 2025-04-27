@@ -198,97 +198,66 @@ export default function EditServicePage() {
       }
       
       if (!formData.category_id) {
-        throw new Error("Veuillez sélectionner une catégorie");
+        throw new Error("La catégorie est obligatoire");
       }
       
-      // Le slug est généré côté client pour plus de contrôle et stabilité
-      // Mais on le génère seulement s'il n'existe pas déjà (création initiale)
-      const slug = formData.slug || slugify(formData.title);
+      // Conversion et validation du prix
+      if (!formData.price) {
+        throw new Error("Le prix est obligatoire");
+      }
       
-      try {
-        price = parseFloat(formData.price);
-        if (isNaN(price) || price <= 0) {
-          throw new Error();
-        }
-      } catch {
+      price = Number(formData.price.replace(/\s/g, "").replace(",", "."));
+      
+      if (isNaN(price) || price <= 0) {
         throw new Error("Le prix doit être un nombre positif");
       }
       
-      try {
-        delivery_time = parseInt(formData.delivery_time.toString());
-        if (isNaN(delivery_time) || delivery_time <= 0) {
-          throw new Error();
-        }
-      } catch {
-        throw new Error("Le délai de livraison doit être un nombre entier positif");
+      // Conversion et validation du temps de livraison
+      if (!formData.delivery_time) {
+        throw new Error("Le temps de livraison est obligatoire");
       }
       
-      // Vérifier que des images sont fournies
-      if (images.length === 0) {
-        throw new Error("Veuillez ajouter au moins une image pour votre service");
+      delivery_time = Number(formData.delivery_time);
+      
+      if (isNaN(delivery_time) || delivery_time <= 0 || !Number.isInteger(delivery_time)) {
+        throw new Error("Le temps de livraison doit être un nombre entier positif");
       }
-      
-      // Commencer la soumission
-      setIsSubmitting(true);
-      setError(null);
-      
-      console.log("Mise à jour du service:", {
-        id: serviceId,
-        formData: {
-          ...formData,
-          price,
-          delivery_time,
-          slug
-        },
-        images
-      });
-      
-      // Mettre à jour le service dans la base de données via Supabase directement
-      const { data, error: updateError } = await supabase
-        .from('services')
-        .update({
-          title: formData.title,
-          description: formData.description,
-          price: price,
-          delivery_time: delivery_time,
-          category_id: formData.category_id,
-          subcategory_id: formData.subcategory_id || null,
-          slug: slug,
-          active: typeof formData.active === 'string' 
-            ? formData.active === 'true' 
-            : !!formData.active,
-          images: images,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', serviceId)
-        .select()
-        .single();
-      
-      if (updateError) {
-        console.error("Erreur lors de la mise à jour du service:", updateError);
-        throw new Error(`Erreur lors de la mise à jour: ${updateError.message}`);
-      }
-      
-      if (!data) {
-        throw new Error("Erreur: Le service n'a pas pu être mis à jour correctement");
-      }
-      
-      console.log("Service mis à jour avec succès:", data);
-      
-      // Publier un événement personnalisé pour informer les autres composants
-      window.dispatchEvent(new CustomEvent('vynal:service-updated', { 
-        detail: { 
-          serviceId,
-          service: data
-        } 
-      }));
-      
-      // Rediriger vers la page de détails du service
-      router.push(`/dashboard/services/${serviceId}`);
-      
     } catch (err: any) {
-      console.error("Erreur lors de la mise à jour du service:", err);
-      setError(err.message || "Une erreur est survenue lors de la mise à jour du service");
+      setError(err.message || "Une erreur est survenue lors de la validation du formulaire");
+      return;
+    }
+    
+    try {
+      setIsSubmitting(true);
+      
+      // Générer un slug à partir du titre
+      const slug = slugify(formData.title);
+      
+      const result = await updateService(serviceId, {
+        title: formData.title,
+        description: formData.description,
+        price: price,
+        delivery_time: delivery_time,
+        category_id: formData.category_id,
+        subcategory_id: formData.subcategory_id || null,
+        slug,
+        active: formData.active === true || formData.active === "true",
+        images: images,
+      } as any);
+      
+      if (!result.success) {
+        throw new Error(typeof result.error === 'string' ? result.error : 'Une erreur est survenue lors de la mise à jour du service');
+      }
+      
+      // Ajouter un délai court avant la redirection pour éviter les problèmes de communication asynchrone
+      setTimeout(() => {
+        // Rediriger vers la page de détails du service
+        router.push(`/dashboard/services/${serviceId}`);
+      }, 100);
+    } catch (err: any) {
+      setError(err.message || "Une erreur est survenue lors de la modification du service");
+      console.error("Erreur lors de la modification du service:", err);
+    } finally {
       setIsSubmitting(false);
     }
   };

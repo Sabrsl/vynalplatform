@@ -175,7 +175,7 @@ export default function SettingsPage() {
       const { data, error } = await supabase
         .from("conversations")
         .select("*")
-        .or(`sender_id.eq.${authUser?.id},receiver_id.eq.${authUser?.id}`);
+        .or(`id.in.(select conversation_id from conversation_participants where participant_id = ${authUser?.id})`);
         
       if (error) throw error;
       return data || [];

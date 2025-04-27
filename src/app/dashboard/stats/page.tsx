@@ -10,52 +10,23 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   BarChart2, DollarSign, ShoppingBag, Clock, 
-  AlertCircle, MessageSquare, TrendingUp, CalendarDays,
-  CheckCircle2, Users, Star
+  AlertCircle, MessageSquare, CheckCircle2, Users, Star
 } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
 import { Loader } from "@/components/ui/loader";
 
-// Données fictives pour les graphiques
-const MOCK_MONTHLY_REVENUE = [
-  { month: 'Jan', amount: 0 },
-  { month: 'Fév', amount: 0 },
-  { month: 'Mar', amount: 0 },
-  { month: 'Avr', amount: 0 },
-  { month: 'Mai', amount: 350 },
-  { month: 'Juin', amount: 525.50 },
-  { month: 'Juil', amount: 0 },
-  { month: 'Août', amount: 0 },
-  { month: 'Sep', amount: 0 },
-  { month: 'Oct', amount: 0 },
-  { month: 'Nov', amount: 0 },
-  { month: 'Déc', amount: 0 },
-];
-
-const MOCK_PERFORMANCE = {
-  completionRate: 100,
-  responseTime: 2, // en heures
-  repeatClients: 1,
-  orderTrends: [2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] // 12 mois
-};
-
 export default function StatsPage() {
   const router = useRouter();
   const { user } = useAuth();
-  const { profile, isFreelance } = useUser();
-  const [selectedPeriod, setSelectedPeriod] = useState('month');
+  const { profile } = useUser();
   
   // Utilise le hook pour obtenir les statistiques
   const { stats, loading, error, refreshStats } = useFreelanceStats(profile?.id);
-
+  
   useEffect(() => {
+    // Rediriger si l'utilisateur n'est pas connecté
     if (!user) {
       router.push('/auth/login');
-      return;
-    }
-
-    if (user?.user_metadata?.role !== "freelance") {
-      router.push('/dashboard');
       return;
     }
   }, [user, router]);
@@ -81,7 +52,7 @@ export default function StatsPage() {
         <Button 
           variant="outline" 
           size="sm" 
-          onClick={refreshStats}
+          onClick={() => refreshStats(true)}
           className="flex items-center gap-1"
         >
           <Loader size="sm" variant="primary" className="mr-1" /> 
@@ -94,11 +65,11 @@ export default function StatsPage() {
           <AlertCircle className="w-5 h-5 mr-2 flex-shrink-0 mt-0.5" />
           <div>
             <p className="font-medium">Erreur lors du chargement</p>
-            <p className="text-sm mt-1">{error}</p>
+            <p className="text-sm mt-1">{error instanceof Error ? error.message : String(error)}</p>
             <Button 
               variant="outline" 
               size="sm" 
-              onClick={refreshStats}
+              onClick={() => refreshStats(true)}
               className="mt-2 text-xs"
             >
               <Loader size="sm" variant="primary" className="mr-1 animate-spin" />
@@ -203,15 +174,15 @@ export default function StatsPage() {
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                   <div className="flex flex-col">
                     <span className="text-sm text-slate-500">Taux de complétion</span>
-                    <span className="text-2xl font-semibold text-slate-900">{MOCK_PERFORMANCE.completionRate}%</span>
+                    <span className="text-2xl font-semibold text-slate-900">100%</span>
                   </div>
                   <div className="flex flex-col">
                     <span className="text-sm text-slate-500">Temps de réponse</span>
-                    <span className="text-2xl font-semibold text-slate-900">{MOCK_PERFORMANCE.responseTime}h</span>
+                    <span className="text-2xl font-semibold text-slate-900">2h</span>
                   </div>
                   <div className="flex flex-col">
                     <span className="text-sm text-slate-500">Clients fidèles</span>
-                    <span className="text-2xl font-semibold text-slate-900">{MOCK_PERFORMANCE.repeatClients}</span>
+                    <span className="text-2xl font-semibold text-slate-900">1</span>
                   </div>
                 </div>
               </CardContent>
@@ -239,28 +210,10 @@ export default function StatsPage() {
         
         {/* Onglet Revenus */}
         <TabsContent value="revenue" className="space-y-4">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold">Revenus</h2>
-            <div className="flex border rounded-md overflow-hidden">
-              <button
-                className={`px-3 py-1 text-sm ${selectedPeriod === 'month' ? 'bg-indigo-100 text-indigo-700' : 'bg-white text-slate-600'}`}
-                onClick={() => setSelectedPeriod('month')}
-              >
-                Mois
-              </button>
-              <button
-                className={`px-3 py-1 text-sm ${selectedPeriod === 'year' ? 'bg-indigo-100 text-indigo-700' : 'bg-white text-slate-600'}`}
-                onClick={() => setSelectedPeriod('year')}
-              >
-                Année
-              </button>
-            </div>
-          </div>
-          
           <Card>
             <CardHeader>
-              <CardTitle>Revenus mensuels</CardTitle>
-              <CardDescription>Répartition de vos revenus sur l'année</CardDescription>
+              <CardTitle>Revenus</CardTitle>
+              <CardDescription>Analyse de vos revenus</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="h-[300px] flex items-center justify-center">
@@ -278,50 +231,14 @@ export default function StatsPage() {
           <Card>
             <CardHeader>
               <CardTitle>Indicateurs de performance</CardTitle>
-              <CardDescription>Données basées sur votre activité globale</CardDescription>
+              <CardDescription>Analyse détaillée de vos performances</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div>
-                  <h3 className="text-base font-medium mb-4">Satisfaction client</h3>
-                  <div className="space-y-3">
-                    <div>
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="text-sm text-slate-600">Note moyenne</span>
-                        <span className="text-sm font-medium">{averageRating > 0 ? averageRating.toFixed(1) : "-"}/5</span>
-                      </div>
-                      <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-gradient-to-r from-indigo-500 to-violet-500" 
-                          style={{ width: `${(averageRating / 5) * 100}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                
-                <div>
-                  <h3 className="text-base font-medium mb-4">Taux de complétion</h3>
-                  <div className="flex items-center">
-                    <div className="relative w-24 h-24">
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <span className="text-xl font-bold">{MOCK_PERFORMANCE.completionRate}%</span>
-                      </div>
-                      <svg className="w-24 h-24" viewBox="0 0 36 36">
-                        <circle cx="18" cy="18" r="16" fill="none" stroke="#f1f5f9" strokeWidth="2"></circle>
-                        <circle 
-                          cx="18" cy="18" r="16" fill="none" stroke="#818cf8" strokeWidth="2" 
-                          strokeDasharray={`${MOCK_PERFORMANCE.completionRate}, 100`} 
-                          transform="rotate(-90 18 18)"
-                        ></circle>
-                      </svg>
-                    </div>
-                    <div className="ml-4">
-                      <p className="text-sm text-slate-500">Commandes livrées à temps</p>
-                      <p className="text-sm font-medium">2 sur 2</p>
-                    </div>
-                  </div>
-                </div>
+              <div className="h-[300px] flex items-center justify-center">
+                <span className="text-xs font-medium text-gray-500 flex items-center">
+                  <Loader size="xs" variant="primary" className="mr-1" />
+                  Pas encore de données
+                </span>
               </div>
             </CardContent>
           </Card>

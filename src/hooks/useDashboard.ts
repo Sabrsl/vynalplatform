@@ -1,16 +1,35 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '@/lib/supabase/client';
-import { useUser } from '@/hooks/useUser';
+import { useRouter } from 'next/navigation';
+import { useLastRefresh } from './useLastRefresh';
 import { 
   getCachedData, 
   setCachedData, 
-  invalidateCache, 
-  CACHE_KEYS, 
-  CACHE_EXPIRY,
-  CACHE_PRIORITIES
-} from '@/lib/optimizations';
-import { useLastRefresh } from './useLastRefresh';
+  invalidateCache
+} from '@/lib/optimizations/cache';
+import { useUser } from '@/hooks/useUser';
 import { NavigationLoadingState } from '@/app/providers';
+import { getDashboardConfig } from '@/config/dashboard-config';
+import { createWalletIfNotExists } from '@/lib/supabase/wallets';
+
+// Constantes locales pour éviter les dépendances problématiques
+const CACHE_KEYS = {
+  DASHBOARD_STATS: 'dashboard_stats_',
+  DASHBOARD_ACTIVITIES: 'dashboard_activities_'
+};
+
+// Définition locale des priorités de cache
+const CACHE_PRIORITIES = {
+  HIGH: 'high' as const,
+  MEDIUM: 'medium' as const,
+  LOW: 'low' as const
+};
+
+// Durées d'expiration pour le dashboard
+const CACHE_EXPIRY = {
+  DASHBOARD_STATS: 20 * 60 * 1000,     // 20 minutes
+  DASHBOARD_ACTIVITIES: 20 * 60 * 1000  // 20 minutes
+};
 
 // Type pour les statistiques d'un client
 export interface ClientStats {
@@ -44,29 +63,26 @@ interface UseDashboardOptions {
   useCache?: boolean;
 }
 
-// Configuration des timeouts pour éviter les cascades de requêtes
-const REQUEST_TIMEOUT = 5000; // 5 secondes maximum pour une requête
-const DASHBOARD_LOAD_TIMEOUT = 6000; // Réduit de 8 à 6 secondes pour le chargement complet
-const SPINNER_DEBOUNCE_TIME = 300; // Augmenté de 200ms à 300ms pour éviter le clignotement
-
 /**
- * Hook pour les données du tableau de bord
+ * Hook pour les données du tableau de bord - Version optimisée
  */
 export function useDashboard(options: UseDashboardOptions = {}) {
   const { useCache = true } = options;
-  const { profile, isClient, isFreelance } = useUser({ useCache });
-  const [recentActivities, setRecentActivities] = useState<Activity[]>([]);
-  const [loadingActivities, setLoadingActivities] = useState(false); // Initialisé à false
+  const { profile, isClient, isFreelance } = useUser();
+  const { lastRefresh, updateLastRefresh, getLastRefreshText } = useLastRefresh();
+  const router = useRouter();
   
-  // Statistiques pour les clients
+  // Récupérer la configuration du dashboard en fonction du rôle de l'utilisateur
+  const dashboardConfig = useMemo(() => getDashboardConfig(isClient), [isClient]);
+
+  // États principaux
+  const [recentActivities, setRecentActivities] = useState<Activity[]>([]);
   const [clientStats, setClientStats] = useState<ClientStats>({
     activeOrders: 0,
     unreadMessages: 0,
     pendingDeliveries: 0,
     pendingReviews: 0
   });
-  
-  // Statistiques pour les freelances
   const [freelanceStats, setFreelanceStats] = useState<FreelanceStats>({
     activeOrders: 0,
     unreadMessages: 0,
@@ -75,882 +91,676 @@ export function useDashboard(options: UseDashboardOptions = {}) {
     servicesCount: 0
   });
   
-  const [loadingStats, setLoadingStats] = useState(false); // Initialisé à false
+  // États d'UI et contrôle
+  const [loadingStats, setLoadingStats] = useState(false);
+  const [loadingActivities, setLoadingActivities] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshCount, setRefreshCount] = useState(0);
-  const { lastRefresh, updateLastRefresh, getLastRefreshText } = useLastRefresh();
-  // Références pour éviter les appels redondants
-  const fetchingRef = useRef(false);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const spinnerTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [rpcAvailable, setRpcAvailable] = useState<boolean | null>(null);
+  
+  // Références pour éviter les effets de bord
+  const isFetchingRef = useRef(false);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const loadAttemptsRef = useRef(0); // Compter les tentatives de chargement
+  const lastFetchTimeRef = useRef<number>(0);
 
-  // Clés de cache simplifiées
-  const getCacheKey = useCallback(() => {
+  // Fonction memoïsée pour la clé de cache
+  const cacheKey = useMemo(() => {
     if (!useCache || !profile?.id) return '';
-    
-    const role = isClient ? 'client' : 'freelance';
-    return `dashboard_${role}_${profile.id}`;
-  }, [profile?.id, isClient, useCache]);
+    return `${dashboardConfig.cache.keyPrefix}${profile.id}`;
+  }, [profile?.id, dashboardConfig.cache.keyPrefix, useCache]);
 
-  // Fonction spéciale pour afficher les spinners avec un délai
-  const setDebouncedLoadingState = useCallback((
-    setStatsLoading: boolean, 
-    setActivitiesLoading: boolean
-  ) => {
-    // Annuler tout timer de spinner précédent
-    if (spinnerTimeoutRef.current) {
-      clearTimeout(spinnerTimeoutRef.current);
-      spinnerTimeoutRef.current = null;
-    }
-    
-    // Si on désactive le chargement, le faire immédiatement
-    if (!setStatsLoading && !setActivitiesLoading) {
-      setLoadingStats(false);
-      setLoadingActivities(false);
-      return;
-    }
-    
-    // Vérifier si nous avons des données valides avant d'afficher des spinners
-    const hasExistingStats = isClient 
-      ? clientStats.activeOrders > 0 || clientStats.unreadMessages > 0
-      : freelanceStats.activeOrders > 0 || freelanceStats.unreadMessages > 0;
-    const hasExistingActivities = recentActivities.length > 0;
-    
-    // Si nous avons déjà des données, ne pas montrer les spinners sauf si forceRefresh est actif
-    const hasExistingData = hasExistingStats && hasExistingActivities;
-    
-    // Seulement retarder l'affichage du spinner pour éviter le clignotement
-    spinnerTimeoutRef.current = setTimeout(() => {
-      // Seulement activer le spinner si on est toujours en chargement
-      if (fetchingRef.current) {
-        // Si nous avons des données, n'activons pas les spinners tous en même temps
-        // pour éviter l'effet de cascade
-        if (hasExistingData) {
-          // Activer les spinners avec un délai entre eux si nécessaire
-          if (setStatsLoading) {
-            setLoadingStats(true);
-            
-            // Retarder l'activation du second spinner pour éviter la cascade
-            if (setActivitiesLoading) {
-              setTimeout(() => {
-                if (fetchingRef.current) { // Vérifier qu'on est toujours en chargement
-                  setLoadingActivities(true);
-                }
-              }, 300);
-            }
-          } else if (setActivitiesLoading) {
-            setLoadingActivities(true);
+  // S'assurer que l'utilisateur a un wallet lors du premier accès au dashboard
+  useEffect(() => {
+    if (profile?.id) {
+      createWalletIfNotExists(profile.id)
+        .then(walletId => {
+          if (walletId) {
+            console.log(`[Dashboard] Wallet vérifié/créé pour l'utilisateur ${profile.id}: ${walletId}`);
+          } else {
+            console.warn(`[Dashboard] Impossible de vérifier/créer un wallet pour l'utilisateur ${profile.id}`);
           }
-        } else {
-          // Sans données existantes, on peut activer les deux en même temps
-          if (setStatsLoading) setLoadingStats(true);
-          if (setActivitiesLoading) setLoadingActivities(true);
-        }
-      }
-    }, SPINNER_DEBOUNCE_TIME);
-  }, [clientStats, freelanceStats, recentActivities, isClient]);
+        })
+        .catch(err => {
+          console.error('[Dashboard] Erreur lors de la vérification/création du wallet:', err);
+        });
+    }
+  }, [profile?.id]);
 
-  // Fonction pour créer une requête avec timeout
-  const createTimeoutRequest = useCallback(async (apiCall: any) => {
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('La requête a pris trop de temps')), REQUEST_TIMEOUT);
-    });
+  // Vérifier si la fonction RPC est disponible (une seule fois)
+  useEffect(() => {
+    if (rpcAvailable === null) {
+      // Désactiver temporairement la fonction RPC à cause du problème de colonne is_deleted
+      console.log("[Dashboard] Désactivation temporaire de la fonction RPC get_dashboard_stats");
+      setRpcAvailable(false);
+      
+      // Commenté pour éviter l'erreur "column is_deleted does not exist"
+      // checkRPCFunctionExists('get_dashboard_stats').then(available => {
+      //   console.log("[Dashboard] Fonction RPC get_dashboard_stats disponible:", available);
+      //   setRpcAvailable(available);
+      // });
+    }
+  }, [rpcAvailable]);
+
+  // Fonction pour vérifier si la fonction RPC existe
+  async function checkRPCFunctionExists(functionName: string): Promise<boolean> {
+    try {
+      // Tentative d'appel de la fonction avec des paramètres valides pour vérifier son existence
+      const { error } = await supabase.rpc(functionName, { 
+        p_user_id: '00000000-0000-0000-0000-000000000000',
+        p_user_role: 'client' // Utiliser toujours 'client' pour la vérification
+      });
+      
+      // Si l'erreur ne contient pas "function does not exist", la fonction existe
+      // mais peut échouer pour d'autres raisons comme les paramètres invalides
+      const doesNotExist = error?.message?.includes('function does not exist') || 
+                         error?.message?.includes('fonction inexistante');
+      
+      // Vérifier s'il y a une erreur concernant la colonne is_deleted
+      const hasColumnError = error?.message?.includes('column "is_deleted" does not exist');
+      
+      // Si l'erreur est due à la colonne manquante, on considère que la fonction n'est pas disponible
+      if (hasColumnError) {
+        console.log("[Dashboard] La fonction RPC existe mais a une erreur de schéma (colonne is_deleted manquante)");
+        return false;
+      }
+      
+      return !doesNotExist;
+    } catch (e) {
+      console.error(`Erreur lors de la vérification de la fonction RPC ${functionName}:`, e);
+      return false;
+    }
+  }
+
+  // Méthode alternative pour récupérer les statistiques client
+  const fetchClientStatsDirectly = useCallback(async (userId: string): Promise<ClientStats> => {
+    console.log("[Dashboard] Récupération directe des statistiques client");
     
-    // Retourne ce qui termine le premier: la requête ou le timeout
-    return Promise.race([apiCall, timeoutPromise]);
+    try {
+      // Stats par défaut
+      const defaultStats: ClientStats = {
+        activeOrders: 0,
+        unreadMessages: 0,
+        pendingDeliveries: 0,
+        pendingReviews: 0
+      };
+      
+      // Récupérer les commandes actives
+      try {
+        const { data: orders, error: ordersError } = await supabase
+          .from('orders')
+          .select('id')
+          .eq('client_id', userId)
+          .in('status', ['pending', 'in_progress', 'revision_requested']);
+        
+        if (!ordersError && orders) {
+          defaultStats.activeOrders = orders.length;
+        } else if (ordersError) {
+          console.error("[Dashboard] Erreur récupération commandes client:", ordersError);
+        }
+      } catch (orderError) {
+        console.error("[Dashboard] Exception lors de la récupération des commandes client:", orderError);
+      }
+      
+      // Récupérer les messages non lus
+      try {
+        const { data: messages, error: messagesError } = await supabase
+          .from('messages')
+          .select('id')
+          .neq('sender_id', userId)
+          .eq('read', false)
+          .or(`conversation_id.in.(select conversation_id from conversation_participants where participant_id.eq.${userId})`);
+        
+        if (!messagesError && messages) {
+          defaultStats.unreadMessages = messages.length;
+        } else if (messagesError) {
+          console.error("[Dashboard] Erreur récupération messages client:", messagesError);
+        }
+      } catch (msgError) {
+        console.error("[Dashboard] Exception lors de la récupération des messages client:", msgError);
+      }
+      
+      // Livraisons en attente - la table n'existe pas, on met 0 par défaut
+      defaultStats.pendingDeliveries = 0;
+      
+      // Récupérer les avis en attente
+      try {
+        const { data: reviews, error: reviewsError } = await supabase
+          .from('orders')
+          .select('id')
+          .eq('client_id', userId)
+          .eq('status', 'completed')
+          .is('review_id', null);
+        
+        if (!reviewsError && reviews) {
+          defaultStats.pendingReviews = reviews.length;
+        } else if (reviewsError) {
+          console.error("[Dashboard] Erreur récupération avis client:", reviewsError);
+        }
+      } catch (reviewError) {
+        console.error("[Dashboard] Exception lors de la récupération des avis client:", reviewError);
+      }
+      
+      console.log("[Dashboard] Statistiques client récupérées directement:", defaultStats);
+      return defaultStats;
+    } catch (error) {
+      console.error("[Dashboard] Erreur lors de la récupération directe des stats client:", error);
+      return {
+        activeOrders: 0,
+        unreadMessages: 0,
+        pendingDeliveries: 0,
+        pendingReviews: 0
+      };
+    }
   }, []);
   
-  // Fonction pour regrouper les requêtes en un seul appel réseau lorsque possible
-  const createBatchedRequest = useCallback(async (userId: string, role: 'client' | 'freelance') => {
-    if (!userId) return { data: null, error: new Error('ID utilisateur manquant') };
+  // Méthode alternative pour récupérer les statistiques freelance
+  const fetchFreelanceStatsDirectly = useCallback(async (userId: string): Promise<FreelanceStats> => {
+    console.log("[Dashboard] Récupération directe des statistiques freelance");
     
-    // Requête optimisée qui combine plusieurs informations en une seule requête
     try {
-      const roleField = role === 'client' ? 'client_id' : 'freelance_id';
+      // Stats par défaut
+      const defaultStats: FreelanceStats = {
+        activeOrders: 0,
+        unreadMessages: 0,
+        pendingDeliveries: 0,
+        totalEarnings: 0,
+        servicesCount: 0
+      };
       
-      // Utiliser une requête RPC pour obtenir toutes les statistiques en un seul appel
-      return await createTimeoutRequest(
-        supabase.rpc('get_dashboard_stats', { 
-          p_user_id: userId,
-          p_user_role: role
-        })
-      );
+      // Récupérer les commandes actives (toutes les commandes reçues)
+      try {
+        const { data: orders, error: ordersError } = await supabase
+          .from('orders')
+          .select('id, status')
+          .eq('freelance_id', userId);
+        
+        if (!ordersError && orders) {
+          defaultStats.activeOrders = orders.length;
+          // Compter les commandes en cours pour les livraisons en attente
+          defaultStats.pendingDeliveries = orders.filter(order => 
+            order.status === 'in_progress' || order.status === 'delivered'
+          ).length;
+        } else if (ordersError) {
+          console.error("[Dashboard] Erreur récupération commandes:", ordersError);
+        }
+      } catch (orderError) {
+        console.error("[Dashboard] Exception lors de la récupération des commandes:", orderError);
+      }
+      
+      // Récupérer les messages non lus (reçus par le freelance et non lus)
+      try {
+        // D'abord récupérer les conversations où l'utilisateur est participant
+        const { data: conversationIds, error: convoError } = await supabase
+          .from('conversation_participants')
+          .select('conversation_id')
+          .eq('participant_id', userId);
+        
+        if (!convoError && conversationIds && conversationIds.length > 0) {
+          // Ensuite récupérer les messages non lus dans ces conversations
+          const convIds = conversationIds.map(c => c.conversation_id);
+          const { data: messages, error: messagesError } = await supabase
+            .from('messages')
+            .select('id')
+            .neq('sender_id', userId)  // Messages envoyés par quelqu'un d'autre
+            .eq('read', false)         // Non lus
+            .in('conversation_id', convIds); // Dans les conversations du freelance
+          
+          if (!messagesError && messages) {
+            defaultStats.unreadMessages = messages.length;
+            console.log(`[Dashboard] ${messages.length} messages non lus trouvés`);
+          } else if (messagesError) {
+            console.error("[Dashboard] Erreur récupération messages:", messagesError);
+          }
+        } else {
+          console.log("[Dashboard] Aucune conversation trouvée pour cet utilisateur");
+        }
+      } catch (msgError) {
+        console.error("[Dashboard] Erreur lors de la récupération des messages:", msgError);
+      }
+      
+      // Récupérer les revenus totaux
+      let totalEarnings = 0;
+      
+      // Récupérer le wallet id de manière plus robuste
+      try {
+        const { data: wallets, error: walletsError } = await supabase
+          .from('wallets')
+          .select('id')
+          .eq('user_id', userId);
+        
+        if (!walletsError && wallets && wallets.length > 0) {
+          // Ne pas utiliser single() qui peut retourner 406
+          const walletId = wallets[0].id;
+          // Ensuite récupérer les transactions associées à ce wallet
+          const { data: transactions, error: transactionsError } = await supabase
+            .from('transactions')
+            .select('amount')
+            .eq('wallet_id', walletId)
+            .eq('type', 'earning');
+          
+          if (!transactionsError && transactions && transactions.length > 0) {
+            totalEarnings = transactions.reduce((sum, tx) => sum + (tx.amount || 0), 0);
+          }
+        }
+      } catch (walletError) {
+        console.error("[Dashboard] Erreur récupération wallet/transactions:", walletError);
+      }
+      
+      // Fallback: utiliser la table orders si pas de transactions
+      if (totalEarnings === 0) {
+        const { data: earnings, error: earningsError } = await supabase
+          .from('orders')
+          .select('price')
+          .eq('freelance_id', userId)
+          .eq('status', 'completed');
+        
+        if (!earningsError && earnings) {
+          totalEarnings = earnings.reduce((sum, order) => sum + (order.price || 0), 0);
+        } else if (earningsError) {
+          console.error("[Dashboard] Erreur récupération revenus:", earningsError);
+        }
+      }
+      
+      defaultStats.totalEarnings = totalEarnings;
+      
+      // Récupérer le nombre de services
+      try {
+        const { data: services, error: servicesError } = await supabase
+          .from('services')
+          .select('id')
+          .eq('freelance_id', userId)
+          .eq('active', true);
+        
+        if (!servicesError && services) {
+          defaultStats.servicesCount = services.length;
+        } else if (servicesError) {
+          console.error("[Dashboard] Erreur récupération services:", servicesError);
+        }
+      } catch (serviceError) {
+        console.error("[Dashboard] Exception lors de la récupération des services:", serviceError);
+      }
+      
+      console.log("[Dashboard] Statistiques freelance récupérées directement:", defaultStats);
+      return defaultStats;
     } catch (error) {
-      console.error('Erreur lors de la requête groupée:', error);
-      return { data: null, error };
+      console.error("[Dashboard] Erreur lors de la récupération directe des stats freelance:", error);
+      return {
+        activeOrders: 0,
+        unreadMessages: 0,
+        pendingDeliveries: 0,
+        totalEarnings: 0,
+        servicesCount: 0
+      };
     }
-  }, [createTimeoutRequest]);
-  
-  // Fonction optimisée pour charger les activités
-  const loadActivities = useCallback(async (userId: string) => {
-    if (!userId) return [];
-    
+  }, []);
+
+  // Fonction optimisée pour charger les activités récentes
+  const fetchRecentActivities = useCallback(async (userId: string) => {
     try {
-      const result = await createTimeoutRequest(
-        supabase
-          .from('activities')
-          .select('*')
-          .eq('user_id', userId)
+      // Vérifier le cache d'abord
+      if (useCache && cacheKey) {
+        const cachedActivities = getCachedData<Activity[]>(`${cacheKey}_activities`);
+        if (cachedActivities) {
+          console.log("[Dashboard] Activités récupérées du cache", cachedActivities.length);
+          setRecentActivities(cachedActivities);
+          setLoadingActivities(false);
+          return;
+        }
+      }
+      
+      console.log("[Dashboard] Récupération des activités depuis Supabase...");
+      
+      // Créer une activité factice en attendant l'implémentation de la table des activités
+      const mockActivities: Activity[] = [];
+      
+      // Récupérer les commandes récentes pour créer des activités
+      try {
+        const { data: recentOrders, error: ordersError } = await supabase
+          .from('orders')
+          .select('id, created_at, status, client_id, freelance_id')
+          .or(`client_id.eq.${userId},freelance_id.eq.${userId}`)
           .order('created_at', { ascending: false })
-          .limit(10)
-      );
+          .limit(3);
+          
+        if (!ordersError && recentOrders && recentOrders.length > 0) {
+          recentOrders.forEach((order, index) => {
+            mockActivities.push({
+              id: `order-${order.id}`,
+              type: 'order_created',
+              content: `Commande #${order.id.substring(0, 8)} ${order.status === 'completed' ? 'terminée' : 'créée'}`,
+              created_at: order.created_at,
+              user_id: userId,
+              related_id: order.id
+            });
+          });
+        }
+      } catch (e) {
+        console.error("[Dashboard] Erreur lors de la récupération des commandes récentes:", e);
+      }
       
-      return result.data || [];
-    } catch (error) {
-      console.error('Erreur lors du chargement des activités:', error);
-      return [];
+      // Récupérer les messages récents pour créer des activités
+      try {
+        const { data: recentMessages, error: messagesError } = await supabase
+          .from('messages')
+          .select('id, created_at, conversation_id')
+          .neq('sender_id', userId)
+          .eq('read', false)
+          .order('created_at', { ascending: false })
+          .limit(2);
+          
+        if (!messagesError && recentMessages && recentMessages.length > 0) {
+          recentMessages.forEach((message, index) => {
+            mockActivities.push({
+              id: `message-${message.id}`,
+              type: 'message_received',
+              content: `Nouveau message reçu dans la conversation #${message.conversation_id.substring(0, 8)}`,
+              created_at: message.created_at,
+              user_id: userId,
+              related_id: message.conversation_id
+            });
+          });
+        }
+      } catch (e) {
+        console.error("[Dashboard] Erreur lors de la récupération des messages récents:", e);
+      }
+      
+      // Si aucune activité n'a été trouvée, créer une activité de bienvenue
+      if (mockActivities.length === 0) {
+        mockActivities.push({
+          id: '0',
+          type: 'info',
+          content: 'Bienvenue sur votre tableau de bord',
+          created_at: new Date().toISOString(),
+          user_id: userId
+        });
+      }
+      
+      // Trier les activités par date de création (la plus récente en premier)
+      mockActivities.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      
+      setRecentActivities(mockActivities);
+      
+      // Mettre en cache les activités
+      if (useCache && cacheKey) {
+        setCachedData(`${cacheKey}_activities`, mockActivities, { 
+          expiry: dashboardConfig.cache.expiry.activities 
+        });
+      }
+      
+    } catch (e) {
+      console.error("[Dashboard] Exception lors du chargement des activités:", e);
+      
+      // Utiliser une activité fictive en cas d'erreur
+      const fallbackActivity = [{
+        id: '0',
+        type: 'info',
+        content: 'Aucune activité récente',
+        created_at: new Date().toISOString(),
+        user_id: userId
+      }];
+      
+      setRecentActivities(fallbackActivity);
+    } finally {
+      setLoadingActivities(false);
     }
-  }, [createTimeoutRequest]);
-  
-  // Fonction unifiée pour charger toutes les données du dashboard
+  }, [cacheKey, useCache, dashboardConfig]);
+
+  // Fonction optimisée pour charger toutes les données du dashboard
   const fetchDashboardData = useCallback(async (forceRefresh = false) => {
-    // Protection contre les requêtes concurrentes
-    if (fetchingRef.current && !forceRefresh) {
-      console.warn("Requête dashboard déjà en cours, nouvelle requête annulée");
+    // Protection contre les requêtes concurrentes ou pendant la navigation
+    if (isFetchingRef.current || (!forceRefresh && NavigationLoadingState.isNavigating)) {
+      console.log("[Dashboard] Requête ignorée: déjà en cours ou navigation en cours");
       return;
     }
     
-    // Vérifier que l'utilisateur est connecté
     if (!profile?.id) {
-      console.warn("Tentative de chargement dashboard sans profil utilisateur");
+      console.log("[Dashboard] Requête ignorée: pas de profil utilisateur");
       return;
     }
     
-    // Protection contre les chargements pendant la navigation - sauf forceRefresh
-    if (NavigationLoadingState.isNavigating && !forceRefresh) {
-      console.warn("Navigation en cours, chargement dashboard reporté");
+    // Limiter la fréquence des requêtes
+    const now = Date.now();
+    if (!forceRefresh && (now - lastFetchTimeRef.current < 5000)) {
+      console.log("[Dashboard] Requête ignorée: throttling (5s)");
       return;
     }
-    
-    // Variable pour stocker le timeout global
-    let dashboardTimeout: NodeJS.Timeout | null = null;
     
     try {
-      // Incrémenter le compteur de tentatives
-      loadAttemptsRef.current += 1;
-      const currentAttempt = loadAttemptsRef.current;
+      console.log(`[Dashboard] Début de la récupération des données du dashboard (${isClient ? 'client' : 'freelance'})`);
+      isFetchingRef.current = true;
+      lastFetchTimeRef.current = now;
       
-      // Limiter le nombre de tentatives successives pour éviter les boucles infinies
-      if (currentAttempt > 3 && !forceRefresh) {
-        console.warn('Trop de tentatives successives de chargement du dashboard, abandon');
-        return;
+      // Indicateurs de chargement
+      if (forceRefresh) {
+        setIsRefreshing(true);
+      } else {
+        setLoadingStats(true);
+        setLoadingActivities(true);
       }
       
-      fetchingRef.current = true;
-      
-      // Utiliser notre fonction de debounce pour retarder l'affichage des spinners
-      // Seulement si on n'a pas déjà des données
-      const hasExistingStats = isClient 
-        ? clientStats.activeOrders > 0 || clientStats.unreadMessages > 0
-        : freelanceStats.activeOrders > 0 || freelanceStats.unreadMessages > 0;
-      const hasExistingActivities = recentActivities.length > 0;
-      
-      if (!hasExistingStats) {
-        setDebouncedLoadingState(true, false);
-      }
-      
-      if (!hasExistingActivities) {
-        setDebouncedLoadingState(false, true);
-      }
-      
-      // Annuler toute requête précédente
+      // Annuler les requêtes précédentes
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
-      
-      // Créer un nouveau contrôleur d'annulation
       abortControllerRef.current = new AbortController();
       
-      // PROTECTION CRITIQUE: timeout global pour tout le chargement et nettoyage final
-      dashboardTimeout = setTimeout(() => {
-        if (fetchingRef.current) {
-          // Annuler les requêtes en cours
-          if (abortControllerRef.current) {
-            abortControllerRef.current.abort();
+      // Vérifier le cache d'abord
+      if (useCache && cacheKey && !forceRefresh) {
+        const cachedStats = isClient 
+          ? getCachedData<ClientStats>(`${cacheKey}_stats`)
+          : getCachedData<FreelanceStats>(`${cacheKey}_stats`);
+        
+        if (cachedStats) {
+          console.log("[Dashboard] Données récupérées du cache");
+          if (isClient) {
+            setClientStats(cachedStats as ClientStats);
+          } else {
+            setFreelanceStats(cachedStats as FreelanceStats);
           }
+          setLoadingStats(false);
           
-          // Terminer le chargement avec les données disponibles
-          setDebouncedLoadingState(false, false);
-          setIsRefreshing(false);
-          fetchingRef.current = false;
-          
-          // Si une erreur existait déjà et qu'aucune donnée n'est disponible, conserver l'erreur
-          // sinon afficher une erreur de timeout spécifique
-          if (!error && ((isClient && clientStats.activeOrders === 0 && recentActivities.length === 0) || 
-              (isFreelance && freelanceStats.activeOrders === 0 && recentActivities.length === 0))) {
-            setError("Le chargement a pris trop de temps, veuillez réessayer");
-          }
-        }
-      }, DASHBOARD_LOAD_TIMEOUT);
-      
-      // Étape critique : vérifier si une navigation est en cours
-      // Si oui, utiliser les données du cache immédiatement plutôt que de charger
-      if (NavigationLoadingState.isNavigating && !forceRefresh) {
-        const cacheKey = getCacheKey();
-        if (cacheKey) {
-          const cachedStats = isClient 
-            ? getCachedData<ClientStats>(`${cacheKey}_stats`)
-            : getCachedData<FreelanceStats>(`${cacheKey}_stats`);
-            
-          const cachedActivities = getCachedData<Activity[]>(`${cacheKey}_activities`);
-          
-          if (cachedStats) {
-            if (isClient) {
-              setClientStats(cachedStats as ClientStats);
-            } else {
-              setFreelanceStats(cachedStats as FreelanceStats);
-            }
-            setLoadingStats(false);
-          }
-          
-          if (cachedActivities) {
-            setRecentActivities(cachedActivities);
+          // Si le cache est très récent, terminer ici
+          const lastUpdate = getCachedData<number>(`${cacheKey}_timestamp`);
+          if (lastUpdate && (Date.now() - lastUpdate < 60000)) {
+            console.log("[Dashboard] Cache récent (<1min), arrêt du chargement");
             setLoadingActivities(false);
-          }
-          
-          // Ne pas charger de données pendant une navigation, seulement utiliser le cache
-          if (cachedStats || cachedActivities) {
-            clearTimeout(dashboardTimeout);
-            fetchingRef.current = false;
+            isFetchingRef.current = false;
+            setIsRefreshing(false);
             return;
           }
         }
       }
       
-      // Si on n'est pas en forceRefresh, vérifier le cache
-      if (useCache && !forceRefresh) {
-        const cacheKey = getCacheKey();
-        
-        if (cacheKey) {
-          // Vérifier si nous avons des données en cache
-          const cachedStats = isClient 
-            ? getCachedData<ClientStats>(`${cacheKey}_stats`)
-            : getCachedData<FreelanceStats>(`${cacheKey}_stats`);
-            
-          const cachedActivities = getCachedData<Activity[]>(`${cacheKey}_activities`);
+      // Appel à la fonction RPC consolidée - si disponible
+      if (rpcAvailable) {
+        try {
+          // S'assurer que le rôle est exactement 'client' ou 'freelance' pour éviter les problèmes d'ambiguïté
+          const role = isClient ? 'client' : 'freelance';
+          console.log(`[Dashboard] Appel RPC get_dashboard_stats avec user_id=${profile.id}, role=${role}`);
           
-          if (cachedStats || cachedActivities) {
-            // Utiliser les données en cache si disponibles
-            if (cachedStats) {
+          // Appel de la fonction RPC
+          try {
+            const { data: consolidatedData, error: rpcError } = await supabase.rpc('get_dashboard_stats', { 
+              p_user_id: profile.id,
+              p_user_role: role
+            });
+            
+            console.log("[Dashboard] Résultat brut de l'appel RPC:", { data: consolidatedData, error: rpcError });
+            
+            if (rpcError) {
+              console.error("[Dashboard] Erreur RPC:", rpcError.message, rpcError.details, rpcError.hint);
+              throw new Error("RPC error");
+            }
+            
+            if (consolidatedData) {
+              console.log("[Dashboard] Données RPC récupérées:", consolidatedData);
+              let statsData;
+              
               if (isClient) {
-                setClientStats(cachedStats as ClientStats);
+                const clientData = consolidatedData as ClientStats;
+                setClientStats(clientData);
+                statsData = clientData;
               } else {
-                setFreelanceStats(cachedStats as FreelanceStats);
+                const freelanceData = consolidatedData as FreelanceStats;
+                setFreelanceStats(freelanceData);
+                statsData = freelanceData;
               }
+              
+              // Mise à jour du cache
+              if (useCache && cacheKey) {
+                console.log("[Dashboard] Mise en cache des statistiques");
+                setCachedData(`${cacheKey}_stats`, statsData, { 
+                  expiry: dashboardConfig.cache.expiry.stats 
+                });
+                setCachedData(`${cacheKey}_timestamp`, Date.now(), { 
+                  expiry: dashboardConfig.cache.expiry.stats 
+                });
+              }
+              
+              // Nettoyer et terminer
               setLoadingStats(false);
-            }
-            
-            if (cachedActivities) {
-              setRecentActivities(cachedActivities);
-              setLoadingActivities(false);
-            }
-            
-            // Si le cache est valide (moins de 2 minutes) et que toutes les données sont présentes, retourner
-            const lastUpdate = getCachedData<number>(`${cacheKey}_timestamp`);
-            const cacheValid = lastUpdate && (Date.now() - lastUpdate < 120000);
-            
-            if (cacheValid && cachedStats && cachedActivities) {
-              // Précharger les données en arrière-plan pour la prochaine visite
-              if (!NavigationLoadingState.isNavigating) {
-                setTimeout(() => updateDataInBackground(), 1000);
-              }
+              setError(null);
               
-              // Nettoyer le timeout et désactiver l'état de chargement
-              clearTimeout(dashboardTimeout);
-              setDebouncedLoadingState(false, false);
-              fetchingRef.current = false;
+              // Charger les activités
+              await fetchRecentActivities(profile.id);
               
-              // Réinitialiser le compteur de tentatives
-              loadAttemptsRef.current = 0;
-              return;
+              // Mettre à jour l'interface
+              updateLastRefresh();
+              setRefreshCount(prev => prev + 1);
+              
+              return; // Terminer si tout s'est bien passé avec l'appel RPC
+            } else {
+              console.warn("[Dashboard] Pas de données retournées par l'RPC");
+              throw new Error("No RPC data");
             }
+          } catch (rpcCallError) {
+            console.error("[Dashboard] Erreur lors de l'appel RPC:", rpcCallError);
+            throw new Error("RPC call failed");
           }
+        } catch (error) {
+          console.error("[Dashboard] Exception avec RPC, fallback sur les méthodes directes:", error);
+          // Continuer avec le fallback
         }
-      }
-      
-      // OPTIMISATION: Essayer d'abord d'utiliser la requête RPC optimisée
-      try {
-        // Commencer par charger les activités car elles sont indépendantes des stats
-        const activitiesPromise = loadActivities(profile.id);
-        
-        // Tenter d'utiliser la requête RPC optimisée
-        const role = isClient ? 'client' : 'freelance';
-        const batchedStatsPromise = createBatchedRequest(profile.id, role);
-        
-        // Exécuter les requêtes en parallèle
-        const [batchedStats, activities] = await Promise.allSettled([
-          batchedStatsPromise,
-          activitiesPromise
-        ]);
-        
-        // Traiter les activités si disponibles
-        if (activities.status === 'fulfilled' && activities.value) {
-          setRecentActivities(activities.value);
-          setDebouncedLoadingState(false, false);
-        }
-        
-        // Vérifier si les statistiques optimisées ont fonctionné
-        if (batchedStats.status === 'fulfilled' && batchedStats.value?.data) {
-          const statsData = batchedStats.value.data;
-          
-          // Traiter selon le rôle
-          if (isClient) {
-            const newStats: ClientStats = {
-              activeOrders: statsData.active_orders || 0,
-              unreadMessages: statsData.unread_messages || 0,
-              pendingDeliveries: statsData.pending_deliveries || 0,
-              pendingReviews: statsData.pending_reviews || 0
-            };
-            
-            setClientStats(newStats);
-            setDebouncedLoadingState(false, false);
-            
-            // Mettre en cache
-            if (useCache) {
-              const cacheKey = getCacheKey();
-              if (cacheKey) {
-                setCachedData(`${cacheKey}_stats`, newStats, { expiry: CACHE_EXPIRY.DASHBOARD_DATA });
-                if (activities.status === 'fulfilled' && activities.value) {
-                  setCachedData(`${cacheKey}_activities`, activities.value, { expiry: CACHE_EXPIRY.DASHBOARD_DATA });
-                }
-                setCachedData(`${cacheKey}_timestamp`, Date.now());
-              }
-            }
-          } else if (isFreelance) {
-            const newStats: FreelanceStats = {
-              activeOrders: statsData.active_orders || 0,
-              unreadMessages: statsData.unread_messages || 0,
-              pendingDeliveries: statsData.pending_deliveries || 0,
-              totalEarnings: statsData.total_earnings || 0,
-              servicesCount: statsData.services_count || 0
-            };
-            
-            setFreelanceStats(newStats);
-            setDebouncedLoadingState(false, false);
-            
-            // Mettre en cache
-            if (useCache) {
-              const cacheKey = getCacheKey();
-              if (cacheKey) {
-                setCachedData(`${cacheKey}_stats`, newStats, { expiry: CACHE_EXPIRY.DASHBOARD_DATA });
-                if (activities.status === 'fulfilled' && activities.value) {
-                  setCachedData(`${cacheKey}_activities`, activities.value, { expiry: CACHE_EXPIRY.DASHBOARD_DATA });
-                }
-                setCachedData(`${cacheKey}_timestamp`, Date.now());
-              }
-            }
-          }
-          
-          // Si nous avons réussi à obtenir les données via RPC, terminer ici
-          clearTimeout(dashboardTimeout);
-          fetchingRef.current = false;
-          setError(null);
-          setRefreshCount(prev => prev + 1);
-          updateLastRefresh();
-          
-          // Réinitialiser le compteur de tentatives
-          loadAttemptsRef.current = 0;
-          return;
-        }
-        
-        // Si la requête RPC a échoué, poursuivre avec les requêtes individuelles
-        console.warn("La requête RPC optimisée a échoué, utilisation des requêtes individuelles");
-      } catch (rpcError) {
-        console.error("Erreur lors de la requête RPC optimisée:", rpcError);
-        // Continuer avec les requêtes individuelles
-      }
-      
-      // Commun: Messages non lus
-      const messagesPromise = createTimeoutRequest(
-        supabase
-          .from('messages')
-          .select('id')
-          .eq('receiver_id', profile.id)
-          .eq('read', false)
-      );
-      
-      // Activités récentes
-      const activitiesPromise = createTimeoutRequest(
-        supabase
-          .from('activities')
-          .select('*')
-          .eq('user_id', profile.id)
-          .order('created_at', { ascending: false })
-          .limit(10)
-      );
-      
-      // Requêtes spécifiques selon le rôle
-      let roleSpecificPromises: Promise<any>[] = [];
-      
-      if (isClient) {
-        roleSpecificPromises = [
-          // Commandes actives
-          createTimeoutRequest(
-            supabase
-              .from('orders')
-              .select('id, status')
-              .eq('client_id', profile.id)
-              .in('status', ['pending', 'in_progress', 'revision_requested'])
-          ),
-          
-          // Livraisons en attente
-          createTimeoutRequest(
-            supabase
-              .from('orders')
-              .select('id')
-              .eq('client_id', profile.id)
-              .eq('status', 'delivered')
-              .is('completed_at', null)
-          ),
-          
-          // Commandes complétées sans avis
-          createTimeoutRequest(
-            supabase
-              .from('orders')
-              .select('id, has_review')
-              .eq('client_id', profile.id)
-              .eq('status', 'completed')
-              .eq('has_review', false)
-          )
-        ];
       } else {
-        roleSpecificPromises = [
-          // Commandes actives pour le freelance
-          createTimeoutRequest(
-            supabase
-              .from('orders')
-              .select('id, status')
-              .eq('freelance_id', profile.id)
-              .in('status', ['pending', 'in_progress', 'revision_requested'])
-          ),
-          
-          // Livraisons en attente de validation
-          createTimeoutRequest(
-            supabase
-              .from('orders')
-              .select('id')
-              .eq('freelance_id', profile.id)
-              .eq('status', 'delivered')
-              .is('completed_at', null)
-          ),
-          
-          // Services proposés
-          createTimeoutRequest(
-            supabase
-              .from('services')
-              .select('id')
-              .eq('freelance_id', profile.id)
-          ),
-          
-          // Gains totaux
-          createTimeoutRequest(
-            supabase
-              .from('orders')
-              .select('amount')
-              .eq('freelance_id', profile.id)
-              .eq('status', 'completed')
-          )
-        ];
+        console.log("[Dashboard] RPC non disponible, utilisation des méthodes directes");
       }
       
+      // Méthode alternative (fallback) pour récupérer les données
       try {
-        // Exécuter toutes les requêtes en parallèle
-        const responses = await Promise.allSettled([messagesPromise, activitiesPromise, ...roleSpecificPromises]);
+        console.log("[Dashboard] Tentative de récupération alternative des données");
         
-        // Traiter les résultats même si certaines requêtes ont échoué
-        const messagesResponse = responses[0].status === 'fulfilled' ? responses[0].value : { data: [], error: null };
-        const activitiesResponse = responses[1].status === 'fulfilled' ? responses[1].value : { data: [], error: null };
-        
-        // Collecter les réponses spécifiques au rôle
-        const roleResponses = responses.slice(2).map(response => 
-          response.status === 'fulfilled' ? response.value : { data: [], error: null }
-        );
-        
-        // Mettre à jour les données des messages et activités (même partielles)
-        const unreadMessages = messagesResponse.data?.length || 0;
-        if (activitiesResponse.data) {
-          setRecentActivities(activitiesResponse.data);
-          setLoadingActivities(false);
-        }
-        
-        // Mettre à jour les statistiques selon le rôle avec les données partielles disponibles
         if (isClient) {
-          const [ordersResponse, deliveriesResponse, reviewsResponse] = roleResponses;
-          
-          const newStats = {
-            activeOrders: ordersResponse.data?.length || 0,
-            unreadMessages,
-            pendingDeliveries: deliveriesResponse.data?.length || 0,
-            pendingReviews: reviewsResponse.data?.length || 0
-          };
-          
-          setClientStats(newStats);
-          setLoadingStats(false);
-          
-          // Mettre en cache
-          if (useCache) {
-            const cacheKey = getCacheKey();
-            if (cacheKey) {
-              setCachedData(`${cacheKey}_stats`, newStats, { expiry: CACHE_EXPIRY.DASHBOARD_DATA });
-              if (activitiesResponse.data) {
-                setCachedData(`${cacheKey}_activities`, activitiesResponse.data, { expiry: CACHE_EXPIRY.DASHBOARD_DATA });
-              }
-              setCachedData(`${cacheKey}_timestamp`, Date.now());
-            }
-          }
-        } 
-        else if (isFreelance) {
-          const [ordersResponse, deliveriesResponse, servicesResponse, earningsResponse] = roleResponses;
-          
-          const totalEarnings = earningsResponse.data?.reduce((sum: number, order: {amount?: number}) => sum + (order.amount || 0), 0) || 0;
-          
-          const newStats = {
-            activeOrders: ordersResponse.data?.length || 0,
-            unreadMessages,
-            pendingDeliveries: deliveriesResponse.data?.length || 0,
-            totalEarnings,
-            servicesCount: servicesResponse.data?.length || 0
-          };
-          
-          setFreelanceStats(newStats);
-          setLoadingStats(false);
-          
-          // Mettre en cache
-          if (useCache) {
-            const cacheKey = getCacheKey();
-            if (cacheKey) {
-              setCachedData(`${cacheKey}_stats`, newStats, { expiry: CACHE_EXPIRY.DASHBOARD_DATA });
-              if (activitiesResponse.data) {
-                setCachedData(`${cacheKey}_activities`, activitiesResponse.data, { expiry: CACHE_EXPIRY.DASHBOARD_DATA });
-              }
-              setCachedData(`${cacheKey}_timestamp`, Date.now());
-            }
-          }
+          // Récupérer les stats client via des requêtes directes
+          const clientFallbackStats = await fetchClientStatsDirectly(profile.id);
+          setClientStats(clientFallbackStats);
+        } else {
+          // Récupérer les stats freelance via des requêtes directes
+          const freelanceFallbackStats = await fetchFreelanceStatsDirectly(profile.id);
+          console.log("[Dashboard] Stats freelance récupérées:", freelanceFallbackStats);
+          setFreelanceStats(freelanceFallbackStats);
         }
         
-        // Incrémenter le compteur pour forcer les mises à jour
-        setRefreshCount(prev => prev + 1);
-        updateLastRefresh();
-        
-        // Effacer l'erreur si le chargement a réussi
-        setError(null);
-      } catch (innerError: any) {
-        console.error("Erreur lors du traitement des données:", innerError);
-        setError("Certaines données n'ont pas pu être chargées");
-        
-        // S'assurer que les données de chargement sont réinitialisées même en cas d'erreur
         setLoadingStats(false);
-        setLoadingActivities(false);
+        setError(null);
+        
+        // Charger les activités dans tous les cas
+        await fetchRecentActivities(profile.id);
+        
+        // Mise à jour de l'interface
+        updateLastRefresh();
+        setRefreshCount(prev => prev + 1);
+      } catch (fallbackError) {
+        console.error("[Dashboard] Erreur lors de la récupération alternative:", fallbackError);
+        setError(`Une erreur est survenue lors du chargement des données du ${isClient ? 'tableau de bord client' : 'tableau de bord freelance'}.`);
       }
-      
-    } catch (error: any) {
-      console.error("Erreur lors du chargement des données de dashboard:", error);
-      setError("Problème de connexion, veuillez réessayer");
-      
-      // S'assurer que les états de chargement sont réinitialisés
-      setDebouncedLoadingState(false, false);
-    } finally {
-      // Nettoyer le timer global
-      if (dashboardTimeout) {
-        clearTimeout(dashboardTimeout);
-      }
-      
-      // Réinitialiser les états
+    } catch (e) {
+      console.error("[Dashboard] Exception globale:", e);
+      setError("Une erreur inattendue est survenue.");
+      setLoadingStats(false);
+      setLoadingActivities(false);
       setIsRefreshing(false);
-      fetchingRef.current = false;
-      
-      // Nettoyer l'AbortController
-      abortControllerRef.current = null;
+      isFetchingRef.current = false;
     }
-  }, [profile?.id, isClient, isFreelance, getCacheKey, updateLastRefresh, useCache, createTimeoutRequest, setDebouncedLoadingState, clientStats, freelanceStats, recentActivities]);
+  }, [profile?.id, isClient, useCache, cacheKey, updateLastRefresh, fetchRecentActivities, dashboardConfig, fetchClientStatsDirectly, fetchFreelanceStatsDirectly, rpcAvailable]);
 
-  // Mise à jour des données en arrière-plan sans état de chargement
-  const updateDataInBackground = useCallback(() => {
-    if (!fetchingRef.current && profile?.id) {
-      try {
-        // Utiliser un nouvel AbortController spécifique aux mises à jour en arrière-plan
-        const abortController = new AbortController();
-        
-        // Effectuer les requêtes de manière groupée
-        const role = isClient ? 'client' : 'freelance';
-        
-        // Attendre un court délai pour éviter de surcharger le réseau
-        setTimeout(async () => {
-          // Vérifier si l'utilisateur est toujours sur le dashboard
-          if (typeof window !== 'undefined' && 
-              window.location.pathname.startsWith('/dashboard') && 
-              document.visibilityState === 'visible') {
-            
-            // Charger les données de base
-            try {
-              const batchedStatsPromise = createBatchedRequest(profile.id, role);
-              const activitiesPromise = loadActivities(profile.id);
-              
-              const [batchedStats, activities] = await Promise.allSettled([
-                batchedStatsPromise,
-                activitiesPromise
-              ]);
-              
-              // Mettre à jour le cache sans changer l'état UI
-              const cacheKey = getCacheKey();
-              if (cacheKey && batchedStats.status === 'fulfilled' && batchedStats.value.data) {
-                // Traiter les données selon le rôle
-                if (isClient) {
-                  const clientData = batchedStats.value.data;
-                  const newStats: ClientStats = {
-                    activeOrders: clientData.active_orders || 0,
-                    unreadMessages: clientData.unread_messages || 0,
-                    pendingDeliveries: clientData.pending_deliveries || 0,
-                    pendingReviews: clientData.pending_reviews || 0
-                  };
-                  
-                  setCachedData(`${cacheKey}_stats`, newStats, { expiry: CACHE_EXPIRY.DASHBOARD_DATA });
-                } else {
-                  const freelanceData = batchedStats.value.data;
-                  const newStats: FreelanceStats = {
-                    activeOrders: freelanceData.active_orders || 0,
-                    unreadMessages: freelanceData.unread_messages || 0,
-                    pendingDeliveries: freelanceData.pending_deliveries || 0,
-                    totalEarnings: freelanceData.total_earnings || 0,
-                    servicesCount: freelanceData.services_count || 0
-                  };
-                  
-                  setCachedData(`${cacheKey}_stats`, newStats, { expiry: CACHE_EXPIRY.DASHBOARD_DATA });
-                }
-              }
-              
-              // Mettre en cache les activités si disponibles
-              if (cacheKey && activities.status === 'fulfilled' && activities.value.length > 0) {
-                setCachedData(`${cacheKey}_activities`, activities.value, { expiry: CACHE_EXPIRY.DASHBOARD_DATA });
-              }
-              
-              // Mettre à jour le timestamp du cache
-              if (cacheKey) {
-                setCachedData(`${cacheKey}_timestamp`, Date.now());
-              }
-            } catch (error) {
-              console.error('Erreur lors de la mise à jour en arrière-plan:', error);
-            }
-          }
-        }, 2000);
-        
-        return () => {
-          abortController.abort();
-        };
-      } catch (error) {
-        console.error('Erreur lors de la préparation de la mise à jour en arrière-plan:', error);
-      }
-    }
-  }, [profile?.id, isClient, fetchingRef, getCacheKey, createBatchedRequest, loadActivities]);
-
-  // Fonction publique pour rafraîchir le dashboard
-  const refreshDashboard = useCallback(() => {
-    // Vérification critique: si navigation en cours, annuler complètement le rafraîchissement
-    if (NavigationLoadingState.isNavigating) {
-      console.warn('Navigation en cours, rafraîchissement annulé');
-      return;
-    }
-    
-    // Vérifier si on est déjà en cours de rafraîchissement ou si l'ID du profil est manquant
-    if (isRefreshing || !profile?.id) return;
-    
-    // Protection contre les rafraîchissements en cascade: vérifier l'état de fetchingRef
-    if (fetchingRef.current) {
-      console.warn('Requête déjà en cours, rafraîchissement ignoré');
-      return;
-    }
-    
-    // Éviter les multiples rafraîchissements en une courte période
-    const now = Date.now();
-    
-    // S'assurer que lastRefresh est un nombre valide et non NaN
-    const lastUpdateTime = typeof lastRefresh === 'number' && !isNaN(lastRefresh) 
-      ? lastRefresh 
-      : 0;
-    
-    // Ne permettre le rafraîchissement que 2 secondes après le dernier
-    if (now - lastUpdateTime < 2000) {
-      console.warn('Rafraîchissement trop fréquent, abandon');
-      return;
-    }
-    
-    // Marquer comme en cours de rafraîchissement
-    setIsRefreshing(true);
-    fetchingRef.current = true;
-    
-    // N'afficher le spinner que si la dernière mise à jour date de plus de 5 secondes
-    if (now - lastUpdateTime > 5000) {
-      // Activer le spinner avec un délai pour éviter le clignotement
-      setDebouncedLoadingState(true, true);
-    }
-    
-    // Invalider le cache
-    if (useCache) {
-      const cacheKey = getCacheKey();
-      if (cacheKey) {
-        invalidateCache(`${cacheKey}_stats`);
-        invalidateCache(`${cacheKey}_activities`);
-      }
-    }
-    
-    // Protection contre les plantages: s'assurer que l'état de chargement se termine
-    const safetyTimeout = setTimeout(() => {
-      if (fetchingRef.current || isRefreshing) {
-        console.warn('Délai de sécurité atteint, réinitialisation forcée des états de chargement');
-        fetchingRef.current = false;
-        setIsRefreshing(false);
-        setDebouncedLoadingState(false, false);
-      }
-    }, 8000); // 8 secondes max pour tout le processus
-    
-    // Ajouter un délai minimal avant de recharger pour éviter le clignotement
-    setTimeout(() => {
-      try {
-        // Recharger les données avec forceRefresh à true
-        fetchDashboardData(true);
-      } catch (error) {
-        console.error('Erreur lors du rafraîchissement:', error);
-        // Réinitialiser l'état même en cas d'erreur
-        fetchingRef.current = false;
-        setIsRefreshing(false);
-        setDebouncedLoadingState(false, false);
-      }
-      
-      // Nettoyer le timeout de sécurité puisque fetchDashboardData a été appelé
-      clearTimeout(safetyTimeout);
-    }, 50);
-  }, [getCacheKey, fetchDashboardData, isRefreshing, profile?.id, useCache, lastRefresh, setDebouncedLoadingState]);
-
-  // Effet pour le chargement initial des données avec gestion des erreurs
+  // Effet optimisé pour charger les données initialement et lors des changements d'utilisateur
   useEffect(() => {
-    if (profile?.id) {
-      // Nettoyer les précédents timeouts si existants
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-      
-      // Annuler tout timer de spinner précédent
-      if (spinnerTimeoutRef.current) {
-        clearTimeout(spinnerTimeoutRef.current);
-        spinnerTimeoutRef.current = null;
-      }
-      
-      // Réinitialiser le compteur de tentatives
-      loadAttemptsRef.current = 0;
-      
-      // Vérifier s'il y a des données existantes avant de lancer le chargement
-      const hasExistingData = isClient 
-        ? clientStats.activeOrders > 0 || clientStats.unreadMessages > 0 || recentActivities.length > 0
-        : freelanceStats.activeOrders > 0 || freelanceStats.unreadMessages > 0 || recentActivities.length > 0;
-        
-      // Si on a déjà des données, ne pas montrer de spinner immédiatement
-      if (!hasExistingData) {
-        setDebouncedLoadingState(true, true);
-      }
-      
-      // Tentative initiale
+    if (profile?.id && !NavigationLoadingState.isNavigating) {
+      console.log("[Dashboard] Chargement initial des données");
       fetchDashboardData();
-      
-      // Établir un delay maximal pour terminer le chargement dans tous les cas
-      timeoutRef.current = setTimeout(() => {
-        if (loadingStats || loadingActivities) {
-          setDebouncedLoadingState(false, false);
-          
-          // Ne pas afficher d'erreur si des données existent déjà
-          const hasData = (isClient && clientStats.activeOrders > 0) || 
-                         (isFreelance && freelanceStats.activeOrders > 0) ||
-                         recentActivities.length > 0;
-          
-          if (!hasData) {
-            setError("Problème de chargement des données, veuillez réessayer ultérieurement");
-          }
-        }
-      }, DASHBOARD_LOAD_TIMEOUT);
     }
-    
-    return () => {
-      // Nettoyer les timers lors du démontage
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-      
-      if (spinnerTimeoutRef.current) {
-        clearTimeout(spinnerTimeoutRef.current);
-      }
-      
-      // Annuler les requêtes en cours
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-    };
-  }, [profile?.id, fetchDashboardData, isClient, isFreelance, clientStats.activeOrders, freelanceStats.activeOrders, recentActivities.length, loadingStats, loadingActivities, setDebouncedLoadingState]);
+  }, [profile?.id, fetchDashboardData]);
 
-  // Écouteur d'événements unifié pour éviter les doublons
+  // Abonnement en temps réel aux changements de commandes
   useEffect(() => {
-    if (!profile?.id || typeof window === 'undefined') return;
+    if (!profile?.id) return;
     
-    const handleAppStateChange = (event: Event) => {
-      const customEvent = event as CustomEvent;
-      const { type, fromPath, toPath, isVisible, inactiveDuration } = customEvent.detail || {};
-      
-      // Éviter les actualisations pendant la navigation
-      if (NavigationLoadingState.isNavigating || fetchingRef.current) return;
-      
-      // Actualisation uniquement sur les routes pertinentes au dashboard
-      const isDashboardPath = window.location.pathname.startsWith('/dashboard');
-      
-      // Traiter différents événements
-      switch (type) {
-        case 'route_change':
-          // Si on navigue vers ou depuis le dashboard
-          if ((fromPath && fromPath.startsWith('/dashboard')) || 
-              (toPath && toPath.startsWith('/dashboard'))) {
-            updateDataInBackground();
-          }
-          break;
-          
-        case 'visibility':
-          // Si la page redevient visible après une longue inactivité
-          if (isVisible && inactiveDuration > 60000 && isDashboardPath) {
-            updateDataInBackground();
-          }
-          break;
-          
-        case 'service_change':
-          // Si un service a été modifié et que l'utilisateur est freelance
-          if (isFreelance && isDashboardPath) {
-            updateDataInBackground();
-          }
-          break;
-      }
-    };
+    console.log("[Dashboard] Configuration de l'abonnement aux changements en temps réel");
     
-    // Un seul écouteur pour tous les événements
-    window.addEventListener('vynal:app-state-changed', handleAppStateChange);
-    
-    // Écouter les changements de services via Supabase Realtime
-    const servicesChannel = supabase.channel('public:services')
-      .on('postgres_changes', { 
-        event: '*', 
-        schema: 'public', 
-        table: 'services',
-        filter: isFreelance ? `freelance_id=eq.${profile.id}` : undefined
+    const ordersSubscription = supabase
+      .channel('dashboard-orders-changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'orders',
+        filter: isClient 
+          ? `client_id=eq.${profile.id}` 
+          : `freelance_id=eq.${profile.id}`
       }, () => {
-        // Émettre un événement unifié pour le changement de service
-        window.dispatchEvent(new CustomEvent('vynal:app-state-changed', {
-          detail: { type: 'service_change' }
-        }));
+        console.log("[Dashboard] Changement détecté dans les commandes, rechargement des données");
+        fetchDashboardData(true);
+      })
+      .subscribe();
+
+    // Abonnement aux changements de messages
+    const messagesSubscription = supabase
+      .channel('dashboard-messages-changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'messages',
+        filter: `read.eq.false` 
+      }, () => {
+        console.log("[Dashboard] Changement détecté dans les messages, rechargement des données");
+        fetchDashboardData(true);
       })
       .subscribe();
     
     return () => {
-      window.removeEventListener('vynal:app-state-changed', handleAppStateChange);
-      servicesChannel.unsubscribe();
+      console.log("[Dashboard] Désinscription des changements en temps réel");
+      ordersSubscription.unsubscribe();
+      messagesSubscription.unsubscribe();
     };
-  }, [profile?.id, isFreelance, updateDataInBackground]);
+  }, [profile?.id, isClient, fetchDashboardData]);
+
+  // Écouteur d'événements pour mettre à jour les données lors du changement d'état de l'application
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleAppVisibility = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      if (customEvent.detail?.type === 'visibility' && customEvent.detail?.isVisible) {
+        // Ne rafraîchir que si le temps d'inactivité est significatif (>30s)
+        if (customEvent.detail?.inactiveDuration > 30000) {
+          console.log("[Dashboard] Rafraîchissement automatique après inactivité");
+          fetchDashboardData();
+        }
+      }
+    };
+
+    window.addEventListener('vynal:app-state-changed', handleAppVisibility as EventListener);
+    
+    return () => {
+      window.removeEventListener('vynal:app-state-changed', handleAppVisibility as EventListener);
+    };
+  }, [fetchDashboardData]);
+
+  // Fonction pour déclencher un rafraîchissement manuel
+  const refreshDashboard = useCallback((force = true) => {
+    console.log("[Dashboard] Rafraîchissement manuel demandé");
+    fetchDashboardData(force);
+  }, [fetchDashboardData]);
 
   return {
     clientStats,
@@ -963,14 +773,26 @@ export function useDashboard(options: UseDashboardOptions = {}) {
     isRefreshing,
     lastRefresh,
     getLastRefreshText,
-    refreshCount
+    refreshCount,
+    dashboardConfig
   };
 }
 
 /**
- * Re-export du hook pour compatibilité
- * @deprecated Utilisez useDashboard avec l'option {useCache: true}
+ * Version simplifiée du hook useDashboard pour les composants légers
  */
 export function useOptimizedDashboard() {
-  return useDashboard({ useCache: true });
-} 
+  const { isClient } = useUser();
+  const dashboard = useDashboard({ useCache: true });
+  
+  // Renvoyer uniquement les données pertinentes selon le type d'utilisateur
+  return {
+    stats: isClient ? dashboard.clientStats : dashboard.freelanceStats,
+    isLoading: dashboard.loadingStats,
+    refreshDashboard: dashboard.refreshDashboard,
+    isRefreshing: dashboard.isRefreshing,
+    getLastRefreshText: dashboard.getLastRefreshText,
+    dashboardConfig: dashboard.dashboardConfig,
+    error: dashboard.error
+  };
+}

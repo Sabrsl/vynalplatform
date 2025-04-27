@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { formatPrice } from "@/lib/utils";
-import { AlertCircle, ArrowLeft, FileText, Loader } from "lucide-react";
+import { AlertCircle, ArrowLeft, FileText, Loader, CheckCircle, XCircle } from "lucide-react";
 import Image from "next/image";
 import { PaymentForm } from "./PaymentForm";
 
@@ -28,6 +28,8 @@ interface PaymentDetailsProps {
   error: string | null;
   onBack: () => void;
   onNext: () => void;
+  isTestMode?: boolean;
+  testPaymentSuccess?: boolean | null;
 }
 
 export function PaymentDetails({
@@ -50,7 +52,9 @@ export function PaymentDetails({
   loading,
   error,
   onBack,
-  onNext
+  onNext,
+  isTestMode = false,
+  testPaymentSuccess = null
 }: PaymentDetailsProps) {
   
   return (
@@ -58,7 +62,7 @@ export function PaymentDetails({
       <DialogHeader className="bg-gradient-to-b from-vynal-purple-dark to-vynal-purple-darkest p-4 rounded-t-lg border-b border-vynal-purple-secondary/30">
         <DialogTitle className="text-vynal-text-primary">Détails de paiement</DialogTitle>
         <DialogDescription className="text-vynal-text-secondary">
-          Veuillez entrer vos informations de paiement
+          {isTestMode ? "Simuler un paiement pour test" : "Veuillez entrer vos informations de paiement"}
         </DialogDescription>
       </DialogHeader>
       
@@ -85,44 +89,84 @@ export function PaymentDetails({
               <h3 className="text-sm font-medium line-clamp-1 text-vynal-text-primary">{service?.title}</h3>
               <p className="text-xs text-vynal-text-secondary mt-1 line-clamp-1">
                 Vous payez avec : <span className="font-medium">
-                  {selectedPaymentMethod === 'card' ? 'Carte bancaire' :
-                   selectedPaymentMethod === 'paypal' ? 'PayPal' :
-                   selectedPaymentMethod === 'orange-money' ? 'Orange Money' :
-                   selectedPaymentMethod === 'free-money' ? 'Free Money' :
-                   selectedPaymentMethod === 'wave' ? 'Wave' : 
-                   'Méthode inconnue'}
+                  {isTestMode ? 'Paiement fictif (TEST)' : (
+                    selectedPaymentMethod === 'card' ? 'Carte bancaire' :
+                    selectedPaymentMethod === 'paypal' ? 'PayPal' :
+                    selectedPaymentMethod === 'orange-money' ? 'Orange Money' :
+                    selectedPaymentMethod === 'free-money' ? 'Free Money' :
+                    selectedPaymentMethod === 'wave' ? 'Wave' : 
+                    'Méthode inconnue'
+                  )}
                 </span>
               </p>
             </div>
           </div>
         </div>
         
+        {/* Message de mode test si activé */}
+        {isTestMode && (
+          <div className={`p-3 ${testPaymentSuccess === true ? 'bg-green-500/20 border-green-500/40' : testPaymentSuccess === false ? 'bg-red-500/20 border-red-500/40' : 'bg-amber-500/20 border-amber-500/40'} border rounded-lg`}>
+            <div className="flex items-start">
+              {testPaymentSuccess === true ? (
+                <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 mr-2 flex-shrink-0" />
+              ) : testPaymentSuccess === false ? (
+                <XCircle className="h-5 w-5 text-red-500 mt-0.5 mr-2 flex-shrink-0" />
+              ) : (
+                <AlertCircle className="h-5 w-5 text-amber-500 mt-0.5 mr-2 flex-shrink-0" />
+              )}
+              <div>
+                <h3 className={`text-sm font-medium ${testPaymentSuccess === true ? 'text-green-500' : testPaymentSuccess === false ? 'text-red-500' : 'text-amber-500'}`}>
+                  {testPaymentSuccess === true ? 'Paiement fictif réussi!' : 
+                   testPaymentSuccess === false ? 'Échec du paiement fictif' : 
+                   'Mode Test activé'}
+                </h3>
+                <p className={`text-xs ${testPaymentSuccess === true ? 'text-green-400/80' : testPaymentSuccess === false ? 'text-red-400/80' : 'text-amber-400/80'} mt-1`}>
+                  {testPaymentSuccess === true ? 'La commande test a été créée avec succès.' : 
+                   testPaymentSuccess === false ? 'Une erreur est survenue lors de la création de la commande test.' : 
+                   'En mode test, vous pouvez passer une commande fictive sans entrer de vraies informations de paiement.'}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+        
         {/* Affichage des erreurs */}
-        {error && (
+        {error && !isTestMode && (
           <div className="bg-vynal-status-error/20 p-2 rounded-md flex items-start gap-2 text-vynal-status-error text-xs border border-vynal-status-error/30">
             <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
             <p>{error}</p>
           </div>
         )}
         
-        {/* Formulaire de paiement */}
-        <PaymentForm
-          method={selectedPaymentMethod}
-          cardNumber={cardNumber}
-          setCardNumber={setCardNumber}
-          cardHolder={cardHolder}
-          setCardHolder={setCardHolder}
-          expiryDate={expiryDate}
-          setExpiryDate={setExpiryDate}
-          cvv={cvv}
-          setCvv={setCvv}
-          paypalEmail={paypalEmail}
-          setPaypalEmail={setPaypalEmail}
-          phoneNumber={phoneNumber}
-          setPhoneNumber={setPhoneNumber}
-          mobileOperator={mobileOperator}
-          setMobileOperator={setMobileOperator}
-        />
+        {/* Formulaire de paiement - masqué en mode test */}
+        {!isTestMode && (
+          <PaymentForm
+            method={selectedPaymentMethod}
+            cardNumber={cardNumber}
+            setCardNumber={setCardNumber}
+            cardHolder={cardHolder}
+            setCardHolder={setCardHolder}
+            expiryDate={expiryDate}
+            setExpiryDate={setExpiryDate}
+            cvv={cvv}
+            setCvv={setCvv}
+            paypalEmail={paypalEmail}
+            setPaypalEmail={setPaypalEmail}
+            phoneNumber={phoneNumber}
+            setPhoneNumber={setPhoneNumber}
+            mobileOperator={mobileOperator}
+            setMobileOperator={setMobileOperator}
+          />
+        )}
+        
+        {/* En mode test, on affiche un message explicatif au lieu du formulaire */}
+        {isTestMode && (
+          <div className="py-4 px-6 bg-vynal-purple-secondary/10 rounded-lg border border-vynal-purple-secondary/30">
+            <p className="text-sm text-vynal-text-primary text-center">
+              En mode test, le paiement sera simulé sans nécessiter de vraies coordonnées bancaires.
+            </p>
+          </div>
+        )}
         
         <div className="pt-2 mt-2 border-t border-vynal-purple-secondary/30">
           <div className="flex items-center justify-between w-full">
@@ -149,7 +193,7 @@ export function PaymentDetails({
         
         <Button 
           onClick={onNext}
-          className="bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-vynal-purple-dark"
+          className={`${isTestMode ? 'bg-amber-500 hover:bg-amber-600' : 'bg-vynal-accent-primary hover:bg-vynal-accent-secondary'} text-vynal-purple-dark`}
           disabled={loading}
         >
           {loading ? (
@@ -158,7 +202,7 @@ export function PaymentDetails({
               Traitement...
             </>
           ) : (
-            "Finaliser le paiement"
+            isTestMode ? "Simuler le paiement" : "Finaliser le paiement"
           )}
         </Button>
       </DialogFooter>

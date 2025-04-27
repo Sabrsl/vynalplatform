@@ -11,8 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, AlertCircle, CheckCircle, Loader, Wallet, BanknoteIcon } from "lucide-react";
 import { PaymentMethodCard } from "@/components/orders/PaymentMethodCard";
-import { InfoTooltip } from "@/components/ui/InfoTooltip";
 import { CURRENCY } from "@/lib/constants";
+import { useUser } from "@/hooks/useUser";
 
 // Données fictives pour la démo
 const MOCK_WALLET = {
@@ -106,6 +106,8 @@ export default function WithdrawPage() {
   const [feeAmount, setFeeAmount] = useState(0);
   const [netAmount, setNetAmount] = useState(0);
   
+  const { isFreelance } = useUser();
+  
   // Combinaison des états de chargement
   const isLoading = loading || authLoading;
   
@@ -143,14 +145,14 @@ export default function WithdrawPage() {
     }
 
     // Vérifier le rôle de l'utilisateur
-    if (user?.user_metadata?.role !== "freelance") {
+    if (!isFreelance) {
       router.push("/dashboard");
       setError("Seuls les freelances peuvent effectuer des retraits");
       return;
     }
 
     fetchWallet();
-  }, [user, authLoading, router]);
+  }, [user, authLoading, router, isFreelance]);
 
   // Calculer les frais et le montant net à chaque changement de montant ou de méthode
   useEffect(() => {
@@ -192,7 +194,7 @@ export default function WithdrawPage() {
       return false;
     }
     
-    if (user?.user_metadata?.role !== "freelance") {
+    if (!isFreelance) {
       router.push("/dashboard");
       setError("Seuls les freelances peuvent effectuer des retraits");
       return false;
@@ -268,7 +270,7 @@ export default function WithdrawPage() {
         return;
       }
       
-      if (user?.user_metadata?.role !== "freelance") {
+      if (!isFreelance) {
         router.push('/dashboard');
         return;
       }
@@ -426,11 +428,6 @@ export default function WithdrawPage() {
             <div>
               <Label htmlFor="amount" className="flex items-center gap-1 text-slate-700 dark:text-vynal-text-secondary mb-1.5">
                 Montant à retirer
-                <InfoTooltip 
-                  text={`Montant minimum de retrait: ${formatAmount(wallet.min_withdrawal)}. Des frais de service de 20% sont automatiquement déduits du montant retiré, couvrant les frais de transfert, traitement et service.`}
-                  position="right"
-                  size="xs"
-                />
               </Label>
               <div className="relative mt-1">
                 <Input
@@ -471,11 +468,6 @@ export default function WithdrawPage() {
             <div>
               <Label className="flex items-center gap-1 mb-2 text-slate-700 dark:text-vynal-text-secondary">
                 Méthode de retrait
-                <InfoTooltip 
-                  text="Chaque méthode de paiement a des délais différents. Des frais de service de 20% sont automatiquement déduits sur tous les retraits pour couvrir les coûts de transfert selon le mode choisi, les frais de traitement et les frais de service. Les méthodes de paiement mobile sont traitées sous 24h, tandis que les virements bancaires prennent 3-5 jours ouvrés."
-                  position="top"
-                  size="xs"
-                />
               </Label>
               
               <div className="grid grid-cols-1 gap-2 mt-2 sm:grid-cols-2 sm:gap-3">

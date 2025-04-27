@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Upload, X, Info, AlertCircle } from "lucide-react";
 import { Loader } from "@/components/ui/loader";
 import { validateImage, processImage } from "@/lib/image-processor";
+import Image from 'next/image';
 
 interface ServiceImageUploaderProps {
   serviceId?: string;
@@ -309,11 +310,14 @@ const ServiceImageUploader: React.FC<ServiceImageUploaderProps> = ({
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
             {images.map((image, index) => (
               <div key={index} className="relative group">
-                <div className="aspect-video bg-gray-100 rounded-md overflow-hidden border border-gray-200">
-                  <img 
+                <div className="aspect-video bg-gray-100 rounded-md overflow-hidden border border-gray-200 relative">
+                  <Image 
                     src={image} 
                     alt={`Image ${index + 1}`} 
-                    className="w-full h-full object-cover"
+                    className="object-cover" 
+                    fill
+                    sizes="(max-width: 768px) 50vw, 33vw"
+                    quality={70}
                   />
                 </div>
                 <button

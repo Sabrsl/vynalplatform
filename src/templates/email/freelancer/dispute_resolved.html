@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Résolution de contestation - Prestataire</title>
+    <style>
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            background-color: #f9f9f9;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 4px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .header {
+            background-color: white;
+            text-align: center;
+            padding: 20px;
+        }
+        .logo {
+            max-width: 120px;
+            height: auto;
+        }
+        .content {
+            padding: 20px;
+        }
+        .notification-badge {
+            display: inline-block;
+            background-color: #22c55e;
+            color: white;
+            font-weight: bold;
+            padding: 5px 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+        .message-box {
+            background-color: #f0f9ff;
+            border-left: 4px solid #0ea5e9;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+        .order-details {
+            background-color: #f3f4f6;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .order-details table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .order-details th {
+            text-align: left;
+            padding: 8px 5px;
+            border-bottom: 1px solid #ddd;
+        }
+        .order-details td {
+            padding: 8px 5px;
+            border-bottom: 1px solid #ddd;
+        }
+        .resolution-details {
+            background-color: #ecfdf5;
+            border-left: 4px solid #22c55e;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+        .button {
+            display: inline-block;
+            background-color: #111827;
+            color: white;
+            text-decoration: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            font-weight: bold;
+            margin-top: 15px;
+        }
+        .footer {
+            background-color: #f3f4f6;
+            padding: 20px;
+            text-align: center;
+            font-size: 14px;
+            color: #6b7280;
+        }
+        .social-links {
+            margin: 15px 0;
+        }
+        .social-links a {
+            display: inline-block;
+            margin: 0 5px;
+        }
+        .social-icon {
+            width: 24px;
+            height: 24px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <img src="https://vynal.fr/logo-white.png" alt="Vynal Logo" class="logo">
+            <h1>Contestation résolue</h1>
+        </div>
+        
+        <div class="content">
+            <div class="notification-badge">Résolution confirmée</div>
+            
+            <p>Bonjour {{freelancer_name}},</p>
+            
+            <div class="message-box">
+                <h3>Bonne nouvelle !</h3>
+                <p>La contestation concernant votre commande a été résolue.</p>
+            </div>
+            
+            <h3>Détails de la commande</h3>
+            <div class="order-details">
+                <table>
+                    <tr>
+                        <th>Service</th>
+                        <td>{{service_title}}</td>
+                    </tr>
+                    <tr>
+                        <th>Commande N°</th>
+                        <td>{{order_id}}</td>
+                    </tr>
+                    <tr>
+                        <th>Client</th>
+                        <td>{{client_name}}</td>
+                    </tr>
+                    <tr>
+                        <th>Montant</th>
+                        <td>{{order_amount}} {{currency}}</td>
+                    </tr>
+                    <tr>
+                        <th>Nouveau statut</th>
+                        <td><strong>{{new_order_status}}</strong></td>
+                    </tr>
+                </table>
+            </div>
+            
+            <h3>Détails de la résolution</h3>
+            <div class="resolution-details">
+                <p><strong>Date de résolution:</strong> {{resolution_date}}</p>
+                <p><strong>Type de résolution:</strong> {{resolution_type}}</p>
+                
+                {{#if has_resolution_notes}}
+                <p><strong>Notes de résolution:</strong></p>
+                <p>{{resolution_notes}}</p>
+                {{/if}}
+                
+                {{#if has_refund}}
+                <p><strong>Impact financier:</strong> Une retenue de {{refund_amount}} {{currency}} a été appliquée.</p>
+                {{/if}}
+                
+                {{#if payment_updated}}
+                <p><strong>Mise à jour du paiement:</strong> Votre paiement a été ajusté en fonction de la résolution.</p>
+                {{/if}}
+                
+                {{#if order_cancelled}}
+                <p><strong>Information importante:</strong> La commande a été annulée suite à cette résolution.</p>
+                {{/if}}
+            </div>
+            
+            <p>Vous pouvez consulter les détails complets de cette commande et sa résolution sur votre tableau de bord.</p>
+            
+            <div style="text-align: center;">
+                <a href="{{order_details_url}}" class="button">Voir les détails de la commande</a>
+            </div>
+            
+            <p style="margin-top: 25px;">Si vous avez des questions concernant cette résolution, n'hésitez pas à contacter notre service client.</p>
+            
+            <p>Cordialement,<br>
+            L'équipe Vynal</p>
+        </div>
+        
+        <div class="footer">
+            <div class="social-links">
+                <a href="https://www.instagram.com/vynal"><img src="https://vynal.fr/assets/instagram-icon.png" alt="Instagram" class="social-icon"></a>
+                <a href="https://www.twitter.com/vynal"><img src="https://vynal.fr/assets/twitter-icon.png" alt="Twitter" class="social-icon"></a>
+                <a href="https://www.facebook.com/vynal"><img src="https://vynal.fr/assets/facebook-icon.png" alt="Facebook" class="social-icon"></a>
+            </div>
+            <p>© {{current_year}} Vynal. Tous droits réservés.</p>
+            <p>
+                <a href="https://vynal.fr/terms">Conditions d'utilisation</a> | 
+                <a href="https://vynal.fr/privacy">Politique de confidentialité</a>
+            </p>
+        </div>
+    </div>
+</body>
+</html> 

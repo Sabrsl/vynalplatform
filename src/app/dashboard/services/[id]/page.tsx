@@ -9,6 +9,9 @@ import { supabase } from "@/lib/supabase/client";
 import ServiceDetails from "@/components/services/ServiceDetails";
 import { ArrowLeftIcon, CopyIcon, PencilIcon, TrashIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Separator } from '@/components/ui/separator'
+import { Skeleton } from '@/components/ui/skeleton'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { useToast } from "@/components/ui/use-toast";
 
@@ -25,30 +28,45 @@ export default function ServiceDetailsPage({
   const router = useRouter();
   const { user } = useAuth();
   const { profile, isFreelance } = useUser();
-  const { getServiceById } = useServices();
+  const { getServiceById, deleteService } = useServices();
   const { toast } = useToast();
   
   const [service, setService] = useState<ExtendedService | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   // Récupérer l'ID du service depuis les paramètres d'URL
   const serviceId = typeof params.id === 'string' ? params.id : Array.isArray(params.id) ? params.id[0] : '';
   
   // Rediriger si l'utilisateur n'est pas connecté
   useEffect(() => {
-    if (!user) {
-      router.push("/login");
-    }
-  }, [user, router]);
+    // Éviter la redirection prématurée pendant le chargement initial
+    // et permettre à l'authentification de se terminer correctement
+    if (loading) return;
+    
+    // Attendre un court instant avant de vérifier l'authentification
+    // pour permettre à Auth de réinitialiser son état
+    const timer = setTimeout(() => {
+      if (!user && !loading) {
+        router.push("/login");
+      }
+    }, 500);
+    
+    return () => clearTimeout(timer);
+  }, [user, router, loading]);
   
-  // Charger les détails du service
+  // Charger les détails du service avec gestion des erreurs améliorée
   useEffect(() => {
+    let isMounted = true; // Indicateur pour éviter les mises à jour sur composant démonté
+    
     async function loadServiceDetails() {
       if (!serviceId) {
-        setError("Identifiant de service invalide");
-        setLoading(false);
+        if (isMounted) {
+          setError("Identifiant de service invalide");
+          setLoading(false);
+        }
         return;
       }
       
@@ -60,101 +78,69 @@ export default function ServiceDetailsPage({
       try {
         console.log("Chargement du service avec ID:", serviceId);
         
-        // Appel direct à Supabase avec timeout et retry
-        const fetchServiceWithRetry = async (retries = 3, delay = 1000) => {
-          let attempt = 0;
-          
-          while (attempt < retries) {
-            try {
-              // Créer une Promise avec timeout
-              const timeoutPromise = new Promise((_, reject) => {
-                setTimeout(() => reject(new Error("Timeout lors de la récupération du service")), 8000);
-              });
-              
-              // Faire la requête Supabase
-              const supabasePromise = supabase
-                .from('services')
-                .select(`
-                  *,
-                  profiles!services_freelance_id_fkey (
-                    id, 
-                    username, 
-                    full_name, 
-                    avatar_url, 
-                    email, 
-                    role,
-                    bio
-                  ),
-                  categories (id, name, slug),
-                  subcategories (id, name, slug)
-                `)
-                .eq('id', serviceId)
-                .single();
-              
-              // Utiliser Promise.race pour implémenter le timeout
-              const result = await Promise.race([supabasePromise, timeoutPromise]) as any;
-              
-              if (result.error) {
-                throw result.error;
-              }
-              
-              return result.data;
-            } catch (error: any) {
-              console.warn(`Tentative ${attempt + 1} échouée:`, error);
-              
-              // Si c'est la dernière tentative, relancer l'erreur
-              if (attempt === retries - 1) {
-                throw error;
-              }
-              
-              // Sinon, attendre et réessayer
-              await new Promise(resolve => setTimeout(resolve, delay));
-              attempt++;
-            }
-          }
-          
-          // Si on arrive ici, c'est qu'on a épuisé toutes les tentatives
-          throw new Error("Impossible de récupérer le service après plusieurs tentatives");
-        };
+        // Utiliser le hook getServiceById au lieu d'appeler directement Supabase
+        const { service: serviceData, error: serviceError } = await getServiceById(serviceId);
         
-        const data = await fetchServiceWithRetry();
+        // Vérifier si le composant est toujours monté avant de mettre à jour l'état
+        if (!isMounted) return;
         
-        if (!data) {
+        if (serviceError) {
+          console.error("Erreur lors du chargement du service:", serviceError);
+          throw new Error(serviceError);
+        }
+        
+        if (!serviceData) {
           throw new Error("Service non trouvé");
         }
         
-        // Vérifier que le service appartient bien au freelancer connecté
-        // On permet l'accès si c'est le propriétaire ou un admin
-        const isOwnService = data.freelance_id === profile.id;
-        const isAdmin = profile.role === 'admin';
-        
-        if (!isOwnService && !isAdmin) {
-          throw new Error("Vous n'êtes pas autorisé à voir ce service");
+        // Les vérifications de permission sont déjà faites dans getServiceById
+        // Vérifier si le service est valide et contient les données nécessaires
+        if (!serviceData.profiles || !serviceData.profiles.id) {
+          console.warn("Service incomplet: données de profil manquantes");
+          // Créer un profil par défaut si manquant pour éviter les erreurs d'affichage
+          serviceData.profiles = {
+            id: serviceData.freelance_id || '',
+            username: 'utilisateur',
+            full_name: 'Utilisateur',
+            avatar_url: null,
+            bio: null,
+            email: null,
+            role: null
+          };
         }
         
-        console.log("Service chargé:", data);
+        // Les vérifications de permission sont déjà faites dans getServiceById
+        // Nous vérifions quand même ici pour plus de sécurité côté client
+        if (profile && serviceData.profiles.id !== profile.id && profile.role !== 'admin') {
+          console.warn("Vous n'êtes pas autorisé à voir ce service");
+          setError("Vous n'êtes pas autorisé à voir ce service");
+          setLoading(false);
+          return;
+        }
         
-        // Transformer les données
-        const serviceData: ExtendedService = {
-          ...data,
-          profiles: data.profiles,
-          categories: data.categories,
-          subcategories: data.subcategories,
-        };
-        
-        setService(serviceData);
+        console.log("Service chargé:", serviceData);
+        setService(serviceData as ExtendedService);
       } catch (err: any) {
-        console.error('Erreur lors du chargement du service:', err);
-        setError(err.message || "Une erreur est survenue lors du chargement du service");
+        if (isMounted) {
+          console.error('Erreur lors du chargement du service:', err);
+          setError(err.message || "Une erreur est survenue lors du chargement du service");
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     }
     
     if (serviceId && profile) {
       loadServiceDetails();
     }
-  }, [serviceId, profile]);
+    
+    // Fonction de nettoyage
+    return () => {
+      isMounted = false;
+    };
+  }, [serviceId, profile, getServiceById]);
   
   // Rediriger si l'utilisateur n'est pas freelance
   useEffect(() => {
@@ -165,88 +151,27 @@ export default function ServiceDetailsPage({
   
   // Handlers
   const handleBack = () => router.push("/dashboard/services");
-  const handleView = () => service && router.push(`/services/${service.slug || service.id}`);
-  const handleEdit = () => service && router.push(`/dashboard/services/edit/${service.id}`);
-  const handleDelete = async () => {
-    if (!service || !profile) return;
-    
-    setIsDeleteDialogOpen(false);
-    
-    try {
-      console.log("Tentative de suppression du service:", service.id);
-      
-      // Vérifier que l'utilisateur est bien le propriétaire ou un admin
-      if (service.freelance_id !== profile.id && profile.role !== 'admin') {
-        throw new Error("Vous n'êtes pas autorisé à supprimer ce service");
-      }
-      
-      // Supprimer les images associées au service
-      if (service.images && service.images.length > 0) {
-        // Extraire les noms de fichiers des URL
-        const fileNames = service.images.map(url => {
-          const parts = url.split('/');
-          return parts[parts.length - 1];
-        }).filter(Boolean);
-        
-        if (fileNames.length > 0) {
-          console.log("Suppression des images:", fileNames);
-          
-          try {
-            const { error: deleteImagesError } = await supabase.storage
-              .from('services')
-              .remove(fileNames);
-              
-            if (deleteImagesError) {
-              console.warn("Erreur lors de la suppression des images:", deleteImagesError);
-              // Continuer malgré l'erreur pour supprimer le service
-            }
-          } catch (err) {
-            console.warn("Exception lors de la suppression des images:", err);
-            // Continuer malgré l'erreur
-          }
-        }
-      }
-      
-      // Supprimer le service directement avec Supabase
-      const { error: deleteError } = await supabase
-        .from('services')
-        .delete()
-        .eq('id', service.id);
-        
-      if (deleteError) {
-        throw deleteError;
-      }
-      
-      console.log("Service supprimé avec succès");
-      
-      toast({
-        title: "Succès",
-        description: "Service supprimé avec succès"
-      });
-      
-      // Publier un événement personnalisé pour informer les autres composants
-      window.dispatchEvent(new CustomEvent('vynal:service-deleted', { 
-        detail: { 
-          serviceId: service.id
-        } 
-      }));
-      
-      // Rediriger vers la liste des services
-      router.push('/dashboard/services');
-      
-    } catch (err: any) {
-      console.error("Erreur lors de la suppression du service:", err);
-      
-      toast({
-        title: "Erreur",
-        description: err.message || "Une erreur est survenue lors de la suppression du service",
-        variant: "destructive"
-      });
+  const handleView = () => {
+    // Utiliser l'ID du service directement s'il existe, au lieu d'attendre le chargement du service
+    const idToUse = serviceId || (service && service.id);
+    if (idToUse) {
+      router.push(`/services/${idToUse}`);
+    } else {
+      console.error("Impossible d'afficher ce service: ID manquant");
+    }
+  };
+  const handleEdit = () => {
+    // Utiliser l'ID du service directement s'il existe
+    const idToUse = serviceId || (service && service.id);
+    if (idToUse) {
+      router.push(`/dashboard/services/edit/${idToUse}`);
+    } else {
+      console.error("Impossible d'éditer ce service: ID manquant");
     }
   };
   
   return (
-    <div className="container max-w-6xl mt-6 flex flex-col gap-6">
+    <div className="container px-4 sm:px-6 md:max-w-6xl mt-4 sm:mt-6 flex flex-col gap-4 sm:gap-6">
       <ServiceDetails 
         service={service as ExtendedService}
         loading={loading}
@@ -256,11 +181,11 @@ export default function ServiceDetailsPage({
         onEdit={handleEdit}
         isFreelanceView={true}
       >
-        <div className="flex items-center gap-2 mt-4">
+        <div className="flex flex-col xs:flex-row items-stretch xs:items-center gap-2 mt-3 sm:mt-4">
           <Button
             onClick={handleEdit}
             variant="outline"
-            className="flex items-center gap-2"
+            className="flex items-center justify-center gap-2 w-full xs:w-auto"
           >
             <PencilIcon className="h-4 w-4" />
             Modifier
@@ -271,14 +196,47 @@ export default function ServiceDetailsPage({
             description="Êtes-vous sûr de vouloir supprimer ce service ? Cette action est irréversible."
             confirmText="Supprimer"
             variant="destructive"
-            onConfirm={handleDelete}
+            onConfirm={async () => {
+              if (!serviceId) return;
+              
+              try {
+                setIsDeleting(true);
+                
+                // Appeler la fonction de suppression du service
+                const result = await deleteService(serviceId);
+                
+                if (!result.success) {
+                  throw new Error(result.error || "Erreur lors de la suppression du service");
+                }
+                
+                toast({
+                  title: "Succès",
+                  description: "Service supprimé avec succès"
+                });
+                
+                // Attendre un court instant avant de rediriger pour que le toast s'affiche
+                setTimeout(() => {
+                  router.push('/dashboard/services');
+                }, 500);
+              } catch (err: any) {
+                console.error("Erreur lors de la suppression:", err);
+                toast({
+                  title: "Erreur",
+                  description: err.message || "Une erreur est survenue lors de la suppression",
+                  variant: "destructive"
+                });
+              } finally {
+                setIsDeleting(false);
+              }
+            }}
             trigger={
               <Button 
                 variant="destructive" 
-                className="flex items-center gap-2"
+                className="flex items-center justify-center gap-2 w-full xs:w-auto"
+                disabled={isDeleting}
               >
                 <TrashIcon className="h-4 w-4" />
-                Supprimer
+                {isDeleting ? "Suppression..." : "Supprimer"}
               </Button>
             }
           />

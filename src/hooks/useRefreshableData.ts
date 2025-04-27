@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useLastRefresh } from './useLastRefresh';
 import { NavigationLoadingState } from '@/app/providers';
 
@@ -9,13 +9,28 @@ interface UseRefreshableDataOptions {
   onRefreshComplete?: () => void;
   onRefreshError?: (error: any) => void;
   autoRefreshOnNavigation?: boolean;
-  refreshInterval?: number;  // Nouvel paramètre pour le rafraîchissement périodique
-  autoRefreshOnVisibilityChange?: boolean; // Nouveau paramètre pour le rafraîchissement lors du retour sur la page
+  refreshInterval?: number;
+  autoRefreshOnVisibilityChange?: boolean;
+  debounceMs?: number; // Nouveau: contrôle le debounce des rafraîchissements
+  minTimeBetweenRefreshes?: number; // Nouveau: temps minimum entre deux rafraîchissements
 }
 
+interface UseRefreshableDataResult {
+  isRefreshing: boolean;
+  error: string | null;
+  refreshData: (showLoadingIndicator?: boolean) => Promise<void>;
+  refreshDataInBackground: () => Promise<void>;
+  lastRefresh: number | null;
+  getLastRefreshText: (shortFormat?: boolean) => string;
+  refreshCount: number;
+}
+
+// Constantes pour les valeurs par défaut
+const DEFAULT_DEBOUNCE_MS = 300;
+const DEFAULT_MIN_TIME_BETWEEN_REFRESHES = 2000; // 2 secondes minimum entre les rafraîchissements
+
 /**
- * Hook utilitaire pour gérer le rafraîchissement des données avec suivi d'état
- * Peut être utilisé pour envelopper n'importe quelle fonction de récupération de données
+ * Hook utilitaire optimisé pour gérer le rafraîchissement des données avec suivi d'état
  */
 export function useRefreshableData({
   fetchData,
@@ -24,21 +39,56 @@ export function useRefreshableData({
   onRefreshComplete,
   onRefreshError,
   autoRefreshOnNavigation = true,
-  refreshInterval = 0,  // 0 = désactivé
-  autoRefreshOnVisibilityChange = true // Activé par défaut
-}: UseRefreshableDataOptions) {
+  refreshInterval = 0,
+  autoRefreshOnVisibilityChange = true,
+  debounceMs = DEFAULT_DEBOUNCE_MS,
+  minTimeBetweenRefreshes = DEFAULT_MIN_TIME_BETWEEN_REFRESHES
+}: UseRefreshableDataOptions): UseRefreshableDataResult {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [refreshCount, setRefreshCount] = useState(0); // Compteur pour forcer la mise à jour
+  const [refreshCount, setRefreshCount] = useState(0);
   const { lastRefresh, updateLastRefresh, getLastRefreshText } = useLastRefresh();
   
-  const refreshData = useCallback(async (showLoadingIndicator = true) => {
-    if (isRefreshing) return;
+  // Références pour la gestion des états et des timers
+  const isRefreshingRef = useRef(false);
+  const lastRefreshTimeRef = useRef<number>(0);
+  const pendingRefreshRef = useRef<boolean>(false);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalTimerRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Mémoïser les callbacks pour éviter les récréations inutiles
+  const refreshData = useCallback(async (showLoadingIndicator = true): Promise<void> => {
+    // Vérifier si un rafraîchissement est déjà en cours ou si le temps minimum n'est pas écoulé
+    const now = Date.now();
+    if (isRefreshingRef.current) {
+      pendingRefreshRef.current = true;
+      return;
+    }
+    
+    // Throttling des rafraîchissements
+    if (now - lastRefreshTimeRef.current < minTimeBetweenRefreshes) {
+      // Mettre en file d'attente un rafraîchissement futur
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+      
+      debounceTimerRef.current = setTimeout(() => {
+        refreshData(showLoadingIndicator);
+      }, minTimeBetweenRefreshes);
+      
+      return;
+    }
     
     try {
+      // Mettre à jour les références d'état
+      isRefreshingRef.current = true;
+      lastRefreshTimeRef.current = now;
+      
+      // Mettre à jour l'état React pour l'UI
       if (showLoadingIndicator) {
         setIsRefreshing(true);
       }
+      
       setError(null);
       
       // Notification de début de rafraîchissement
@@ -56,50 +106,97 @@ export function useRefreshableData({
       // Notification de fin de rafraîchissement
       if (onRefreshComplete) onRefreshComplete();
     } catch (err: any) {
-      setError(err.message || 'Une erreur est survenue lors du rafraîchissement des données');
+      const errorMessage = err?.message || 'Une erreur est survenue lors du rafraîchissement des données';
+      setError(errorMessage);
       
       // Notification d'erreur
       if (onRefreshError) onRefreshError(err);
     } finally {
+      // Réinitialiser les états
+      isRefreshingRef.current = false;
+      
       if (showLoadingIndicator) {
         setIsRefreshing(false);
       } else {
         // Petit délai pour éviter les flashs d'interface
         setTimeout(() => {
           setIsRefreshing(false);
-        }, 300);
+        }, debounceMs);
+      }
+      
+      // Traiter les rafraîchissements en attente
+      if (pendingRefreshRef.current) {
+        pendingRefreshRef.current = false;
+        // Délai avant de lancer le rafraîchissement en attente
+        setTimeout(() => {
+          refreshData(false);
+        }, minTimeBetweenRefreshes);
       }
     }
-  }, [fetchData, isRefreshing, onRefreshStart, onRefreshComplete, onRefreshError, updateLastRefresh]);
+  }, [
+    fetchData,
+    updateLastRefresh,
+    onRefreshStart,
+    onRefreshComplete,
+    onRefreshError,
+    debounceMs,
+    minTimeBetweenRefreshes
+  ]);
 
   // Rafraîchir les données en arrière-plan (sans indicateur de chargement)
   const refreshDataInBackground = useCallback(() => {
     return refreshData(false);
   }, [refreshData]);
 
-  // Écouter les événements d'invalidation de cache (navigation)
+  // Gestionnaire d'invalidation de cache optimisé
+  const handleCacheInvalidation = useCallback((event?: Event): void => {
+    if (isRefreshingRef.current) {
+      pendingRefreshRef.current = true;
+      return;
+    }
+    
+    // Vérifier si l'événement contient des informations pertinentes
+    if (event) {
+      const customEvent = event as CustomEvent;
+      const { fromPath, toPath, keys } = customEvent.detail || {};
+      
+      // Vérifier si les clés d'invalidation correspondent
+      if (keys && cacheInvalidationKeys.length > 0) {
+        const shouldRefresh = cacheInvalidationKeys.some(key => 
+          keys.includes(key) || keys.some((k: string) => k.startsWith(key))
+        );
+        
+        if (!shouldRefresh) return;
+      }
+      
+      // Si navigation vers une nouvelle page qui nécessite des données fraîches
+      if (fromPath && toPath && fromPath !== toPath) {
+        refreshDataInBackground();
+      }
+    } else {
+      // Cas général - invalidation sans information spécifique
+      refreshDataInBackground();
+    }
+  }, [cacheInvalidationKeys, refreshDataInBackground]);
+
+  // Gestionnaire pour les changements de visibilité de la page
+  const handleVisibilityChange = useCallback((): void => {
+    if (isRefreshingRef.current || !autoRefreshOnVisibilityChange) return;
+    
+    const now = Date.now();
+    const timeSinceLastRefresh = now - lastRefreshTimeRef.current;
+    
+    // Ne rafraîchir que si la page était cachée pendant au moins 10 secondes
+    if (document.visibilityState === 'visible' && timeSinceLastRefresh > 10000) {
+      if (!NavigationLoadingState.isNavigating) {
+        refreshDataInBackground();
+      }
+    }
+  }, [autoRefreshOnVisibilityChange, refreshDataInBackground]);
+
+  // Effet pour les événements d'invalidation de cache
   useEffect(() => {
     if (typeof window === 'undefined' || !autoRefreshOnNavigation) return;
-    
-    const handleCacheInvalidation = (event?: Event) => {
-      if (!isRefreshing) {
-        console.log('Cache invalidé - rafraîchissement des données');
-        
-        // Vérifier si l'événement contient des informations sur les chemins
-        if (event) {
-          const customEvent = event as CustomEvent;
-          const { fromPath, toPath } = customEvent.detail || {};
-          
-          // Si navigation vers une nouvelle page qui nécessite des données fraîches
-          if (fromPath && toPath && fromPath !== toPath) {
-            refreshDataInBackground();
-          }
-        } else {
-          // Cas général - invalidation sans information de chemin
-          refreshDataInBackground();
-        }
-      }
-    };
     
     // Écouter l'événement personnalisé d'invalidation du cache
     window.addEventListener('vynal:cache-invalidated', handleCacheInvalidation);
@@ -109,9 +206,8 @@ export function useRefreshableData({
       const customEvent = event as CustomEvent;
       const isNavigating = customEvent.detail?.isNavigating || false;
       
-      // Si la navigation est terminée, rafraîchir les données
+      // Si la navigation est terminée, rafraîchir les données après un délai court
       if (!isNavigating && !NavigationLoadingState.isNavigating) {
-        // Délai court pour s'assurer que tout est prêt
         setTimeout(() => handleCacheInvalidation(), 100);
       }
     };
@@ -122,41 +218,18 @@ export function useRefreshableData({
       window.removeEventListener('vynal:cache-invalidated', handleCacheInvalidation);
       window.removeEventListener('vynal:navigation-state-changed', handleNavigationStateChange);
     };
-  }, [isRefreshing, refreshDataInBackground, autoRefreshOnNavigation]);
+  }, [autoRefreshOnNavigation, handleCacheInvalidation]);
 
-  // Écouter les événements de visibilité et de focus
+  // Effet pour les événements de visibilité
   useEffect(() => {
     if (typeof window === 'undefined' || !autoRefreshOnVisibilityChange) return;
     
-    let lastVisibilityTime = Date.now();
-    
-    // Gérer le changement de visibilité (onglet actif/inactif)
-    const handleVisibilityChange = () => {
-      const now = Date.now();
-      // Ne rafraîchir que si la page était cachée pendant au moins 10 secondes
-      // pour éviter les rafraîchissements trop fréquents
-      if (document.visibilityState === 'visible' && (now - lastVisibilityTime > 10000)) {
-        console.log('Retour sur l\'application après période d\'inactivité - rafraîchissement des données');
-        if (!isRefreshing && !NavigationLoadingState.isNavigating) {
-          refreshDataInBackground();
-        }
-      }
-      
-      lastVisibilityTime = now;
-    };
-    
-    // Gérer l'événement de focus sur la fenêtre
+    // Gestionnaire d'événements pour le focus de la fenêtre
     const handleFocus = () => {
       const now = Date.now();
-      // Ne rafraîchir que si la fenêtre était inactive pendant au moins 10 secondes
-      if (now - lastVisibilityTime > 10000) {
-        console.log('Retour sur l\'application après période d\'inactivité - rafraîchissement des données');
-        if (!isRefreshing && !NavigationLoadingState.isNavigating) {
-          refreshDataInBackground();
-        }
+      if (now - lastRefreshTimeRef.current > 10000) {
+        handleVisibilityChange();
       }
-      
-      lastVisibilityTime = now;
     };
     
     document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -166,37 +239,59 @@ export function useRefreshableData({
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleFocus);
     };
-  }, [isRefreshing, refreshDataInBackground, autoRefreshOnVisibilityChange]);
+  }, [autoRefreshOnVisibilityChange, handleVisibilityChange]);
 
-  // Rafraîchissement périodique si configuré
+  // Effet pour le rafraîchissement périodique
   useEffect(() => {
-    if (!refreshInterval || refreshInterval <= 0) return;
+    // Nettoyer l'intervalle existant si présent
+    if (intervalTimerRef.current) {
+      clearInterval(intervalTimerRef.current);
+      intervalTimerRef.current = null;
+    }
     
-    // Configurer l'intervalle de rafraîchissement
-    const interval = setInterval(() => {
-      if (!isRefreshing && !NavigationLoadingState.isNavigating) {
-        refreshDataInBackground();
+    // Configurer un nouvel intervalle si nécessaire
+    if (refreshInterval && refreshInterval > 0) {
+      intervalTimerRef.current = setInterval(() => {
+        if (!isRefreshingRef.current && !NavigationLoadingState.isNavigating) {
+          refreshDataInBackground();
+        }
+      }, refreshInterval);
+    }
+    
+    // Nettoyage lors du démontage
+    return () => {
+      if (intervalTimerRef.current) {
+        clearInterval(intervalTimerRef.current);
       }
-    }, refreshInterval);
-    
-    return () => clearInterval(interval);
-  }, [refreshInterval, isRefreshing, refreshDataInBackground]);
+      
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, [refreshInterval, refreshDataInBackground]);
 
   // Chargement initial des données
   useEffect(() => {
-    if (!NavigationLoadingState.isNavigating) {
-      refreshData();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    const initialLoad = () => {
+      if (!NavigationLoadingState.isNavigating) {
+        refreshData();
+      }
+    };
+    
+    // Différer légèrement le chargement initial pour éviter les blocages de rendu
+    const timer = setTimeout(initialLoad, 0);
+    
+    return () => clearTimeout(timer);
+  }, [refreshData]);
 
-  return {
+  // Retourner un objet mémoïsé pour éviter les recréations inutiles
+  return useMemo(() => ({
     isRefreshing,
     error,
     refreshData,
     refreshDataInBackground,
     lastRefresh,
     getLastRefreshText,
-    refreshCount // Exposer le compteur pour permettre aux composants de réagir
-  };
+    refreshCount
+  }), [isRefreshing, error, refreshData, refreshDataInBackground, lastRefresh, getLastRefreshText, refreshCount]);
 } 

@@ -5,7 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 /**
  * Hook pour récupérer le nombre total de messages non lus pour l'utilisateur actuel
  */
-export default function useTotalUnreadMessages() {
+export function useTotalUnreadMessages() {
   const { user } = useAuth();
   const { conversations, fetchConversations } = useMessagingStore();
   const [totalUnreadCount, setTotalUnreadCount] = useState(0);
@@ -49,4 +49,7 @@ export default function useTotalUnreadMessages() {
   }, [user?.id, conversations.length, fetchConversations]);
 
   return { totalUnreadCount, isLoading };
-} 
+}
+
+// Export par défaut pour la compatibilité rétroactive
+export default useTotalUnreadMessages; 

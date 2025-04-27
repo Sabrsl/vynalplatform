@@ -50,45 +50,111 @@ export interface Database {
       services: {
         Row: {
           id: string
-          created_at: string
-          updated_at: string
           title: string
-          slug: string
           description: string
           price: number
-          delivery_time: number
-          category_id: string
-          subcategory_id: string | null
           freelance_id: string
-          active: boolean
+          category_id: string
+          created_at: string
+          updated_at: string
+          status: 'active' | 'inactive' | 'pending'
+          rating?: number
+          image_url?: string
         }
         Insert: {
           id?: string
-          created_at?: string
-          updated_at?: string
           title: string
-          slug: string
           description: string
           price: number
-          delivery_time: number
-          category_id: string
-          subcategory_id?: string | null
           freelance_id: string
-          active?: boolean
+          category_id: string
+          created_at?: string
+          updated_at?: string
+          status?: 'active' | 'inactive' | 'pending'
+          rating?: number
+          image_url?: string
         }
         Update: {
           id?: string
-          created_at?: string
-          updated_at?: string
           title?: string
-          slug?: string
           description?: string
           price?: number
-          delivery_time?: number
-          category_id?: string
-          subcategory_id?: string | null
           freelance_id?: string
-          active?: boolean
+          category_id?: string
+          created_at?: string
+          updated_at?: string
+          status?: 'active' | 'inactive' | 'pending'
+          rating?: number
+          image_url?: string
+        }
+      }
+      service_notifications: {
+        Row: {
+          id: string
+          service_id: string
+          created_at: string
+          type: string
+          content: string | null
+        }
+        Insert: {
+          id?: string
+          service_id: string
+          created_at?: string
+          type: string
+          content?: string | null
+        }
+        Update: {
+          id?: string
+          service_id?: string
+          created_at?: string
+          type?: string
+          content?: string | null
+        }
+      }
+      service_categories: {
+        Row: {
+          id: string
+          name: string
+          description?: string
+          icon?: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          description?: string
+          icon?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          description?: string
+          icon?: string
+        }
+      }
+      bookings: {
+        Row: {
+          id: string
+          service_id: string
+          user_id: string
+          created_at: string
+          status: 'pending' | 'confirmed' | 'completed' | 'cancelled'
+          booking_date: string
+        }
+        Insert: {
+          id?: string
+          service_id: string
+          user_id: string
+          created_at?: string
+          status?: 'pending' | 'confirmed' | 'completed' | 'cancelled'
+          booking_date: string
+        }
+        Update: {
+          id?: string
+          service_id?: string
+          user_id?: string
+          created_at?: string
+          status?: 'pending' | 'confirmed' | 'completed' | 'cancelled'
+          booking_date?: string
         }
       }
       categories: {
@@ -280,6 +346,8 @@ export interface Database {
           content: string | null
           conversation_id: string | null
           read: boolean
+          emailed: boolean | null
+          emailed_at: string | null
         }
         Insert: {
           id?: string
@@ -289,6 +357,8 @@ export interface Database {
           content?: string | null
           conversation_id?: string | null
           read?: boolean
+          emailed?: boolean | null
+          emailed_at?: string | null
         }
         Update: {
           id?: string
@@ -298,6 +368,8 @@ export interface Database {
           content?: string | null
           conversation_id?: string | null
           read?: boolean
+          emailed?: boolean | null
+          emailed_at?: string | null
         }
       }
       conversation_participants: {

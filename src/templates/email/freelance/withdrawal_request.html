@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Demande de retrait - Vynal Platform</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { 
+      font-family: 'Poppins', sans-serif; 
+      line-height: 1.6; 
+      color: #333; 
+      margin: 0; 
+      padding: 0; 
+      background-color: #f9f9f9;
+    }
+    .container { 
+      max-width: 600px; 
+      margin: 0 auto; 
+      background: white;
+      border-radius: 4px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .header { 
+      background-color: white;
+      text-align: center; 
+      padding: 20px;
+    }
+    .logo { 
+      max-width: 120px; 
+      height: auto; 
+    }
+    .content { 
+      padding: 20px; 
+    }
+    .button { 
+      display: inline-block; 
+      background-color: #6554AF; 
+      color: white; 
+      padding: 10px 20px; 
+      text-decoration: none; 
+      border-radius: 5px; 
+      font-weight: 500; 
+    }
+    .footer { 
+      background-color: #f3f4f6;
+      padding: 20px;
+      text-align: center;
+      font-size: 14px;
+      color: #6b7280;
+    }
+    .withdrawal-details { 
+      background-color: #f3f4f6; 
+      padding: 15px; 
+      border-radius: 5px; 
+      margin: 20px 0; 
+    }
+    .notification-badge { 
+      background-color: #FF9800; 
+      color: white; 
+      padding: 5px 10px; 
+      border-radius: 20px; 
+      font-size: 14px; 
+      display: inline-block; 
+      margin-bottom: 15px; 
+      font-weight: 500; 
+    }
+    .info-box { 
+      background-color: #FFF3E0; 
+      border-left: 4px solid #FF9800; 
+      padding: 12px; 
+      margin: 20px 0; 
+      border-radius: 4px;
+    }
+    .timeline {
+      margin: 25px 0;
+    }
+    .timeline-item {
+      display: flex;
+      margin-bottom: 15px;
+    }
+    .timeline-number {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      background-color: #6554AF;
+      color: white;
+      border-radius: 50%;
+      margin-right: 15px;
+      flex-shrink: 0;
+    }
+    .timeline-content {
+      flex-grow: 1;
+    }
+    .social-links {
+      margin: 15px 0;
+    }
+    .social-link {
+      display: inline-block;
+      margin: 0 10px;
+    }
+    .amount {
+      font-size: 24px;
+      font-weight: 600;
+      color: #FF9800;
+      margin: 10px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <img src="https://vynalplatform.com/assets/logo/logo_vynal_platform_simple.webp" alt="Vynal Platform Logo" class="logo">
+    </div>
+    
+    <div class="content">
+      <div style="text-align: center;">
+        <span class="notification-badge">Demande de retrait reçue</span>
+      </div>
+      
+      <h2>Votre demande de retrait a été enregistrée</h2>
+      
+      <p>Bonjour {{freelanceName}},</p>
+      
+      <p>Nous vous confirmons que nous avons bien reçu votre demande de retrait de fonds. Votre demande est en cours de traitement.</p>
+      
+      <div class="withdrawal-details">
+        <h3 style="margin-top: 0;">Détails de la demande</h3>
+        <div style="text-align: center;">
+          <div class="amount">{{amount}} {{currency}}</div>
+        </div>
+        <p><strong>Identifiant de transaction :</strong> {{transactionId}}</p>
+        <p><strong>Date de demande :</strong> {{requestDate}}</p>
+        <p><strong>Méthode de paiement :</strong> {{paymentMethod}}</p>
+        <p><strong>Destination :</strong> {{paymentDestination}}</p>
+        <p><strong>Frais estimés :</strong> {{fees}} {{currency}}</p>
+        <p><strong>Montant net estimé :</strong> {{netAmount}} {{currency}}</p>
+      </div>
+      
+      <div class="info-box">
+        <p><strong>Information :</strong> Le traitement de votre demande peut prendre jusqu'à 3 jours ouvrables. Vous recevrez un email de confirmation une fois que les fonds auront été envoyés.</p>
+      </div>
+      
+      <h3>Prochaines étapes</h3>
+      
+      <div class="timeline">
+        <div class="timeline-item">
+          <div class="timeline-number">1</div>
+          <div class="timeline-content">
+            <strong>Vérification</strong>
+            <p>Notre équipe vérifie votre demande de retrait</p>
+          </div>
+        </div>
+        
+        <div class="timeline-item">
+          <div class="timeline-number">2</div>
+          <div class="timeline-content">
+            <strong>Traitement</strong>
+            <p>Les fonds sont préparés pour le transfert vers votre méthode de paiement</p>
+          </div>
+        </div>
+        
+        <div class="timeline-item">
+          <div class="timeline-number">3</div>
+          <div class="timeline-content">
+            <strong>Confirmation</strong>
+            <p>Vous recevrez un email de confirmation une fois le transfert effectué</p>
+          </div>
+        </div>
+      </div>
+      
+      <p>Vous pouvez suivre le statut de votre demande de retrait depuis votre tableau de bord.</p>
+      
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="{{transactionsLink}}" class="button">Suivre ma demande</a>
+      </div>
+      
+      <p>Si vous avez des questions concernant cette demande de retrait, n'hésitez pas à contacter notre équipe de support à l'adresse <a href="mailto:{{contactEmail}}">{{contactEmail}}</a>.</p>
+    </div>
+    
+    <div class="footer">
+      <p>© {{currentYear}} Vynal Platform. Tous droits réservés.</p>
+      <div class="social-links">
+        <a href="https://twitter.com/vynalplatform" class="social-link">Twitter</a>
+        <a href="https://www.instagram.com/vynalplatform" class="social-link">Instagram</a>
+        <a href="https://www.linkedin.com/company/vynal" class="social-link">LinkedIn</a>
+      </div>
+      <p>Vous recevez cet email car vous êtes inscrit sur la plateforme Vynal.</p>
+    </div>
+  </div>
+</body>
+</html> 

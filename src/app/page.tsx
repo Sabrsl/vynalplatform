@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowRight, Search, Star, Shield, Clock } from 'lucide-react';
@@ -11,12 +11,16 @@ import { BorderBeamButton } from '@/components/ui/border-beam-button';
 import PartnersSection from '@/components/sections/PartnersSection';
 import { useCategories } from '@/hooks/useCategories';
 import { findBestCategoryMatch } from '@/lib/search/searchService';
+import { useAuth } from "@/hooks/useAuth";
+import { useUser } from "@/hooks/useUser";
 
 export default function Home() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const { categories, subcategories } = useCategories();
   const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
+  const { isFreelance, isClient, isAdmin, loading: userLoading } = useUser();
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,6 +45,31 @@ export default function Home() {
     // Rediriger simplement vers la catégorie sans chercher à atteindre les sous-catégories
     router.push(`/services?category=${categorySlug}`);
   };
+
+  useEffect(() => {
+    const isLoading = authLoading || userLoading;
+    
+    // Si pas encore chargé, attendre
+    if (isLoading) return;
+    
+    // Désactiver la redirection automatique vers le dashboard
+    // Les utilisateurs connectés peuvent maintenant accéder à la page d'accueil
+    
+    /* Ancien code de redirection automatique désactivé
+    if (user) {
+      if (isAdmin) {
+        router.push('/admin');
+      } else if (isFreelance) {
+        router.push('/dashboard'); // Dashboard freelance
+      } else if (isClient) {
+        router.push('/client-dashboard'); // Dashboard client
+      } else {
+        // Si le rôle n'est pas encore défini
+        router.push('/onboarding');
+      }
+    }
+    */
+  }, [router, user, isFreelance, isClient, isAdmin, authLoading, userLoading]);
 
   return (
     <PageLayout fullGradient={true}>

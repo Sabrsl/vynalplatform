@@ -1,305 +1,212 @@
 import { useRouter } from 'next/navigation';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { APP_URLS } from '@/lib/constants';
-import { 
-  getCachedData, 
-  setCachedData, 
-  invalidateCache, 
-  CACHE_KEYS,
-  CACHE_EXPIRY
-} from '@/lib/optimizations';
+import { AuthError, User, Session } from '@supabase/supabase-js';
 
-const USER_CACHE_KEY = CACHE_KEYS.USER_SESSION;
-const PROFILE_CACHE_KEY = CACHE_KEYS.USER_PROFILE;
+// Interface pour l'utilisateur augmenté avec le rôle
+export interface EnhancedUser extends User {
+  user_metadata: {
+    role?: 'admin' | 'client' | 'freelance';
+    [key: string]: any;
+  };
+}
 
-interface UseAuthOptions {
-  useCache?: boolean;
+// Interface pour les résultats d'opérations d'authentification
+export interface AuthResult {
+  success: boolean;
+  error?: AuthError | Error | unknown;
+  message?: string;
 }
 
 /**
- * Hook pour la gestion de l'authentification
- * @param options Configuration du hook
- * @param options.useCache Utiliser le système de cache pour réduire les appels à l'API (défaut: false)
+ * Hook optimisé pour gérer l'authentification
  */
-export function useAuth(options: UseAuthOptions = {}) {
-  const { useCache = false } = options;
-  const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+export function useAuth() {
+  // États - doivent être définis au début et dans le même ordre à chaque rendu
+  const [user, setUser] = useState<EnhancedUser | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [initialized, setInitialized] = useState<boolean>(false);
+  const isLoadingUser = useRef<boolean>(false);
+  const subscriptionRef = useRef<{ unsubscribe: () => void } | null>(null);
   const router = useRouter();
 
   // Résoudre l'URL de redirection complète
   const getRedirectUrl = useCallback((path: string): string => {
-    // Nous utilisons l'URL de production pour les redirections depuis Supabase
     return `${APP_URLS.productionUrl}${path}`;
   }, []);
 
-  // Fonction pour récupérer le rôle utilisateur
-  const fetchUserRole = useCallback(async (userId: string) => {
+  // Fonction optimisée pour récupérer le rôle utilisateur
+  const fetchUserRole = useCallback(async (currentUser: User): Promise<EnhancedUser> => {
     try {
-      // Vérifier d'abord le cache si l'option est activée
-      if (useCache) {
-        const cacheKey = `${PROFILE_CACHE_KEY}_role_${userId}`;
-        const cachedRole = getCachedData<string>(cacheKey);
-        
-        if (cachedRole) {
-          return { data: cachedRole, error: null };
-        }
-      }
-      
-      // Si pas dans le cache ou cache désactivé, faire la requête
       const { data: userRole, error } = await supabase.rpc('get_user_role');
-      
-      if (!error && userRole && useCache) {
-        // Mettre en cache pour 1 heure si le cache est activé
-        const cacheKey = `${PROFILE_CACHE_KEY}_role_${userId}`;
-        setCachedData<string>(cacheKey, userRole, { expiry: CACHE_EXPIRY.USER_DATA });
-      }
-      
-      return { data: userRole, error };
-    } catch (err) {
-      return { data: null, error: err };
-    }
-  }, [useCache]);
-
-  // Mettre à jour l'utilisateur avec son rôle
-  const updateUserWithRole = useCallback(async (sessionUser: any) => {
-    if (!sessionUser) return null;
-    
-    try {
-      // Si le rôle est déjà dans les métadonnées, éviter une requête inutile
-      if (sessionUser.user_metadata?.role) {
-        // Mettre en cache l'utilisateur complet si l'option est activée
-        if (useCache) {
-          setCachedData(USER_CACHE_KEY, sessionUser, { expiry: CACHE_EXPIRY.USER_SESSION });
-        }
-        return sessionUser;
-      }
-      
-      const { data: userRole, error } = await fetchUserRole(sessionUser.id);
       
       if (!error && userRole) {
         // Mettre à jour les métadonnées utilisateur avec le rôle
-        const updatedUser = {
-          ...sessionUser,
+        return {
+          ...currentUser,
           user_metadata: {
-            ...sessionUser.user_metadata,
+            ...currentUser.user_metadata,
             role: userRole
           }
         };
-        
-        // Mettre en cache l'utilisateur complet si l'option est activée
-        if (useCache) {
-          setCachedData(USER_CACHE_KEY, updatedUser, { expiry: CACHE_EXPIRY.USER_SESSION });
-        }
-        
-        return updatedUser;
       }
-      
-      return sessionUser;
     } catch (err) {
       console.error("Erreur lors de la récupération du rôle:", err);
-      return sessionUser;
     }
-  }, [fetchUserRole, useCache]);
-
-  // Vérifier la session en arrière-plan pour actualiser le cache si nécessaire
-  const checkSessionInBackground = useCallback(async () => {
-    if (!useCache) return; // Ne pas exécuter cette fonction si le cache est désactivé
     
+    // Si erreur ou pas de rôle, retourner l'utilisateur inchangé
+    return currentUser as EnhancedUser;
+  }, []);
+
+  // Fonction pour mettre à jour l'utilisateur basée sur une session
+  const updateUserFromSession = useCallback(async (session: Session | null) => {
     try {
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError) {
-        console.error("Erreur lors de la vérification de la session:", sessionError);
-        return;
-      }
-      
       if (session?.user) {
-        // Si l'utilisateur est toujours connecté mais que son ID diffère du cache
-        if (user?.id !== session.user.id) {
-          // Mettre à jour le cache avec les dernières données
-          const updatedUser = await updateUserWithRole(session.user);
-          setUser(updatedUser);
-        }
-      } else if (user !== null) {
-        // Si aucune session valide, avant de déconnecter, essayer une deuxième fois
-        setTimeout(async () => {
-          try {
-            const { data: { session: retrySession } } = await supabase.auth.getSession();
-            if (!retrySession) {
-              // Confirme qu'il n'y a vraiment pas de session
-              setUser(null);
-              invalidateCache(USER_CACHE_KEY);
-              
-              // Tenter une reconnexion automatique si on a un refresh token
-              const storedRefreshToken = localStorage.getItem('sb-refresh-token');
-              if (storedRefreshToken) {
-                try {
-                  await supabase.auth.refreshSession();
-                  // Revérifier la session après la tentative de refresh
-                  const { data: { session: refreshedSession } } = await supabase.auth.getSession();
-                  if (refreshedSession?.user) {
-                    const refreshedUser = await updateUserWithRole(refreshedSession.user);
-                    setUser(refreshedUser);
-                  }
-                } catch (refreshErr) {
-                  console.error("Échec de la tentative de reconnexion:", refreshErr);
-                }
-              }
-            }
-          } catch (retryErr) {
-            console.error("Erreur lors de la seconde vérification de session:", retryErr);
-            setUser(null);
-            invalidateCache(USER_CACHE_KEY);
-          }
-        }, 3000); // Attendre 3 secondes avant de réessayer
+        const enhancedUser = await fetchUserRole(session.user);
+        setUser(enhancedUser);
+      } else {
+        setUser(null);
       }
     } catch (err) {
-      console.error("Erreur lors de la vérification de la session:", err);
+      console.error("Erreur lors de la mise à jour de l'utilisateur:", err);
+      setUser(null);
     }
-  }, [user, updateUserWithRole, useCache]);
+  }, [fetchUserRole]);
 
+  // Initialiser la session et configurer les écouteurs
   useEffect(() => {
-    // Vérifier si l'utilisateur est déjà connecté
-    const getInitialSession = async () => {
+    if (initialized) return;
+    
+    const initializeAuth = async () => {
+      if (isLoadingUser.current) return;
+      
+      isLoadingUser.current = true;
       setLoading(true);
       
-      // Vérifier d'abord le cache si l'option est activée
-      if (useCache) {
-        const cachedUser = getCachedData(USER_CACHE_KEY);
-        
-        if (cachedUser) {
-          setUser(cachedUser);
-          setLoading(false);
-          
-          // Vérifier la session en arrière-plan
-          setTimeout(() => checkSessionInBackground(), 1000);
-          return;
-        }
-      }
-      
-      // Si pas de cache ou cache désactivé, vérifier la session Supabase
       try {
+        // Récupérer la session actuelle
         const { data: { session } } = await supabase.auth.getSession();
-        
-        if (session?.user) {
-          // Ajouter le rôle utilisateur
-          const updatedUser = await updateUserWithRole(session.user);
-          setUser(updatedUser);
-        } else {
-          setUser(null);
-          // Effacer le cache si l'option est activée
-          if (useCache) {
-            invalidateCache(USER_CACHE_KEY);
-          }
-        }
-      } catch (error) {
-        console.error("Erreur lors de la récupération de la session:", error);
+        await updateUserFromSession(session);
+      } catch (err) {
+        console.error("Erreur lors de l'initialisation de l'authentification:", err);
         setUser(null);
       } finally {
         setLoading(false);
+        isLoadingUser.current = false;
+        setInitialized(true);
       }
     };
     
-    getInitialSession();
+    initializeAuth();
 
-    // Écouter les changements d'authentification
+    // Configurer l'écouteur d'authentification
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event: any, session: any) => {
-        if (session?.user) {
-          // Ajouter le rôle utilisateur
-          const updatedUser = await updateUserWithRole(session.user);
-          setUser(updatedUser);
-        } else {
-          setUser(null);
-          // Effacer le cache si l'option est activée
-          if (useCache) {
-            invalidateCache(USER_CACHE_KEY);
-            invalidateCache(PROFILE_CACHE_KEY);
-          }
+      async (_event, session) => {
+        if (isLoadingUser.current) return;
+        
+        isLoadingUser.current = true;
+        setLoading(true);
+        
+        try {
+          await updateUserFromSession(session);
+        } finally {
+          setLoading(false);
+          isLoadingUser.current = false;
         }
-        setLoading(false);
       }
     );
+    
+    // Stocker la référence de l'abonnement
+    subscriptionRef.current = subscription;
 
+    // Nettoyage lors du démontage
     return () => {
-      subscription.unsubscribe();
+      if (subscriptionRef.current) {
+        subscriptionRef.current.unsubscribe();
+        subscriptionRef.current = null;
+      }
     };
-  }, [updateUserWithRole, checkSessionInBackground, useCache]);
+  }, [initialized, updateUserFromSession]);
 
-  // Méthodes pour gérer l'authentification
-  const signIn = async (email: string, password: string, rememberMe: boolean = false) => {
+  // Connexion avec email/mot de passe
+  const signIn = useCallback(async (email: string, password: string, rememberMe: boolean = false): Promise<AuthResult> => {
+    if (!email || !password) {
+      return { success: false, message: "Email et mot de passe requis" };
+    }
+    
     try {
-      const { error, data } = await supabase.auth.signInWithPassword({ 
+      setLoading(true);
+      const { error } = await supabase.auth.signInWithPassword({ 
         email, 
         password
       });
       
       if (error) throw error;
       
-      // Mettre en cache la session avec une expiration étendue si "Se souvenir de moi" et si cache activé
-      if (data.user && rememberMe && useCache) {
-        const updatedUser = await updateUserWithRole(data.user);
-        setCachedData(USER_CACHE_KEY, updatedUser, { 
-          expiry: CACHE_EXPIRY.EXTENDED_SESSION // Plus longue durée pour "Se souvenir de moi"
-        });
+      // Gérer "se souvenir de moi" si nécessaire
+      if (rememberMe) {
+        try {
+          await supabase.auth.refreshSession();
+        } catch (refreshError) {
+          console.warn("Impossible de prolonger la session:", refreshError);
+        }
       }
       
       return { success: true };
     } catch (error) {
-      return { success: false, error };
+      console.error("Erreur de connexion:", error);
+      return { 
+        success: false, 
+        error,
+        message: error instanceof AuthError ? 
+          error.message : 
+          "Une erreur est survenue lors de la connexion"
+      };
+    } finally {
+      setLoading(false);
     }
-  };
+  }, []);
 
-  const signInWithGoogle = async () => {
+  // Le reste de vos fonctions (signInWithGoogle, signUp, etc.)
+  const signInWithGoogle = useCallback(async (): Promise<AuthResult> => {
     try {
+      setLoading(true);
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: getRedirectUrl(APP_URLS.authCallbackUrl),
         },
       });
+      
       if (error) throw error;
       return { success: true };
     } catch (error) {
-      return { success: false, error };
+      console.error("Erreur de connexion Google:", error);
+      return { 
+        success: false, 
+        error,
+        message: error instanceof AuthError ? 
+          error.message : 
+          "Une erreur est survenue lors de la connexion avec Google"
+      };
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [getRedirectUrl]);
 
-  const signInWithGithub = async () => {
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'github',
-        options: {
-          redirectTo: getRedirectUrl(APP_URLS.authCallbackUrl),
-        },
-      });
-      if (error) throw error;
-      return { success: true };
-    } catch (error) {
-      return { success: false, error };
+  const signUp = useCallback(async (email: string, password: string, role: 'client' | 'freelance'): Promise<AuthResult> => {
+    if (!email || !password) {
+      return { success: false, message: "Email et mot de passe requis" };
     }
-  };
-
-  const signInWithLinkedIn = async () => {
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'linkedin',
-        options: {
-          redirectTo: getRedirectUrl(APP_URLS.authCallbackUrl),
-        },
-      });
-      if (error) throw error;
-      return { success: true };
-    } catch (error) {
-      return { success: false, error };
+    
+    if (!role) {
+      return { success: false, message: "Rôle utilisateur requis" };
     }
-  };
-
-  const signUp = async (email: string, password: string, role: 'client' | 'freelance') => {
+    
     try {
-      const { error, data } = await supabase.auth.signUp({
+      setLoading(true);
+      const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -312,78 +219,150 @@ export function useAuth(options: UseAuthOptions = {}) {
       
       if (error) throw error;
       
-      // Si cache activé, invalider les caches potentiellement obsolètes
-      if (useCache) {
-        invalidateCache(USER_CACHE_KEY);
-        invalidateCache(PROFILE_CACHE_KEY);
-      }
-      
-      return { success: true };
+      return { 
+        success: true,
+        message: "Vérifiez votre email pour confirmer votre inscription"
+      };
     } catch (error) {
-      return { success: false, error };
+      console.error("Erreur d'inscription:", error);
+      return { 
+        success: false, 
+        error,
+        message: error instanceof AuthError ? 
+          error.message : 
+          "Une erreur est survenue lors de l'inscription"
+      };
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [getRedirectUrl]);
 
-  const signOut = async () => {
+  const signOut = useCallback(async (): Promise<AuthResult> => {
     try {
-      // Déconnexion sécurisée avec Supabase
+      setLoading(true);
+      
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       
-      // Nettoyage complet du stockage local
-      localStorage.removeItem('supabase.auth.token');
-      localStorage.removeItem('sb-refresh-token');
-      localStorage.removeItem('sb-access-token');
-      localStorage.removeItem('supabase.auth.expires_at');
-      
-      // Réinitialiser les données utilisateur en local
-      setUser(null);
-      
-      // Effacer le cache si l'option est activée
-      if (useCache) {
-        invalidateCache(USER_CACHE_KEY);
-        invalidateCache(PROFILE_CACHE_KEY);
+      try {
+        localStorage.removeItem('supabase.auth.token');
+        localStorage.removeItem('sb-refresh-token');
+        localStorage.removeItem('sb-access-token');
+        localStorage.removeItem('supabase.auth.expires_at');
+      } catch (storageError) {
+        console.warn("Erreur lors du nettoyage du stockage local:", storageError);
       }
+      
+      setUser(null);
       
       return { success: true };
     } catch (error) {
       console.error("Erreur lors de la déconnexion:", error);
-      return { success: false, error };
+      return { 
+        success: false, 
+        error,
+        message: error instanceof AuthError ? 
+          error.message : 
+          "Une erreur est survenue lors de la déconnexion"
+      };
+    } finally {
+      setLoading(false);
     }
-  };
+  }, []);
 
-  const resetPassword = async (email: string) => {
+  const resetPassword = useCallback(async (email: string): Promise<AuthResult> => {
+    if (!email) {
+      return { success: false, message: "Email requis" };
+    }
+    
     try {
+      setLoading(true);
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: getRedirectUrl('/auth/reset-password'),
       });
+      
       if (error) throw error;
-      return { success: true };
+      
+      return { 
+        success: true,
+        message: "Vérifiez votre email pour réinitialiser votre mot de passe"
+      };
     } catch (error) {
-      return { success: false, error };
+      console.error("Erreur de réinitialisation:", error);
+      return { 
+        success: false, 
+        error,
+        message: error instanceof AuthError ? 
+          error.message : 
+          "Une erreur est survenue lors de la demande de réinitialisation"
+      };
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [getRedirectUrl]);
 
-  const updatePassword = async (password: string) => {
+  const updatePassword = useCallback(async (password: string): Promise<AuthResult> => {
+    if (!password) {
+      return { success: false, message: "Nouveau mot de passe requis" };
+    }
+    
+    if (password.length < 6) {
+      return { success: false, message: "Le mot de passe doit contenir au moins 6 caractères" };
+    }
+    
     try {
+      setLoading(true);
       const { error } = await supabase.auth.updateUser({ password });
+      
       if (error) throw error;
-      return { success: true };
+      
+      return { 
+        success: true,
+        message: "Mot de passe mis à jour avec succès"
+      };
     } catch (error) {
-      return { success: false, error };
+      console.error("Erreur de mise à jour:", error);
+      return { 
+        success: false, 
+        error,
+        message: error instanceof AuthError ? 
+          error.message : 
+          "Une erreur est survenue lors de la mise à jour du mot de passe"
+      };
+    } finally {
+      setLoading(false);
     }
-  };
+  }, []);
 
-  return {
+  // Valeurs dérivées
+  const isAuthenticated = useMemo(() => !!user, [user]);
+  
+  const hasRole = useCallback((role: 'admin' | 'client' | 'freelance'): boolean => {
+    return user?.user_metadata?.role === role;
+  }, [user]);
+
+  // Retourner un objet mémoïsé pour éviter les recréations inutiles
+  return useMemo(() => ({
     user,
     loading,
+    isAuthenticated,
+    hasRole,
     signIn,
     signInWithGoogle,
-    signInWithGithub,
-    signInWithLinkedIn,
     signUp,
     signOut,
     resetPassword,
     updatePassword,
-  };
+  }), [
+    user,
+    loading,
+    isAuthenticated,
+    hasRole,
+    signIn,
+    signInWithGoogle,
+    signUp,
+    signOut,
+    resetPassword,
+    updatePassword,
+  ]);
 } 

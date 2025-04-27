@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { toast } from "../ui/use-toast";
 import { Button } from "../ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../ui/dialog";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
@@ -65,24 +65,24 @@ export function AddPaymentMethodModal({
   const validateInputs = () => {
     if (paymentType === "creditCard") {
       if (!cardNumber.trim()) {
-        toast({ title: "Error", description: "Card number is required", variant: "destructive" });
+        toast({ title: "Erreur", description: "Numéro de carte est requis", variant: "destructive" });
         return false;
       }
       if (!cardHolder.trim()) {
-        toast({ title: "Error", description: "Cardholder name is required", variant: "destructive" });
+        toast({ title: "Erreur", description: "Nom du titulaire est requis", variant: "destructive" });
         return false;
       }
       if (!expiryDate.trim() || expiryDate.length !== 5) {
-        toast({ title: "Error", description: "Valid expiry date is required (MM/YY)", variant: "destructive" });
+        toast({ title: "Erreur", description: "Date d'expiration valide est requise (MM/AA)", variant: "destructive" });
         return false;
       }
       if (!cvv.trim() || cvv.length < 3) {
-        toast({ title: "Error", description: "Valid CVV is required", variant: "destructive" });
+        toast({ title: "Erreur", description: "CVV valide est requis", variant: "destructive" });
         return false;
       }
     } else if (paymentType === "paypal") {
       if (!paypalEmail.trim() || !paypalEmail.includes("@")) {
-        toast({ title: "Error", description: "Valid PayPal email is required", variant: "destructive" });
+        toast({ title: "Erreur", description: "Email PayPal valide est requis", variant: "destructive" });
         return false;
       }
     }
@@ -116,7 +116,7 @@ export function AddPaymentMethodModal({
       };
       
       onAddPaymentMethod(paymentMethod);
-      toast({ title: "Success", description: "Payment method added successfully" });
+      toast({ title: "Succès", description: "Moyen de paiement ajouté avec succès" });
       
       // Reset form
       setCardNumber("");
@@ -128,8 +128,8 @@ export function AddPaymentMethodModal({
       onClose();
     } catch (error) {
       toast({ 
-        title: "Error", 
-        description: "Failed to add payment method. Please try again.", 
+        title: "Erreur", 
+        description: "Échec de l'ajout du moyen de paiement. Veuillez réessayer.", 
         variant: "destructive" 
       });
     } finally {
@@ -141,7 +141,10 @@ export function AddPaymentMethodModal({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle className="text-xl font-semibold">Add Payment Method</DialogTitle>
+          <DialogTitle className="text-xl font-semibold">Ajouter un moyen de paiement</DialogTitle>
+          <DialogDescription>
+            Entrez vos coordonnées bancaires ci-dessous pour ajouter un nouveau moyen de paiement.
+          </DialogDescription>
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
@@ -154,7 +157,7 @@ export function AddPaymentMethodModal({
               <RadioGroupItem value="creditCard" id="creditCard" />
               <Label htmlFor="creditCard" className="flex items-center gap-2 cursor-pointer">
                 <CreditCard className="h-5 w-5" />
-                Credit Card
+                Carte de crédit
               </Label>
             </div>
             
@@ -170,7 +173,7 @@ export function AddPaymentMethodModal({
           {paymentType === "creditCard" ? (
             <div className="space-y-3">
               <div className="space-y-1">
-                <Label htmlFor="cardNumber">Card Number</Label>
+                <Label htmlFor="cardNumber">Numéro de carte</Label>
                 <Input
                   id="cardNumber"
                   value={cardNumber}
@@ -181,23 +184,23 @@ export function AddPaymentMethodModal({
               </div>
               
               <div className="space-y-1">
-                <Label htmlFor="cardHolder">Cardholder Name</Label>
+                <Label htmlFor="cardHolder">Nom du titulaire</Label>
                 <Input
                   id="cardHolder"
                   value={cardHolder}
                   onChange={(e) => setCardHolder(e.target.value)}
-                  placeholder="John Doe"
+                  placeholder="Jean Dupont"
                 />
               </div>
               
               <div className="flex gap-4">
                 <div className="space-y-1 flex-1">
-                  <Label htmlFor="expiryDate">Expiry Date</Label>
+                  <Label htmlFor="expiryDate">Date d'expiration</Label>
                   <Input
                     id="expiryDate"
                     value={expiryDate}
                     onChange={handleExpiryDateChange}
-                    placeholder="MM/YY"
+                    placeholder="MM/AA"
                     maxLength={5}
                   />
                 </div>
@@ -217,23 +220,23 @@ export function AddPaymentMethodModal({
             </div>
           ) : (
             <div className="space-y-1">
-              <Label htmlFor="paypalEmail">PayPal Email</Label>
+              <Label htmlFor="paypalEmail">Email PayPal</Label>
               <Input
                 id="paypalEmail"
                 type="email"
                 value={paypalEmail}
                 onChange={(e) => setPaypalEmail(e.target.value)}
-                placeholder="email@example.com"
+                placeholder="email@exemple.com"
               />
             </div>
           )}
           
           <div className="flex justify-end pt-4 gap-3">
             <Button variant="outline" type="button" onClick={onClose}>
-              Cancel
+              Annuler
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Adding..." : "Add Payment Method"}
+              {isSubmitting ? "Ajout en cours..." : "Ajouter"}
             </Button>
           </div>
         </form>

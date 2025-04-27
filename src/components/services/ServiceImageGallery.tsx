@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Maximize, X, ZoomIn } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import Image from 'next/image';
 
 interface ServiceImageGalleryProps {
   images?: string[];
@@ -25,7 +26,7 @@ const ServiceImageGallery: React.FC<ServiceImageGalleryProps> = ({
   useEffect(() => {
     if (!images || images.length === 0) return;
     
-    const img = new Image();
+    const img = document.createElement('img');
     img.src = images[currentIndex];
     img.onload = () => setIsLoading(false);
     img.onerror = () => setIsLoading(false);
@@ -97,7 +98,7 @@ const ServiceImageGallery: React.FC<ServiceImageGalleryProps> = ({
       // Assurer que le défilement est restauré si le composant est démonté
       document.body.style.overflow = '';
     };
-  }, [isFullscreen, images.length]);
+  }, [isFullscreen, goToPrevious, goToNext, toggleFullscreen]);
   
   // Si pas d'images, ne rien afficher
   if (!images || images.length === 0) {
@@ -134,7 +135,7 @@ const ServiceImageGallery: React.FC<ServiceImageGalleryProps> = ({
                 <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
               </div>
             )}
-            <img 
+            <Image 
               src={images[currentIndex]} 
               alt={`${altText} - Image ${currentIndex + 1}`}
               className={cn(
@@ -143,6 +144,11 @@ const ServiceImageGallery: React.FC<ServiceImageGalleryProps> = ({
               )}
               onLoad={() => setIsLoading(false)}
               onError={() => setIsLoading(false)}
+              width={1200}
+              height={800}
+              priority
+              quality={90}
+              unoptimized={false}
             />
           </div>
           
@@ -184,10 +190,13 @@ const ServiceImageGallery: React.FC<ServiceImageGalleryProps> = ({
                     : "border-transparent opacity-60 hover:opacity-100"
                 )}
               >
-                <img 
+                <Image 
                   src={image} 
                   alt={`Miniature ${index + 1}`}
                   className="h-full w-full object-cover"
+                  width={64}
+                  height={64}
+                  quality={50}
                 />
               </button>
             ))}
@@ -211,7 +220,7 @@ const ServiceImageGallery: React.FC<ServiceImageGalleryProps> = ({
           </div>
         )}
         
-        <img 
+        <Image 
           src={images[currentIndex]} 
           alt={`${altText} - Image ${currentIndex + 1}`}
           className={cn(
@@ -220,6 +229,10 @@ const ServiceImageGallery: React.FC<ServiceImageGalleryProps> = ({
           )}
           onLoad={() => setIsLoading(false)}
           onError={() => setIsLoading(false)}
+          fill
+          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+          quality={75}
+          priority={currentIndex === 0}
         />
         
         {/* Indicateur de position et bouton plein écran */}
@@ -271,16 +284,19 @@ const ServiceImageGallery: React.FC<ServiceImageGalleryProps> = ({
                 setIsLoading(true);
               }}
               className={cn(
-                "flex-shrink-0 mx-1 h-14 w-14 sm:h-16 sm:w-16 rounded-md overflow-hidden border-2 transition-all focus:outline-none focus:ring-2 focus:ring-purple-500",
+                "flex-shrink-0 mx-1 h-14 w-14 sm:h-16 sm:w-16 rounded-md overflow-hidden border-2 transition-all focus:outline-none focus:ring-2 focus:ring-purple-500 relative",
                 index === currentIndex 
                   ? "border-purple-600 opacity-100" 
                   : "border-transparent opacity-70 hover:opacity-100"
               )}
             >
-              <img 
+              <Image 
                 src={image} 
                 alt={`Miniature ${index + 1}`}
-                className="h-full w-full object-cover"
+                className="object-cover"
+                fill
+                sizes="64px"
+                quality={30}
               />
             </button>
           ))}

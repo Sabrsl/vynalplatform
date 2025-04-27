@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import SearchBar from "@/components/categories/SearchBar";
 import { supabase } from "@/lib/supabase/client";
 import MobileMenu from "@/components/MobileMenu";
+import { OrderNotificationIndicator } from "@/components/notifications/OrderNotificationIndicator";
 import { NavigationLoadingState } from "@/app/providers";
 import { 
   User, 
@@ -27,43 +28,54 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useTheme } from "next-themes";
+import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 export default function Header() {
-  const pathname = usePathname();
-  const router = useRouter();
-  const { user, signOut } = useAuth();
-  const { profile, isFreelance, isClient, isAdmin } = useUser();
-  const { theme } = useTheme();
-  const isDark = theme === 'dark';
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchBarVisible, setSearchBarVisible] = useState(false);
-  const [isScrolled, setIsScrolled] = useState(false);
+  // 1. Déclarer tous les états en haut
+  const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [searchBarVisible, setSearchBarVisible] = useState<boolean>(false);
+  const [isScrolled, setIsScrolled] = useState<boolean>(false);
+  const [isLoggingOut, setIsLoggingOut] = useState<boolean>(false);
+  const [activePath, setActivePath] = useState<string>('');
+  const [isNavigating, setIsNavigating] = useState<boolean>(false);
+  const [isMounted, setIsMounted] = useState<boolean>(false);
+  
+  // 2. Toutes les références
   const searchBarRef = useRef<HTMLDivElement>(null);
   const searchButtonRef = useRef<HTMLButtonElement>(null);
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [activePath, setActivePath] = useState(pathname || '');
-  const [isNavigating, setIsNavigating] = useState(false);
-
-  const isActive = (path: string) => {
-    return pathname === path || pathname?.startsWith(`${path}/`);
-  };
-
-  // Déterminer si nous sommes dans la section dashboard
-  const isInDashboard = pathname?.startsWith('/dashboard');
-
-  // Détecter le défilement pour changer l'apparence du header
+  
+  // 3. Tous les hooks Next.js
+  const router = useRouter();
+  const pathname = usePathname();
+  const { theme } = useTheme();
+  
+  // 4. Tous les hooks personnalisés (toujours appelés, mais les données peuvent être ignorées jusqu'au montage)
+  const auth = useAuth();
+  const userProfile = useUser();
+  
+  // 5. Tous les useEffect
   useEffect(() => {
+    setIsMounted(true);
+    if (pathname) {
+      setActivePath(pathname);
+    }
+  }, [pathname]);
+  
+  useEffect(() => {
+    if (!isMounted) return;
+    
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 10);
     };
     
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  // Écouter les changements d'état de navigation
+  }, [isMounted]);
+  
   useEffect(() => {
+    if (!isMounted) return;
+    
     const handleNavigationStateChange = (event: Event) => {
       const customEvent = event as CustomEvent;
       setIsNavigating(customEvent.detail?.isNavigating || false);
@@ -74,10 +86,11 @@ export default function Header() {
     return () => {
       window.removeEventListener('vynal:navigation-state-changed', handleNavigationStateChange);
     };
-  }, []);
-
-  // Fermer la barre de recherche si l'utilisateur clique en dehors
+  }, [isMounted]);
+  
   useEffect(() => {
+    if (!isMounted) return;
+    
     const handleClickOutside = (event: MouseEvent) => {
       if (
         searchBarVisible &&
@@ -89,52 +102,25 @@ export default function Header() {
         setSearchBarVisible(false);
       }
     };
-
+    
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [searchBarVisible]);
-
-  // Mettre à jour activePath quand pathname change
-  useEffect(() => {
-    setActivePath(pathname || '');
-  }, [pathname]);
-
-  const navigation = [
-    { name: "Accueil", href: "/", icon: Home },
-    { name: "Explorer", href: "/services", icon: Briefcase },
-  ];
-
-  const authenticatedNavigation = [
-    ...(isFreelance ? [
-      { name: "Mes Services", href: "/dashboard/services", icon: Briefcase },
-      { name: "Créer un Service", href: "/dashboard/services/new", icon: PlusCircle },
-    ] : []),
-    ...(isClient ? [
-      { name: "Favoris", href: "/dashboard/favorites", icon: Heart },
-    ] : []),
-    { name: "Commandes", href: "/dashboard/orders", icon: Briefcase },
-    { name: "Messages", href: "/dashboard/messages", icon: MessageSquare },
-    { name: "Wallet", href: "/dashboard/wallet", icon: Wallet },
-    { name: "Profil", href: "/dashboard/profile", icon: User },
-  ];
-
+  }, [searchBarVisible, isMounted]);
+  
+  // 6. Fonctions de gestionnaires d'événements
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      // Indiquer qu'une navigation est en cours
       NavigationLoadingState.setIsNavigating(true);
-      
-      // Rediriger vers la page services avec le paramètre de recherche
       router.push(`/services?search=${encodeURIComponent(searchQuery.trim())}`);
       setSearchBarVisible(false);
     }
   };
-
+  
   const toggleSearchBar = () => {
     setSearchBarVisible(!searchBarVisible);
-    // Donner le focus à l'input après l'avoir affiché
     if (!searchBarVisible) {
       setTimeout(() => {
         const searchInput = searchBarRef.current?.querySelector('input');
@@ -144,23 +130,18 @@ export default function Header() {
       }, 100);
     }
   };
-
-  // Navigation avec indicateur de chargement
+  
   const handleNavigation = (href: string) => {
-    // Éviter les navigations redondantes ou pendant un chargement
     if (href === pathname || isNavigating) {
       return;
     }
     
-    // Mettre à jour l'état de navigation
     NavigationLoadingState.setIsNavigating(true);
     setActivePath(href);
     
-    // Naviguer vers la destination
     router.push(href);
   };
-
-  // Fonction simplifiée de déconnexion
+  
   const handleLogout = async (e: React.MouseEvent) => {
     e.preventDefault();
     
@@ -169,33 +150,78 @@ export default function Header() {
     setIsLoggingOut(true);
     
     try {
-      // Utiliser la fonction signOut du hook useAuth
-      await signOut();
+      await auth.signOut();
       
-      // Nettoyage supplémentaire du local storage
       localStorage.removeItem('supabase.auth.token');
       localStorage.removeItem('sb-refresh-token');
       localStorage.removeItem('sb-access-token');
       
-      // Force la déconnexion de Supabase côté client
       await supabase.auth.signOut();
       
-      // Attendre un délai plus long avant la redirection
       setTimeout(() => {
-        // Forcer un rechargement complet de la page
         window.location.href = '/';
       }, 500);
     } catch (error) {
       console.error("Erreur lors de la déconnexion:", error);
       setIsLoggingOut(false);
       
-      // En cas d'erreur, forcer quand même la redirection après un délai
       setTimeout(() => {
         window.location.href = '/';
       }, 1000);
     }
   };
-
+  
+  // 7. Fonctions utilitaires
+  const isActive = (path: string) => {
+    return pathname === path || pathname?.startsWith(`${path}/`);
+  };
+  
+  // 8. Données dérivées calculées à partir des props
+  const isInDashboard = pathname?.startsWith('/dashboard');
+  
+  // Si l'app n'est pas montée, afficher un placeholder simple
+  if (!isMounted) {
+    return <header className="h-16 sticky top-0 z-50" />;
+  }
+  
+  // Variables dérivées qui ne sont utilisées qu'après montage
+  const isDark = theme === 'dark';
+  const isAuthenticated = auth.isAuthenticated;
+  const user = auth.user;
+  const profile = userProfile.profile;
+  
+  // Préparation des données pour l'interface
+  const userStatus = {
+    isAuthenticated,
+    authLoading: auth.loading,
+    profileLoading: userProfile.loading,
+    avatarUrl: profile?.avatar_url || null,
+    username: profile?.username || user?.email?.split('@')[0] || null,
+    isFreelance: profile?.role === 'freelance',
+    isClient: profile?.role === 'client',
+    isAdmin: profile?.role === 'admin'
+  };
+  
+  const navigation = [
+    { name: "Accueil", href: "/", icon: Home },
+    { name: "Explorer", href: "/services", icon: Briefcase },
+  ];
+  
+  const authenticatedNavigation = [
+    ...(userStatus.isAuthenticated && userStatus.isFreelance ? [
+      { name: "Mes Services", href: "/dashboard/services", icon: Briefcase },
+      { name: "Créer un Service", href: "/dashboard/services/new", icon: PlusCircle },
+    ] : []),
+    ...(userStatus.isAuthenticated && userStatus.isClient ? [
+      { name: "Favoris", href: "/dashboard/favorites", icon: Heart },
+    ] : []),
+    { name: "Commandes", href: "/dashboard/orders", icon: Briefcase },
+    { name: "Messages", href: "/dashboard/messages", icon: MessageSquare },
+    { name: "Wallet", href: "/dashboard/wallet", icon: Wallet },
+    { name: "Profil", href: "/dashboard/profile", icon: User },
+  ];
+  
+  // Rendu principal
   return (
     <header 
       className={`sticky top-0 z-50 transition-all duration-300 ${
@@ -228,7 +254,11 @@ export default function Header() {
           {/* Logo avec animation */}
           <div
             className="flex items-center group cursor-pointer"
-            onClick={() => handleNavigation("/")}
+            onClick={(e) => {
+              e.preventDefault();
+              // Utiliser le routeur Next.js pour une navigation plus propre
+              router.push('/');
+            }}
           >
             <img 
               src="/assets/logo/logo_vynal_platform.webp" 
@@ -276,151 +306,97 @@ export default function Header() {
           </nav>
 
           {/* Auth Buttons / User Menu */}
-          <div className="hidden md:flex items-center space-x-4">
-            {user ? (
-              <div className="flex items-center gap-3">
-                <Button 
-                  variant="outline" 
-                  className={`flex items-center gap-2 text-sm group transition-all rounded-full ${
-                    isInDashboard 
-                      ? isDark 
-                        ? "bg-vynal-purple-secondary/20 border-vynal-accent-primary/50 text-vynal-accent-primary" 
-                        : "bg-vynal-purple-200/30 border-vynal-purple-400/60 text-vynal-purple-600"
-                      : isDark 
-                        ? "border-vynal-purple-secondary/40 text-vynal-text-primary hover:bg-vynal-purple-secondary/20 hover:border-vynal-accent-primary/50" 
-                        : "border-vynal-purple-300/50 text-vynal-purple-dark hover:bg-vynal-purple-200/30 hover:border-vynal-purple-400/60"
-                  }`}
-                  onClick={() => {
-                    // Gérer le cas où on est déjà sur le dashboard
-                    const targetPath = "/dashboard";
-                    
-                    // Vérifications de sécurité pour éviter les cascades
-                    if (pathname === targetPath) {
-                      // Si déjà sur le dashboard, rafraîchir la page au lieu de naviguer
-                      console.log("Déjà sur le dashboard, rafraîchissement forcé");
-                      window.location.reload();
-                      return;
-                    }
-                    
-                    if (isNavigating) return; // Navigation déjà en cours
-                    if (NavigationLoadingState.isNavigating) return; // Navigation globale en cours
-                    
-                    // Désactiver immédiatement le bouton via l'état local
-                    setIsNavigating(true);
-                    
-                    try {
-                      // Définir l'état de navigation global
-                      NavigationLoadingState.setIsNavigating(true, pathname, targetPath);
-                      setActivePath(targetPath);
-                      
-                      // Timeout de sécurité pour réinitialiser l'état en cas de problème
-                      const safetyTimeout = setTimeout(() => {
-                        setIsNavigating(false);
-                        NavigationLoadingState.setIsNavigating(false);
-                      }, 5000);
-                      
-                      // Protection contre la navigation bloquée - forcer un rechargement si rien ne se passe
-                      const hardResetTimeout = setTimeout(() => {
-                        console.warn("Navigation vers dashboard bloquée, redirection forcée");
-                        window.location.href = targetPath;
-                      }, 6000);
-                      
-                      // Navigation avec délai pour éviter les cascades
-                      setTimeout(() => {
-                        // Utiliser location.href si on est en développement pour éviter les problèmes de routage Next.js
-                        if (process.env.NODE_ENV === 'development') {
-                          window.location.href = targetPath;
-                        } else {
-                          router.push(targetPath);
-                        }
-                        
-                        // Réinitialiser les timeouts de sécurité
-                        clearTimeout(safetyTimeout);
-                        clearTimeout(hardResetTimeout);
-                      }, 100);
-                    } catch (error) {
-                      console.error("Erreur lors de la navigation vers dashboard:", error);
-                      // Réinitialiser les états en cas d'erreur
-                      setIsNavigating(false);
-                      NavigationLoadingState.setIsNavigating(false);
-                      
-                      // En cas d'erreur, forcer un rechargement direct
-                      setTimeout(() => {
-                        window.location.href = targetPath;
-                      }, 500);
-                    }
-                  }}
-                  disabled={isNavigating}
+          <div className="flex items-center gap-2">
+            {!userStatus.isAuthenticated && !userStatus.authLoading ? (
+              // Options pour utilisateur non connecté
+              <>
+                <Link href="/auth?mode=signup" passHref>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="text-sm text-vynal-purple-dark dark:text-vynal-text-primary hover:text-vynal-purple-dark rounded-lg hover:bg-vynal-purple-100/60 dark:hover:bg-vynal-purple-secondary/20 dark:hover:text-vynal-text-primary hidden sm:flex"
+                    onClick={() => NavigationLoadingState.setIsNavigating(true)}
+                  >
+                    S'inscrire
+                  </Button>
+                </Link>
+                <Link href="/auth" passHref>
+                  <Button 
+                    variant="default" 
+                    size="sm" 
+                    className="text-sm flex rounded-lg bg-gradient-to-r from-vynal-accent-primary to-vynal-accent-secondary text-white hover:from-vynal-accent-primary/90 hover:to-vynal-accent-secondary/90"
+                    onClick={() => NavigationLoadingState.setIsNavigating(true)}
+                  >
+                    Se connecter
+                  </Button>
+                </Link>
+              </>
+            ) : userStatus.authLoading || userStatus.profileLoading ? (
+              // État de chargement
+              <Button variant="ghost" size="icon" className="opacity-50 cursor-wait">
+                <Loader className="h-5 w-5 animate-spin text-vynal-purple-secondary dark:text-vynal-text-secondary" />
+              </Button>
+            ) : (
+              // Utilisateur connecté
+              <div className="flex items-center gap-1 sm:gap-2">
+                {/* Notifications uniquement pour les freelances */}
+                {userStatus.isFreelance && (
+                  <OrderNotificationIndicator />
+                )}
+                
+                {/* Bouton du tableau de bord */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={`hidden sm:flex text-sm items-center gap-2 rounded-lg ${
+                    activePath.includes('/dashboard') 
+                      ? "text-vynal-purple-600 dark:text-vynal-accent-primary" 
+                      : "text-vynal-purple-dark dark:text-vynal-text-primary"
+                  } hover:bg-vynal-purple-100/60 hover:text-vynal-purple-600 dark:hover:bg-vynal-purple-secondary/20 dark:hover:text-vynal-accent-primary`}
+                  onClick={() => handleNavigation('/dashboard')}
                 >
-                  {isNavigating && pathname === "/dashboard" ? (
+                  {isNavigating && activePath === '/dashboard' ? (
                     <Loader className="h-3.5 w-3.5 animate-spin" />
                   ) : (
-                    <User className={`w-3.5 h-3.5 ${
-                      isInDashboard || isDark 
-                        ? "text-vynal-accent-primary" 
-                        : "group-hover:text-vynal-purple-600"
-                    } transition-colors`} />
+                    <Home className="h-3.5 w-3.5" />
                   )}
-                  <span>Dashboard</span>
-                  <ChevronDown className={`w-3.5 h-3.5 ${
-                    isInDashboard || isDark 
-                      ? "text-vynal-accent-primary" 
-                      : "group-hover:text-vynal-purple-600"
-                  } transition-colors`} />
+                  Tableau de bord
                 </Button>
-                
-                <Button 
-                  variant="ghost" 
-                  onClick={handleLogout}
-                  disabled={isLoggingOut}
-                  className={`text-sm flex items-center gap-2 transition-all rounded-full ${
-                    isDark 
-                      ? "text-vynal-text-primary hover:bg-vynal-purple-secondary/20 hover:text-vynal-accent-primary" 
-                      : "text-vynal-purple-dark hover:bg-vynal-purple-200/30 hover:text-vynal-purple-600"
-                  }`}
-                >
-                  {isLoggingOut ? (
-                    <>
-                      <div className={`w-3.5 h-3.5 border-2 border-t-transparent rounded-full animate-spin mr-1 ${
-                        isDark ? "border-vynal-text-secondary" : "border-vynal-purple-400"
-                      }`}></div>
-                      <span>Déconnexion...</span>
-                    </>
-                  ) : (
-                    <>
-                      <LogOut className="w-3.5 h-3.5" />
-                      <span>Déconnexion</span>
-                    </>
-                  )}
-                </Button>
+
+                {/* Avatar utilisateur - CACHÉ SUR MOBILE */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className={`relative h-9 w-9 rounded-full overflow-hidden hidden sm:flex ${
+                        isDark 
+                          ? "ring-1 ring-vynal-purple-secondary/40 hover:ring-vynal-accent-primary/60" 
+                          : "ring-1 ring-vynal-purple-300/60 hover:ring-vynal-purple-500/60"
+                      }`}
+                    >
+                      {userStatus.avatarUrl ? (
+                        <img 
+                          src={userStatus.avatarUrl} 
+                          alt="Profile" 
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className={`h-full w-full flex items-center justify-center ${
+                          isDark 
+                            ? "bg-vynal-purple-secondary text-vynal-accent-primary" 
+                            : "bg-vynal-purple-100 text-vynal-purple-600"
+                        }`}>
+                          <span className="text-sm font-medium">
+                            {userStatus.username?.charAt(0).toUpperCase()}
+                          </span>
+                        </div>
+                      )}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  {/* Reste du menu déroulant... */}
+                </DropdownMenu>
               </div>
-            ) : (
-              <>
-                <Button 
-                  variant="ghost" 
-                  className={`text-sm transition-all rounded-full ${
-                    isDark 
-                      ? "text-vynal-text-primary hover:bg-vynal-purple-secondary/20 hover:text-vynal-accent-primary" 
-                      : "text-vynal-purple-dark hover:bg-vynal-purple-200/30 hover:text-vynal-purple-600"
-                  }`}
-                  onClick={() => handleNavigation("/auth/login")}
-                  disabled={isNavigating}
-                >
-                  {isNavigating ? (
-                    <Loader className="h-3.5 w-3.5 animate-spin mr-1" />
-                  ) : "Connexion"}
-                </Button>
-                
-                <Button 
-                  className="text-sm bg-gradient-button hover:opacity-90 text-white font-medium transition-all duration-300 hover:scale-105 rounded-full"
-                  onClick={() => handleNavigation("/auth/signup")}
-                  disabled={isNavigating}
-                >
-                  {isNavigating ? (
-                    <Loader className="h-3.5 w-3.5 animate-spin mr-1 text-white" />
-                  ) : "Inscription"}
-                </Button>
-              </>
             )}
           </div>
 
@@ -441,7 +417,7 @@ export default function Header() {
               </button>
             )}
             
-            {/* Mobile Menu Button with Profile Picture */}
+            {/* Mobile Menu Button with Profile Picture - GARDER UNIQUEMENT CE MENU */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className={`relative h-9 w-9 rounded-full transition-all duration-300 overflow-hidden ${
@@ -449,52 +425,47 @@ export default function Header() {
                   ? mobileMenuOpen
                     ? "ring-2 ring-vynal-accent-primary ring-offset-1 ring-offset-vynal-purple-dark"
                     : "ring-1 ring-vynal-purple-secondary/40 hover:ring-vynal-accent-primary/60" 
-                  : mobileMenuOpen
-                    ? "ring-2 ring-vynal-purple-500 ring-offset-1"
+                  : mobileMenuOpen 
+                    ? "ring-2 ring-vynal-purple-600 ring-offset-1"
                     : "ring-1 ring-vynal-purple-300/60 hover:ring-vynal-purple-500/60"
               }`}
-              aria-expanded={mobileMenuOpen}
-              aria-label="Toggle mobile menu"
+              aria-label="Menu"
             >
-              {user ? (
-                // Photo de profil si utilisateur connecté
-                profile?.avatar_url ? (
+              {/* Si authentifié et profile chargé, afficher l'avatar de l'utilisateur */}
+              {isAuthenticated && !userStatus.profileLoading ? (
+                userStatus.avatarUrl ? (
                   <img 
-                    src={profile.avatar_url} 
+                    src={userStatus.avatarUrl} 
                     alt="Profile" 
                     className="h-full w-full object-cover"
                   />
                 ) : (
-                  // Avatar avec initiale si pas de photo mais connecté
                   <div className={`h-full w-full flex items-center justify-center ${
                     isDark 
                       ? "bg-vynal-purple-secondary text-vynal-accent-primary" 
                       : "bg-vynal-purple-100 text-vynal-purple-600"
                   }`}>
                     <span className="text-sm font-medium">
-                      {profile?.full_name 
-                        ? profile.full_name.charAt(0).toUpperCase() 
-                        : profile?.username 
-                          ? profile.username.charAt(0).toUpperCase()
-                          : user.email?.charAt(0).toUpperCase()}
+                      {userStatus.username?.charAt(0).toUpperCase()}
                     </span>
                   </div>
                 )
               ) : (
-                // Icône placeholder pour utilisateur non connecté
+                // Si non authentifié ou chargement du profil, montrer l'icône de menu
                 <div className={`h-full w-full flex items-center justify-center ${
                   isDark 
-                    ? "bg-vynal-purple-secondary/40 text-vynal-text-primary" 
-                    : "bg-vynal-purple-100/80 text-vynal-purple-dark"
+                    ? "bg-vynal-purple-secondary/30" 
+                    : "bg-vynal-purple-100/80"
                 }`}>
-                  <User className="h-4.5 w-4.5" />
-                </div>
-              )}
-              
-              {/* Indicateur de menu ouvert */}
-              {mobileMenuOpen && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                  <X className="h-3.5 w-3.5 text-white" />
+                  {mobileMenuOpen ? (
+                    <X className={`h-4 w-4 ${
+                      isDark ? "text-vynal-accent-primary" : "text-vynal-purple-600"
+                    }`} />
+                  ) : (
+                    <Menu className={`h-4 w-4 ${
+                      isDark ? "text-vynal-text-primary" : "text-vynal-purple-600"
+                    }`} />
+                  )}
                 </div>
               )}
             </button>

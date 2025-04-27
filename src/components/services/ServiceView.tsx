@@ -71,6 +71,7 @@ const animations = {
 // Extension du type pour inclure les propriétés supplémentaires
 interface ExtendedService extends ServiceWithFreelanceAndCategories {
   images?: string[];
+  delivery_time?: string | number;
 }
 
 interface ServiceViewProps {
@@ -105,7 +106,6 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
   // IMPORTANT: Placer tous les hooks en haut du composant avant toute logique conditionnelle
   const router = useRouter();
   const user = useUser();
-  const [showPaymentSteps, setShowPaymentSteps] = useState(false);
   
   // Récupération de la note moyenne du freelance (initialiser avec des valeurs par défaut pour éviter les erreurs)
   const { averageRating, reviewCount } = useFreelancerRating(service?.profiles?.id || '');
@@ -474,7 +474,7 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                       <Clock className="h-4 w-4 text-vynal-purple-light flex-shrink-0" aria-hidden="true" />
                       <div className="flex items-center">
                         <p className="text-xs text-gray-400 mr-1">Temps de livraison:</p>
-                        <p className="text-xs font-medium text-white">{delivery_time} jour{delivery_time > 1 ? 's' : ''}</p>
+                        <p className="text-xs font-medium text-white">{delivery_time} jour{Number(delivery_time) > 1 ? 's' : ''}</p>
                       </div>
                     </div>
                     
@@ -527,77 +527,15 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                   
                   <CardContent className="p-4">
                     <div className="space-y-3 mb-4">
-                      <Button 
-                        onClick={() => setShowPaymentSteps(true)}
-                        className="w-full font-medium shadow-md bg-gradient-to-r from-vynal-purple-light to-vynal-purple-mid hover:from-vynal-purple-mid hover:to-vynal-purple transition-all transform hover:scale-[1.02]"
-                        aria-label="Commander ce service"
-                      >
-                        <ShoppingBag className="h-4 w-4 mr-2" aria-hidden="true" />
-                        Commander ce service
-                      </Button>
-                      
-                      <Dialog open={showPaymentSteps} onOpenChange={setShowPaymentSteps}>
-                        <DialogContent className="sm:max-w-md">
-                          <DialogHeader>
-                            <DialogTitle>Processus de commande</DialogTitle>
-                            <DialogDescription>
-                              Voici les étapes pour commander ce service
-                            </DialogDescription>
-                          </DialogHeader>
-                          <div className="space-y-4 py-2">
-                            <div className="space-y-4">
-                              <div className="flex items-start">
-                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-vynal-purple-light/20 text-vynal-purple-light">
-                                  <FileText className="h-4 w-4" />
-                                </div>
-                                <div className="ml-4">
-                                  <h3 className="text-sm font-medium text-white">1. Spécifications du projet</h3>
-                                  <p className="text-sm text-gray-300">Détaillez vos besoins et exigences pour ce service</p>
-                                </div>
-                              </div>
-                              <div className="flex items-start">
-                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-vynal-purple-light/20 text-vynal-purple-light">
-                                  <CreditCard className="h-4 w-4" />
-                                </div>
-                                <div className="ml-4">
-                                  <h3 className="text-sm font-medium text-white">2. Paiement sécurisé</h3>
-                                  <p className="text-sm text-gray-300">Choisissez parmi plusieurs méthodes de paiement (carte, mobile money, etc.)</p>
-                                </div>
-                              </div>
-                              <div className="flex items-start">
-                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-vynal-purple-light/20 text-vynal-purple-light">
-                                  <MessageSquare className="h-4 w-4" />
-                                </div>
-                                <div className="ml-4">
-                                  <h3 className="text-sm font-medium text-white">3. Communication directe</h3>
-                                  <p className="text-sm text-gray-300">Discutez avec le freelance pour affiner votre commande</p>
-                                </div>
-                              </div>
-                              <div className="flex items-start">
-                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-vynal-purple-light/20 text-vynal-purple-light">
-                                  <PackageCheck className="h-4 w-4" />
-                                </div>
-                                <div className="ml-4">
-                                  <h3 className="text-sm font-medium text-white">4. Livraison et validation</h3>
-                                  <p className="text-sm text-gray-300">Recevez et validez le travail final du freelance</p>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                          <DialogFooter className="sm:justify-start">
-                            <DialogClose asChild>
-                              <Button type="button" variant="ghost">
-                                Annuler
-                              </Button>
-                            </DialogClose>
-                            <OrderButton
-                              serviceId={service.id}
-                              variant="default"
-                              className="bg-gradient-to-r from-vynal-purple-light to-vynal-purple-mid hover:from-vynal-purple-mid hover:to-vynal-purple"
-                            />
-                          </DialogFooter>
-                        </DialogContent>
-                      </Dialog>
+                      <OrderButton
+                        serviceId={service.id}
+                        price={Number(service.price)}
+                        showIcon={true}
+                        fullWidth={true}
+                        variant="default"
+                        className="font-medium shadow-md bg-gradient-to-r from-vynal-purple-light to-vynal-purple-mid hover:from-vynal-purple-mid hover:to-vynal-purple transition-all transform hover:scale-[1.02]"
+                        customLabel="Commander ce service"
+                      />
                       
                       <div className="flex space-x-2">
                         <Button variant="outline" className="flex-1 text-xs" size="sm">
@@ -616,7 +554,7 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                       <ul className="space-y-2">
                         <li className="flex items-start">
                           <Clock className="h-4 w-4 text-vynal-purple-light mr-2 mt-0.5 flex-shrink-0" aria-hidden="true" />
-                          <span className="text-gray-300 text-sm">Livraison en {delivery_time} jour{delivery_time > 1 ? 's' : ''}</span>
+                          <span className="text-gray-300 text-sm">Livraison en {delivery_time} jour{Number(delivery_time) > 1 ? 's' : ''}</span>
                         </li>
                         <li className="flex items-start">
                           <MessageSquare className="h-4 w-4 text-vynal-purple-light mr-2 mt-0.5 flex-shrink-0" aria-hidden="true" />

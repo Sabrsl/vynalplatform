@@ -1,23 +1,12 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/lib/supabase/client';
+import { PostgrestError } from '@supabase/supabase-js';
 import { Database } from '@/types/database';
 import { useUser } from './useUser';
-import { 
-  getCachedData, 
-  setCachedData, 
-  invalidateCache, 
-  CACHE_KEYS, 
-  CACHE_EXPIRY 
-} from '@/lib/optimizations';
 
-// Définition de clés de cache additionnelles pour les services
-const SERVICE_CACHE_KEYS = {
-  SERVICE_DETAIL: 'service_detail_',
-  SERVICE_SLUG: 'service_slug_'
-};
-
-// Type pour les services
+// Types pour les services
 export type Service = Database['public']['Tables']['services']['Row'];
+
 export type ServiceWithFreelanceAndCategories = Service & {
   profiles: {
     id: string;
@@ -38,6 +27,8 @@ export type ServiceWithFreelanceAndCategories = Service & {
     name: string;
     slug: string;
   } | null;
+  active?: boolean;
+  slug?: string;
 };
 
 interface UseServicesParams {
@@ -48,10 +39,6 @@ interface UseServicesParams {
   limit?: number;
 }
 
-interface UseServicesOptions {
-  useCache?: boolean;
-}
-
 interface CreateServiceParams extends Omit<Partial<Service>, 'id' | 'created_at' | 'updated_at'> {
   freelance_id: string;
   images?: string[];
@@ -59,73 +46,183 @@ interface CreateServiceParams extends Omit<Partial<Service>, 'id' | 'created_at'
 
 interface UpdateServiceParams extends Omit<Partial<Service>, 'id' | 'created_at' | 'updated_at' | 'freelance_id'> {
   images?: string[];
+  active?: boolean | string;
 }
 
-export function useServices(params: UseServicesParams = {}, options: UseServicesOptions = {}) {
-  const { useCache = true } = options;
+interface ServiceResult<T> {
+  success: boolean;
+  service?: T;
+  error?: string | PostgrestError;
+}
+
+interface UseServicesResult {
+  services: ServiceWithFreelanceAndCategories[];
+  loading: boolean;
+  error: string | null;
+  getServiceById: (id: string) => Promise<{ service: ServiceWithFreelanceAndCategories | null, error: string | null }>;
+  getServiceBySlug: (slug: string) => Promise<{ service: ServiceWithFreelanceAndCategories | null, error: string | null }>;
+  createService: (serviceData: CreateServiceParams) => Promise<ServiceResult<Service>>;
+  updateService: (serviceId: string, updates: UpdateServiceParams) => Promise<ServiceResult<Service>>;
+  deleteService: (id: string) => Promise<{ success: boolean, error?: string }>;
+  fetchServices: () => Promise<void>;
+  isRefreshing: boolean;
+}
+
+// Constantes d'optimisation
+const DEFAULT_THROTTLE_MS = 2000; // Temps minimum entre les rafraîchissements
+const DEFAULT_SERVICE_FIELDS = `
+  *,
+  profiles (id, username, full_name, avatar_url, bio),
+  categories (id, name, slug),
+  subcategories (id, name, slug)
+`;
+
+// Cache en mémoire pour stocker les services transformés
+const servicesCache = new Map<string, {
+  timestamp: number;
+  data: ServiceWithFreelanceAndCategories[];
+}>();
+
+// Durée de validité du cache en ms (5 minutes)
+const CACHE_TTL = 5 * 60 * 1000;
+
+/**
+ * Hook optimisé pour accéder et gérer les services.
+ * Inclut le chargement, la création, la mise à jour et la suppression des services.
+ */
+export function useServices(params: UseServicesParams = {}): UseServicesResult {
+  // États
   const [services, setServices] = useState<ServiceWithFreelanceAndCategories[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const fetchInProgressRef = useRef<boolean>(false);
-  const { profile } = useUser({ useCache });
   
+  // Références pour éviter les conditions de course
+  const loadingRef = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const lastFetchTimeRef = useRef<number>(0);
+  const subscriptionRef = useRef<any>(null);
+  const cacheInvalidationListenerRef = useRef<((e: Event) => void) | null>(null);
+  
+  // Extraire l'objet profile du hook useUser
+  const { profile } = useUser();
+  
+  // Extraire les paramètres avec mémoisation pour éviter des recréations inutiles
   const { categoryId, subcategoryId, freelanceId, active, limit } = params;
   
-  // Générer une clé de cache unique basée sur les paramètres
-  const getCacheKey = useCallback(() => {
-    if (!useCache) return null;
-    
-    let key = CACHE_KEYS.SERVICES;
-    
-    if (categoryId) key += `cat_${categoryId}_`;
-    if (subcategoryId) key += `subcat_${subcategoryId}_`;
-    if (freelanceId) key += `freelance_${freelanceId}_`;
-    if (active !== undefined) key += `active_${active}_`;
-    if (limit) key += `limit_${limit}`;
-    
-    return key;
-  }, [categoryId, subcategoryId, freelanceId, active, limit, useCache]);
+  // Signature unique des paramètres pour détecter les changements
+  const paramsSignature = useMemo(() => {
+    return JSON.stringify({ categoryId, subcategoryId, freelanceId, active, limit });
+  }, [categoryId, subcategoryId, freelanceId, active, limit]);
 
-  const fetchServices = useCallback(async (forceRefresh = false) => {
-    // Éviter les requêtes simultanées
-    if (fetchInProgressRef.current && !forceRefresh) {
+  // Fonction optimisée pour transformer les données de service (avec mémoisation)
+  const transformService = useCallback((data: any): ServiceWithFreelanceAndCategories => {
+    if (!data) {
+      throw new Error('Données de service invalides');
+    }
+    
+    // Utiliser l'ID comme clé unique pour ne pas transformer inutilement
+    const cacheKey = `service_${data.id}`;
+    
+    // Vérifier si le service est déjà transformé dans notre cache local
+    if ((window as any).__serviceTransformCache?.[cacheKey]) {
+      return (window as any).__serviceTransformCache[cacheKey];
+    }
+    
+    // Initialiser le cache s'il n'existe pas
+    if (!(window as any).__serviceTransformCache) {
+      (window as any).__serviceTransformCache = {};
+    }
+    
+    // Transformer et mettre en cache
+    const transformedService = {
+      ...data,
+      profiles: data.profiles || {
+        id: data.freelance_id || '',
+        username: 'utilisateur',
+        full_name: 'Utilisateur',
+        avatar_url: null,
+        bio: null
+      },
+      categories: data.categories || {
+        id: data.category_id || '',
+        name: 'Catégorie',
+        slug: 'categorie'
+      },
+      subcategories: data.subcategories || null
+    };
+    
+    // Stocker dans notre cache local
+    (window as any).__serviceTransformCache[cacheKey] = transformedService;
+    
+    return transformedService;
+  }, []);
+
+  // Nettoyer les anciens abonnements et écouteurs
+  const cleanup = useCallback(() => {
+    // Annuler toute requête en cours
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    
+    // Supprimer l'abonnement Supabase actif
+    if (subscriptionRef.current) {
+      supabase.removeChannel(subscriptionRef.current);
+      subscriptionRef.current = null;
+    }
+    
+    // Supprimer l'écouteur d'événements du cache
+    if (cacheInvalidationListenerRef.current && typeof window !== 'undefined') {
+      window.removeEventListener('cache-invalidation', cacheInvalidationListenerRef.current as EventListener);
+      cacheInvalidationListenerRef.current = null;
+    }
+  }, []);
+
+  // Fonction pour charger les services avec gestion des erreurs améliorée
+  const fetchServices = useCallback(async (forceFetch: boolean = false): Promise<void> => {
+    // Vérifier d'abord le cache avant de faire une requête réseau
+    if (!forceFetch) {
+      const cachedData = servicesCache.get(paramsSignature);
+      if (cachedData && (Date.now() - cachedData.timestamp) < CACHE_TTL) {
+        setServices(cachedData.data);
+        setLoading(false);
+        setIsRefreshing(false);
+        return;
+      }
+    }
+    
+    // Éviter les requêtes simultanées ou trop fréquentes
+    const now = Date.now();
+    if (loadingRef.current || (!forceFetch && now - lastFetchTimeRef.current < DEFAULT_THROTTLE_MS && services.length > 0)) {
+      setIsRefreshing(true);
       return;
     }
     
-    fetchInProgressRef.current = true;
+    // Mettre à jour les références d'état
+    loadingRef.current = true;
+    lastFetchTimeRef.current = now;
+    
+    // Annuler toute requête en cours
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    // Créer un nouveau contrôleur d'annulation
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
+    
+    // Initialiser les états
+    setLoading(services.length === 0);
+    setIsRefreshing(services.length > 0);
+    setError(null);
     
     try {
-      // Si l'option de cache est activée et ce n'est pas un forceRefresh, vérifier d'abord le cache
-      if (useCache && !forceRefresh) {
-        const cacheKey = getCacheKey();
-        if (cacheKey) {
-          const cachedServices = getCachedData<ServiceWithFreelanceAndCategories[]>(cacheKey);
-          
-          if (cachedServices) {
-            setServices(cachedServices);
-            setLoading(false);
-            
-            // Rafraîchir en arrière-plan
-            refreshInBackground();
-            fetchInProgressRef.current = false;
-            return;
-          }
-        }
-      }
-      
-      setLoading(true);
-      setError(null);
-      
-      // Construire la requête avec optimisation
+      // Construire la requête
       let query = supabase
         .from('services')
-        .select(`
-          *,
-          profiles (id, username, full_name, avatar_url, bio),
-          categories (id, name, slug),
-          subcategories (id, name, slug)
-        `);
+        .select(DEFAULT_SERVICE_FIELDS)
+        .abortSignal(signal);
       
       // Appliquer les filtres en fonction des paramètres
       if (categoryId) {
@@ -148,388 +245,444 @@ export function useServices(params: UseServicesParams = {}, options: UseServices
       }
       
       // Limiter le nombre de résultats si spécifié
-      if (limit) {
+      if (limit && limit > 0) {
         query = query.limit(limit);
       }
       
       // Ordonner par date de création (plus récent en premier)
       query = query.order('created_at', { ascending: false });
       
-      // Utiliser une Promise avec timeout pour éviter les requêtes bloquées
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error("Timeout lors de la récupération des services")), 8000);
-      });
+      // Exécuter la requête avec un délai minimal entre les requêtes (throttling)
+      const executionStart = Date.now();
+      const { data, error: fetchError } = await query;
       
-      const fetchPromise = query;
-      
-      // Utiliser Promise.race pour implémenter le timeout
-      const result = await Promise.race([fetchPromise, timeoutPromise]) as any;
-      const { data, error: fetchError } = result;
+      // Vérifier si la requête a été annulée
+      if (signal.aborted) {
+        throw new Error('Requête annulée');
+      }
       
       if (fetchError) {
         throw fetchError;
       }
       
-      // Transformer les données pour correspondre au type ServiceWithFreelanceAndCategories
+      // Traiter les données vides
       if (!data || data.length === 0) {
         setServices([]);
-        setLoading(false);
-        fetchInProgressRef.current = false;
+        // Mettre en cache le résultat vide
+        servicesCache.set(paramsSignature, { timestamp: Date.now(), data: [] });
         return;
       }
       
-      const transformedServices = data.map((service: any) => {
-        // Construction d'un service complet avec valeurs par défaut si nécessaire
-        const transformedService = {
-          ...service,
-          profiles: service.profiles || {
-            id: service.freelance_id || '',
-            username: 'utilisateur',
-            full_name: 'Utilisateur',
-            avatar_url: null,
-            bio: null
-          },
-          categories: service.categories || {
-            id: service.category_id || '',
-            name: 'Catégorie',
-            slug: 'categorie'
-          },
-          subcategories: service.subcategories || null
-        };
-        
-        return transformedService;
+      // Performance: Transformer les données en lot (batch) pour réduire les calculs
+      const transformedServices = data.map(transformService);
+      
+      // Mettre à jour le cache
+      servicesCache.set(paramsSignature, {
+        timestamp: Date.now(),
+        data: transformedServices
       });
       
-      // Mettre à jour l'état
+      // Mettre à jour l'état avec les nouveaux services
       setServices(transformedServices);
       
-      // Si l'option de cache est activée, stocker dans le cache
-      if (useCache) {
-        const cacheKey = getCacheKey();
-        if (cacheKey) {
-          setCachedData<ServiceWithFreelanceAndCategories[]>(
-            cacheKey, 
-            transformedServices,
-            { expiry: CACHE_EXPIRY.SERVICES }
-          );
-        }
+      // Attendre au moins 100ms pour éviter les flashs d'interface
+      const executionTime = Date.now() - executionStart;
+      if (executionTime < 100) {
+        await new Promise(resolve => setTimeout(resolve, 100 - executionTime));
       }
-    } catch (error: any) {
-      console.error('Erreur lors du chargement des services:', error);
-      setError(error.message || 'Une erreur est survenue lors du chargement des services');
-      setServices([]);
+    } catch (err: any) {
+      // Ne pas signaler d'erreur si la requête a été délibérément annulée
+      if (err.name === 'AbortError') {
+        console.debug('Requête de services annulée');
+        return;
+      }
+      
+      console.error('Erreur lors du chargement des services:', err);
+      setError(err.message || 'Une erreur est survenue lors du chargement des services');
+      
+      // Conserver les données existantes en cas d'erreur
+      if (services.length === 0) {
+        setServices([]);
+      }
     } finally {
       setLoading(false);
       setIsRefreshing(false);
-      fetchInProgressRef.current = false;
+      loadingRef.current = false;
     }
-  }, [categoryId, subcategoryId, freelanceId, active, limit, useCache, getCacheKey]);
-  
-  // Rafraîchir les données en arrière-plan
-  const refreshInBackground = useCallback(async () => {
-    if (isRefreshing || !useCache) return;
-    setIsRefreshing(true);
-    await fetchServices(true);
-  }, [isRefreshing, useCache, fetchServices]);
-  
-  // Forcer un rafraîchissement des données
-  const refreshData = useCallback(() => {
-    setLoading(true);
-    fetchServices(true);
-  }, [fetchServices]);
+  }, [services.length, categoryId, subcategoryId, freelanceId, active, limit, transformService, paramsSignature]);
 
-  useEffect(() => {
-    fetchServices();
-    
-    // Souscrire aux changements des services en temps réel seulement si l'option useCache n'est pas activée
-    // sinon nous utiliserons l'invalidation de cache manuelle
-    const servicesSubscription = supabase
-      .channel('services-changes')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'services',
-      }, (payload: any) => {
-        // Recharger les données quand il y a un changement
-        fetchServices();
-      })
-      .subscribe();
-    
-    // Écouter les événements de navigation pour invalider le cache
-    const handleCacheInvalidation = (event: CustomEvent) => {
-      // Recharger les données quand il y a un changement de route
-      fetchServices();
-    };
-    
-    window.addEventListener('cache-invalidation', handleCacheInvalidation as EventListener);
-    
-    return () => {
-      servicesSubscription.unsubscribe();
-      window.removeEventListener('cache-invalidation', handleCacheInvalidation as EventListener);
-    };
-  }, [categoryId, subcategoryId, freelanceId, active, limit, fetchServices]);
-
-  // Récupérer un service spécifique par son ID
-  const getServiceById = async (id: string) => {
-    setLoading(true);
-    setError(null);
-    
-    // Si l'option de cache est activée, vérifier d'abord le cache
-    if (useCache) {
-      const cacheKey = `${SERVICE_CACHE_KEYS.SERVICE_DETAIL}${id}`;
-      const cachedService = getCachedData<ServiceWithFreelanceAndCategories>(cacheKey);
-      
-      if (cachedService) {
-        setLoading(false);
-        return cachedService;
-      }
+  // Récupérer un service par son ID (avec cache en mémoire)
+  const getServiceById = useCallback(async (id: string) => {
+    if (!id) {
+      return { service: null, error: 'ID non fourni' };
     }
     
     try {
+      // Vérifier si le service est dans le cache
+      const cachedServices = Array.from(servicesCache.values()).flatMap(cache => cache.data);
+      const cachedService = cachedServices.find(s => s.id === id);
+      
+      if (cachedService) {
+        return { service: cachedService, error: null };
+      }
+      
+      // Créer un nouveau contrôleur d'annulation pour cette requête spécifique
+      const abortController = new AbortController();
+      const signal = abortController.signal;
+      
+      // Pour les freelances, utiliser une requête qui vérifie aussi les services inactifs 
+      // et les services dont ils sont propriétaires
       const { data, error: fetchError } = await supabase
         .from('services')
         .select(`
           *,
-          profiles (id, username, full_name, avatar_url, bio),
+          profiles:freelance_id (
+            id, 
+            username, 
+            full_name, 
+            avatar_url, 
+            email, 
+            role,
+            bio
+          ),
           categories (id, name, slug),
           subcategories (id, name, slug)
         `)
         .eq('id', id)
+        .abortSignal(signal)
         .single();
       
-      if (fetchError) throw fetchError;
+      if (fetchError) {
+        if (fetchError.code === 'PGRST116') {
+          return { service: null, error: 'Service introuvable' };
+        }
+        console.error('Erreur Supabase lors du chargement du service:', fetchError);
+        return { service: null, error: fetchError.message || 'Erreur lors du chargement du service' };
+      }
       
-      // Transformer les données pour correspondre au type ServiceWithFreelanceAndCategories
+      if (!data) {
+        return { service: null, error: 'Service introuvable' };
+      }
+      
+      // Vérifier les permissions si le profil existe
+      if (profile && data.freelance_id !== profile.id && profile.role !== 'admin' && !data.active) {
+        console.warn("Accès refusé: Service inactif et l'utilisateur n'est pas le propriétaire ou admin");
+        return { service: null, error: 'Vous n\'êtes pas autorisé à accéder à ce service' };
+      }
+      
       const transformedService = {
         ...data,
         profiles: data.profiles || {
           id: data.freelance_id || '',
           username: 'utilisateur',
           full_name: 'Utilisateur',
-          avatar_url: null
+          avatar_url: null,
+          bio: null
         },
         categories: data.categories || {
           id: data.category_id || '',
           name: 'Catégorie',
           slug: 'categorie'
         },
-        subcategories: data.subcategories || null
+        subcategories: data.subcategories || null,
+        active: data.active === true || data.active === 'true',
       };
       
-      // Si l'option de cache est activée, stocker dans le cache
-      if (useCache) {
-        const cacheKey = `${SERVICE_CACHE_KEYS.SERVICE_DETAIL}${id}`;
-        setCachedData<ServiceWithFreelanceAndCategories>(
-          cacheKey, 
-          transformedService,
-          { expiry: CACHE_EXPIRY.SERVICES_DETAILS }
-        );
-      }
+      // Mettre à jour le cache pour ce service individuel
+      const cacheKey = `service_${id}`;
+      servicesCache.set(cacheKey, {
+        timestamp: Date.now(),
+        data: [transformedService]
+      });
       
-      return transformedService;
-    } catch (error: any) {
-      console.error('Erreur lors du chargement du service:', error);
-      setError(error.message || 'Une erreur est survenue lors du chargement du service');
-      return null;
-    } finally {
-      setLoading(false);
+      return { 
+        service: transformedService, 
+        error: null 
+      };
+    } catch (err: any) {
+      console.warn('Erreur lors de la récupération du service:', err);
+      return { 
+        service: null, 
+        error: err.message || 'Une erreur est survenue lors du chargement du service' 
+      };
     }
-  };
+  }, [profile, transformService]);
 
-  // Récupérer un service spécifique par son slug
-  const getServiceBySlug = async (slug: string) => {
-    setLoading(true);
-    setError(null);
+  // Récupérer un service par son slug (avec cache en mémoire)
+  const getServiceBySlug = useCallback(async (slug: string) => {
+    if (!slug) {
+      return { service: null, error: 'Slug non fourni' };
+    }
     
-    // Si l'option de cache est activée, vérifier d'abord le cache
-    if (useCache) {
-      const cacheKey = `${SERVICE_CACHE_KEYS.SERVICE_SLUG}${slug}`;
-      const cachedService = getCachedData<ServiceWithFreelanceAndCategories>(cacheKey);
+    try {
+      // Vérifier si le service est dans le cache
+      const cachedServices = Array.from(servicesCache.values()).flatMap(cache => cache.data);
+      const cachedService = cachedServices.find(s => s.slug === slug);
       
       if (cachedService) {
-        setLoading(false);
-        return cachedService;
+        return { service: cachedService, error: null };
       }
+      
+      // Créer un nouveau contrôleur d'annulation pour cette requête spécifique
+      const abortController = new AbortController();
+      const signal = abortController.signal;
+      
+      const { data, error: fetchError } = await supabase
+        .from('services')
+        .select(DEFAULT_SERVICE_FIELDS)
+        .eq('slug', slug)
+        .eq('active', true)
+        .abortSignal(signal)
+        .single();
+      
+      if (fetchError) {
+        if (fetchError.code === 'PGRST116') {
+          return { service: null, error: 'Service introuvable' };
+        }
+        throw fetchError;
+      }
+      
+      if (!data) {
+        return { service: null, error: 'Service introuvable' };
+      }
+      
+      const transformedService = transformService(data);
+      
+      // Mettre à jour le cache pour ce service individuel
+      const cacheKey = `service_slug_${slug}`;
+      servicesCache.set(cacheKey, {
+        timestamp: Date.now(),
+        data: [transformedService]
+      });
+      
+      return { 
+        service: transformedService, 
+        error: null 
+      };
+    } catch (err: any) {
+      console.warn('Erreur lors de la récupération du service par slug:', err);
+      return { 
+        service: null, 
+        error: 'Erreur de chargement du service' 
+      };
+    }
+  }, [transformService]);
+
+  // Créer un nouveau service
+  const createService = useCallback(async (serviceData: CreateServiceParams): Promise<ServiceResult<Service>> => {
+    if (!profile) {
+      return { success: false, error: 'Vous devez être connecté pour créer un service' };
     }
     
     try {
-      const { data, error: fetchError } = await supabase
-        .from('services')
-        .select(`
-          *,
-          profiles (id, username, full_name, avatar_url, bio),
-          categories (id, name, slug),
-          subcategories (id, name, slug)
-        `)
-        .eq('slug', slug)
-        .single();
+      const { images, ...serviceFields } = serviceData;
       
-      if (fetchError) throw fetchError;
+      // Vérifier que l'utilisateur est bien le propriétaire du service ou un admin
+      if (serviceFields.freelance_id !== profile.id && profile.role !== 'admin') {
+        return { success: false, error: 'Vous n\'êtes pas autorisé à créer ce service' };
+      }
       
-      // Transformer les données pour correspondre au type ServiceWithFreelanceAndCategories
-      const transformedService = {
-        ...data,
-        profiles: data.profiles || {
-          id: data.freelance_id || '',
-          username: 'utilisateur',
-          full_name: 'Utilisateur',
-          avatar_url: null
-        },
-        categories: data.categories || {
-          id: data.category_id || '',
-          name: 'Catégorie',
-          slug: 'categorie'
-        },
-        subcategories: data.subcategories || null
+      // Ajouter les champs de métadonnées
+      const serviceWithMeta = {
+        ...serviceFields,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       };
       
-      // Si l'option de cache est activée, stocker dans le cache
-      if (useCache) {
-        const cacheKey = `${SERVICE_CACHE_KEYS.SERVICE_SLUG}${slug}`;
-        setCachedData<ServiceWithFreelanceAndCategories>(
-          cacheKey, 
-          transformedService,
-          { expiry: CACHE_EXPIRY.SERVICES_DETAILS }
-        );
-      }
-      
-      return transformedService;
-    } catch (error: any) {
-      console.error('Erreur lors du chargement du service par slug:', error);
-      setError(error.message || 'Une erreur est survenue lors du chargement du service');
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Créer un nouveau service
-  const createService = async (serviceData: CreateServiceParams) => {
-    try {
-      // Valider le slug et s'assurer qu'il est unique
-      if (serviceData.slug) {
-        const { data: existingSlug } = await supabase
-          .from('services')
-          .select('id')
-          .eq('slug', serviceData.slug)
-          .single();
-        
-        if (existingSlug) {
-          // Si le slug existe déjà, en générer un nouveau
-          serviceData.slug = `${serviceData.slug}-${Date.now().toString().slice(-4)}`;
-        }
-      }
-      
-      // Extraire les images pour une insertion séparée si nécessaire
-      const { images, ...serviceWithoutImages } = serviceData;
-      
-      // Insérer le service dans la base de données
+      // Créer le service de base
       const { data, error } = await supabase
         .from('services')
-        .insert(serviceWithoutImages)
+        .insert([serviceWithMeta])
         .select()
         .single();
       
       if (error) throw error;
       
-      // Si des images sont fournies, les associer au service
-      if (images && images.length > 0 && data) {
-        const serviceImages = images.map((image, index) => ({
-          service_id: data.id,
-          url: image,
-          position: index,
-        }));
-        
-        const { error: imageError } = await supabase
-          .from('service_images')
-          .insert(serviceImages);
-        
-        if (imageError) {
-          console.error('Erreur lors de l\'ajout des images:', imageError);
+      // Si le service a été créé avec succès et qu'il y a des images
+      if (data && images && images.length > 0) {
+        try {
+          const { error: updateError } = await supabase
+            .from('services')
+            .update({
+              updated_at: new Date().toISOString(),
+              images: images
+            })
+            .eq('id', data.id);
+          
+          if (updateError) {
+            console.warn('Erreur lors de l\'ajout des images au service:', updateError);
+            // On continue malgré l'erreur car le service a été créé
+          }
+        } catch (imageError) {
+          console.warn('Exception lors de l\'ajout des images au service:', imageError);
+          // On continue malgré l'erreur car le service a été créé
         }
       }
       
-      // Invalider le cache si l'option est activée
-      if (useCache) {
-        invalidateCache(CACHE_KEYS.SERVICES);
-      }
+      // Déclencher une invalidation de cache
+      window.dispatchEvent(new CustomEvent('cache-invalidation', {
+        detail: { 
+          type: 'service', 
+          action: 'create',
+          id: data?.id,
+          keys: ['services']
+        }
+      }));
       
-      // Rafraîchir les données
-      fetchServices(true);
-      
-      return { success: true, data };
-    } catch (error: any) {
-      console.error('Erreur lors de la création du service:', error);
-      return { success: false, error };
+      return { success: true, service: data };
+    } catch (err: any) {
+      console.error('Erreur lors de la création du service:', err);
+      return { 
+        success: false, 
+        error: err.message || 'Une erreur est survenue lors de la création du service' 
+      };
     }
-  };
+  }, [profile]);
 
   // Mettre à jour un service existant
-  const updateService = async (serviceId: string, updates: UpdateServiceParams) => {
+  const updateService = useCallback(async (serviceId: string, updates: UpdateServiceParams): Promise<ServiceResult<Service>> => {
+    if (!profile || !serviceId) {
+      return { success: false, error: 'Paramètres manquants ou utilisateur non connecté' };
+    }
+    
     try {
-      // Extraire les images pour une gestion séparée
-      const { images, ...serviceUpdates } = updates;
+      // Vérifier que l'utilisateur est autorisé à modifier ce service
+      const { data: serviceToUpdate, error: checkError } = await supabase
+        .from('services')
+        .select('freelance_id, active')
+        .eq('id', serviceId)
+        .single();
       
-      // Mettre à jour le service
+      if (checkError) {
+        if (checkError.code === 'PGRST116') {
+          return { success: false, error: 'Service introuvable' };
+        }
+        throw checkError;
+      }
+      
+      if (!serviceToUpdate) {
+        return { success: false, error: 'Service introuvable' };
+      }
+      
+      // Vérifier les permissions
+      if (serviceToUpdate.freelance_id !== profile.id && profile.role !== 'admin') {
+        return { success: false, error: 'Vous n\'êtes pas autorisé à modifier ce service' };
+      }
+      
+      const { images, ...serviceFields } = updates;
+      
+      // Ajouter le timestamp de mise à jour et s'assurer que active est correct
+      const fieldsWithTimestamp = {
+        ...serviceFields,
+        updated_at: new Date().toISOString(),
+      };
+      
+      // Normaliser la valeur de active si elle est définie
+      if (updates.active !== undefined) {
+        fieldsWithTimestamp.active = typeof updates.active === 'string' 
+          ? updates.active === 'true' 
+          : Boolean(updates.active);
+          
+        // Log pour le débogage
+        console.log(`Service ${serviceId} - active: ${fieldsWithTimestamp.active}, type: ${typeof fieldsWithTimestamp.active}`);
+      }
+      
+      // Mise à jour des champs du service
       const { data, error } = await supabase
         .from('services')
-        .update(serviceUpdates)
+        .update(fieldsWithTimestamp)
         .eq('id', serviceId)
         .select()
         .single();
       
-      if (error) throw error;
+      if (error) {
+        console.error("Erreur lors de la mise à jour des champs du service:", error);
+        throw error;
+      }
       
-      // Si des images sont fournies, gérer les images
+      // Mise à jour des images si nécessaire
       if (images !== undefined && data) {
-        // D'abord supprimer toutes les images existantes
-        await supabase
-          .from('service_images')
-          .delete()
-          .eq('service_id', serviceId);
-        
-        // Ensuite ajouter les nouvelles images
-        if (images.length > 0) {
-          const serviceImages = images.map((image, index) => ({
-            service_id: data.id,
-            url: image,
-            position: index,
-          }));
+        try {
+          const { error: updateImagesError } = await supabase
+            .from('services')
+            .update({
+              images: images,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', serviceId);
           
-          await supabase
-            .from('service_images')
-            .insert(serviceImages);
+          if (updateImagesError) {
+            console.warn('Erreur lors de la mise à jour des images:', updateImagesError);
+          }
+        } catch (imageError) {
+          console.warn('Exception lors de la mise à jour des images:', imageError);
         }
       }
       
-      // Invalider le cache si l'option est activée
-      if (useCache) {
-        invalidateCache(CACHE_KEYS.SERVICES);
-        invalidateCache(`${SERVICE_CACHE_KEYS.SERVICE_DETAIL}${serviceId}`);
-        if (data.slug) {
-          invalidateCache(`${SERVICE_CACHE_KEYS.SERVICE_SLUG}${data.slug}`);
-        }
+      // S'assurer que les notifications pour le service sont correctement configurées
+      try {
+        await supabase
+          .from('service_notifications')
+          .upsert({
+            service_id: serviceId,
+            type: 'service_updated',
+            content: `Le service a été mis à jour le ${new Date().toLocaleDateString('fr-FR')}`,
+            created_at: new Date().toISOString()
+          }, { onConflict: 'service_id' });
+      } catch (notifError) {
+        // Ignorer les erreurs de notification, elles ne doivent pas bloquer la mise à jour
+        console.warn('Erreur lors de la création de la notification:', notifError);
       }
       
-      // Rafraîchir les données
-      fetchServices(true);
+      // Déclencher une invalidation de cache
+      window.dispatchEvent(new CustomEvent('cache-invalidation', {
+        detail: { 
+          type: 'service', 
+          action: 'update',
+          id: serviceId,
+          keys: ['services']
+        }
+      }));
       
-      return { success: true, data };
-    } catch (error: any) {
-      console.error('Erreur lors de la mise à jour du service:', error);
-      return { success: false, error };
+      // Supprimer explicitement le service du cache
+      const cacheKey = `service_${serviceId}`;
+      servicesCache.delete(cacheKey);
+      
+      return { success: true, service: data };
+    } catch (err: any) {
+      console.error('Erreur lors de la mise à jour du service:', err);
+      return { 
+        success: false, 
+        error: err.message || 'Une erreur est survenue lors de la mise à jour du service' 
+      };
     }
-  };
+  }, [profile]);
 
-  // Supprimer un service
-  const deleteService = async (id: string) => {
+  // Supprimer un service avec vérifications de sécurité
+  const deleteService = useCallback(async (id: string) => {
+    if (!profile || !id) {
+      return { success: false, error: 'Vous devez être connecté pour supprimer un service' };
+    }
+    
     try {
-      // Récupérer le service avant de le supprimer pour obtenir le slug
-      const { data: serviceToDelete } = await supabase
+      // Vérifier que l'utilisateur est autorisé à supprimer ce service
+      const { data: serviceToDelete, error: checkError } = await supabase
         .from('services')
-        .select('slug')
+        .select('freelance_id')
         .eq('id', id)
         .single();
+      
+      if (checkError) {
+        if (checkError.code === 'PGRST116') {
+          return { success: false, error: 'Service introuvable' };
+        }
+        throw checkError;
+      }
+      
+      // Vérifier les permissions
+      if (serviceToDelete.freelance_id !== profile.id && profile.role !== 'admin') {
+        return { success: false, error: 'Vous n\'êtes pas autorisé à supprimer ce service' };
+      }
       
       // Supprimer le service
       const { error } = await supabase
@@ -539,43 +692,130 @@ export function useServices(params: UseServicesParams = {}, options: UseServices
       
       if (error) throw error;
       
-      // Invalider le cache si l'option est activée
-      if (useCache) {
-        invalidateCache(CACHE_KEYS.SERVICES);
-        invalidateCache(`${SERVICE_CACHE_KEYS.SERVICE_DETAIL}${id}`);
-        if (serviceToDelete && serviceToDelete.slug) {
-          invalidateCache(`${SERVICE_CACHE_KEYS.SERVICE_SLUG}${serviceToDelete.slug}`);
+      // Déclencher une invalidation de cache
+      window.dispatchEvent(new CustomEvent('cache-invalidation', {
+        detail: { 
+          type: 'service', 
+          action: 'delete',
+          id,
+          keys: ['services']
         }
-      }
+      }));
       
-      // Rafraîchir les données
-      fetchServices(true);
+      // Mettre à jour l'état local en supprimant le service
+      setServices(prevServices => prevServices.filter(s => s.id !== id));
       
       return { success: true };
-    } catch (error: any) {
-      console.error('Erreur lors de la suppression du service:', error);
-      return { success: false, error };
+    } catch (err: any) {
+      console.error('Erreur lors de la suppression du service:', err);
+      return { 
+        success: false, 
+        error: err.message || 'Une erreur est survenue lors de la suppression du service' 
+      };
     }
-  };
+  }, [profile]);
 
-  return {
+  // Effet pour charger les services et s'abonner aux changements
+  useEffect(() => {
+    // Nettoyage des resources précédentes
+    cleanup();
+    
+    // Charger les services initialement (utiliser le cache si disponible)
+    fetchServices(false);
+    
+    // S'abonner aux changements des services en temps réel - SEULEMENT si nécessaire
+    // Réduire la portée de l'abonnement en se concentrant sur les paramètres actuels
+    const channelFilter: any = { 
+      event: '*',
+      schema: 'public',
+      table: 'services'
+    };
+    
+    // Ajouter des filtres spécifiques pour réduire le volume de notifications
+    if (freelanceId) {
+      channelFilter.filter = `freelance_id=eq.${freelanceId}`;
+    } else if (categoryId) {
+      channelFilter.filter = `category_id=eq.${categoryId}`;
+    }
+    
+    const servicesSubscription = supabase
+      .channel(`services-changes-${paramsSignature}`)
+      .on('postgres_changes', channelFilter, () => {
+        // Vérifier si les paramètres correspondent au changement
+        // Invalider le cache et recharger seulement si nécessaire
+        if (!loadingRef.current) {
+          // Invalider le cache pour cette signature
+          servicesCache.delete(paramsSignature);
+          
+          // Recharger avec un certain délai pour éviter les rafraîchissements trop fréquents
+          if (Date.now() - lastFetchTimeRef.current > DEFAULT_THROTTLE_MS) {
+            fetchServices(true);
+          } else {
+            // Planifier un rechargement différé
+            setTimeout(() => {
+              if (!loadingRef.current) {
+                fetchServices(true);
+              }
+            }, DEFAULT_THROTTLE_MS);
+          }
+        }
+      })
+      .subscribe();
+    
+    // Stocker la référence de l'abonnement
+    subscriptionRef.current = servicesSubscription;
+    
+    // S'abonner aux événements d'invalidation du cache avec une fonction mémorisée
+    const handleCacheInvalidation = (event: CustomEvent) => {
+      const { keys, type, action } = event.detail || {};
+      
+      // Vérifier si l'invalidation concerne les services
+      if (keys && Array.isArray(keys) && keys.includes('services')) {
+        // Invalider le cache pour cette requête
+        servicesCache.delete(paramsSignature);
+        
+        // Utiliser un rechargement différé pour éviter trop de requêtes
+        if (!loadingRef.current && (Date.now() - lastFetchTimeRef.current > DEFAULT_THROTTLE_MS)) {
+          fetchServices(true);
+        } else {
+          setTimeout(() => {
+            if (!loadingRef.current) {
+              fetchServices(true);
+            }
+          }, DEFAULT_THROTTLE_MS);
+        }
+      }
+    };
+    
+    cacheInvalidationListenerRef.current = handleCacheInvalidation as any;
+    window.addEventListener('cache-invalidation', handleCacheInvalidation as EventListener);
+    
+    // Nettoyage lors du démontage
+    return cleanup;
+  }, [paramsSignature, fetchServices, cleanup, freelanceId, categoryId]);
+
+  // Retourner un objet mémoïsé pour éviter les recréations inutiles
+  return useMemo(() => ({
     services,
     loading,
     error,
-    isRefreshing,
     getServiceById,
     getServiceBySlug,
     createService,
     updateService,
     deleteService,
-    refreshData
-  };
-}
-
-/**
- * Re-export du hook useServices avec l'ancien nom pour compatibilité
- * @deprecated Utilisez useServices à la place avec l'option {useCache: true}
- */
-export function useOptimizedServices(params: UseServicesParams = {}) {
-  return useServices(params, { useCache: true });
+    fetchServices,
+    isRefreshing
+  }), [
+    services,
+    loading,
+    error,
+    getServiceById,
+    getServiceBySlug,
+    createService,
+    updateService,
+    deleteService,
+    fetchServices,
+    isRefreshing
+  ]);
 } 

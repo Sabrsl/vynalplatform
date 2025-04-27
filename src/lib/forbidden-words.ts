@@ -490,133 +490,179 @@ export interface ForbiddenWordsResult {
  * Vérifie si un message contient des mots interdits avec analyse avancée
  */
 export function containsForbiddenWords(message: string): ForbiddenWordsResult {
-  if (!message) {
-    return { 
-      hasForbiddenWords: false, 
+  try {
+    if (!message) {
+      return { 
+        hasForbiddenWords: false, 
+        foundWords: [],
+        severity: 'none',
+        possibleQuoteOrReport: false
+      };
+    }
+
+    const messageLower = message.toLowerCase();
+    let normalizedMessage = '';
+    let possibleQuoteOrReport = false;
+    
+    try {
+      normalizedMessage = normalizeText(message);
+    } catch (normalizeError) {
+      console.error("Erreur lors de la normalisation du message:", normalizeError);
+      normalizedMessage = messageLower; // Fallback simple
+    }
+    
+    try {
+      possibleQuoteOrReport = isQuoteOrReport(message);
+    } catch (quoteError) {
+      console.error("Erreur lors de la détection de citation:", quoteError);
+      possibleQuoteOrReport = false; // Par défaut, ne pas considérer comme citation
+    }
+    
+    let foundWords: string[] = [];
+    let highestSeverity: 'high' | 'medium' | 'low' | 'none' = 'none';
+    let recommendedAction: 'block' | 'warn' | 'censor' | 'notify_mod' | undefined = undefined;
+    let actionsMap: { [key: string]: 'block' | 'warn' | 'censor' | 'notify_mod' } = {};
+    
+    // Compteur d'erreurs pour éviter de bloquer le message si trop d'erreurs
+    let errorCount = 0;
+    const errorThreshold = 5;
+    
+    // Vérifier chaque entrée de la liste de mots interdits
+    for (const entry of forbiddenWordsConfig) {
+      try {
+        let found = false;
+        
+        // Vérifier le mot principal
+        if (matchesPattern(messageLower, entry.word, entry.regex)) {
+          found = true;
+        }
+        
+        // Si non trouvé, vérifier les alias/variantes
+        if (!found && entry.aliases && entry.aliases.length > 0) {
+          for (const alias of entry.aliases) {
+            try {
+              if (matchesPattern(messageLower, alias)) {
+                found = true;
+                break;
+              }
+            } catch (e) {
+              console.error(`Erreur lors de la vérification de l'alias: ${alias}`, e);
+              errorCount++;
+            }
+          }
+        }
+        
+        // Si toujours pas trouvé mais que la normalisation est activée, vérifier directement 
+        // dans le texte normalisé pour attraper les variantes orthographiques
+        if (!found && !entry.regex) {
+          try {
+            const normalizedWord = normalizeText(entry.word);
+            if (normalizedWord && normalizedMessage.includes(normalizedWord)) {
+              found = true;
+            }
+          } catch (e) {
+            console.error(`Erreur lors de la vérification normalisée pour: ${entry.word}`, e);
+            errorCount++;
+          }
+        }
+        
+        // Si trouvé, vérifier les exceptions de contexte
+        if (found && entry.contextExceptions && entry.contextExceptions.length > 0) {
+          try {
+            if (isInAllowedContext(messageLower, entry.word, entry.contextExceptions)) {
+              found = false; // Ne pas considérer comme interdit si dans un contexte autorisé
+            }
+          } catch (e) {
+            console.error(`Erreur lors de la vérification du contexte pour: ${entry.word}`, e);
+            errorCount++;
+            // En cas d'erreur de contexte, être permissif
+            found = false;
+          }
+        }
+        
+        // Si c'est une citation/signalement et que le mot est de faible importance, l'ignorer
+        if (found && possibleQuoteOrReport && entry.severity === 'low') {
+          found = false;
+        }
+        
+        if (found) {
+          foundWords.push(entry.word);
+          
+          // Enregistrer l'action recommandée pour ce mot
+          if (entry.action) {
+            actionsMap[entry.word] = entry.action;
+          } else {
+            // Si aucune action n'est spécifiée, utiliser une action par défaut basée sur la gravité
+            switch (entry.severity) {
+              case 'high':
+                actionsMap[entry.word] = 'block';
+                break;
+              case 'medium':
+                actionsMap[entry.word] = 'censor';
+                break;
+              case 'low':
+                actionsMap[entry.word] = 'warn';
+                break;
+            }
+          }
+          
+          // Mettre à jour la sévérité la plus élevée trouvée
+          if (entry.severity === 'high' && highestSeverity !== 'high') {
+            highestSeverity = 'high';
+          } else if (entry.severity === 'medium' && highestSeverity !== 'high') {
+            highestSeverity = 'medium';
+          } else if (entry.severity === 'low' && highestSeverity !== 'high' && highestSeverity !== 'medium') {
+            highestSeverity = 'low';
+          }
+        }
+      } catch (error) {
+        console.error(`Erreur lors de l'analyse du mot interdit: ${entry.word}`, error);
+        errorCount++;
+      }
+      
+      // Si trop d'erreurs, ne pas bloquer le message par sécurité
+      if (errorCount >= errorThreshold) {
+        console.warn(`Trop d'erreurs (${errorCount}) lors de la vérification des mots interdits, message autorisé par sécurité`);
+        return {
+          hasForbiddenWords: false,
+          foundWords: [],
+          severity: 'none',
+          possibleQuoteOrReport
+        };
+      }
+    }
+    
+    // Déterminer l'action recommandée globale basée sur tous les mots trouvés
+    if (foundWords.length > 0) {
+      // Priorité des actions : block > notify_mod > warn > censor
+      if (Object.values(actionsMap).includes('block')) {
+        recommendedAction = 'block';
+      } else if (Object.values(actionsMap).includes('notify_mod')) {
+        recommendedAction = 'notify_mod';
+      } else if (Object.values(actionsMap).includes('warn')) {
+        recommendedAction = 'warn';
+      } else if (Object.values(actionsMap).includes('censor')) {
+        recommendedAction = 'censor';
+      }
+    }
+
+    return {
+      hasForbiddenWords: foundWords.length > 0,
+      foundWords,
+      severity: highestSeverity,
+      possibleQuoteOrReport,
+      recommendedAction
+    };
+  } catch (generalError) {
+    console.error("Erreur générale lors de la vérification des mots interdits:", generalError);
+    // En cas d'erreur générale, laisser passer le message
+    return {
+      hasForbiddenWords: false,
       foundWords: [],
       severity: 'none',
       possibleQuoteOrReport: false
     };
   }
-
-  const messageLower = message.toLowerCase();
-  const normalizedMessage = normalizeText(message);
-  const possibleQuoteOrReport = isQuoteOrReport(message);
-  
-  let foundWords: string[] = [];
-  let highestSeverity: 'high' | 'medium' | 'low' | 'none' = 'none';
-  let recommendedAction: 'block' | 'warn' | 'censor' | 'notify_mod' | undefined = undefined;
-  let actionsMap: { [key: string]: 'block' | 'warn' | 'censor' | 'notify_mod' } = {};
-  
-  // Vérifier chaque entrée de la liste de mots interdits
-  for (const entry of forbiddenWordsConfig) {
-    try {
-      let found = false;
-      
-      // Vérifier le mot principal
-      if (matchesPattern(messageLower, entry.word, entry.regex)) {
-        found = true;
-      }
-      
-      // Si non trouvé, vérifier les alias/variantes
-      if (!found && entry.aliases && entry.aliases.length > 0) {
-        for (const alias of entry.aliases) {
-          try {
-            if (matchesPattern(messageLower, alias)) {
-              found = true;
-              break;
-            }
-          } catch (e) {
-            console.error(`Erreur lors de la vérification de l'alias: ${alias}`, e);
-          }
-        }
-      }
-      
-      // Si toujours pas trouvé mais que la normalisation est activée, vérifier directement 
-      // dans le texte normalisé pour attraper les variantes orthographiques
-      if (!found && !entry.regex) {
-        try {
-          const normalizedWord = normalizeText(entry.word);
-          if (normalizedMessage.includes(normalizedWord)) {
-            found = true;
-          }
-        } catch (e) {
-          console.error(`Erreur lors de la vérification normalisée pour: ${entry.word}`, e);
-        }
-      }
-      
-      // Si trouvé, vérifier les exceptions de contexte
-      if (found && entry.contextExceptions && entry.contextExceptions.length > 0) {
-        try {
-          if (isInAllowedContext(messageLower, entry.word, entry.contextExceptions)) {
-            found = false; // Ne pas considérer comme interdit si dans un contexte autorisé
-          }
-        } catch (e) {
-          console.error(`Erreur lors de la vérification du contexte pour: ${entry.word}`, e);
-        }
-      }
-      
-      // Si c'est une citation/signalement et que le mot est de faible importance, l'ignorer
-      if (found && possibleQuoteOrReport && entry.severity === 'low') {
-        found = false;
-      }
-      
-      if (found) {
-        foundWords.push(entry.word);
-        
-        // Enregistrer l'action recommandée pour ce mot
-        if (entry.action) {
-          actionsMap[entry.word] = entry.action;
-        } else {
-          // Si aucune action n'est spécifiée, utiliser une action par défaut basée sur la gravité
-          switch (entry.severity) {
-            case 'high':
-              actionsMap[entry.word] = 'block';
-              break;
-            case 'medium':
-              actionsMap[entry.word] = 'censor';
-              break;
-            case 'low':
-              actionsMap[entry.word] = 'warn';
-              break;
-          }
-        }
-        
-        // Mettre à jour la sévérité la plus élevée trouvée
-        if (entry.severity === 'high' && highestSeverity !== 'high') {
-          highestSeverity = 'high';
-        } else if (entry.severity === 'medium' && highestSeverity !== 'high') {
-          highestSeverity = 'medium';
-        } else if (entry.severity === 'low' && highestSeverity !== 'high' && highestSeverity !== 'medium') {
-          highestSeverity = 'low';
-        }
-      }
-    } catch (error) {
-      console.error(`Erreur lors de l'analyse du mot interdit: ${entry.word}`, error);
-    }
-  }
-  
-  // Déterminer l'action recommandée globale basée sur tous les mots trouvés
-  if (foundWords.length > 0) {
-    // Priorité des actions : block > notify_mod > warn > censor
-    if (Object.values(actionsMap).includes('block')) {
-      recommendedAction = 'block';
-    } else if (Object.values(actionsMap).includes('notify_mod')) {
-      recommendedAction = 'notify_mod';
-    } else if (Object.values(actionsMap).includes('warn')) {
-      recommendedAction = 'warn';
-    } else if (Object.values(actionsMap).includes('censor')) {
-      recommendedAction = 'censor';
-    }
-  }
-
-  return {
-    hasForbiddenWords: foundWords.length > 0,
-    foundWords,
-    severity: highestSeverity,
-    possibleQuoteOrReport,
-    recommendedAction
-  };
 }
 
 /**
@@ -759,24 +805,50 @@ function normalizeText(text: string): string {
       'ß': 'b'
     };
     
-    // Appliquer les remplacements de caractères
+    // Appliquer les remplacements de caractères (méthode sécurisée)
     for (const [char, replacement] of Object.entries(charMap)) {
-      normalized = normalized.replace(new RegExp(char, 'g'), replacement);
+      try {
+        // Utiliser split/join au lieu de regex pour éviter les problèmes avec les caractères spéciaux
+        normalized = normalized.split(char).join(replacement);
+      } catch (charError) {
+        console.error(`Erreur lors du remplacement du caractère '${char}':`, charError);
+        // Continue avec les autres remplacements
+      }
     }
     
-    // Retirer les accents (normalisation Unicode)
-    normalized = normalized.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    try {
+      // Retirer les accents (normalisation Unicode)
+      normalized = normalized.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    } catch (accentError) {
+      console.error('Erreur lors de la suppression des accents:', accentError);
+      // Continuer avec le texte sans retirer les accents
+    }
     
-    // Retirer la ponctuation et autres caractères spéciaux
-    normalized = normalized.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, ' ');
+    try {
+      // Retirer la ponctuation et autres caractères spéciaux
+      normalized = normalized.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, ' ');
+    } catch (punctError) {
+      console.error('Erreur lors de la suppression de la ponctuation:', punctError);
+      // Continuer avec le texte sans retirer la ponctuation
+    }
     
-    // Supprimer les espaces multiples
-    normalized = normalized.replace(/\s+/g, ' ').trim();
+    try {
+      // Supprimer les espaces multiples
+      normalized = normalized.replace(/\s+/g, ' ').trim();
+    } catch (spaceError) {
+      console.error('Erreur lors de la normalisation des espaces:', spaceError);
+      // Continuer avec le texte sans normaliser les espaces
+    }
     
     return normalized;
   } catch (error) {
-    console.error('Erreur lors de la normalisation du texte:', error);
-    return text; // Retourner le texte original en cas d'erreur
+    console.error('Erreur générale lors de la normalisation du texte:', error);
+    // En cas d'erreur, retourner une version simplifiée
+    try {
+      return text.toLowerCase().trim();
+    } catch {
+      return text; // Retourner le texte original si tout échoue
+    }
   }
 }
 
@@ -785,37 +857,82 @@ function normalizeText(text: string): string {
  * en tenant compte de la normalisation
  */
 function matchesPattern(text: string, pattern: string, isRegex: boolean = false): boolean {
-  // Normaliser le texte d'entrée
-  const normalizedText = normalizeText(text);
-  
-  if (isRegex) {
-    try {
-      const regex = new RegExp(pattern, 'i');
-      return regex.test(text) || regex.test(normalizedText); // Vérifier le texte original et normalisé
-    } catch (e) {
-      console.error(`Expression régulière invalide: ${pattern}`, e);
-      return false;
-    }
-  }
-  
-  // Normaliser également le pattern pour une meilleure correspondance
-  const normalizedPattern = normalizeText(pattern);
-  
-  // Vérification comme mot entier pour éviter les faux positifs
   try {
-    // Échapper les caractères spéciaux regex dans le pattern
-    const escapedPattern = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const escapedNormPattern = normalizedPattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    // Si le texte ou le pattern est vide, retourner false immédiatement
+    if (!text || !pattern) return false;
     
-    const regex = new RegExp(`\\b${escapedPattern}\\b|\\b${escapedPattern}[es]?\\b|\\b${escapedPattern}[s]?\\b`, 'i');
-    const regexNorm = new RegExp(`\\b${escapedNormPattern}\\b|\\b${escapedNormPattern}[es]?\\b|\\b${escapedNormPattern}[s]?\\b`, 'i');
+    // Normaliser le texte d'entrée
+    const normalizedText = normalizeText(text);
     
-    return regex.test(text) || regexNorm.test(normalizedText);
-  } catch (e) {
-    console.error(`Erreur lors de la création de l'expression régulière pour: ${pattern}`, e);
-    // Fallback: vérification simple si le pattern est présent
-    return text.toLowerCase().includes(pattern.toLowerCase()) || 
-           normalizedText.includes(normalizedPattern);
+    if (isRegex) {
+      try {
+        const regex = new RegExp(pattern, 'i');
+        return regex.test(text) || regex.test(normalizedText); // Vérifier le texte original et normalisé
+      } catch (e) {
+        console.error(`Expression régulière invalide: ${pattern}`, e);
+        // Fallback: utiliser une recherche simple
+        return text.toLowerCase().includes(pattern.toLowerCase()) || 
+               normalizedText.includes(normalizeText(pattern));
+      }
+    }
+    
+    // Normaliser également le pattern pour une meilleure correspondance
+    const normalizedPattern = normalizeText(pattern);
+    
+    // Vérification comme mot entier pour éviter les faux positifs
+    try {
+      // Approche alternative plus sûre pour créer des regex
+      // Vérifier d'abord comme mot entier
+      const textWords = ` ${normalizedText} `.split(' ');
+      const patternWords = normalizedPattern.split(' ');
+      
+      // Vérifier chaque mot du pattern
+      for (const patternWord of patternWords) {
+        if (patternWord && textWords.some(word => 
+            word === patternWord || 
+            word === `${patternWord}s` || 
+            word === `${patternWord}es`)) {
+          return true;
+        }
+      }
+      
+      // Si la vérification par mots échoue, essayer avec regex avec gestion d'erreur
+      // Échapper les caractères spéciaux regex dans le pattern
+      const escapedPattern = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const escapedNormPattern = normalizedPattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      
+      try {
+        const regex = new RegExp(`\\b${escapedPattern}\\b|\\b${escapedPattern}[es]?\\b|\\b${escapedPattern}[s]?\\b`, 'i');
+        if (regex.test(text)) return true;
+      } catch (regexError) {
+        console.error(`Erreur regex avec pattern original: ${pattern}`, regexError);
+        // Continuer avec l'autre regex
+      }
+      
+      try {
+        const regexNorm = new RegExp(`\\b${escapedNormPattern}\\b|\\b${escapedNormPattern}[es]?\\b|\\b${escapedNormPattern}[s]?\\b`, 'i');
+        if (regexNorm.test(normalizedText)) return true;
+      } catch (regexNormError) {
+        console.error(`Erreur regex avec pattern normalisé: ${normalizedPattern}`, regexNormError);
+      }
+      
+      // Dernier recours : recherche simple d'inclusion
+      return normalizedText.includes(normalizedPattern);
+      
+    } catch (e) {
+      console.error(`Erreur lors de la création de l'expression régulière pour: ${pattern}`, e);
+      // Fallback: vérification simple si le pattern est présent
+      return text.toLowerCase().includes(pattern.toLowerCase()) || 
+             normalizedText.includes(normalizedPattern);
+    }
+  } catch (generalError) {
+    console.error(`Erreur générale dans matchesPattern pour: ${pattern}`, generalError);
+    // Dernière tentative très basique
+    try {
+      return text.toLowerCase().includes(pattern.toLowerCase());
+    } catch {
+      return false; // En cas d'échec total, ne pas bloquer le message
+    }
   }
 }
 

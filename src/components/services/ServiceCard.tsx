@@ -16,6 +16,7 @@ import { ServiceWithFreelanceAndCategories } from "@/hooks/useServices";
 import { useFreelancerRating } from "@/hooks/useFreelancerRating";
 import { Loader } from "@/components/ui/loader";
 import { highlightSearchTerms } from '@/lib/search/smartSearch';
+import Image from 'next/image';
 
 // Extension du type pour inclure les propriétés supplémentaires
 interface ExtendedService extends ServiceWithFreelanceAndCategories {
@@ -158,13 +159,17 @@ const ServiceCard: React.FC<ServiceCardProps> = memo(({
       {/* Section image */}
       <div className="aspect-[16/9] bg-vynal-purple-secondary/30 relative overflow-hidden w-full flex-shrink-0 rounded-t-xl">
         {hasValidImage ? (
-          <img 
-            src={service.images?.[0] || ''} 
-            alt={service.title || "Service"} 
-            className="w-full h-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
-            onError={() => setImageError(true)}
-            loading="lazy"
-          />
+          <div className="relative w-full h-full">
+            <Image 
+              src={service.images?.[0] || ''} 
+              alt={service.title || "Service"} 
+              className="object-cover object-center transition-transform duration-500 group-hover:scale-105"
+              onError={() => setImageError(true)}
+              fill
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+              priority={true}
+            />
+          </div>
         ) : (
           <div className="flex flex-col items-center justify-center h-full bg-gradient-to-b from-vynal-purple-dark to-vynal-purple-darkest">
             <ImageIcon className="h-8 w-8 mb-1 text-vynal-text-secondary" />

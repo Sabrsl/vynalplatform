@@ -17,6 +17,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { FileIcon } from '@/components/ui/icons/FileIcon';
 import { SendHorizontal } from 'lucide-react';
+import { Virtuoso } from 'react-virtuoso';
 
 // Extension du type Conversation pour inclure other_user
 interface Conversation extends BaseConversation {
@@ -647,107 +648,144 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         </DropdownMenu>
       </div>
       
-      {/* Zone des messages avec stylisation WhatsApp-like */}
-      <div
-        ref={messagesContainerRef}
-        className="flex-1 overflow-y-auto p-4 bg-gradient-to-r from-gray-50 to-white dark:from-gray-900 dark:to-gray-950 bg-opacity-90 overflow-x-hidden"
+      {/* Zone des messages avec virtualisation pour optimiser les performances */}
+      <Virtuoso
+        ref={messagesContainerRef as any}
+        className="flex-1 p-4 bg-gradient-to-r from-gray-50 to-white dark:from-gray-900 dark:to-gray-950 bg-opacity-90 overflow-x-hidden"
         style={{
           backgroundImage: "url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48cGF0dGVybiBpZD0iZ3JpZCIgd2lkdGg9IjIwIiBoZWlnaHQ9IjIwIiBwYXR0ZXJuVW5pdHM9InVzZXJTcGFjZU9uVXNlIj48cGF0aCBkPSJNIDIwIDAgTCAwIDAgMCAyMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjY2NjY2NjIiBzdHJva2Utb3BhY2l0eT0iMC4xIiBzdHJva2Utd2lkdGg9IjEiLz48L3BhdHRlcm4+PC9kZWZzPjxyZWN0IGZpbGw9InVybCgjZ3JpZCkiIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiLz48L3N2Zz4=')",
           backgroundSize: "20px 20px",
           backgroundRepeat: "repeat"
         }}
-        onScroll={handleScroll}
-      >
-        {/* Bouton pour charger plus de messages */}
-        {loadMoreVisible && hasMoreMessages && (
-          <div className="flex justify-center mb-4">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={loadMoreMessages}
-                  disabled={isLoadingMore}
-              className="rounded-full text-xs bg-white shadow-sm hover:bg-gray-100 text-gray-700 flex items-center gap-1"
-                >
-                  {isLoadingMore ? (
-                <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                  ) : (
-                <ChevronUp className="h-3 w-3 mr-1" />
-                  )}
-              Messages précédents
-                </Button>
-              </div>
-            )}
-            
-        {/* Loader lors du chargement initial des messages */}
-        {isLoadingMessages && visibleMessages.length === 0 && (
-          <div className="flex justify-center items-center h-full">
-            <div className="flex flex-col items-center">
-              <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
-              <p className="mt-2 text-sm text-gray-500">Chargement des messages...</p>
-            </div>
-          </div>
-        )}
-        
-        {/* Liste des messages */}
-        {visibleMessages.length === 0 && !isLoadingMessages && (
-          <div className="flex flex-col items-center justify-center h-full p-4 text-center">
-            <div className="bg-indigo-100 dark:bg-indigo-900/30 rounded-full p-4 mb-3">
-              <MessageSquare className="h-8 w-8 text-indigo-600 dark:text-indigo-400" />
-            </div>
-            <h3 className="text-lg font-semibold mb-1 text-gray-800 dark:text-gray-200">Aucun message</h3>
-            <p className="text-gray-500 dark:text-gray-400 text-sm max-w-xs">
-              Démarrez la conversation avec {otherParticipant?.full_name || 'votre contact'} en envoyant un message ci-dessous.
-            </p>
-          </div>
-        )}
-        
-        {visibleMessages.map((message, index) => {
-          const isCurrentUser = message.sender_id === user?.id;
-          const showAvatar = !isCurrentUser && 
-                            (index === 0 || 
-                             visibleMessages[index - 1].sender_id !== message.sender_id);
-          
-          return (
-                  <MessageBubble 
-              key={message.id}
-                    message={message}
-              isCurrentUser={isCurrentUser}
-              showAvatar={showAvatar}
-              otherParticipant={otherParticipant}
-                    isFreelance={isFreelance}
-              previousMessage={index > 0 ? visibleMessages[index - 1] : undefined}
-              nextMessage={index < visibleMessages.length - 1 ? visibleMessages[index + 1] : undefined}
-                  />
-          );
-        })}
-            
-        {/* Indicateur de frappe */}
-            {isOtherParticipantTyping && (
-          <div className="flex items-start mb-4 animate-fade-in">
-            <div className="flex items-end">
-              <Avatar className="h-8 w-8 mr-2">
-                <AvatarImage 
-                  src={otherParticipant?.avatar_url || ''} 
-                  alt={otherParticipant?.full_name || 'Contact'} 
-                  onError={() => setTypingAvatarError(true)}
-                />
-                <AvatarFallback className="bg-indigo-100 text-indigo-800">
-                  {getInitials(otherParticipant?.full_name || otherParticipant?.username || 'User')}
-                </AvatarFallback>
-              </Avatar>
-              <div className="bg-white dark:bg-gray-800 rounded-2xl px-4 py-2 shadow-sm flex items-center">
-                <div className="flex space-x-1">
-                  <span className="bg-gray-300 dark:bg-gray-600 rounded-full h-2 w-2 animate-bounce" style={{ animationDelay: '0s' }}></span>
-                  <span className="bg-gray-300 dark:bg-gray-600 rounded-full h-2 w-2 animate-bounce" style={{ animationDelay: '0.2s' }}></span>
-                  <span className="bg-gray-300 dark:bg-gray-600 rounded-full h-2 w-2 animate-bounce" style={{ animationDelay: '0.4s' }}></span>
+        overscan={200}
+        totalCount={visibleMessages.length}
+        data={visibleMessages}
+        followOutput={"auto"}
+        atBottomStateChange={(isAtBottom) => {
+          userScrolledUpRef.current = !isAtBottom;
+        }}
+        components={{
+          Header: () => (
+            <>
+              {/* Bouton pour charger plus de messages */}
+              {loadMoreVisible && hasMoreMessages && (
+                <div className="flex justify-center mb-4">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={loadMoreMessages}
+                    disabled={isLoadingMore}
+                    className="rounded-full text-xs bg-white shadow-sm hover:bg-gray-100 text-gray-700 flex items-center gap-1"
+                  >
+                    {isLoadingMore ? (
+                      <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                    ) : (
+                      <ChevronUp className="h-3 w-3 mr-1" />
+                    )}
+                    Messages précédents
+                  </Button>
                 </div>
-              </div>
-            </div>
-              </div>
-            )}
+              )}
+              
+              {/* Loader lors du chargement initial des messages - Simplifier l'animation */}
+              {isLoadingMessages && visibleMessages.length === 0 && (
+                <div className="flex justify-center items-center h-[200px] animate-in fade-in duration-500 ease-in-out">
+                  <div className="flex flex-col items-center space-y-2">
+                    <div className="flex flex-col space-y-2 w-3/4 max-w-md">
+                      {/* Skeleton message items */}
+                      {[...Array(3)].map((_, i) => (
+                        <div 
+                          key={i} 
+                          className={`flex items-start ${i % 2 === 0 ? 'justify-end' : ''}`}
+                          style={{ animationDelay: `${i * 100}ms` }}
+                        >
+                          {i % 2 !== 0 && (
+                            <div className="h-8 w-8 rounded-full bg-gray-200 dark:bg-gray-700 mr-2"></div>
+                          )}
+                          <div 
+                            className={`h-[60px] rounded-2xl ${i % 2 === 0 ? 'bg-indigo-100 dark:bg-indigo-900/30 w-[65%]' : 'bg-gray-100 dark:bg-gray-800 w-[70%]'}`}
+                          ></div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {/* Liste des messages */}
+              {visibleMessages.length === 0 && !isLoadingMessages && (
+                <div className="flex flex-col items-center justify-center h-[300px] p-4 text-center">
+                  <div className="bg-indigo-100 dark:bg-indigo-900/30 rounded-full p-4 mb-3">
+                    <MessageSquare className="h-8 w-8 text-indigo-600 dark:text-indigo-400" />
+                  </div>
+                  <h3 className="text-lg font-semibold mb-1 text-gray-800 dark:text-gray-200">Aucun message</h3>
+                  <p className="text-gray-500 dark:text-gray-400 text-sm max-w-xs">
+                    Démarrez la conversation avec {otherParticipant?.full_name || 'votre contact'} en envoyant un message ci-dessous.
+                  </p>
+                </div>
+              )}
+            </>
+          ),
+          Footer: () => (
+            <>
+              {/* Indicateur de frappe */}
+              {isOtherParticipantTyping && (
+                <div className="flex items-start mb-4 animate-fade-in">
+                  <div className="flex items-end">
+                    <Avatar className="h-8 w-8 mr-2">
+                      <AvatarImage 
+                        src={otherParticipant?.avatar_url || ''} 
+                        alt={otherParticipant?.full_name || 'Contact'} 
+                        onError={() => setTypingAvatarError(true)}
+                      />
+                      <AvatarFallback className="bg-indigo-100 text-indigo-800">
+                        {getInitials(otherParticipant?.full_name || otherParticipant?.username || 'User')}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl px-4 py-2 shadow-sm flex items-center">
+                      <div className="flex space-x-1">
+                        <span className="bg-gray-300 dark:bg-gray-600 rounded-full h-2 w-2 animate-bounce" style={{ animationDelay: '0s' }}></span>
+                        <span className="bg-gray-300 dark:bg-gray-600 rounded-full h-2 w-2 animate-bounce" style={{ animationDelay: '0.2s' }}></span>
+                        <span className="bg-gray-300 dark:bg-gray-600 rounded-full h-2 w-2 animate-bounce" style={{ animationDelay: '0.4s' }}></span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div ref={messagesEndRef} />
+            </>
+          )
+        }}
+        itemContent={(index, message) => {
+          const isCurrentUser = message.sender_id === user?.id;
+          // Créer une clé de données unique pour ce message
+          const messageKey = `msg-${message.id}`;
+          // Déterminer si nous devons afficher l'avatar (pour les messages groupés)
+          const showAvatar = !isCurrentUser && 
+            (index === 0 || 
+              visibleMessages[index - 1].sender_id !== message.sender_id);
             
-            <div ref={messagesEndRef} />
-      </div>
+          return (
+            <div 
+              data-message-id={message.id}
+              data-key={messageKey}
+              className="mb-2"
+            >
+              <MessageBubble 
+                key={messageKey}
+                message={message}
+                isCurrentUser={isCurrentUser}
+                showAvatar={showAvatar}
+                otherParticipant={otherParticipant}
+                isFreelance={isFreelance}
+                previousMessage={index > 0 ? visibleMessages[index - 1] : undefined}
+                nextMessage={index < visibleMessages.length - 1 ? visibleMessages[index + 1] : undefined}
+              />
+            </div>
+          );
+        }}
+        onScroll={handleScroll}
+      />
       
       {/* Zone de saisie du message */}
       <div className="border-t border-gray-200 dark:border-gray-800 p-3 bg-white dark:bg-gray-950">
@@ -811,7 +849,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               disabled={isUploading || isSending}
             >
               {isUploading ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
+                <Loader2 className="h-5 w-5 animate-spin text-indigo-600" />
               ) : (
                 <Paperclip className="h-5 w-5" />
               )}
