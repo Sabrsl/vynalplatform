@@ -53,6 +53,7 @@ fix_admin_direct.sql
 !src/lib/supabase/file-upload.ts
 !src/lib/supabase/order-files.ts
 !src/lib/supabase/wallets.ts
+!src/lib/supabase/transactions.ts
 
 # Logs
 logs/
