@@ -261,7 +261,7 @@ export default function VendorProfileByIdPage() {
                       <Loader size="sm" variant="primary" />
                     </div>
                   ) : (
-                    <div className="space-y-4">
+                    <div className="space-y-3 max-h-60 overflow-y-auto pr-1 no-scrollbar">
                       <Tabs defaultValue="positifs" className="w-full">
                         <TabsList className="w-full grid grid-cols-2 mb-3 text-xs">
                           <TabsTrigger value="positifs">
@@ -280,7 +280,7 @@ export default function VendorProfileByIdPage() {
                         
                         <TabsContent value="positifs">
                           {positiveReviews.length > 0 ? (
-                            <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
+                            <div className="space-y-3 max-h-60 overflow-y-auto pr-1 no-scrollbar">
                               {positiveReviews.slice(0, 3).map((review) => (
                                 <Card key={review.id} className="p-3 border border-gray-100">
                                   <div className="flex items-start space-x-2">
@@ -335,7 +335,7 @@ export default function VendorProfileByIdPage() {
                         
                         <TabsContent value="negatifs">
                           {negativeReviews.length > 0 ? (
-                            <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
+                            <div className="space-y-3 max-h-60 overflow-y-auto pr-1 no-scrollbar">
                               {negativeReviews.slice(0, 3).map((review) => (
                                 <Card key={review.id} className="p-3 border border-gray-100">
                                   <div className="flex items-start space-x-2">

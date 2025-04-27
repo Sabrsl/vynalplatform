@@ -72,7 +72,7 @@ const ConversationList: React.FC<ConversationListProps> = ({
       </div>
       
       {/* Liste des conversations */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto no-scrollbar">
         {filteredConversations.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full p-6 text-center">
             <div className="bg-pink-100 dark:bg-pink-900/30 rounded-full p-4 mb-3">

@@ -42,7 +42,14 @@ function NavItem({ href, icon: Icon, label, badgeCount }: NavItemProps) {
     e.preventDefault();
     setIsNavigating(true);
     setActivePath(href);
-    router.push(href);
+    
+    // Naviguer sans réinitialiser immédiatement le scroll
+    router.push(href, { scroll: false });
+    
+    // Utiliser requestAnimationFrame pour réinitialiser la position après navigation
+    requestAnimationFrame(() => {
+      window.scrollTo(0, 0);
+    });
   };
   
   return (
@@ -126,7 +133,7 @@ export default function ClientDashboardLayout({
           </div>
         </div>
         
-        <div className="flex-1 overflow-y-auto overflow-x-hidden py-3 px-2 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden py-3 px-2 custom-scrollbar no-scrollbar">
           <nav className="space-y-5">
             {/* Éléments essentiels */}
             <div>

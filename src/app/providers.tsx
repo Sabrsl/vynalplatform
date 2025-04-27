@@ -122,15 +122,62 @@ function ErrorFallback({ error, resetErrorBoundary }: FallbackProps) {
   );
 }
 
-// Gestionnaire d'événements de navigation ultra simplifié
+// Gestionnaire d'événements de navigation optimisé
 function NavigationEventHandler() {
   const pathname = usePathname();
-  const router = useRouter();
+  const searchParams = useSearchParams();
   const pathnameRef = useRef(pathname);
+  const prevPathRef = useRef<string | null>(null);
+  const navigationInProgressRef = useRef(false);
 
-  // Effet minimal pour détecter uniquement les changements de route
+  // Surveiller le changement d'état de navigation
+  useEffect(() => {
+    const handleNavigationStart = () => {
+      navigationInProgressRef.current = true;
+    };
+
+    // Ecouter les changements de visibilité du document qui peuvent indiquer une navigation
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        navigationInProgressRef.current = true;
+      }
+    };
+
+    // Ajouter les écouteurs d'événements
+    window.addEventListener('beforeunload', handleNavigationStart);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Surveiller les changements dans l'état de navigation global
+    const handleNavigationStateChange = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      if (customEvent.detail?.isNavigating) {
+        navigationInProgressRef.current = true;
+      }
+    };
+    
+    window.addEventListener('vynal:navigation-changed', handleNavigationStateChange);
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleNavigationStart);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('vynal:navigation-changed', handleNavigationStateChange);
+    };
+  }, []);
+  
+  // Effet optimisé pour réinitialiser la vue lors des changements de route complétés
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    
+    // Combinaison de pathname et searchParams pour détection complète des changements de route
+    const fullPath = pathname + (searchParams?.toString() ? `?${searchParams.toString()}` : '');
+    
+    if (prevPathRef.current !== fullPath) {
+      // Réinitialisation immédiate et fiable de la position
+      window.scrollTo(0, 0);
+      
+      prevPathRef.current = fullPath;
+      navigationInProgressRef.current = false;
+    }
     
     // Mettre à jour la référence
     pathnameRef.current = pathname;
@@ -139,7 +186,7 @@ function NavigationEventHandler() {
     if (NavigationLoadingState.isNavigating) {
       NavigationLoadingState.setIsNavigating(false);
     }
-  }, [pathname]);
+  }, [pathname, searchParams]);
 
   return null;
 }

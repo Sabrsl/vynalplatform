@@ -32,15 +32,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="fr" suppressHydrationWarning className="overflow-x-hidden">
-      <body className={`${poppins.variable} font-poppins transition-colors duration-300`}>
+    <html lang="fr" suppressHydrationWarning className="overflow-x-hidden no-scrollbar">
+      <body className={`${poppins.variable} font-poppins transition-colors duration-300 no-scrollbar`}>
         <Providers>
           <Suspense fallback={<Loading />}>
             <MainLayout>
               {children}
             </MainLayout>
           </Suspense>
-          {/* Indicateur de navigation qui sera affiché quand NavigationLoadingState.isNavigating est true */}
           <div id="navigation-progress-indicator" className="fixed top-0 left-0 w-full h-1 bg-gradient-to-r from-vynal-purple-primary via-vynal-accent-primary to-vynal-purple-primary bg-size-200 animate-gradient-x z-50 hidden" />
         </Providers>
       </body>

@@ -154,7 +154,7 @@ const NewConversationDialog: React.FC<NewConversationDialogProps> = ({
               
               {/* Résultats de recherche */}
               {searchResults.length > 0 ? (
-                <div className="max-h-60 overflow-y-auto border border-vynal-purple-mid/30 rounded-md divide-y divide-vynal-purple-dark/20 bg-gradient-to-b from-vynal-purple-dark/30 to-vynal-purple-darkest/50">
+                <div className="max-h-60 overflow-y-auto border border-vynal-purple-mid/30 rounded-md divide-y divide-vynal-purple-dark/20 bg-gradient-to-b from-vynal-purple-dark/30 to-vynal-purple-darkest/50 no-scrollbar">
                   {searchResults.map((profile) => (
                     <div 
                       key={profile.id}

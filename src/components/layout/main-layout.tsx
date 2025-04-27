@@ -22,13 +22,13 @@ export default function MainLayout({ children }: MainLayoutProps) {
   
   // Ne pas afficher le header et le footer sur les pages d'authentification
   if (isAuthPage) {
-    return <div className="min-h-screen">{children}</div>;
+    return <div className="min-h-screen no-scrollbar">{children}</div>;
   }
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col min-h-screen no-scrollbar">
       <Header />
-      <main className="flex-grow">{children}</main>
+      <main className="flex-grow no-scrollbar">{children}</main>
       <Footer />
     </div>
   );

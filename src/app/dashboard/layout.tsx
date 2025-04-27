@@ -40,7 +40,14 @@ const NavItem = memo(({ href, icon: Icon, label, badgeCount }: {
     e.preventDefault();
     NavigationLoadingState.setIsNavigating(true);
     NavigationLoadingState.setActivePath(href);
-    router.push(href);
+    
+    // Naviguer sans réinitialiser immédiatement le scroll
+    router.push(href, { scroll: false });
+    
+    // Utiliser un court délai pour réinitialiser la position après navigation
+    requestAnimationFrame(() => {
+      window.scrollTo(0, 0);
+    });
   }, [href, router]);
   
   return (
@@ -170,7 +177,7 @@ export default function DashboardLayout({
           </div>
         </div>
         
-        <div className="flex-1 overflow-y-auto overflow-x-hidden py-3 px-2 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden py-3 px-2 custom-scrollbar no-scrollbar">
           <nav className="space-y-5">
             {/* Éléments essentiels */}
             <NavGroup title="Principal">

@@ -230,6 +230,18 @@
     background-color: rgba(148, 163, 184, 0.4);
   }
 
+  /* Masquer les barres de défilement sur mobile */
+  @media (max-width: 768px) {
+    * {
+      scrollbar-width: none;  /* Firefox */
+      -ms-overflow-style: none;  /* IE and Edge */
+    }
+    
+    *::-webkit-scrollbar {
+      display: none;  /* Chrome, Safari, Opera */
+    }
+  }
+
   /* Remove duplicate classes since we now have .scrollbar-custom */
   .scrollbar-thin {
     scrollbar-width: thin;

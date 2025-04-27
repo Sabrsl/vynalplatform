@@ -12,6 +12,7 @@ const EXCLUDED_PATHS = ['/messages', '/chat', '/inbox'];
 export function usePreventScrollReset() {
   const pathname = usePathname();
   const router = useRouter();
+  const prevPathRef = useRef<string | null>(null);
   
   // Référence pour suivre la position de défilement actuelle
   const scrollPositionRef = useRef<number>(0);
@@ -24,6 +25,19 @@ export function usePreventScrollReset() {
     if (!pathname) return false;
     return EXCLUDED_PATHS.some(path => pathname.includes(path));
   }, [pathname]);
+
+  // Effet pour gérer les changements de route et réinitialiser le scroll
+  useEffect(() => {
+    if (pathname && prevPathRef.current !== pathname) {
+      if (!isExcludedPath()) {
+        // Réinitialiser la position après que le DOM soit mis à jour
+        requestAnimationFrame(() => {
+          window.scrollTo(0, 0);
+        });
+      }
+      prevPathRef.current = pathname;
+    }
+  }, [pathname, isExcludedPath]);
   
   // Mémoriser le gestionnaire d'événements pour éviter les recréations inutiles
   const handleLinkClick = useCallback((e: MouseEvent): void => {
@@ -58,28 +72,20 @@ export function usePreventScrollReset() {
       // Marquer la navigation comme en cours
       navigationInProgressRef.current = true;
       
-      // Sauvegarder la position de défilement
-      scrollPositionRef.current = window.scrollY;
-      
       // Extraire l'URL relative avec gestion des cas particuliers
       let href = link.getAttribute('href') || '';
       if (href.startsWith(window.location.origin)) {
         href = href.substring(window.location.origin.length) || '/';
       }
       
-      // Utiliser le router Next.js pour la navigation
+      // Navigation sans réinitialisation immédiate du défilement
       router.push(href, { scroll: false });
       
-      // Réinitialiser l'état après un délai
-      setTimeout(() => {
-        // Restaurer la position de défilement si nécessaire
-        if (window.scrollY !== scrollPositionRef.current) {
-          window.scrollTo(0, scrollPositionRef.current);
-        }
-        
-        // Réinitialiser l'indicateur de navigation
+      // Après la navigation, réinitialiser la position
+      requestAnimationFrame(() => {
+        window.scrollTo(0, 0);
         navigationInProgressRef.current = false;
-      }, 100);
+      });
     } catch (error) {
       // En cas d'erreur, laisser le comportement par défaut se produire
       console.warn('Error in navigation handler:', error);
@@ -108,6 +114,11 @@ export function usePreventScrollReset() {
     const handlePopState = () => {
       // Réinitialiser l'indicateur de navigation
       navigationInProgressRef.current = false;
+      
+      // Défiler vers le haut sauf pour les chemins exclus - méthode performante
+      if (!isExcludedPath()) {
+        window.scrollTo(0, 0);
+      }
     };
     
     window.addEventListener('popstate', handlePopState);
@@ -115,7 +126,7 @@ export function usePreventScrollReset() {
     return () => {
       window.removeEventListener('popstate', handlePopState);
     };
-  }, []);
+  }, [isExcludedPath]);
 }
 
 export default usePreventScrollReset; 

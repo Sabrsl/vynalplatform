@@ -482,7 +482,7 @@ const MessagingInterface: React.FC<MessagingInterfaceProps> = ({
               </div>
             </div>
             
-            <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900 p-4">
+            <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900 p-4 no-scrollbar">
               {orderMessages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center">
                   <div className="p-4 rounded-full bg-gray-100 dark:bg-gray-800">
