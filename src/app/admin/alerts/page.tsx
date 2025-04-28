@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Card, 
   CardContent, 
@@ -32,7 +32,14 @@ import {
   Eye,
   XCircle,
   ArrowUpDown,
-  Clock
+  Clock,
+  X,
+  Loader2,
+  SearchX,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight
 } from 'lucide-react';
 import {
   Dialog,
@@ -41,92 +48,12 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
-
-// Données factices pour démonstration
-const ALERTS_DATA = [
-  {
-    id: '1',
-    title: 'Problème de connexion à la base de données',
-    description: 'Connexion à la base de données interrompue pendant 5 minutes',
-    type: 'error',
-    source: 'system',
-    timestamp: '2023-11-28T10:23:15',
-    status: 'active',
-    priority: 'high',
-  },
-  {
-    id: '2',
-    title: 'Trafic élevé sur le serveur',
-    description: 'Le serveur connaît un pic de trafic inhabituel',
-    type: 'warning',
-    source: 'monitoring',
-    timestamp: '2023-11-28T09:45:30',
-    status: 'active',
-    priority: 'medium',
-  },
-  {
-    id: '3',
-    title: 'Tâche de sauvegarde terminée',
-    description: 'La sauvegarde quotidienne s\'est terminée avec succès',
-    type: 'info',
-    source: 'system',
-    timestamp: '2023-11-28T03:15:00',
-    status: 'resolved',
-    priority: 'low',
-  },
-  {
-    id: '4',
-    title: 'Espace disque faible',
-    description: 'Le serveur dispose de moins de 10% d\'espace disque disponible',
-    type: 'warning',
-    source: 'system',
-    timestamp: '2023-11-27T22:10:45',
-    status: 'active',
-    priority: 'high',
-  },
-  {
-    id: '5',
-    title: 'Erreur de paiement',
-    description: 'Plusieurs transactions ont échoué en raison d\'un problème avec le service de paiement',
-    type: 'error',
-    source: 'payment',
-    timestamp: '2023-11-27T18:30:22',
-    status: 'active',
-    priority: 'high',
-  },
-  {
-    id: '6',
-    title: 'Maintenance planifiée',
-    description: 'Une maintenance du système est planifiée pour demain à 02:00 UTC',
-    type: 'info',
-    source: 'admin',
-    timestamp: '2023-11-27T15:45:10',
-    status: 'active',
-    priority: 'medium',
-  },
-  {
-    id: '7',
-    title: 'Tentatives de connexion suspectes',
-    description: 'Plusieurs tentatives de connexion échouées détectées depuis la même adresse IP',
-    type: 'warning',
-    source: 'security',
-    timestamp: '2023-11-27T12:20:33',
-    status: 'investigating',
-    priority: 'high',
-  },
-  {
-    id: '8',
-    title: 'Service de messagerie indisponible',
-    description: 'Le service de messagerie est temporairement indisponible',
-    type: 'error',
-    source: 'system',
-    timestamp: '2023-11-27T11:05:18',
-    status: 'resolved',
-    priority: 'high',
-  },
-];
+import { createClient } from '@supabase/supabase-js';
+import { Alert, fetchAlerts, fetchFilteredAlerts, updateAlertStatus, runSystemChecks, generateTestAlerts } from './api';
+import { getAlerts } from './actions';
+import AlertDetailModal from './AlertDetailModal';
+import { toast, Toaster } from 'sonner';
 
 // Fonction pour formater la date
 const formatDate = (dateString: string) => {
@@ -154,11 +81,11 @@ const getAlertIcon = (type: string) => {
 const getStatusBadge = (status: string) => {
   switch (status) {
     case 'active': 
-      return <Badge variant="outline" className="bg-red-500 text-white">Actif</Badge>;
+      return <Badge variant="outline" className="bg-red-50 text-red-600 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800">Actif</Badge>;
     case 'investigating': 
-      return <Badge variant="outline" className="bg-blue-500 text-white">En cours d'investigation</Badge>;
+      return <Badge variant="outline" className="bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800">En cours d'investigation</Badge>;
     case 'resolved': 
-      return <Badge variant="outline" className="bg-green-500 text-white">Résolu</Badge>;
+      return <Badge variant="outline" className="bg-green-50 text-green-600 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800">Résolu</Badge>;
     default: 
       return <Badge variant="outline">{status}</Badge>;
   }
@@ -168,11 +95,11 @@ const getStatusBadge = (status: string) => {
 const getPriorityBadge = (priority: string) => {
   switch (priority) {
     case 'high': 
-      return <Badge variant="outline" className="bg-red-500 text-white">Haute</Badge>;
+      return <Badge variant="outline" className="bg-red-50 text-red-600 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800">Haute</Badge>;
     case 'medium': 
-      return <Badge variant="outline" className="bg-amber-500 text-white">Moyenne</Badge>;
+      return <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800">Moyenne</Badge>;
     case 'low': 
-      return <Badge variant="outline" className="bg-green-500 text-white">Basse</Badge>;
+      return <Badge variant="outline" className="bg-green-50 text-green-600 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800">Basse</Badge>;
     default: 
       return <Badge variant="outline">{priority}</Badge>;
   }
@@ -180,10 +107,164 @@ const getPriorityBadge = (priority: string) => {
 
 export default function AlertsPage() {
   const [searchTerm, setSearchTerm] = useState('');
-  const [alerts, setAlerts] = useState(ALERTS_DATA);
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('all');
-  const [currentAlert, setCurrentAlert] = useState<any>(null);
+  const [currentAlert, setCurrentAlert] = useState<Alert | null>(null);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [filterType, setFilterType] = useState<string | null>(null);
+  const [filterStatus, setFilterStatus] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalAlerts, setTotalAlerts] = useState(0);
+  const itemsPerPage = 20;
+
+  // Fonction pour recharger les alertes
+  const reloadAlerts = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      let result;
+
+      if (filterType || filterStatus) {
+        result = await fetchFilteredAlerts(
+          currentPage,
+          itemsPerPage,
+          filterType as 'error' | 'warning' | 'info' | undefined,
+          filterStatus as 'active' | 'investigating' | 'resolved' | undefined
+        );
+      } else {
+        result = await fetchAlerts(currentPage, itemsPerPage);
+      }
+
+      if (result.success && result.data) {
+        setAlerts(result.data);
+        
+        if (result.pagination) {
+          setTotalPages(result.pagination.totalPages);
+          setTotalAlerts(result.pagination.total);
+        }
+      } else {
+        setError(result.error || 'Une erreur est survenue lors du chargement des alertes');
+      }
+    } catch (err) {
+      setError('Une erreur est survenue lors du chargement des alertes');
+      console.error(err);
+      } finally {
+        setLoading(false);
+      }
+  };
+
+  // Charger les alertes depuis l'API
+  useEffect(() => {
+    reloadAlerts();
+  }, [currentPage, filterType, filterStatus, reloadAlerts]);
+
+  // Fonction pour marquer une alerte comme résolue
+  const markAsResolved = async (id: string): Promise<boolean> => {
+    try {
+      const result = await updateAlertStatus(id, 'resolved');
+      
+      if (result.success && result.data) {
+      // Mettre à jour l'état local
+      setAlerts(prevAlerts =>
+        prevAlerts.map(alert =>
+            alert.id === id ? result.data as Alert : alert
+        )
+      );
+        setError('');
+        toast.success('Alerte marquée comme résolue');
+        return true;
+      } else {
+        console.error('Erreur lors de la mise à jour du statut:', result.error);
+        setError(`Impossible de mettre à jour le statut de l'alerte: ${result.error}`);
+        toast.error('Erreur lors de la mise à jour du statut de l\'alerte');
+        return false;
+      }
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour du statut:', error);
+      setError(`Impossible de mettre à jour le statut de l'alerte: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
+      toast.error('Erreur lors de la mise à jour du statut de l\'alerte');
+      return false;
+    }
+  };
+
+  // Fonction pour marquer une alerte comme en cours d'investigation
+  const markAsInvestigating = async (id: string): Promise<boolean> => {
+    try {
+      const result = await updateAlertStatus(id, 'investigating');
+      
+      if (result.success && result.data) {
+      // Mettre à jour l'état local
+      setAlerts(prevAlerts =>
+        prevAlerts.map(alert =>
+            alert.id === id ? result.data as Alert : alert
+        )
+      );
+        setError('');
+        toast.success('Alerte marquée comme en cours d\'investigation');
+        return true;
+      } else {
+        console.error('Erreur lors de la mise à jour du statut:', result.error);
+        setError(`Impossible de mettre à jour le statut de l'alerte: ${result.error}`);
+        toast.error('Erreur lors de la mise à jour du statut de l\'alerte');
+        return false;
+      }
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour du statut:', error);
+      setError(`Impossible de mettre à jour le statut de l'alerte: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
+      toast.error('Erreur lors de la mise à jour du statut de l\'alerte');
+      return false;
+    }
+  };
+
+  // Fonction pour générer des alertes de test (en développement)
+  const handleGenerateTestAlerts = async () => {
+    try {
+      setLoading(true);
+      const result = await generateTestAlerts(5);
+      
+      if (result.success) {
+      // Recharger les alertes
+        await reloadAlerts();
+        toast.success('Alertes de test générées');
+      } else {
+        setError('Impossible de générer des alertes de test: ' + (result.error || 'Erreur inconnue'));
+        toast.error('Erreur lors de la génération des alertes de test');
+      }
+    } catch (error) {
+      console.error('Erreur lors de la génération des alertes:', error);
+      setError('Impossible de générer des alertes de test.');
+      toast.error('Erreur lors de la génération des alertes de test');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fonction pour exécuter les vérifications système
+  const handleRunSystemChecks = async () => {
+    try {
+      setLoading(true);
+      const result = await runSystemChecks();
+      
+      if (result.success) {
+      // Recharger les alertes
+        await reloadAlerts();
+        toast.success('Vérifications système exécutées');
+      } else {
+        setError('Impossible d\'exécuter les vérifications système: ' + (result.error || 'Erreur inconnue'));
+        toast.error('Erreur lors de l\'exécution des vérifications système');
+      }
+    } catch (error) {
+      console.error('Erreur lors de l\'exécution des vérifications:', error);
+      setError('Impossible d\'exécuter les vérifications système.');
+      toast.error('Erreur lors de l\'exécution des vérifications système');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Filtrer les alertes selon les critères
   const filteredAlerts = alerts.filter(alert => {
@@ -201,74 +282,162 @@ export default function AlertsPage() {
     return matchesSearch && matchesStatus;
   });
 
-  // Fonction pour marquer une alerte comme résolue
-  const markAsResolved = (id: string) => {
-    setAlerts(prevAlerts =>
-      prevAlerts.map(alert =>
-        alert.id === id ? { ...alert, status: 'resolved' } : alert
-      )
-    );
+  // Fonction pour fermer le modal
+  const closeAlertDetails = () => {
+    // Fermer le modal proprement
     setShowDetailsDialog(false);
+    // Réinitialiser l'alerte courante seulement après la fermeture du modal
+    setTimeout(() => {
+      setCurrentAlert(null);
+    }, 300);
   };
 
-  // Fonction pour marquer une alerte comme en cours d'investigation
-  const markAsInvestigating = (id: string) => {
-    setAlerts(prevAlerts =>
-      prevAlerts.map(alert =>
-        alert.id === id ? { ...alert, status: 'investigating' } : alert
-      )
-    );
+  // Fonction pour ouvrir le modal de détails d'une alerte
+  const openAlertDetails = (alert: Alert) => {
+    // S'assurer que le modal est fermé avant de l'ouvrir à nouveau
+    // pour éviter les problèmes de clignotement
+    if (showDetailsDialog) {
+      setShowDetailsDialog(false);
+      // Utiliser setTimeout pour laisser le temps au modal de se fermer complètement
+      setTimeout(() => {
+        setCurrentAlert(alert);
+        setShowDetailsDialog(true);
+      }, 100);
+    } else {
+      setCurrentAlert(alert);
+      setShowDetailsDialog(true);
+    }
+  };
+
+  const handleFilter = (type: string | null, status: string | null) => {
+    setFilterType(type);
+    setFilterStatus(status);
+    setCurrentPage(1); // Reset to first page when applying filters
+  };
+
+  const handleClearFilters = () => {
+    setFilterType(null);
+    setFilterStatus(null);
+    setSearchTerm('');
+    setCurrentPage(1); // Reset to first page when clearing filters
+  };
+
+  const goToPage = (page: number) => {
+    setCurrentPage(page);
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Alertes système</h1>
-        <p className="text-muted-foreground">
-          Surveillez et gérez les alertes système pour assurer le bon fonctionnement de la plateforme.
+          <h1 className="text-lg font-bold text-gray-800 dark:text-vynal-text-primary">Alertes système</h1>
+        <p className="text-xs text-gray-500 dark:text-vynal-text-secondary">
+          Gérez les alertes et notifications système de la plateforme.
         </p>
       </div>
+        
+        <div className="flex gap-2">
+          <div className="bg-gray-50 dark:bg-gray-800 px-3 py-2 rounded-md border border-gray-200 dark:border-gray-700">
+            <div className="grid grid-cols-3 gap-3 text-center">
+              <div>
+                <p className="text-xs text-gray-500">Actives</p>
+                <p className="text-sm font-bold text-red-500">{alerts.filter(a => a.status === 'active').length}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">En investigation</p>
+                <p className="text-sm font-bold text-blue-500">{alerts.filter(a => a.status === 'investigating').length}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Résolues</p>
+                <p className="text-sm font-bold text-green-500">{alerts.filter(a => a.status === 'resolved').length}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
-      <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+      {/* Toaster pour les notifications */}
+      <Toaster position="top-right" />
+
+      {error && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 p-4 rounded-md flex items-center gap-2">
+          <AlertCircle className="h-4 w-4" />
+          <p className="text-xs">{error}</p>
+        </div>
+      )}
+
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+        <div className="relative flex-1 w-full">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <Search className="h-4 w-4 text-gray-400" />
+          </div>
           <Input
-            placeholder="Rechercher des alertes..."
-            className="pl-8"
+            placeholder="Rechercher par titre, description..."
+            className="pl-10 py-2 text-xs"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <Button variant="outline" size="sm" onClick={() => setSearchTerm('')}>
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Actualiser
-        </Button>
+        <div className="flex gap-2 items-center">
+          <span className="hidden sm:inline-block text-xs text-gray-500 dark:text-vynal-text-secondary">
+            {filteredAlerts.filter(a => a.status === 'active').length} alerte(s) active(s)
+          </span>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="h-8 text-xs"
+            onClick={reloadAlerts}
+          >
+            <RefreshCw className="h-3 w-3 mr-1" />
+            Actualiser
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="h-8 text-xs bg-blue-50 border-blue-200 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-400"
+            onClick={handleRunSystemChecks}
+          >
+            <AlertCircle className="h-3 w-3 mr-1" />
+            Vérification système
+          </Button>
+          {process.env.NODE_ENV === 'development' && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="h-8 text-xs bg-amber-50 border-amber-200 text-amber-600 hover:bg-amber-100 dark:bg-amber-900/20 dark:border-amber-800 dark:text-amber-400"
+              onClick={handleGenerateTestAlerts}
+            >
+              <AlertTriangle className="h-3 w-3 mr-1" />
+              Générer des tests
+            </Button>
+          )}
+        </div>
       </div>
 
-      <Tabs defaultValue="all" onValueChange={setActiveTab} className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="all" className="flex gap-1">
-            <Bell className="h-4 w-4" />
-            <span>Toutes</span>
+      <Tabs defaultValue="all" onValueChange={setActiveTab} className="space-y-3">
+        <TabsList className="w-full">
+          <TabsTrigger value="all" className="flex gap-1 text-xs flex-1">
+            <Bell className="h-3 w-3" />
+            <span>Toutes ({alerts.length})</span>
           </TabsTrigger>
-          <TabsTrigger value="active" className="flex gap-1">
-            <AlertCircle className="h-4 w-4" />
-            <span>Actives</span>
+          <TabsTrigger value="active" className="flex gap-1 text-xs flex-1">
+            <AlertCircle className="h-3 w-3" />
+            <span>Actives ({alerts.filter(a => a.status === 'active').length})</span>
           </TabsTrigger>
-          <TabsTrigger value="investigating" className="flex gap-1">
-            <Clock className="h-4 w-4" />
-            <span>En investigation</span>
+          <TabsTrigger value="investigating" className="flex gap-1 text-xs flex-1">
+            <Clock className="h-3 w-3" />
+            <span>En investigation ({alerts.filter(a => a.status === 'investigating').length})</span>
           </TabsTrigger>
-          <TabsTrigger value="resolved" className="flex gap-1">
-            <CheckCircle2 className="h-4 w-4" />
-            <span>Résolues</span>
+          <TabsTrigger value="resolved" className="flex gap-1 text-xs flex-1">
+            <CheckCircle2 className="h-3 w-3" />
+            <span>Résolues ({alerts.filter(a => a.status === 'resolved').length})</span>
           </TabsTrigger>
         </TabsList>
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle>Liste des alertes</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-sm">Liste des alertes</CardTitle>
+            <CardDescription className="text-xs">
               {filteredAlerts.length} alerte(s) {activeTab !== 'all' ? activeTab : ''}
             </CardDescription>
           </CardHeader>
@@ -277,53 +446,76 @@ export default function AlertsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[50px]">Type</TableHead>
-                    <TableHead>Titre</TableHead>
-                    <TableHead className="w-[140px]">
+                    <TableHead className="w-[50px] text-xs">Type</TableHead>
+                    <TableHead className="text-xs">Titre</TableHead>
+                    <TableHead className="w-[140px] text-xs">
                       <div className="flex items-center">
                         Date
-                        <ArrowUpDown className="ml-2 h-4 w-4" />
+                        <ArrowUpDown className="ml-2 h-3 w-3" />
                       </div>
                     </TableHead>
-                    <TableHead className="w-[120px]">Source</TableHead>
-                    <TableHead className="w-[130px]">Priorité</TableHead>
-                    <TableHead className="w-[160px]">Statut</TableHead>
-                    <TableHead className="text-right w-[100px]">Actions</TableHead>
+                    <TableHead className="w-[120px] text-xs">Source</TableHead>
+                    <TableHead className="w-[130px] text-xs">Priorité</TableHead>
+                    <TableHead className="w-[160px] text-xs">Statut</TableHead>
+                    <TableHead className="text-right w-[100px] text-xs">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredAlerts.length > 0 ? (
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="h-24 text-center">
+                        <div className="flex justify-center items-center">
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
+                          <span className="ml-2 text-xs">Chargement...</span>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ) : filteredAlerts.length > 0 ? (
                     filteredAlerts.map((alert) => (
-                      <TableRow key={alert.id}>
-                        <TableCell>{getAlertIcon(alert.type)}</TableCell>
-                        <TableCell className="font-medium">{alert.title}</TableCell>
-                        <TableCell>{formatDate(alert.timestamp)}</TableCell>
-                        <TableCell>
+                      <TableRow 
+                        key={alert.id} 
+                        className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                        onClick={() => openAlertDetails(alert)}
+                      >
+                        <TableCell className="w-[50px]">
+                          {alert.type === 'error' ? <AlertCircle className="h-3 w-3 text-red-500" /> : 
+                                    alert.type === 'warning' ? <AlertTriangle className="h-3 w-3 text-amber-500" /> : 
+                           <Info className="h-3 w-3 text-blue-500" />}
+                        </TableCell>
+                        <TableCell className="font-medium text-xs">{alert.title}</TableCell>
+                        <TableCell className="text-xs">{formatDate(alert.timestamp)}</TableCell>
+                        <TableCell className="text-xs">
                           <span className="capitalize">{alert.source}</span>
                         </TableCell>
-                        <TableCell>{getPriorityBadge(alert.priority)}</TableCell>
-                        <TableCell>{getStatusBadge(alert.status)}</TableCell>
+                        <TableCell className="text-xs">{getPriorityBadge(alert.priority)}</TableCell>
+                        <TableCell className="text-xs">{getStatusBadge(alert.status)}</TableCell>
                         <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
+                          <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => {
-                                setCurrentAlert(alert);
-                                setShowDetailsDialog(true);
+                              className="h-7 w-7 p-0 border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openAlertDetails(alert);
                               }}
+                              title="Voir les détails"
                             >
-                              <Eye className="h-4 w-4" />
+                              <Eye className="h-3 w-3 text-gray-600 dark:text-gray-400" />
                               <span className="sr-only">Détails</span>
                             </Button>
                             {alert.status !== 'resolved' && (
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => markAsResolved(alert.id)}
-                                className="text-green-500"
+                                className="h-7 w-7 p-0 border-green-200 dark:border-green-800 hover:bg-green-50 dark:hover:bg-green-900/20"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  markAsResolved(alert.id);
+                                }}
+                                title="Marquer comme résolu"
                               >
-                                <CheckCircle2 className="h-4 w-4" />
+                                <CheckCircle2 className="h-3 w-3 text-green-600 dark:text-green-400" />
                                 <span className="sr-only">Marquer comme résolu</span>
                               </Button>
                             )}
@@ -333,7 +525,7 @@ export default function AlertsPage() {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={7} className="h-24 text-center">
+                      <TableCell colSpan={7} className="h-24 text-center text-xs">
                         Aucune alerte trouvée.
                       </TableCell>
                     </TableRow>
@@ -345,90 +537,115 @@ export default function AlertsPage() {
         </Card>
       </Tabs>
 
-      {/* Dialogue de détails d'alerte */}
-      <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              {currentAlert && getAlertIcon(currentAlert?.type)} 
-              {currentAlert?.title}
-            </DialogTitle>
-            <DialogDescription>
-              Détails de l'alerte
-            </DialogDescription>
-          </DialogHeader>
-          
-          {currentAlert && (
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <h4 className="text-sm font-medium mb-1">Source</h4>
-                  <p className="text-sm capitalize">{currentAlert.source}</p>
-                </div>
-                <div>
-                  <h4 className="text-sm font-medium mb-1">Date</h4>
-                  <p className="text-sm">{formatDate(currentAlert.timestamp)}</p>
-                </div>
-                <div>
-                  <h4 className="text-sm font-medium mb-1">Priorité</h4>
-                  <div>{getPriorityBadge(currentAlert.priority)}</div>
-                </div>
-                <div>
-                  <h4 className="text-sm font-medium mb-1">Statut</h4>
-                  <div>{getStatusBadge(currentAlert.status)}</div>
-                </div>
-              </div>
-              
-              <div>
-                <h4 className="text-sm font-medium mb-1">Description</h4>
-                <p className="text-sm">{currentAlert.description}</p>
-              </div>
-              
-              <div>
-                <h4 className="text-sm font-medium mb-1">Historique des actions</h4>
-                <div className="text-sm space-y-2 max-h-40 overflow-y-auto border rounded-md p-3">
-                  <p className="text-sm text-muted-foreground">Alerte créée le {formatDate(currentAlert.timestamp)}</p>
-                  {currentAlert.status === 'investigating' && (
-                    <p className="text-sm text-muted-foreground">Investigation démarrée</p>
-                  )}
-                  {currentAlert.status === 'resolved' && (
-                    <p className="text-sm text-muted-foreground">Résolu</p>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-          
-          <DialogFooter className="gap-2">
+      {/* Modal de détails d'alerte */}
+      <AlertDetailModal
+        isOpen={showDetailsDialog}
+        onClose={closeAlertDetails}
+        alert={currentAlert}
+        onMarkAsResolved={markAsResolved}
+        onMarkAsInvestigating={markAsInvestigating}
+      />
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-gray-200 dark:bg-gray-800 dark:border-gray-700">
+          <div className="flex-1 flex justify-between sm:hidden">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => goToPage(Math.max(1, currentPage - 1))}
+              disabled={currentPage === 1}
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" />
+              Précédent
+            </Button>
             <Button 
               variant="outline" 
-              onClick={() => setShowDetailsDialog(false)}
+              size="sm"
+              onClick={() => goToPage(Math.min(totalPages, currentPage + 1))}
+              disabled={currentPage === totalPages}
             >
-              Fermer
+              Suivant
+              <ChevronRight className="h-4 w-4 ml-1" />
             </Button>
-            {currentAlert && currentAlert.status === 'active' && (
+          </div>
+          <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm text-gray-700 dark:text-gray-300">
+                Affichage de <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> à{" "}
+                <span className="font-medium">
+                  {Math.min(currentPage * itemsPerPage, totalAlerts)}
+                </span>{" "}
+                sur <span className="font-medium">{totalAlerts}</span> alertes
+              </p>
+            </div>
+            <div>
+              <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-l-md"
+                  onClick={() => goToPage(1)}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronsLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => goToPage(currentPage - 1)}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                
+                {/* Page Numbers */}
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNum;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+                  
+                  return (
+                    <Button
+                      key={pageNum}
+                      variant={currentPage === pageNum ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => goToPage(pageNum)}
+                    >
+                      {pageNum}
+                    </Button>
+                  );
+                })}
+                
               <Button 
-                variant="default"
-                className="bg-blue-600 hover:bg-blue-700"
-                onClick={() => markAsInvestigating(currentAlert.id)}
+                  variant="outline"
+                size="sm"
+                  onClick={() => goToPage(currentPage + 1)}
+                  disabled={currentPage === totalPages}
               >
-                <Clock className="h-4 w-4 mr-2" />
-                Marquer en investigation
+                  <ChevronRight className="h-4 w-4" />
               </Button>
-            )}
-            {currentAlert && currentAlert.status !== 'resolved' && (
               <Button 
-                variant="default"
-                className="bg-green-600 hover:bg-green-700"
-                onClick={() => markAsResolved(currentAlert.id)}
+                  variant="outline"
+                size="sm"
+                  className="rounded-r-md"
+                  onClick={() => goToPage(totalPages)}
+                  disabled={currentPage === totalPages}
               >
-                <CheckCircle2 className="h-4 w-4 mr-2" />
-                Marquer comme résolu
+                  <ChevronsRight className="h-4 w-4" />
               </Button>
+              </nav>
+            </div>
+          </div>
+        </div>
             )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 } 

@@ -1,192 +1,287 @@
 "use client";
 
-import React from 'react';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Activity, TrendingUp, Users, Package, AlertTriangle, MessageCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabase/client';
+import { useUser } from '@/hooks/useUser';
+import Link from 'next/link';
+import { AlertTriangle, Users, Shield, BarChart3, FileText, PieChart, TrendingUp } from 'lucide-react';
 
-// Composant de statistique
-const StatCard = ({ title, value, icon, description, trend }: {
-  title: string;
-  value: string;
-  icon: React.ReactNode;
-  description: string;
-  trend: 'up' | 'down' | 'neutral';
-}) => {
-  const trendColor = trend === 'up' ? 'text-green-500' : trend === 'down' ? 'text-red-500' : 'text-gray-500';
-  const trendIcon = trend === 'up' ? '↑' : trend === 'down' ? '↓' : '→';
-
-  return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
-          {icon}
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold">{value}</div>
-        <p className="text-xs text-muted-foreground mt-1">{description}</p>
-      </CardContent>
-      <CardFooter>
-        <span className={`text-xs font-medium flex items-center gap-1 ${trendColor}`}>
-          {trendIcon} {trend === 'up' ? '+' : trend === 'down' ? '-' : ''}{trend !== 'neutral' && '2.5%'} depuis le mois dernier
-        </span>
-      </CardFooter>
-    </Card>
-  );
-};
+// Types locaux
+interface AdminStats {
+  usersCount: number;
+  clientsCount: number;
+  freelancesCount: number;
+  adminsCount: number;
+  ordersCount: number;
+  servicesCount: number;
+  disputesCount: number;
+}
 
 export default function AdminDashboard() {
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Tableau de bord administrateur</h1>
-        <p className="text-muted-foreground">
-          Bienvenue dans l'interface d'administration. Gérez votre plateforme et suivez les statistiques.
-        </p>
-      </div>
+  const { isAdmin, loading } = useUser();
+  const [stats, setStats] = useState<AdminStats>({
+    usersCount: 0,
+    clientsCount: 0,
+    freelancesCount: 0,
+    adminsCount: 0,
+    ordersCount: 0,
+    servicesCount: 0,
+    disputesCount: 0
+  });
+  const [loadingStats, setLoadingStats] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-      <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="overview">Vue d'ensemble</TabsTrigger>
-          <TabsTrigger value="analytics">Analytiques</TabsTrigger>
-          <TabsTrigger value="reports">Rapports</TabsTrigger>
-        </TabsList>
+  // Charger les statistiques
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        setLoadingStats(true);
         
-        <TabsContent value="overview" className="space-y-4">
-          {/* Statistiques principales */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <StatCard
-              title="Utilisateurs actifs"
-              value="1,248"
-              icon={<Users className="h-4 w-4" />}
-              description="Utilisateurs actifs ce mois-ci"
-              trend="up"
-            />
-            <StatCard
-              title="Services en attente"
-              value="23"
-              icon={<Package className="h-4 w-4" />}
-              description="Services à valider"
-              trend="down"
-            />
-            <StatCard
-              title="Alertes système"
-              value="4"
-              icon={<AlertTriangle className="h-4 w-4" />}
-              description="Alertes requérant attention"
-              trend="neutral"
-            />
-            <StatCard
-              title="Messages non lus"
-              value="18"
-              icon={<MessageCircle className="h-4 w-4" />}
-              description="Messages du formulaire de contact"
-              trend="up"
-            />
-          </div>
+        // Utilisateurs par rôle
+        const { data: usersData, error: usersError } = await supabase
+          .from('profiles')
+          .select('role', { count: 'exact' });
+          
+        if (usersError) throw usersError;
+        
+        const usersCount = usersData?.length || 0;
+        const clientsCount = usersData?.filter(u => u.role === 'client').length || 0;
+        const freelancesCount = usersData?.filter(u => u.role === 'freelance').length || 0;
+        const adminsCount = usersData?.filter(u => u.role === 'admin').length || 0;
+        
+        // Commandes
+        const { count: ordersCount, error: ordersError } = await supabase
+          .from('orders')
+          .select('*', { count: 'exact', head: true });
+          
+        if (ordersError) throw ordersError;
+        
+        // Services
+        const { count: servicesCount, error: servicesError } = await supabase
+          .from('services')
+          .select('*', { count: 'exact', head: true });
+          
+        if (servicesError) throw servicesError;
+        
+        // Litiges
+        const { count: disputesCount, error: disputesError } = await supabase
+          .from('disputes')
+          .select('*', { count: 'exact', head: true });
+          
+        if (disputesError) throw disputesError;
+        
+        setStats({
+          usersCount: usersCount || 0,
+          clientsCount,
+          freelancesCount,
+          adminsCount,
+          ordersCount: ordersCount || 0,
+          servicesCount: servicesCount || 0,
+          disputesCount: disputesCount || 0
+        });
+        
+      } catch (err: any) {
+        console.error('Erreur lors du chargement des statistiques:', err);
+        setError(err.message);
+      } finally {
+        setLoadingStats(false);
+      }
+    };
+    
+    if (isAdmin) {
+      fetchStats();
+    }
+  }, [isAdmin]);
 
-          {/* Activité récente et validations en attente */}
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card className="col-span-1">
-              <CardHeader>
-                <CardTitle>Activité récente</CardTitle>
-                <CardDescription>10 dernières activités sur la plateforme</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {[1, 2, 3, 4, 5].map((_, index) => (
-                    <div key={index} className="flex items-center gap-4 border-b pb-4 last:border-0 last:pb-0">
-                      <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                        <Activity className="h-4 w-4 text-primary" />
-                      </div>
-                      <div className="flex-1 space-y-1">
-                        <p className="text-sm font-medium">
-                          {index % 2 === 0 ? "Nouvel utilisateur inscrit" : "Nouveau service créé"}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Il y a {Math.floor(Math.random() * 60)} minutes
-                        </p>
-                      </div>
-                    </div>
-                  ))}
+  if (loading || loadingStats) {
+    return (
+      <div className="p-4">
+        <h1 className="text-sm font-bold mb-4 text-gray-800 dark:text-vynal-text-primary">Tableau de bord Admin</h1>
+        <div className="grid grid-cols-2 gap-3 animate-pulse">
+          <div className="h-24 bg-gray-200 dark:bg-vynal-purple-secondary/20 rounded-lg"></div>
+          <div className="h-24 bg-gray-200 dark:bg-vynal-purple-secondary/20 rounded-lg"></div>
+          <div className="h-24 bg-gray-200 dark:bg-vynal-purple-secondary/20 rounded-lg"></div>
+          <div className="h-24 bg-gray-200 dark:bg-vynal-purple-secondary/20 rounded-lg"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-4">
+        <h1 className="text-sm font-bold mb-3 text-gray-800 dark:text-vynal-text-primary">Tableau de bord Admin</h1>
+        <div className="bg-red-50 border border-red-200 text-red-700 dark:bg-red-900/20 dark:border-red-800/30 dark:text-red-300 p-3 rounded-lg flex items-center gap-2 text-xs">
+          <AlertTriangle className="h-4 w-4" />
+          <span>Erreur lors du chargement des données: {error}</span>
+        </div>
+        <div className="mt-3">
+          <Link 
+            href="/admin/debug" 
+            className="bg-blue-600 hover:bg-blue-700 text-white dark:bg-vynal-accent-primary/80 dark:hover:bg-vynal-accent-primary px-3 py-1.5 rounded-lg inline-block text-xs"
+          >
+            Aller à la page de débogage
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-4 text-gray-800 dark:text-vynal-text-primary">
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-sm font-bold">Tableau de bord Admin</h1>
+        <Link 
+          href="/admin/debug" 
+          className="bg-blue-600 hover:bg-blue-700 text-white dark:bg-vynal-accent-primary/80 dark:hover:bg-vynal-accent-primary px-3 py-1 rounded-lg text-xs"
+        >
+          Page de débogage
+        </Link>
+      </div>
+      
+      {/* Bento grid layout - optimisé pour mobile et desktop */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 auto-rows-min">
+        {/* Carte utilisateurs principales - grande sur mobile et desktop */}
+        <div className="col-span-2 row-span-1 md:row-span-2">
+          <StatCard
+            title="Utilisateurs"
+            value={stats.usersCount}
+            icon={<Users className="h-5 w-5 text-blue-500 dark:text-blue-400" />}
+            color="blue"
+            height="h-full"
+          />
+        </div>
+        
+        {/* Carte clients */}
+        <div className="col-span-1 row-span-1">
+          <StatCard
+            title="Clients"
+            value={stats.clientsCount}
+            icon={<Users className="h-5 w-5 text-green-500 dark:text-green-400" />}
+            color="green"
+            subtext={`${Math.round((stats.clientsCount / stats.usersCount) * 100) || 0}%`}
+          />
+        </div>
+        
+        {/* Carte freelances */}
+        <div className="col-span-1 row-span-1">
+          <StatCard
+            title="Freelances"
+            value={stats.freelancesCount}
+            icon={<Users className="h-5 w-5 text-purple-500 dark:text-purple-400" />}
+            color="purple"
+            subtext={`${Math.round((stats.freelancesCount / stats.usersCount) * 100) || 0}%`}
+          />
+        </div>
+        
+        {/* Carte commandes */}
+        <div className="col-span-1 row-span-1">
+          <StatCard
+            title="Commandes"
+            value={stats.ordersCount}
+            icon={<FileText className="h-5 w-5 text-amber-500 dark:text-amber-400" />}
+            color="amber"
+          />
+        </div>
+        
+        {/* Carte services */}
+        <div className="col-span-1 row-span-1">
+          <StatCard
+            title="Services"
+            value={stats.servicesCount}
+            icon={<PieChart className="h-5 w-5 text-cyan-500 dark:text-cyan-400" />}
+            color="cyan"
+          />
+        </div>
+        
+        {/* Carte litiges - large sur mobile */}
+        <div className="col-span-2 row-span-1">
+          <StatCard
+            title="Litiges"
+            value={stats.disputesCount}
+            icon={<TrendingUp className="h-5 w-5 text-rose-500 dark:text-rose-400" />}
+            color="rose"
+            subtext={stats.ordersCount > 0 ? `${Math.round((stats.disputesCount / stats.ordersCount) * 100) || 0}% des commandes` : ''}
+          />
+        </div>
+        
+        {/* Carte administrateurs */}
+        <div className="col-span-1 md:col-span-1 row-span-1">
+          <StatCard
+            title="Administrateurs"
+            value={stats.adminsCount}
+            icon={<Shield className="h-5 w-5 text-red-500 dark:text-red-400" />}
+            color="red"
+            subtext={`${Math.round((stats.adminsCount / stats.usersCount) * 100) || 0}%`}
+          />
+        </div>
+        
+        {/* Carte répartition - grande sur mobile, plus grande sur desktop */}
+        <div className="col-span-2 md:col-span-3 row-span-1">
+          <div className="bg-gray-50 dark:bg-gray-900/20 border border-gray-200 dark:border-gray-700/30 p-4 rounded-lg h-full shadow-sm hover:shadow-md transition-shadow">
+            <h3 className="text-xs font-medium text-gray-600 dark:text-vynal-text-secondary mb-2">Répartition des utilisateurs</h3>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-2">
+              <div className="flex flex-wrap gap-3">
+                <div className="flex items-center gap-1">
+                  <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                  <span className="text-xs">Clients: {stats.clientsCount}</span>
                 </div>
-              </CardContent>
-            </Card>
-
-            <Card className="col-span-1">
-              <CardHeader>
-                <CardTitle>Services à valider</CardTitle>
-                <CardDescription>Services récemment soumis par des freelances</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {[1, 2, 3, 4, 5].map((_, index) => (
-                    <div key={index} className="flex items-center gap-4 border-b pb-4 last:border-0 last:pb-0">
-                      <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                        <Package className="h-4 w-4 text-primary" />
-                      </div>
-                      <div className="flex-1 space-y-1">
-                        <p className="text-sm font-medium">
-                          Service de {index % 3 === 0 ? "développement" : index % 3 === 1 ? "design" : "rédaction"}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Soumis il y a {Math.floor(Math.random() * 24)} heures
-                        </p>
-                      </div>
-                    </div>
-                  ))}
+                <div className="flex items-center gap-1">
+                  <div className="w-2 h-2 rounded-full bg-purple-500"></div>
+                  <span className="text-xs">Freelances: {stats.freelancesCount}</span>
                 </div>
-              </CardContent>
-            </Card>
+                <div className="flex items-center gap-1">
+                  <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                  <span className="text-xs">Admins: {stats.adminsCount}</span>
+                </div>
+              </div>
+              <span className="text-xs text-gray-500 dark:text-vynal-text-secondary/80">Total: {stats.usersCount}</span>
+            </div>
           </div>
-        </TabsContent>
+        </div>
+      </div>
+    </div>
+  );
+}
 
-        <TabsContent value="analytics">
-          <Card>
-            <CardHeader>
-              <CardTitle>Analyse des performances</CardTitle>
-              <CardDescription>
-                Visualisez les tendances et performances de la plateforme
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="h-[400px] flex items-center justify-center">
-              <div className="text-muted-foreground flex flex-col items-center">
-                <TrendingUp className="h-16 w-16 mb-2" />
-                <p>Graphiques d'analyse seront intégrés ici</p>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+// Composant de carte statistique
+function StatCard({ 
+  title, 
+  value, 
+  icon, 
+  color, 
+  subtext,
+  height = ''
+}: { 
+  title: string; 
+  value: number; 
+  icon: React.ReactNode; 
+  color: 'blue' | 'green' | 'purple' | 'red' | 'amber' | 'cyan' | 'rose'; 
+  subtext?: string; 
+  height?: string;
+}) {
+  const colorClasses = {
+    blue: 'bg-blue-50 border-blue-200 text-gray-800 dark:bg-blue-900/20 dark:border-blue-700/30 dark:text-vynal-text-primary',
+    green: 'bg-green-50 border-green-200 text-gray-800 dark:bg-green-900/20 dark:border-green-700/30 dark:text-vynal-text-primary',
+    purple: 'bg-purple-50 border-purple-200 text-gray-800 dark:bg-purple-900/20 dark:border-purple-700/30 dark:text-vynal-text-primary',
+    red: 'bg-red-50 border-red-200 text-gray-800 dark:bg-red-900/20 dark:border-red-700/30 dark:text-vynal-text-primary',
+    amber: 'bg-amber-50 border-amber-200 text-gray-800 dark:bg-amber-900/20 dark:border-amber-700/30 dark:text-vynal-text-primary',
+    cyan: 'bg-cyan-50 border-cyan-200 text-gray-800 dark:bg-cyan-900/20 dark:border-cyan-700/30 dark:text-vynal-text-primary',
+    rose: 'bg-rose-50 border-rose-200 text-gray-800 dark:bg-rose-900/20 dark:border-rose-700/30 dark:text-vynal-text-primary',
+  };
 
-        <TabsContent value="reports">
-          <Card>
-            <CardHeader>
-              <CardTitle>Rapports</CardTitle>
-              <CardDescription>
-                Générez et consultez les rapports administratifs
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {["Utilisateurs", "Services", "Transactions", "Performance", "Alertes", "Audit"].map((report, index) => (
-                  <Card key={index} className="hover:bg-accent/50 cursor-pointer transition-colors">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-md">{report}</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-xs text-muted-foreground">
-                        Rapport détaillé sur {report.toLowerCase()}
-                      </p>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+  return (
+    <div className={`${colorClasses[color]} ${height} border p-3 rounded-lg shadow-sm hover:shadow-md transition-shadow`}>
+      <div className="flex justify-between items-start">
+        <div>
+          <h3 className="text-xs font-medium text-gray-600 dark:text-vynal-text-secondary">{title}</h3>
+          <p className="text-base font-bold mt-1">{value.toLocaleString()}</p>
+          {subtext && <p className="text-xs text-gray-500 dark:text-vynal-text-secondary/80 mt-1">{subtext}</p>}
+        </div>
+        <div className="bg-white dark:bg-gray-800 p-1.5 rounded-lg shadow-sm">
+          {icon}
+        </div>
+      </div>
     </div>
   );
 } 

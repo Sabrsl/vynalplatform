@@ -125,7 +125,7 @@ const ServiceCard: React.FC<ServiceCardProps> = memo(({
     if (service.profiles?.id) {
       router.push(`/freelance/${service.profiles.id}`);
     }
-  }, [service.profiles?.id, router]);
+  }, [service, router]);
   
   // Gestionnaires d'action
   const handleView = useCallback((e: React.MouseEvent) => { 

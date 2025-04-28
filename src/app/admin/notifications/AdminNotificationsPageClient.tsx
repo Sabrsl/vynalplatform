@@ -22,6 +22,9 @@ const EMAIL_NOTIFICATION_TYPES = {
   'dispute_message': { subject: 'Mise à jour de votre litige - Vynal Platform' },
   'dispute_opened': { subject: 'Un litige a été ouvert - Vynal Platform' },
   'dispute_resolved': { subject: 'Litige résolu - Vynal Platform' },
+  'service_approved': { subject: 'Votre service a été approuvé - Vynal Platform' },
+  'service_rejected': { subject: 'Votre service n\'a pas été approuvé - Vynal Platform' },
+  'service_unpublished': { subject: 'Votre service a été dépublié - Vynal Platform' },
 };
 
 export function AdminNotificationsPageClient() {

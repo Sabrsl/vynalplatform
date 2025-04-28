@@ -49,6 +49,20 @@ export const EMAIL_NOTIFICATION_TYPES = {
     template: 'src/templates/email/client/dispute_resolved.html',
     subject: 'Litige résolu - Vynal Platform',
   },
+  
+  // Services - Notifications pour les freelances
+  'service_approved': {
+    template: 'src/templates/email/freelance/service_approved.html',
+    subject: 'Votre service a été approuvé - Vynal Platform',
+  },
+  'service_rejected': {
+    template: 'src/templates/email/freelance/service_rejected.html',
+    subject: 'Votre service n\'a pas été approuvé - Vynal Platform',
+  },
+  'service_unpublished': {
+    template: 'src/templates/email/freelance/service_unpublished.html',
+    subject: 'Votre service a été dépublié - Vynal Platform',
+  },
 };
 
 /**
@@ -170,7 +184,44 @@ export async function processNotification(notification: Notification) {
 
     // Inclure le contenu de la notification dans le contexte
     if (notification.content) {
+      // Stocker le contenu brut
       context.notificationContent = notification.content;
+      
+      // Essayer de parser le JSON si c'est un objet JSON valide
+      try {
+        const contentObj = JSON.parse(notification.content);
+        
+        // Ajouter chaque propriété du JSON au contexte
+        for (const [key, value] of Object.entries(contentObj)) {
+          if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+            context[key] = String(value);
+          }
+        }
+        
+        // Pour les notifications de service, ajouter des mappings spécifiques
+        if (notification.type === 'service_approved' || 
+            notification.type === 'service_rejected' || 
+            notification.type === 'service_unpublished') {
+          
+          // Adapter les noms de variables au template
+          context.serviceTitle = contentObj.serviceTitle || '';
+          context.serviceDescription = contentObj.serviceDescription || '';
+          context.servicePrice = String(contentObj.servicePrice || '');
+          context.adminNotes = contentObj.adminNotes || '';
+          context.currency = 'EUR';
+          context.freelanceName = context.userName || 'Freelance';
+          context.creationDate = contentObj.creationDate || new Date().toISOString();
+          context.approvalDate = contentObj.approvalDate || new Date().toISOString();
+          context.unpublishedDate = contentObj.unpublishedDate || new Date().toISOString();
+          context.serviceCategory = contentObj.serviceCategory || 'Non spécifiée';
+          context.serviceId = contentObj.serviceId || '';
+          
+          console.log(`[NotificationWorker] Contexte pour la notification de service ${notification.id}:`, context);
+        }
+      } catch (parseError) {
+        console.error(`[NotificationWorker] Erreur lors du parsing du contenu JSON de la notification ${notification.id}:`, parseError);
+        // Si le parsing échoue, on continue avec le contenu brut uniquement
+      }
     }
 
     // Envoyer l'email

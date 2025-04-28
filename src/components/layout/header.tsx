@@ -29,6 +29,7 @@ import {
 import { AnimatePresence, motion } from "framer-motion";
 import { useTheme } from "next-themes";
 import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import Image from "next/image";
 
 export default function Header() {
   // 1. Déclarer tous les états en haut
@@ -260,10 +261,12 @@ export default function Header() {
               router.push('/');
             }}
           >
-            <img 
+            <Image 
               src="/assets/logo/logo_vynal_platform.webp" 
               alt="Vynal Platform Logo" 
               className="h-6 sm:h-7 md:h-8 w-auto dark:brightness-110 transition-all duration-300 group-hover:scale-105" 
+              width={32}
+              height={32}
             />
           </div>
 
@@ -376,9 +379,11 @@ export default function Header() {
                       }`}
                     >
                       {userStatus.avatarUrl ? (
-                        <img 
+                        <Image 
                           src={userStatus.avatarUrl} 
                           alt="Profile" 
+                          width={36}
+                          height={36}
                           className="h-full w-full object-cover"
                         />
                       ) : (
@@ -434,9 +439,11 @@ export default function Header() {
               {/* Si authentifié et profile chargé, afficher l'avatar de l'utilisateur */}
               {isAuthenticated && !userStatus.profileLoading ? (
                 userStatus.avatarUrl ? (
-                  <img 
+                  <Image 
                     src={userStatus.avatarUrl} 
                     alt="Profile" 
+                    width={36}
+                    height={36}
                     className="h-full w-full object-cover"
                   />
                 ) : (

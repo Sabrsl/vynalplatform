@@ -29,6 +29,8 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+src/app/admin/debug/*.log
+src/app/admin/debug/temp/
 
 # local env files
 .env*.local

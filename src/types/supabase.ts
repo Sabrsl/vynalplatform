@@ -11,5 +11,9 @@ export interface Message {
   attachment_type?: string | null;
   attachment_name?: string | null;
   is_typing?: boolean;
+  read: boolean;
+  sender_name?: string | null;
+  sender_email?: string | null;
+  subject?: string | null;
   sender?: UserProfile;
 } 

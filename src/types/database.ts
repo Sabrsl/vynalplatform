@@ -288,6 +288,9 @@ export interface Database {
           attachment_type: string | null
           attachment_name: string | null
           is_typing: boolean
+          sender_name?: string | null
+          sender_email?: string | null
+          subject?: string | null
         }
         Insert: {
           id?: string
@@ -300,6 +303,9 @@ export interface Database {
           attachment_type?: string | null
           attachment_name?: string | null
           is_typing?: boolean
+          sender_name?: string | null
+          sender_email?: string | null
+          subject?: string | null
         }
         Update: {
           id?: string
@@ -312,6 +318,9 @@ export interface Database {
           attachment_type?: string | null
           attachment_name?: string | null
           is_typing?: boolean
+          sender_name?: string | null
+          sender_email?: string | null
+          subject?: string | null
         }
       }
       conversations: {

@@ -83,38 +83,38 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Paramètres administrateur</h1>
-        <p className="text-muted-foreground">
+        <h1 className="text-sm font-bold mb-2 text-gray-800 dark:text-vynal-text-primary">Paramètres administrateur</h1>
+        <p className="text-xs text-gray-500 dark:text-vynal-text-secondary">
           Configurez les paramètres globaux de la plateforme.
         </p>
       </div>
 
-      <Tabs defaultValue="general" className="space-y-4">
+      <Tabs defaultValue="general" className="space-y-3">
         <TabsList>
-          <TabsTrigger value="general" className="flex items-center gap-2">
-            <Settings className="h-4 w-4" />
+          <TabsTrigger value="general" className="flex items-center gap-1 text-xs">
+            <Settings className="h-3 w-3" />
             <span>Général</span>
           </TabsTrigger>
-          <TabsTrigger value="commission" className="flex items-center gap-2">
-            <Percent className="h-4 w-4" />
+          <TabsTrigger value="commission" className="flex items-center gap-1 text-xs">
+            <Percent className="h-3 w-3" />
             <span>Commission</span>
           </TabsTrigger>
-          <TabsTrigger value="email" className="flex items-center gap-2">
-            <Mail className="h-4 w-4" />
+          <TabsTrigger value="email" className="flex items-center gap-1 text-xs">
+            <Mail className="h-3 w-3" />
             <span>Emails</span>
           </TabsTrigger>
-          <TabsTrigger value="maintenance" className="flex items-center gap-2">
-            <RefreshCw className="h-4 w-4" />
+          <TabsTrigger value="maintenance" className="flex items-center gap-1 text-xs">
+            <RefreshCw className="h-3 w-3" />
             <span>Maintenance</span>
           </TabsTrigger>
-          <TabsTrigger value="security" className="flex items-center gap-2">
-            <Shield className="h-4 w-4" />
+          <TabsTrigger value="security" className="flex items-center gap-1 text-xs">
+            <Shield className="h-3 w-3" />
             <span>Sécurité</span>
           </TabsTrigger>
-          <TabsTrigger value="admin-roles" className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
+          <TabsTrigger value="admin-roles" className="flex items-center gap-1 text-xs">
+            <Users className="h-3 w-3" />
             <span>Rôles Administrateur</span>
           </TabsTrigger>
         </TabsList>
@@ -123,55 +123,59 @@ export default function SettingsPage() {
         <TabsContent value="general">
           <Card>
             <CardHeader>
-              <CardTitle>Paramètres généraux</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-sm">Paramètres généraux</CardTitle>
+              <CardDescription className="text-xs">
                 Configurez les informations de base de la plateforme.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4">
+            <CardContent className="space-y-3">
+              <div className="grid gap-3">
                 <div className="grid gap-2">
-                  <Label htmlFor="site-name">Nom du site</Label>
+                  <Label htmlFor="site-name" className="text-xs">Nom du site</Label>
                   <Input 
                     id="site-name" 
                     value={siteName} 
                     onChange={(e) => setSiteName(e.target.value)}
+                    className="h-8 text-xs"
                   />
                 </div>
                 
                 <div className="grid gap-2">
-                  <Label htmlFor="site-description">Description du site</Label>
+                  <Label htmlFor="site-description" className="text-xs">Description du site</Label>
                   <Textarea 
                     id="site-description" 
                     value={siteDescription} 
                     onChange={(e) => setSiteDescription(e.target.value)}
+                    className="text-xs"
                   />
                 </div>
                 
                 <div className="grid gap-2">
-                  <Label htmlFor="contact-email">Email de contact</Label>
+                  <Label htmlFor="contact-email" className="text-xs">Email de contact</Label>
                   <Input 
                     id="contact-email" 
                     type="email" 
                     value={contactEmail} 
                     onChange={(e) => setContactEmail(e.target.value)}
+                    className="h-8 text-xs"
                   />
                 </div>
                 
                 <div className="grid gap-2">
-                  <Label htmlFor="support-email">Email de support</Label>
+                  <Label htmlFor="support-email" className="text-xs">Email de support</Label>
                   <Input 
                     id="support-email" 
                     type="email" 
                     value={supportEmail} 
                     onChange={(e) => setSupportEmail(e.target.value)}
+                    className="h-8 text-xs"
                   />
                 </div>
               </div>
             </CardContent>
             <CardFooter className="flex justify-end">
-              <Button onClick={() => saveSettings('general')}>
-                <Save className="h-4 w-4 mr-2" />
+              <Button onClick={() => saveSettings('general')} size="sm" className="text-xs">
+                <Save className="h-3 w-3 mr-1" />
                 Enregistrer
               </Button>
             </CardFooter>
@@ -182,16 +186,16 @@ export default function SettingsPage() {
         <TabsContent value="commission">
           <Card>
             <CardHeader>
-              <CardTitle>Paramètres de commission</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-sm">Paramètres de commission</CardTitle>
+              <CardDescription className="text-xs">
                 Configurez les paramètres de commission appliqués aux transactions.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4">
+            <CardContent className="space-y-3">
+              <div className="grid gap-3">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="commission-rate">Taux de commission (%)</Label>
-                  <span className="text-xs text-muted-foreground">Pourcentage prélevé sur chaque transaction</span>
+                  <Label htmlFor="commission-rate" className="text-xs">Taux de commission (%)</Label>
+                  <span className="text-xs text-gray-500 dark:text-vynal-text-secondary">Pourcentage prélevé sur chaque transaction</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Input 
@@ -201,39 +205,42 @@ export default function SettingsPage() {
                     max="100"
                     value={commissionFreelance} 
                     onChange={(e) => setCommissionFreelance(Number(e.target.value))}
+                    className="h-8 text-xs"
                   />
-                  <span className="text-sm font-medium">%</span>
+                  <span className="text-xs font-medium">%</span>
                 </div>
               </div>
               
               <div className="grid gap-2">
-                <Label htmlFor="min-order">Valeur minimale de commande (€)</Label>
+                <Label htmlFor="min-order" className="text-xs">Valeur minimale de commande (€)</Label>
                 <Input 
                   id="min-order" 
                   type="number"
                   min="0"
                   value={minOrderValue} 
                   onChange={(e) => setMinOrderValue(Number(e.target.value))}
+                  className="h-8 text-xs"
                 />
               </div>
               
               <div className="grid gap-2">
-                <Label htmlFor="max-order">Valeur maximale de commande (€)</Label>
+                <Label htmlFor="max-order" className="text-xs">Valeur maximale de commande (€)</Label>
                 <Input 
                   id="max-order" 
                   type="number"
                   min="0"
                   value={maxOrderValue} 
                   onChange={(e) => setMaxOrderValue(Number(e.target.value))}
+                  className="h-8 text-xs"
                 />
               </div>
             </CardContent>
             <CardFooter className="flex justify-between">
-              <div className="text-sm text-muted-foreground">
+              <div className="text-xs text-gray-500 dark:text-vynal-text-secondary">
                 Dernière modification: 28/11/2023
               </div>
-              <Button onClick={() => saveSettings('commission')}>
-                <Save className="h-4 w-4 mr-2" />
+              <Button onClick={() => saveSettings('commission')} size="sm" className="text-xs">
+                <Save className="h-3 w-3 mr-1" />
                 Enregistrer
               </Button>
             </CardFooter>
@@ -244,17 +251,17 @@ export default function SettingsPage() {
         <TabsContent value="email">
           <Card>
             <CardHeader>
-              <CardTitle>Paramètres d'emails</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-sm">Paramètres d'emails</CardTitle>
+              <CardDescription className="text-xs">
                 Configurez les notifications par email envoyées aux utilisateurs.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4">
+            <CardContent className="space-y-3">
+              <div className="grid gap-3">
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <Label>Email de bienvenue</Label>
-                    <p className="text-sm text-muted-foreground">
+                    <Label className="text-xs">Email de bienvenue</Label>
+                    <p className="text-xs text-gray-500 dark:text-vynal-text-secondary">
                       Envoyer un email de bienvenue aux nouveaux utilisateurs
                     </p>
                   </div>
@@ -268,8 +275,8 @@ export default function SettingsPage() {
                 
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <Label>Confirmation de commande</Label>
-                    <p className="text-sm text-muted-foreground">
+                    <Label className="text-xs">Confirmation de commande</Label>
+                    <p className="text-xs text-gray-500 dark:text-vynal-text-secondary">
                       Envoyer un email de confirmation pour chaque commande
                     </p>
                   </div>
@@ -283,8 +290,8 @@ export default function SettingsPage() {
                 
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <Label>Approbation de service</Label>
-                    <p className="text-sm text-muted-foreground">
+                    <Label className="text-xs">Approbation de service</Label>
+                    <p className="text-xs text-gray-500 dark:text-vynal-text-secondary">
                       Envoyer un email au freelance lorsqu'un service est approuvé ou rejeté
                     </p>
                   </div>
@@ -296,8 +303,8 @@ export default function SettingsPage() {
               </div>
             </CardContent>
             <CardFooter className="flex justify-end">
-              <Button onClick={() => saveSettings('email')}>
-                <Save className="h-4 w-4 mr-2" />
+              <Button onClick={() => saveSettings('email')} size="sm" className="text-xs">
+                <Save className="h-3 w-3 mr-1" />
                 Enregistrer
               </Button>
             </CardFooter>
@@ -308,17 +315,17 @@ export default function SettingsPage() {
         <TabsContent value="maintenance">
           <Card>
             <CardHeader>
-              <CardTitle>Maintenance du site</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-sm">Maintenance du site</CardTitle>
+              <CardDescription className="text-xs">
                 Activez le mode maintenance pour empêcher l'accès au site pendant les travaux.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4">
+            <CardContent className="space-y-3">
+              <div className="grid gap-3">
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <Label>Mode maintenance</Label>
-                    <p className="text-sm text-muted-foreground">
+                    <Label className="text-xs">Mode maintenance</Label>
+                    <p className="text-xs text-gray-500 dark:text-vynal-text-secondary">
                       Activer le mode maintenance (seuls les administrateurs pourront accéder au site)
                     </p>
                   </div>
@@ -329,45 +336,46 @@ export default function SettingsPage() {
                 </div>
                 
                 <div className="grid gap-2">
-                  <Label htmlFor="maintenance-message">Message de maintenance</Label>
+                  <Label htmlFor="maintenance-message" className="text-xs">Message de maintenance</Label>
                   <Textarea 
                     id="maintenance-message" 
                     value={maintenanceMessage} 
                     onChange={(e) => setMaintenanceMessage(e.target.value)}
                     disabled={!maintenanceMode}
+                    className="text-xs"
                   />
                 </div>
                 
                 <Separator />
                 
                 <div className="space-y-2">
-                  <Label>Actions de maintenance</Label>
+                  <Label className="text-xs">Actions de maintenance</Label>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                    <Button variant="outline" className="justify-start">
-                      <Database className="h-4 w-4 mr-2" />
+                    <Button variant="outline" size="sm" className="justify-start text-xs">
+                      <Database className="h-3 w-3 mr-1" />
                       Sauvegarder la base de données
                     </Button>
-                    <Button variant="outline" className="justify-start">
-                      <FileText className="h-4 w-4 mr-2" />
+                    <Button variant="outline" size="sm" className="justify-start text-xs">
+                      <FileText className="h-3 w-3 mr-1" />
                       Télécharger les logs
                     </Button>
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button variant="outline" className="justify-start text-red-500 hover:text-red-600">
-                          <Trash2 className="h-4 w-4 mr-2" />
+                        <Button variant="outline" size="sm" className="justify-start text-red-500 hover:text-red-600 text-xs">
+                          <Trash2 className="h-3 w-3 mr-1" />
                           Vider le cache
                         </Button>
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
-                          <AlertDialogTitle>Êtes-vous sûr ?</AlertDialogTitle>
-                          <AlertDialogDescription>
+                          <AlertDialogTitle className="text-sm">Êtes-vous sûr ?</AlertDialogTitle>
+                          <AlertDialogDescription className="text-xs">
                             Cette action va effacer toutes les données en cache. Les performances du site peuvent être temporairement ralenties.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                          <AlertDialogCancel>Annuler</AlertDialogCancel>
-                          <AlertDialogAction className="bg-red-500 hover:bg-red-600">
+                          <AlertDialogCancel className="text-xs">Annuler</AlertDialogCancel>
+                          <AlertDialogAction className="bg-red-500 hover:bg-red-600 text-xs">
                             Continuer
                           </AlertDialogAction>
                         </AlertDialogFooter>
@@ -378,8 +386,8 @@ export default function SettingsPage() {
               </div>
             </CardContent>
             <CardFooter className="flex justify-end">
-              <Button onClick={() => saveSettings('maintenance')}>
-                <Save className="h-4 w-4 mr-2" />
+              <Button onClick={() => saveSettings('maintenance')} size="sm" className="text-xs">
+                <Save className="h-3 w-3 mr-1" />
                 Enregistrer
               </Button>
             </CardFooter>
@@ -390,17 +398,17 @@ export default function SettingsPage() {
         <TabsContent value="security">
           <Card>
             <CardHeader>
-              <CardTitle>Paramètres de sécurité</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-sm">Paramètres de sécurité</CardTitle>
+              <CardDescription className="text-xs">
                 Configurez les options de sécurité et d'authentification.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4">
+            <CardContent className="space-y-3">
+              <div className="grid gap-3">
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <Label>Authentification à deux facteurs</Label>
-                    <p className="text-sm text-muted-foreground">
+                    <Label className="text-xs">Authentification à deux facteurs</Label>
+                    <p className="text-xs text-gray-500 dark:text-vynal-text-secondary">
                       Exiger l'authentification à deux facteurs pour tous les administrateurs
                     </p>
                   </div>
@@ -413,52 +421,54 @@ export default function SettingsPage() {
                 <Separator />
                 
                 <div className="grid gap-2">
-                  <Label htmlFor="password-expiry">Expiration des mots de passe (jours)</Label>
+                  <Label htmlFor="password-expiry" className="text-xs">Expiration des mots de passe (jours)</Label>
                   <Input 
                     id="password-expiry" 
                     type="number"
                     min="0"
                     value={passwordExpiryDays} 
                     onChange={(e) => setPasswordExpiryDays(Number(e.target.value))}
+                    className="h-8 text-xs"
                   />
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-gray-500 dark:text-vynal-text-secondary">
                     0 = pas d'expiration
                   </p>
                 </div>
                 
                 <div className="grid gap-2">
-                  <Label htmlFor="login-attempts">Tentatives de connexion max.</Label>
+                  <Label htmlFor="login-attempts" className="text-xs">Tentatives de connexion max.</Label>
                   <Input 
                     id="login-attempts" 
                     type="number"
                     min="1"
                     value={maxLoginAttempts} 
                     onChange={(e) => setMaxLoginAttempts(Number(e.target.value))}
+                    className="h-8 text-xs"
                   />
                 </div>
                 
                 <Separator />
                 
                 <div className="space-y-2">
-                  <Label>Actions de sécurité</Label>
+                  <Label className="text-xs">Actions de sécurité</Label>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button variant="outline" className="justify-start">
-                          <RefreshCw className="h-4 w-4 mr-2" />
+                        <Button variant="outline" size="sm" className="justify-start text-xs">
+                          <RefreshCw className="h-3 w-3 mr-1" />
                           Réinitialiser les sessions
                         </Button>
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
-                          <AlertDialogTitle>Réinitialiser toutes les sessions ?</AlertDialogTitle>
-                          <AlertDialogDescription>
+                          <AlertDialogTitle className="text-sm">Réinitialiser toutes les sessions ?</AlertDialogTitle>
+                          <AlertDialogDescription className="text-xs">
                             Cette action déconnectera tous les utilisateurs. Ils devront se reconnecter.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                          <AlertDialogCancel>Annuler</AlertDialogCancel>
-                          <AlertDialogAction>
+                          <AlertDialogCancel className="text-xs">Annuler</AlertDialogCancel>
+                          <AlertDialogAction className="text-xs">
                             Continuer
                           </AlertDialogAction>
                         </AlertDialogFooter>
@@ -467,21 +477,21 @@ export default function SettingsPage() {
                     
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button variant="outline" className="justify-start">
-                          <Users className="h-4 w-4 mr-2" />
+                        <Button variant="outline" size="sm" className="justify-start text-xs">
+                          <Users className="h-3 w-3 mr-1" />
                           Débloquer les comptes
                         </Button>
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
-                          <AlertDialogTitle>Débloquer tous les comptes ?</AlertDialogTitle>
-                          <AlertDialogDescription>
+                          <AlertDialogTitle className="text-sm">Débloquer tous les comptes ?</AlertDialogTitle>
+                          <AlertDialogDescription className="text-xs">
                             Cette action débloquera tous les comptes utilisateurs verrouillés suite à de multiples tentatives de connexion échouées.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                          <AlertDialogCancel>Annuler</AlertDialogCancel>
-                          <AlertDialogAction>
+                          <AlertDialogCancel className="text-xs">Annuler</AlertDialogCancel>
+                          <AlertDialogAction className="text-xs">
                             Continuer
                           </AlertDialogAction>
                         </AlertDialogFooter>
@@ -492,11 +502,11 @@ export default function SettingsPage() {
               </div>
             </CardContent>
             <CardFooter className="flex justify-between">
-              <div className="text-sm text-muted-foreground">
+              <div className="text-xs text-gray-500 dark:text-vynal-text-secondary">
                 Dernière modification: 25/11/2023
               </div>
-              <Button onClick={() => saveSettings('security')}>
-                <Save className="h-4 w-4 mr-2" />
+              <Button onClick={() => saveSettings('security')} size="sm" className="text-xs">
+                <Save className="h-3 w-3 mr-1" />
                 Enregistrer
               </Button>
             </CardFooter>
@@ -507,56 +517,56 @@ export default function SettingsPage() {
         <TabsContent value="admin-roles">
           <Card>
             <CardHeader>
-              <CardTitle>Gestion des Rôles Administrateur</CardTitle>
-              <CardDescription>Promouvez ou rétrogradez les utilisateurs au rôle d'administrateur.</CardDescription>
+              <CardTitle className="text-sm">Gestion des Rôles Administrateur</CardTitle>
+              <CardDescription className="text-xs">Promouvez ou rétrogradez les utilisateurs au rôle d'administrateur.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
+            <CardContent className="space-y-4">
+              <div className="space-y-3">
                 <div className="space-y-2">
-                  <Label htmlFor="user-email">Email de l'utilisateur</Label>
+                  <Label htmlFor="user-email" className="text-xs">Email de l'utilisateur</Label>
                   <div className="flex gap-2">
-                    <Input id="user-email" type="email" placeholder="email@exemple.com" className="flex-1" />
-                    <Button variant="secondary">Rechercher</Button>
+                    <Input id="user-email" type="email" placeholder="email@exemple.com" className="flex-1 h-8 text-xs" />
+                    <Button variant="secondary" size="sm" className="text-xs">Rechercher</Button>
                   </div>
                 </div>
 
-                <div className="rounded-md border p-4">
+                <div className="rounded-md border p-3">
                   <div className="flex items-center justify-between">
                     <div className="space-y-1">
-                      <p className="font-medium">Utilisateur trouvé</p>
-                      <div className="text-sm text-muted-foreground">
+                      <p className="font-medium text-xs">Utilisateur trouvé</p>
+                      <div className="text-xs text-gray-500 dark:text-vynal-text-secondary">
                         <p>Nom: Jean Dupont</p>
                         <p>Email: jean.dupont@exemple.com</p>
                         <p>Rôle actuel: Utilisateur</p>
                       </div>
                     </div>
                     <div className="flex gap-2">
-                      <Button>Promouvoir en admin</Button>
-                      <Button variant="outline" disabled>Rétrograder</Button>
+                      <Button size="sm" className="text-xs">Promouvoir en admin</Button>
+                      <Button variant="outline" disabled size="sm" className="text-xs">Rétrograder</Button>
                     </div>
                   </div>
                 </div>
 
                 <Separator />
 
-                <div className="space-y-4">
+                <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <p className="font-medium">Liste des administrateurs actuels</p>
-                    <Button variant="outline" size="sm">Actualiser</Button>
+                    <p className="font-medium text-xs">Liste des administrateurs actuels</p>
+                    <Button variant="outline" size="sm" className="text-xs">Actualiser</Button>
                   </div>
                   
                   <div className="space-y-2">
                     {[1, 2].map((item) => (
-                      <div key={item} className="rounded-md border p-4">
+                      <div key={item} className="rounded-md border p-3">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-2">
-                            <Users className="h-5 w-5 text-muted-foreground" />
+                            <Users className="h-3 w-3 text-gray-500 dark:text-vynal-text-secondary" />
                             <div>
-                              <p className="font-medium">Admin {item}</p>
-                              <p className="text-sm text-muted-foreground">admin{item}@vynal.com</p>
+                              <p className="font-medium text-xs">Admin {item}</p>
+                              <p className="text-xs text-gray-500 dark:text-vynal-text-secondary">admin{item}@vynal.com</p>
                             </div>
                           </div>
-                          <Button variant="destructive" size="sm">Rétrograder</Button>
+                          <Button variant="destructive" size="sm" className="text-xs">Rétrograder</Button>
                         </div>
                       </div>
                     ))}

@@ -411,6 +411,17 @@ export function OrderMessagesTab({ order, isFreelance }: OrderMessagesTabProps) 
     return defaultAvatar;
   };
 
+  // Mark unread messages as read
+  useEffect(() => {
+    if (messages.length > 0) {
+      messages.forEach(message => {
+        if (!message.read && message.sender_id !== currentUserId) {
+          markMessageAsRead(message.id);
+        }
+      });
+    }
+  }, [messages, currentUserId, markMessageAsRead]);
+
   return (
     <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
       <div className="space-y-3 sm:space-y-4 max-h-[300px] sm:max-h-[400px] overflow-y-auto pr-1 sm:pr-2 scrollbar-thin scrollbar-thumb-vynal-purple-secondary/20 scrollbar-track-transparent no-scrollbar">
