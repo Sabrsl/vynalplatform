@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, Maximize, X, ZoomIn } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
@@ -38,21 +38,21 @@ const ServiceImageGallery: React.FC<ServiceImageGalleryProps> = ({
   }, [currentIndex, images]);
   
   // Naviguer à l'image précédente
-  const goToPrevious = (e?: React.MouseEvent) => {
+  const goToPrevious = useCallback((e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     setIsLoading(true);
     setCurrentIndex((prevIndex) => (prevIndex === 0 ? images.length - 1 : prevIndex - 1));
-  };
+  }, [images.length]);
   
   // Naviguer à l'image suivante
-  const goToNext = (e?: React.MouseEvent) => {
+  const goToNext = useCallback((e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     setIsLoading(true);
     setCurrentIndex((prevIndex) => (prevIndex === images.length - 1 ? 0 : prevIndex + 1));
-  };
+  }, [images.length]);
   
   // Basculer le mode plein écran
-  const toggleFullscreen = (e?: React.MouseEvent) => {
+  const toggleFullscreen = useCallback((e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     
     // Si on active le mode plein écran, bloquer le défilement de la page
@@ -63,7 +63,7 @@ const ServiceImageGallery: React.FC<ServiceImageGalleryProps> = ({
     }
     
     setIsFullscreen(!isFullscreen);
-  };
+  }, [isFullscreen]);
   
   // Fermer le mode plein écran lors du clic à l'extérieur de l'image
   const handleBackdropClick = (e: React.MouseEvent) => {

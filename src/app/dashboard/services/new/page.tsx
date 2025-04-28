@@ -108,7 +108,7 @@ export default function NewServicePage() {
     } else {
       setSubcategoriesForSelected([]);
     }
-  }, [formData.category_id, subcategories]);
+  }, [formData.category_id, formData.subcategory_id, subcategories]);
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;

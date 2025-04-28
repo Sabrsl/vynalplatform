@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { ProfileQRShare } from "@/components/profile/ProfileQRShare";
+import Image from "next/image";
 
 export default function ProfilePage() {
   const { user } = useAuth();
@@ -281,10 +282,12 @@ export default function ProfilePage() {
             <div className="absolute -bottom-16 left-6">
               <div className="relative inline-block">
               {localProfile.avatar_url ? (
-                <img 
+                <Image 
                   src={localProfile.avatar_url}
                   alt="Avatar"
-                    className="w-32 h-32 rounded-full object-cover border-4 border-white dark:border-vynal-purple-dark/90 shadow-md"
+                  width={128}
+                  height={128}
+                  className="w-32 h-32 rounded-full object-cover border-4 border-white dark:border-vynal-purple-dark/90 shadow-md"
                 />
               ) : (
                   <div className="w-32 h-32 rounded-full bg-white dark:bg-vynal-purple-dark flex items-center justify-center border-4 border-white dark:border-vynal-purple-dark/90 shadow-md">

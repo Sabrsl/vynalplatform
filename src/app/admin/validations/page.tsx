@@ -107,7 +107,7 @@ export default function ValidationsPage() {
     }
 
     fetchServices();
-  }, []);
+  }, [supabase]);
 
   // Filtrer les services en fonction de la recherche et de l'onglet actif
   const filteredServices = services.filter((service) => {

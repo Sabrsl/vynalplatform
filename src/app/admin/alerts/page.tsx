@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Card, 
   CardContent, 
@@ -121,7 +121,7 @@ export default function AlertsPage() {
   const itemsPerPage = 20;
 
   // Fonction pour recharger les alertes
-  const reloadAlerts = async () => {
+  const reloadAlerts = useCallback(async () => {
     setLoading(true);
     setError(null);
 
@@ -155,12 +155,12 @@ export default function AlertsPage() {
       } finally {
         setLoading(false);
       }
-  };
+  }, [currentPage, filterType, filterStatus, itemsPerPage]);
 
   // Charger les alertes depuis l'API
   useEffect(() => {
     reloadAlerts();
-  }, [currentPage, filterType, filterStatus, reloadAlerts]);
+  }, [reloadAlerts]);
 
   // Fonction pour marquer une alerte comme résolue
   const markAsResolved = async (id: string): Promise<boolean> => {
