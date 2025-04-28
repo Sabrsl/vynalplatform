@@ -38,7 +38,7 @@ Nous avons posé les fondations de la plateforme Vynal. Voici les prochaines ét
 
 - [x] Page de commande d'un service
 - [x] Formulaire de spécifications client
-- [ ] Workflow de validation des commandes
+- [x] Workflow de validation des commandes
 - [x] Tableau de bord des commandes (client et freelance)
 - [x] Système de gestion des statuts
 - [x] Système de révisions et modifications
@@ -46,8 +46,8 @@ Nous avons posé les fondations de la plateforme Vynal. Voici les prochaines ét
 
 ## Étape 5 : Paiements et Wallet
 
-- [ ] Implémentation du wallet utilisateur
-- [ ] Système de paiement (fictif pour l'instant)
+- [x] Implémentation du wallet utilisateur
+- [x] Système de paiement (fictif pour l'instant)
 - [ ] Gestion des transactions
 - [x] Historique des paiements
 - [x] Tableau de bord financier

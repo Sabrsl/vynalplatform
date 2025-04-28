@@ -18,7 +18,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { formatPrice } from "@/lib/utils";
-import { Plus, PenSquare, Trash2, Clock, AlertCircle, BarChart3, CheckCircle2, DollarSign, Layers, Eye, ShoppingBag, MessageSquare, RefreshCw } from "lucide-react";
+import { Plus, PenSquare, Trash2, Clock, AlertCircle, BarChart3, CheckCircle2, DollarSign, Layers, Eye, ShoppingBag, MessageSquare, RefreshCw, XCircle, CheckCircle } from "lucide-react";
 import { Loader } from "@/components/ui/loader";
 import { supabase } from "@/lib/supabase/client";
 import { Badge } from "@/components/ui/badge";
@@ -28,6 +28,14 @@ import {
   setCachedData, 
   CACHE_EXPIRY
 } from '@/lib/optimizations';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 // Performance optimizations - Dynamic imports
 import dynamic from 'next/dynamic';
@@ -821,48 +829,207 @@ export default function ServicesPage() {
     [services]
   );
 
+  // useEffect pour configurer les abonnements Supabase en temps réel
+  useEffect(() => {
+    if (!profile?.id) return;
+    
+    // Créer un canal de souscription pour les services du freelance connecté
+    const serviceChannel = supabase
+      .channel(`freelance-services-${profile.id}`)
+      .on('postgres_changes', 
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'services',
+          filter: `freelance_id=eq.${profile.id}`
+        }, 
+        (payload) => {
+          console.log('Changement détecté sur un service:', payload);
+          
+          // Limiter la fréquence des mises à jour
+          const now = Date.now();
+          if (now - lastRefreshTimeRef.current < 1000) {
+            console.log('Ignorer la mise à jour (trop fréquente)');
+            return;
+          }
+          
+          // Si c'est un UPDATE, mettre à jour le service dans l'état local sans recharger toute la liste
+          if (payload.eventType === 'UPDATE' && payload.new && typeof payload.new === 'object' && 'id' in payload.new) {
+            safeSetState(prev => {
+              // Trouver le service dans l'état actuel et le mettre à jour de manière sélective
+              const updatedServices = prev.services.map(service => {
+                if (service.id === payload.new.id) {
+                  return {
+                    ...service,
+                    // Ne mettre à jour que les propriétés présentes dans payload.new
+                    status: payload.new.status !== undefined ? payload.new.status : service.status,
+                    active: payload.new.active !== undefined ? 
+                      (payload.new.active === true || payload.new.active === 'true') : 
+                      service.active,
+                    moderation_comment: payload.new.moderation_comment !== undefined ? 
+                      payload.new.moderation_comment : 
+                      service.moderation_comment,
+                    admin_notes: payload.new.admin_notes !== undefined ? 
+                      payload.new.admin_notes : 
+                      service.admin_notes
+                  };
+                }
+                return service;
+              });
+              
+              // Émettre un événement pour d'autres composants contenant ce service
+              if (typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('vynal:service-status-change', { 
+                  detail: { 
+                    serviceId: payload.new.id,
+                    status: payload.new.status,
+                    active: payload.new.active,
+                  }
+                }));
+              }
+              
+              lastRefreshTimeRef.current = now;
+              return {
+                ...prev,
+                services: updatedServices
+              };
+            });
+          } else if (payload.eventType === 'DELETE' && payload.old && typeof payload.old === 'object' && 'id' in payload.old) {
+            // Pour les suppressions, retirer le service de l'état local
+            safeSetState(prev => ({
+              ...prev,
+              services: prev.services.filter(service => service.id !== payload.old.id)
+            }));
+            
+            lastRefreshTimeRef.current = now;
+          } else {
+            // Pour les autres types d'événements, programmer un rechargement complet différé
+            const timeSinceLastRefresh = now - lastRefreshTimeRef.current;
+            if (timeSinceLastRefresh > 5000 && !loadingRef.current) {
+              console.log('Rechargement complet programmé');
+              lastRefreshTimeRef.current = now;
+              loadServices(profile.id, true);
+            }
+          }
+        })
+      .subscribe();
+    
+    // Nettoyer l'abonnement lors du démontage
+    return () => {
+      supabase.removeChannel(serviceChannel);
+    };
+  }, [profile?.id, safeSetState, loadServices]);
+
+  // Effet pour écouter les événements personnalisés de mise à jour des services
+  useEffect(() => {
+    // Gestionnaire d'événements pour les mises à jour de services
+    const handleServiceUpdated = (event: CustomEvent) => {
+      if (!event.detail) return;
+      
+      // Utiliser les détails de l'événement pour une mise à jour sélective
+      const { serviceId, type } = event.detail;
+      
+      // Si c'est une mise à jour globale ou si le service n'est pas spécifié, rafraîchir avec un délai
+      if (type === 'global-update' || !serviceId) {
+        if (profile?.id && !loadingRef.current) {
+          // Éviter les rafraîchissements trop fréquents
+          const now = Date.now();
+          if (now - lastRefreshTimeRef.current > 3000) {
+            console.log('Rafraîchissement global différé');
+            setTimeout(() => {
+              if (!loadingRef.current) {
+                lastRefreshTimeRef.current = now;
+                loadServices(profile.id, true);
+              }
+            }, 1000);
+          }
+        }
+      }
+      // Sinon, ne rien faire car les mises à jour spécifiques sont gérées par l'abonnement Supabase
+    };
+    
+    // Ajouter l'écouteur d'événements
+    window.addEventListener('vynal:service-updated', handleServiceUpdated as EventListener);
+    
+    // Nettoyer l'écouteur lors du démontage
+    return () => {
+      window.removeEventListener('vynal:service-updated', handleServiceUpdated as EventListener);
+    };
+  }, [profile?.id, loadServices]);
+
+  // À ajouter dans votre état
+  const [moderationDialog, setModerationDialog] = useState<{
+    isOpen: boolean;
+    serviceId: string | null;
+    comment: string | null;
+    title: string | null;
+    status: string | null;
+  }>({
+    isOpen: false,
+    serviceId: null,
+    comment: null,
+    title: null,
+    status: null,
+  });
+
+  // Fonction pour ouvrir la boîte de dialogue des commentaires de modération
+  const showModerationComment = useCallback((service: ServiceWithFreelanceAndCategories) => {
+    if ((service.status === 'rejected' || service.status === 'approved') && service.moderation_comment) {
+      setModerationDialog({
+        isOpen: true,
+        serviceId: service.id,
+        comment: service.moderation_comment || '',
+        title: service.title,
+        status: service.status
+      });
+    } else {
+      // Si le service n'a pas de commentaire de modération, on redirige vers la page de détails
+      router.push(`/dashboard/services/${service.id}`);
+    }
+  }, [router]);
+
   // Rendu principal avec composants mémoïsés
   return (
     <div>
       {/* Tableau de bord du services avec statistiques */}
-      <div className="mb-8">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+      <div className="mb-4 sm:mb-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-4 mb-3 sm:mb-5">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">Mes services</h1>
-            <p className="text-slate-500 mt-1 text-sm">Gérez et améliorez vos prestations pour attirer plus de clients</p>
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">Mes services</h1>
+            <p className="text-slate-500 dark:text-slate-400 mt-0.5 text-xs sm:text-sm">Gérez vos prestations pour attirer plus de clients</p>
           </div>
           
-          <div className="flex gap-2">
+          <div className="flex gap-2 w-full sm:w-auto mt-2 sm:mt-0">
             <Button 
               onClick={refreshData}
               disabled={isRefreshing || loading}
               variant="outline"
               size="sm"
-              className={`bg-white transition-colors ${Date.now() - lastRefreshTimeRef.current < MIN_REFRESH_INTERVAL ? 'opacity-50' : 'opacity-100'}`}
+              className={`bg-white dark:bg-transparent h-8 w-8 p-0 transition-colors ${Date.now() - lastRefreshTimeRef.current < MIN_REFRESH_INTERVAL ? 'opacity-50' : 'opacity-100'}`}
               title={Date.now() - lastRefreshTimeRef.current < MIN_REFRESH_INTERVAL ? 
                 `Rafraîchissement disponible dans ${Math.ceil((MIN_REFRESH_INTERVAL - (Date.now() - lastRefreshTimeRef.current)) / 1000)} secondes` : 
                 'Rafraîchir les données'
               }
             >
               {isRefreshing ? (
-                <div className="animate-spin h-4 w-4 border-2 border-indigo-600 rounded-full border-t-transparent"></div>
+                <div className="animate-spin h-3.5 w-3.5 border-2 border-indigo-600 dark:border-indigo-400 rounded-full border-t-transparent"></div>
               ) : (
-                <RefreshCw className="h-4 w-4 text-indigo-600" />
+                <RefreshCw className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
               )}
             </Button>
             
             <Button 
               onClick={() => router.push("/dashboard/services/new")} 
-              className="w-full sm:w-auto bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 transition-all"
+              className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 transition-all h-8 text-xs flex-grow sm:flex-grow-0 sm:text-sm"
             >
-              <Plus className="mr-2 h-4 w-4" /> Ajouter un service
+              <Plus className="mr-1.5 h-3.5 w-3.5" /> Nouveau service
             </Button>
           </div>
         </div>
 
         {/* Ajouter l'indicateur de dernière mise à jour */}
-        <div className="text-xs text-slate-400 dark:text-slate-500 text-right mt-4">
-          {isRefreshing ? 'Rafraîchissement en cours...' : `Dernière mise à jour: ${lastRefreshText}`}
+        <div className="text-[10px] sm:text-xs text-slate-400 dark:text-slate-500 text-right">
+          {isRefreshing ? 'Rafraîchissement en cours...' : `Mise à jour: ${lastRefreshText}`}
         </div>
       </div>
 
@@ -885,33 +1052,33 @@ export default function ServicesPage() {
 
       {/* Onglets de filtrage avec optimisation des callbacks */}
       {services.length > 0 && (
-        <div className="flex border-b border-slate-200 mb-6">
+        <div className="flex border-b border-slate-200 dark:border-slate-700 mb-4 sm:mb-5 overflow-x-auto no-scrollbar">
           <button
             onClick={() => handleTabChange('all')}
-            className={`pb-2 px-4 text-sm font-medium ${
+            className={`pb-1.5 sm:pb-2 px-2 sm:px-4 text-xs sm:text-sm font-medium whitespace-nowrap ${
               activeTab === 'all'
-                ? 'text-indigo-600 border-b-2 border-indigo-600'
-                : 'text-slate-600 hover:text-indigo-600'
+                ? 'text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600 dark:border-indigo-400'
+                : 'text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400'
             }`}
           >
             Tous ({totalServices})
           </button>
           <button
             onClick={() => handleTabChange('active')}
-            className={`pb-2 px-4 text-sm font-medium ${
+            className={`pb-1.5 sm:pb-2 px-2 sm:px-4 text-xs sm:text-sm font-medium whitespace-nowrap ${
               activeTab === 'active'
-                ? 'text-indigo-600 border-b-2 border-indigo-600'
-                : 'text-slate-600 hover:text-indigo-600'
+                ? 'text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600 dark:border-indigo-400'
+                : 'text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400'
             }`}
           >
             Actifs ({activeServicesCount})
           </button>
           <button
             onClick={() => handleTabChange('inactive')}
-            className={`pb-2 px-4 text-sm font-medium ${
+            className={`pb-1.5 sm:pb-2 px-2 sm:px-4 text-xs sm:text-sm font-medium whitespace-nowrap ${
               activeTab === 'inactive'
-                ? 'text-indigo-600 border-b-2 border-indigo-600'
-                : 'text-slate-600 hover:text-indigo-600'
+                ? 'text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600 dark:border-indigo-400'
+                : 'text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400'
             }`}
           >
             Inactifs ({inactiveServicesCount})
@@ -921,14 +1088,28 @@ export default function ServicesPage() {
 
       {/* Rendu conditionnel optimisé */}
       {loading ? (
-        <div className="flex flex-col items-center justify-center py-8 px-4 rounded-md border border-dashed border-gray-200 bg-gray-50 h-[300px]">
-          <Loader size="lg" variant="primary" showText={true} text="Chargement de vos services..." />
+        <div className="flex flex-col items-center justify-center py-6 sm:py-8 px-3 sm:px-4 rounded-md border border-dashed border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/30 h-[250px] sm:h-[300px]">
+          <Loader size="md" variant="primary" showText={true} text="Chargement..." />
         </div>
       ) : services.length === 0 ? (
-        <EmptyStateCard onCreateClick={() => router.push("/dashboard/services/new")} />
+        <div className="mt-4 sm:mt-6 border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden rounded-xl">
+          <div className="flex flex-col items-center justify-center p-5 sm:p-8">
+            <div className="w-12 sm:w-16 h-12 sm:h-16 bg-indigo-100 dark:bg-indigo-900/30 rounded-full flex items-center justify-center mb-4 sm:mb-6">
+              <Layers className="h-6 sm:h-8 w-6 sm:w-8 text-indigo-600 dark:text-indigo-400" />
+            </div>
+            <h3 className="text-lg sm:text-xl font-bold text-slate-800 dark:text-slate-200 mb-2 sm:mb-4 text-center">Vous n'avez pas encore de services</h3>
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mb-5 sm:mb-6 text-center max-w-md">Créez votre premier service pour mettre en valeur vos compétences</p>
+            <Button 
+              onClick={() => router.push("/dashboard/services/new")} 
+              className="w-full sm:w-auto text-xs sm:text-sm bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 transition-all"
+            >
+              <Plus className="mr-1.5 h-3.5 w-3.5" /> Créer mon premier service
+            </Button>
+          </div>
+        </div>
       ) : filteredServices.length === 0 ? (
-        <div className="bg-slate-50 rounded-lg p-8 text-center border border-slate-200">
-          <p className="text-slate-600">
+        <div className="bg-slate-50 dark:bg-slate-800/30 rounded-lg p-4 sm:p-6 text-center border border-slate-200 dark:border-slate-700">
+          <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
             {activeTab === 'all' 
               ? "Aucun service trouvé."
               : `Aucun service ${activeTab === 'active' ? 'actif' : 'inactif'} trouvé.`
@@ -936,7 +1117,7 @@ export default function ServicesPage() {
           </p>
         </div>
       ) : (
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           {filteredServices.map((service: ServiceWithFreelanceAndCategories) => (
             <ServiceCard
               key={service.id}
@@ -944,7 +1125,7 @@ export default function ServicesPage() {
               isManageable={true}
               isDeletable={true}
               isDeleting={isDeleting === service.id}
-              onView={() => router.push(`/dashboard/services/${service.id}`)}
+              onView={() => showModerationComment(service)}
               onEdit={() => router.push(`/dashboard/services/edit/${service.id}`)}
               onDelete={() => handleDeleteService(service.id)}
             />
@@ -954,33 +1135,33 @@ export default function ServicesPage() {
       
       {/* Pagination optimisée */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-center space-x-2 mt-8">
+        <div className="flex items-center justify-center space-x-1 sm:space-x-2 mt-5 sm:mt-6">
           <Button
             variant="outline"
             size="sm"
             onClick={() => handlePageChange(currentPage - 1)}
             disabled={currentPage === 1}
-            className="px-3"
+            className="h-7 sm:h-8 px-2 sm:px-3 text-xs"
           >
             Précédent
           </Button>
           
           <div className="flex space-x-1">
-            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-              // Calculer les pages à afficher (max 5)
+            {Array.from({ length: Math.min(3, totalPages) }, (_, i) => {
+              // Simplifier l'affichage pour mobile
               let pageNum;
-              if (totalPages <= 5) {
-                // Si moins de 5 pages, on affiche toutes les pages
+              if (totalPages <= 3) {
+                // Si moins de 3 pages, on affiche toutes les pages
                 pageNum = i + 1;
-              } else if (currentPage <= 3) {
-                // Si on est au début, on affiche les 5 premières pages
+              } else if (currentPage <= 2) {
+                // Si on est au début, on affiche les 3 premières pages
                 pageNum = i + 1;
-              } else if (currentPage >= totalPages - 2) {
-                // Si on est à la fin, on affiche les 5 dernières pages
-                pageNum = totalPages - 4 + i;
+              } else if (currentPage >= totalPages - 1) {
+                // Si on est à la fin, on affiche les 3 dernières pages
+                pageNum = totalPages - 2 + i;
               } else {
-                // Sinon on affiche 2 pages avant et 2 pages après la page courante
-                pageNum = currentPage - 2 + i;
+                // Sinon on affiche la page courante et les pages adjacentes
+                pageNum = currentPage - 1 + i;
               }
               
               return (
@@ -989,7 +1170,7 @@ export default function ServicesPage() {
                   variant={currentPage === pageNum ? "default" : "outline"}
                   size="sm"
                   onClick={() => handlePageChange(pageNum)}
-                  className={`w-9 h-9 p-0 ${
+                  className={`w-7 h-7 sm:w-8 sm:h-8 p-0 text-xs ${
                     currentPage === pageNum 
                       ? 'bg-indigo-600 hover:bg-indigo-700' 
                       : ''
@@ -1001,17 +1182,17 @@ export default function ServicesPage() {
             })}
             
             {/* Afficher ... si nécessaire */}
-            {totalPages > 5 && currentPage < totalPages - 2 && (
-              <span className="flex items-center justify-center w-9 h-9">...</span>
+            {totalPages > 3 && currentPage < totalPages - 1 && (
+              <span className="flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 text-xs">...</span>
             )}
             
-            {/* Toujours afficher la dernière page si on a plus de 5 pages */}
-            {totalPages > 5 && currentPage < totalPages - 2 && (
+            {/* Toujours afficher la dernière page si on a plus de 3 pages */}
+            {totalPages > 3 && currentPage < totalPages - 1 && (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => handlePageChange(totalPages)}
-                className="w-9 h-9 p-0"
+                className="w-7 h-7 sm:w-8 sm:h-8 p-0 text-xs"
               >
                 {totalPages}
               </Button>
@@ -1029,6 +1210,81 @@ export default function ServicesPage() {
           </Button>
         </div>
       )}
+
+      {/* Boîte de dialogue des commentaires de modération */}
+      <Dialog open={moderationDialog.isOpen} onOpenChange={(open) => setModerationDialog(prev => ({ ...prev, isOpen: open }))}>
+        <DialogContent className="sm:max-w-[550px]">
+          <DialogHeader>
+            <DialogTitle className={`flex items-center gap-2 ${
+              moderationDialog.status === 'rejected' ? 'text-red-600' : 'text-green-600'
+            }`}>
+              {moderationDialog.status === 'rejected' ? (
+                <>
+                  <XCircle className="h-5 w-5" />
+                  Service rejeté par la modération
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="h-5 w-5" />
+                  Service approuvé par la modération
+                </>
+              )}
+            </DialogTitle>
+            <DialogDescription className="pt-2">
+              <p className="text-base font-medium mb-1">{moderationDialog.title}</p>
+              <div className={`mt-4 p-3 rounded-md border ${
+                moderationDialog.status === 'rejected' 
+                  ? 'bg-red-100 border-red-300' 
+                  : 'bg-green-100 border-green-300'
+              }`}>
+                <h4 className={`font-medium text-sm mb-2 ${
+                  moderationDialog.status === 'rejected' ? 'text-red-800' : 'text-green-800'
+                }`}>
+                  {moderationDialog.status === 'rejected' ? 'Raison du rejet :' : 'Commentaire de la modération :'}
+                </h4>
+                <p className={`text-sm ${
+                  moderationDialog.status === 'rejected' ? 'text-red-700' : 'text-green-700'
+                }`}>
+                  {moderationDialog.comment}
+                </p>
+              </div>
+              {moderationDialog.status === 'rejected' && (
+                <p className="mt-4 text-xs text-gray-500">
+                  Vous pouvez modifier votre service pour corriger les problèmes mentionnés ci-dessus 
+                  et le soumettre à nouveau pour validation.
+                </p>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 sm:gap-0">
+            <Button 
+              variant="outline" 
+              onClick={() => setModerationDialog(prev => ({ ...prev, isOpen: false }))}
+            >
+              Fermer
+            </Button>
+            <Button 
+              variant="outline"
+              onClick={() => {
+                setModerationDialog(prev => ({ ...prev, isOpen: false }));
+                router.push(`/dashboard/services/${moderationDialog.serviceId}`);
+              }}
+            >
+              Voir les détails
+            </Button>
+            {moderationDialog.status === 'rejected' && (
+              <Button 
+                onClick={() => {
+                  setModerationDialog(prev => ({ ...prev, isOpen: false }));
+                  router.push(`/dashboard/services/edit/${moderationDialog.serviceId}`);
+                }}
+              >
+                Modifier
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 } 

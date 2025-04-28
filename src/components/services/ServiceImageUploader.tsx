@@ -24,7 +24,7 @@ const ServiceImageUploader: React.FC<ServiceImageUploaderProps> = ({
   serviceId,
   initialImages = [],
   onImagesChange,
-  maxImages = 3, // Limite à 3 images maximum par défaut
+  maxImages = 5, // Limite à 5 images maximum par défaut
   isRequired = true // Une image est requise par défaut
 }) => {
   const [images, setImages] = useState<string[]>(initialImages);
@@ -60,7 +60,7 @@ const ServiceImageUploader: React.FC<ServiceImageUploaderProps> = ({
   // Vérification si le service a au moins une image
   useEffect(() => {
     if (isRequired && images.length === 0) {
-      setWarning("Un service doit avoir au moins une image");
+      setWarning("Un service doit avoir au moins une image pour être visible par les clients");
     } else {
       setWarning(null);
     }
@@ -157,7 +157,7 @@ const ServiceImageUploader: React.FC<ServiceImageUploaderProps> = ({
           const uniqueId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
           const safeServiceId = serviceId || 'temp';
           const fileExt = outputFormat === 'webp' ? 'webp' : 'jpg';
-          const fileName = `${safeServiceId}_${uniqueId}.${fileExt}`;
+          const fileName = `${safeServiceId.replace(/[^a-zA-Z0-9_-]/g, '')}_${uniqueId}.${fileExt}`;
           
           console.log('Uploading image with filename:', fileName);
           
@@ -169,6 +169,11 @@ const ServiceImageUploader: React.FC<ServiceImageUploaderProps> = ({
           
           while (uploadAttempt < 3 && !uploadSuccess) {
             try {
+              // Vérifier que le fichier est toujours valide
+              if (!result.file || result.file.size === 0) {
+                throw new Error("Le fichier traité est invalide");
+              }
+              
               const response = await supabase.storage
                 .from('services')
                 .upload(fileName, result.file, { 
@@ -415,7 +420,7 @@ const ServiceImageUploader: React.FC<ServiceImageUploaderProps> = ({
           Formats acceptés: JPG, PNG, GIF. Taille maximale: {MAX_SIZE_MB}MB.
         </p>
         <p>
-          Vous pouvez uploader jusqu'à {maxImages} images ({images.length}/{maxImages}).
+          Vous pouvez uploader entre 1 et {maxImages} images ({images.length}/{maxImages}).
           {isRequired && ' Au moins une image est requise.'}
         </p>
         <div className="flex items-start gap-1 mt-1">

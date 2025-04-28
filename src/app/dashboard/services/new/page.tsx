@@ -137,8 +137,16 @@ export default function NewServicePage() {
         throw new Error("Le titre est obligatoire");
       }
       
+      if (formData.title.trim().length < 10) {
+        throw new Error("Le titre doit contenir au moins 10 caractères");
+      }
+      
       if (!formData.description.trim()) {
         throw new Error("La description est obligatoire");
+      }
+      
+      if (formData.description.trim().length < 50) {
+        throw new Error("La description doit contenir au moins 50 caractères pour bien décrire votre service");
       }
       
       if (!formData.category_id) {
@@ -156,6 +164,14 @@ export default function NewServicePage() {
         throw new Error("Le prix doit être un nombre positif");
       }
       
+      if (price < 1000) {
+        throw new Error("Le prix minimum est de 1000 FCFA");
+      }
+      
+      if (price > 1000000) {
+        throw new Error("Le prix maximum est de 1 000 000 FCFA");
+      }
+      
       // Conversion et validation du temps de livraison
       if (!formData.delivery_time) {
         throw new Error("Le temps de livraison est obligatoire");
@@ -166,6 +182,19 @@ export default function NewServicePage() {
       if (isNaN(delivery_time) || delivery_time <= 0 || !Number.isInteger(delivery_time)) {
         throw new Error("Le temps de livraison doit être un nombre entier positif");
       }
+      
+      if (delivery_time > 60) {
+        throw new Error("Le temps de livraison maximum est de 60 jours");
+      }
+      
+      // Vérification des images
+      if (images.length === 0) {
+        throw new Error("Veuillez ajouter au moins une image pour illustrer votre service");
+      }
+      
+      if (images.length > 5) {
+        throw new Error("Vous ne pouvez pas ajouter plus de 5 images");
+      }
     } catch (err: any) {
       setError(err.message || "Une erreur est survenue lors de la validation du formulaire");
       return;
@@ -173,6 +202,7 @@ export default function NewServicePage() {
     
     try {
       setIsSubmitting(true);
+      setError(null); // Réinitialiser les erreurs
       
       // Générer un slug à partir du titre
       const slug = slugify(formData.title);
@@ -194,14 +224,8 @@ export default function NewServicePage() {
         throw new Error(String(result.error));
       }
       
-      // Vérifier si le service a été créé avec des images
-      if (images.length > 0) {
-        // Si on a des images, on suppose que le service peut ne pas les avoir reçues correctement
-        router.push("/dashboard/services?status=created-without-images");
-      } else {
-        // Rediriger vers la liste des services du freelance
-        router.push("/dashboard/services");
-      }
+      // Rediriger vers la liste des services du freelance
+      router.push("/dashboard/services?status=created");
     } catch (err: any) {
       setError(err.message || "Une erreur est survenue lors de la création du service");
       console.error("Erreur lors de la création du service:", err);
@@ -274,6 +298,9 @@ export default function NewServicePage() {
                   rows={8}
                   required
                 />
+                <p className="text-xs text-gray-500">
+                  Minimum 50 caractères, {formData.description.length} caractères saisis
+                </p>
               </div>
               
               <div className="grid grid-cols-2 gap-4">
@@ -287,6 +314,9 @@ export default function NewServicePage() {
                     placeholder="Ex: 5000"
                     required
                   />
+                  <p className="text-xs text-gray-500">
+                    Prix minimum: 1000 FCFA
+                  </p>
                 </div>
                 
                 <div className="space-y-2">
@@ -366,7 +396,7 @@ export default function NewServicePage() {
           <Card className="md:col-span-1">
             <CardHeader>
               <CardTitle>Images</CardTitle>
-              <CardDescription>Ajoutez des images représentatives de votre service</CardDescription>
+              <CardDescription>Ajoutez des images représentatives de votre service (1 à 5 images)</CardDescription>
             </CardHeader>
             <CardContent>
               <ServiceImageUploader onImagesChange={setImages} />

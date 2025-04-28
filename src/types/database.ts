@@ -57,9 +57,18 @@ export interface Database {
           category_id: string
           created_at: string
           updated_at: string
-          status: 'active' | 'inactive' | 'pending'
+          status: 'pending' | 'approved' | 'rejected' | 'active'
           rating?: number
           image_url?: string
+          moderation_comment?: string
+          subcategory_id?: string | null
+          images?: string[]
+          delivery_time?: number
+          slug?: string
+          active?: boolean
+          admin_notes?: string | null
+          validated_at?: string | null
+          validated_by?: string | null
         }
         Insert: {
           id?: string
@@ -70,9 +79,18 @@ export interface Database {
           category_id: string
           created_at?: string
           updated_at?: string
-          status?: 'active' | 'inactive' | 'pending'
+          status?: 'pending' | 'approved' | 'rejected' | 'active'
           rating?: number
           image_url?: string
+          moderation_comment?: string
+          subcategory_id?: string | null
+          images?: string[]
+          delivery_time?: number
+          slug?: string
+          active?: boolean
+          admin_notes?: string | null
+          validated_at?: string | null
+          validated_by?: string | null
         }
         Update: {
           id?: string
@@ -83,9 +101,18 @@ export interface Database {
           category_id?: string
           created_at?: string
           updated_at?: string
-          status?: 'active' | 'inactive' | 'pending'
+          status?: 'pending' | 'approved' | 'rejected' | 'active'
           rating?: number
           image_url?: string
+          moderation_comment?: string
+          subcategory_id?: string | null
+          images?: string[]
+          delivery_time?: number
+          slug?: string
+          active?: boolean
+          admin_notes?: string | null
+          validated_at?: string | null
+          validated_by?: string | null
         }
       }
       service_notifications: {

@@ -71,7 +71,7 @@ const animations = {
 // Extension du type pour inclure les propriétés supplémentaires
 interface ExtendedService extends ServiceWithFreelanceAndCategories {
   images?: string[];
-  delivery_time?: string | number;
+  // delivery_time est déjà inclus dans ServiceWithFreelanceAndCategories comme number | undefined
 }
 
 interface ServiceViewProps {

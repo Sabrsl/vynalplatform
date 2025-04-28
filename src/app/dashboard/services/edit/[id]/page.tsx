@@ -25,11 +25,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { slugify } from "@/lib/utils";
-import { AlertCircle, ArrowLeft, Check, X } from "lucide-react";
+import { AlertCircle, ArrowLeft, Check, X, Lock } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import ServiceImageUploader from "@/components/services/ServiceImageUploader";
 import { Separator } from "@/components/ui/separator";
 import { Loader } from "@/components/ui/loader";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useToast } from "@/components/ui/use-toast";
 
 export default function EditServicePage() {
   const router = useRouter();
@@ -37,6 +39,7 @@ export default function EditServicePage() {
   const { user } = useAuth();
   const { profile, isFreelance } = useUser();
   const { getServiceById, updateService } = useServices();
+  const { toast } = useToast();
   
   // Récupérer l'ID du service depuis les paramètres d'URL
   const serviceId = typeof params.id === 'string' ? params.id : Array.isArray(params.id) ? params.id[0] : '';
@@ -61,6 +64,8 @@ export default function EditServicePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [images, setImages] = useState<string[]>([]);
+  const [serviceStatus, setServiceStatus] = useState<string | null>(null);
+  const [isPendingValidation, setIsPendingValidation] = useState(false);
   
   // Charger les catégories et sous-catégories
   useEffect(() => {
@@ -118,6 +123,24 @@ export default function EditServicePage() {
           return;
         }
         
+        // Vérifier si le service est en attente de validation
+        if (service.status === 'pending') {
+          setIsPendingValidation(true);
+          setServiceStatus('pending');
+          toast({
+            title: "Service en attente de validation",
+            description: "Ce service est actuellement en cours d'examen par notre équipe. Vous ne pouvez pas le modifier pour le moment.",
+            variant: "destructive"
+          });
+          // Si l'utilisateur n'est pas un admin, on bloque l'édition
+          if (profile?.role !== 'admin') {
+            setTimeout(() => {
+              router.push(`/dashboard/services/${serviceId}`);
+            }, 1500);
+            return;
+          }
+        }
+        
         // Mettre à jour le formulaire avec les données du service
         setFormData({
           title: service.title || "",
@@ -129,6 +152,9 @@ export default function EditServicePage() {
           active: service.active,
           slug: service.slug || ""
         });
+        
+        // Sauvegarder le statut du service
+        setServiceStatus(service.status);
         
         // Mettre à jour les images
         setImages(service.images || []);
@@ -149,7 +175,7 @@ export default function EditServicePage() {
     if (profile) {
       loadService();
     }
-  }, [serviceId, profile, subcategories]);
+  }, [serviceId, profile, subcategories, router, toast]);
   
   // Rediriger si l'utilisateur n'est pas freelance
   useEffect(() => {
@@ -183,6 +209,16 @@ export default function EditServicePage() {
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Empêcher la modification si le service est en attente de validation
+    if (isPendingValidation && profile?.role !== 'admin') {
+      toast({
+        title: "Action non autorisée",
+        description: "Vous ne pouvez pas modifier un service en cours de validation par l'administration.",
+        variant: "destructive"
+      });
+      return;
+    }
     
     let price: number = 0;
     let delivery_time: number = 0;
@@ -233,6 +269,14 @@ export default function EditServicePage() {
       // Générer un slug à partir du titre
       const slug = slugify(formData.title);
       
+      // Conversion explicite du statut actif en booléen
+      let activeValue: boolean;
+      if (typeof formData.active === 'boolean') {
+        activeValue = formData.active;
+      } else {
+        activeValue = formData.active === 'true';
+      }
+      
       const result = await updateService(serviceId, {
         title: formData.title,
         description: formData.description,
@@ -241,7 +285,7 @@ export default function EditServicePage() {
         category_id: formData.category_id,
         subcategory_id: formData.subcategory_id || null,
         slug,
-        active: formData.active === true || formData.active === "true",
+        active: activeValue,
         images: images,
       } as any);
       
@@ -249,11 +293,26 @@ export default function EditServicePage() {
         throw new Error(typeof result.error === 'string' ? result.error : 'Une erreur est survenue lors de la mise à jour du service');
       }
       
+      // Notification différente selon le rôle de l'utilisateur
+      if (profile?.role === 'admin') {
+        toast({
+          title: "Service mis à jour",
+          description: "Votre service a été mis à jour avec succès",
+          variant: "default"
+        });
+      } else {
+        toast({
+          title: "Service envoyé pour validation",
+          description: "Votre service a été mis à jour et envoyé à l'équipe de modération",
+          variant: "default"
+        });
+      }
+      
       // Ajouter un délai court avant la redirection pour éviter les problèmes de communication asynchrone
       setTimeout(() => {
         // Rediriger vers la page de détails du service
         router.push(`/dashboard/services/${serviceId}`);
-      }, 100);
+      }, 500);
     } catch (err: any) {
       setError(err.message || "Une erreur est survenue lors de la modification du service");
       console.error("Erreur lors de la modification du service:", err);
@@ -266,6 +325,31 @@ export default function EditServicePage() {
     return (
       <div className="flex justify-center items-center min-h-screen">
         <Loader size="lg" variant="primary" showText={true} />
+      </div>
+    );
+  }
+  
+  // Si le service est en attente de validation et l'utilisateur n'est pas admin, afficher un message
+  if (isPendingValidation && profile?.role !== 'admin') {
+    return (
+      <div className="container px-4 sm:px-6 md:max-w-4xl mt-4 sm:mt-6 flex flex-col gap-4 sm:gap-6">
+        <Button 
+          variant="ghost" 
+          className="flex items-center gap-2 w-fit mb-4"
+          onClick={() => router.push('/dashboard/services')}
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Retour aux services
+        </Button>
+        
+        <Alert variant="destructive">
+          <Lock className="h-4 w-4" />
+          <AlertTitle>Service en attente de validation</AlertTitle>
+          <AlertDescription>
+            Ce service est actuellement en cours d'examen par notre équipe d'administration. 
+            Vous ne pouvez pas le modifier tant qu'il n'a pas été validé ou rejeté.
+          </AlertDescription>
+        </Alert>
       </div>
     );
   }

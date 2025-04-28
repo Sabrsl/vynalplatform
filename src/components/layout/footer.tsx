@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { Facebook, Twitter, Instagram, Linkedin, Mail, Phone, MapPin, Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useState, useEffect } from "react";
@@ -185,10 +186,13 @@ export default function Footer() {
           {/* Logo et Description */}
           <div className="lg:col-span-2">
             <Link href="/">
-              <img 
+              <Image 
                 src="/assets/logo/logo_vynal_platform_simple.webp" 
                 alt="Vynal Platform Logo" 
-                className="h-10 md:h-12 w-auto dark:brightness-110 transition-all duration-300" 
+                className="h-3 md:h-4 w-auto dark:brightness-110 transition-all duration-300"
+                width={70}
+                height={14}
+                style={{ height: 'auto' }}
               />
             </Link>
             <p className="mt-3 text-xs text-gray-400 dark:text-vynal-text-secondary">

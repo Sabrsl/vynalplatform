@@ -264,9 +264,10 @@ export default function Header() {
             <Image 
               src="/assets/logo/logo_vynal_platform.webp" 
               alt="Vynal Platform Logo" 
-              className="h-6 sm:h-7 md:h-8 w-auto dark:brightness-110 transition-all duration-300 group-hover:scale-105" 
-              width={32}
-              height={32}
+              className="h-1.5 sm:h-2 md:h-3 w-auto dark:brightness-110 transition-all duration-300 group-hover:scale-105" 
+              width={60}
+              height={12}
+              style={{ height: 'auto' }}
             />
           </div>
 
