@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useMemo, memo } from 'react';
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DisputeWithDetails } from '@/lib/supabase/disputes';
-import { AlertTriangle, Clock, CheckCircle, XCircle, ExternalLink } from 'lucide-react';
+import { AlertTriangle, Clock, CheckCircle, XCircle, ExternalLink, Shield } from 'lucide-react';
 import Link from 'next/link';
+import { motion } from 'framer-motion';
 
 // Étendre l'interface pour inclure les champs de date optionnels
 interface DisputeWithTimestamps extends DisputeWithDetails {
@@ -17,140 +18,206 @@ interface DisputeCardProps {
   isClient: boolean;
 }
 
-export function DisputeCard({ dispute, isClient }: DisputeCardProps) {
-  // Détermine la couleur du badge en fonction du statut
-  const getStatusBadge = () => {
+function DisputeCard({ dispute, isClient }: DisputeCardProps) {
+  // Détermine la couleur du badge en fonction du statut (mémorisé pour éviter les re-rendus inutiles)
+  const statusBadge = useMemo(() => {
     switch (dispute.status) {
       case 'open':
         return (
-          <Badge className="bg-white text-amber-600 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800/30 text-[10px] sm:text-xs">
-            <AlertTriangle className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1" />
-            Ouvert
+          <Badge className="bg-white/90 text-amber-600 border-amber-200 shadow-sm shadow-amber-100/20 
+                         dark:bg-vynal-purple-dark/30 dark:border-amber-500/30 dark:text-amber-400
+                         text-[9px] sm:text-[10px] py-0.5 pl-1 pr-1.5">
+            <motion.span 
+              initial={{ scale: 0.8 }} 
+              animate={{ scale: [0.8, 1.1, 1] }}
+              transition={{ duration: 0.4 }}
+              className="flex items-center"
+            >
+              <AlertTriangle className="h-2 w-2 sm:h-2.5 sm:w-2.5 mr-0.5" strokeWidth={2.5} />
+              Ouvert
+            </motion.span>
           </Badge>
         );
       case 'resolved':
         return (
-          <Badge className="bg-white text-emerald-600 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800/30 text-[10px] sm:text-xs">
-            <CheckCircle className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1" />
-            Résolu
+          <Badge className="bg-white/90 text-emerald-600 border-emerald-200 shadow-sm shadow-emerald-100/20 
+                         dark:bg-vynal-purple-dark/30 dark:border-emerald-500/30 dark:text-emerald-400
+                         text-[9px] sm:text-[10px] py-0.5 pl-1 pr-1.5">
+            <motion.span 
+              initial={{ scale: 0.8 }} 
+              animate={{ scale: [0.8, 1.1, 1] }}
+              transition={{ duration: 0.4 }}
+              className="flex items-center"
+            >
+              <CheckCircle className="h-2 w-2 sm:h-2.5 sm:w-2.5 mr-0.5" strokeWidth={2.5} />
+              Résolu
+            </motion.span>
           </Badge>
         );
       case 'closed':
         return (
-          <Badge className="bg-white text-slate-600 border-slate-200 dark:bg-slate-800/40 dark:text-slate-400 dark:border-slate-700/30 text-[10px] sm:text-xs">
-            <XCircle className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1" />
-            Fermé
+          <Badge className="bg-white/90 text-slate-600 border-slate-200 shadow-sm shadow-slate-100/20 
+                         dark:bg-vynal-purple-dark/30 dark:border-slate-400/30 dark:text-slate-400
+                         text-[9px] sm:text-[10px] py-0.5 pl-1 pr-1.5">
+            <motion.span 
+              initial={{ scale: 0.8 }} 
+              animate={{ scale: [0.8, 1.1, 1] }}
+              transition={{ duration: 0.4 }}
+              className="flex items-center"
+            >
+              <XCircle className="h-2 w-2 sm:h-2.5 sm:w-2.5 mr-0.5" strokeWidth={2.5} />
+              Fermé
+            </motion.span>
           </Badge>
         );
       default:
         return (
-          <Badge className="bg-white text-slate-600 border-slate-200 dark:bg-slate-800/40 dark:text-slate-400 dark:border-slate-700/30 text-[10px] sm:text-xs">
+          <Badge className="bg-white/90 text-slate-600 border-slate-200 shadow-sm shadow-slate-100/20 
+                         dark:bg-vynal-purple-dark/30 dark:border-slate-400/30 dark:text-slate-400
+                         text-[9px] sm:text-[10px] py-0.5 pl-1 pr-1.5">
             {dispute.status}
           </Badge>
         );
     }
-  };
+  }, [dispute.status]);
 
-  // Formater la date relative
-  const formatRelativeDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+  // Formater la date relative (mémorisée)
+  const formattedRelativeDate = useMemo(() => {
+    const formatRelativeDate = (dateString: string) => {
+      const date = new Date(dateString);
+      const now = new Date();
+      const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+      
+      if (diffDays === 0) {
+        return "Aujourd'hui";
+      } else if (diffDays === 1) {
+        return "Hier";
+      } else if (diffDays < 7) {
+        return `Il y a ${diffDays} jours`;
+      } else {
+        return new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(date);
+      }
+    };
     
-    if (diffDays === 0) {
-      return "Aujourd'hui";
-    } else if (diffDays === 1) {
-      return "Hier";
-    } else if (diffDays < 7) {
-      return `Il y a ${diffDays} jours`;
-    } else {
-      return new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(date);
-    }
-  };
+    return formatRelativeDate(dispute.created_at);
+  }, [dispute.created_at]);
   
-  // Formater la date complète (jour, mois, année, heure, minute)
-  const formatFullDate = (dateString: string) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    return new Intl.DateTimeFormat('fr-FR', { 
-      day: '2-digit', 
-      month: '2-digit', 
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    }).format(date);
-  };
+  // Formater la date complète (mémorisée)
+  const formatFullDate = useMemo(() => {
+    return (dateString: string) => {
+      if (!dateString) return '';
+      const date = new Date(dateString);
+      return new Intl.DateTimeFormat('fr-FR', { 
+        day: '2-digit', 
+        month: '2-digit', 
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      }).format(date);
+    };
+  }, []);
 
-  // Déterminer le nom de l'autre partie
-  const otherPartyName = isClient 
-    ? dispute.freelance.full_name || dispute.freelance.username || 'Prestataire'
-    : dispute.client.full_name || dispute.client.username || 'Client';
+  // Déterminer le nom de l'autre partie (mémorisé)
+  const otherPartyName = useMemo(() => {
+    return isClient 
+      ? dispute.freelance.full_name || dispute.freelance.username || 'Prestataire'
+      : dispute.client.full_name || dispute.client.username || 'Client';
+  }, [isClient, dispute.freelance, dispute.client]);
+
+  // Format simplifié de l'ID pour l'affichage
+  const shortenedId = useMemo(() => {
+    return dispute.id.substring(0, 8) + '...';
+  }, [dispute.id]);
 
   return (
-    <Card className="overflow-hidden transition-all hover:shadow-md hover:border-blue-200 dark:hover:border-vynal-accent-primary/40 border-slate-200 dark:border-vynal-purple-secondary/20">
-      <CardContent className="p-0">
-        <div className="p-3 sm:p-4 border-b border-slate-100 dark:border-vynal-purple-secondary/20">
-          <div className="flex justify-between items-start mb-1 sm:mb-2">
-            <div className="flex items-center">
-              <div className="mr-1.5 sm:mr-2">
-                <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-slate-400 dark:text-vynal-text-secondary" />
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      whileHover={{ translateY: -4 }}
+      className="transition-all duration-300"
+    >
+      <Card className="overflow-hidden transition-all hover:shadow-lg border-slate-200 
+                     hover:border-indigo-200 bg-white/95 backdrop-blur-sm
+                     dark:bg-vynal-purple-dark/30 dark:border-vynal-purple-secondary/30 
+                     dark:hover:border-vynal-accent-primary/30">
+        <CardContent className="p-0">
+          <div className="p-3 sm:p-4 border-b border-slate-100 dark:border-vynal-purple-secondary/20">
+            <div className="flex justify-between items-start mb-1 sm:mb-2">
+              <div className="flex items-center">
+                <div className="mr-1.5 sm:mr-2 bg-slate-50 dark:bg-vynal-purple-secondary/20 p-1 rounded-full">
+                  <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-slate-400 dark:text-vynal-text-secondary" strokeWidth={2.5} />
+                </div>
+                <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-vynal-text-secondary font-medium">
+                  Ouverte le {formattedRelativeDate}
+                </span>
               </div>
-              <span className="text-[10px] sm:text-xs text-slate-500 dark:text-vynal-text-secondary">
-                Ouverte le {formatRelativeDate(dispute.created_at)}
-              </span>
+              {statusBadge}
             </div>
-            {getStatusBadge()}
+            
+            <h3 className="font-semibold text-slate-800 dark:text-vynal-text-primary mt-1 sm:mt-2 mb-1 line-clamp-2 text-[10px] sm:text-xs">
+              {dispute.reason.length > 50 ? dispute.reason.substring(0, 50) + '...' : dispute.reason}
+            </h3>
+            
+            {/* Afficher la date de résolution si le litige est résolu */}
+            {dispute.status === 'resolved' && dispute.resolved_at && (
+              <div className="flex items-center mt-1 bg-emerald-50 dark:bg-emerald-900/10 py-0.5 px-1.5 rounded-md w-fit">
+                <CheckCircle className="h-2 w-2 sm:h-2.5 sm:w-2.5 mr-1 text-emerald-500 dark:text-emerald-400" strokeWidth={2.5} />
+                <span className="text-[8px] sm:text-[9px] text-emerald-600 dark:text-emerald-400 font-medium">
+                  Résolu le {formatFullDate(dispute.resolved_at)}
+                </span>
+              </div>
+            )}
+            
+            {/* Afficher la date de fermeture si le litige est fermé */}
+            {dispute.status === 'closed' && dispute.closed_at && (
+              <div className="flex items-center mt-1 bg-slate-50 dark:bg-slate-800/10 py-0.5 px-1.5 rounded-md w-fit">
+                <XCircle className="h-2 w-2 sm:h-2.5 sm:w-2.5 mr-1 text-slate-500 dark:text-slate-400" strokeWidth={2.5} />
+                <span className="text-[8px] sm:text-[9px] text-slate-600 dark:text-slate-400 font-medium">
+                  Fermé le {formatFullDate(dispute.closed_at)}
+                </span>
+              </div>
+            )}
+            
+            <div className="mt-1.5 sm:mt-2">
+              <div className="flex justify-between text-[9px] sm:text-[10px]">
+                <div className="flex items-center bg-slate-50 dark:bg-vynal-purple-secondary/20 py-0.5 px-1.5 rounded-md">
+                  <Shield className="h-2 w-2 sm:h-2.5 sm:w-2.5 mr-1 text-indigo-500 dark:text-indigo-400" strokeWidth={2.5} />
+                  <span className="text-slate-700 dark:text-vynal-text-primary font-medium">{otherPartyName}</span>
+                </div>
+                
+                <div className="flex items-center bg-slate-50 dark:bg-vynal-purple-secondary/20 py-0.5 px-1.5 rounded-md">
+                  <span className="font-medium text-slate-500 dark:text-vynal-text-secondary">ID:</span> 
+                  <span className="ml-1 text-slate-700 dark:text-vynal-text-primary">{shortenedId}</span>
+                </div>
+              </div>
+            </div>
           </div>
-          
-          <h3 className="font-semibold text-slate-800 mt-1 sm:mt-2 mb-1 dark:text-vynal-text-primary line-clamp-2 text-[11px] sm:text-sm">
-            {dispute.reason.length > 50 ? dispute.reason.substring(0, 50) + '...' : dispute.reason}
-          </h3>
-          
-          {/* Afficher la date de résolution si le litige est résolu */}
-          {dispute.status === 'resolved' && dispute.resolved_at && (
-            <div className="flex items-center mt-1">
-              <CheckCircle className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1 text-emerald-500 dark:text-emerald-400" />
-              <span className="text-[10px] sm:text-xs text-slate-500 dark:text-vynal-text-secondary">
-                Résolu le {formatFullDate(dispute.resolved_at)}
-              </span>
-            </div>
-          )}
-          
-          {/* Afficher la date de fermeture si le litige est fermé */}
-          {dispute.status === 'closed' && dispute.closed_at && (
-            <div className="flex items-center mt-1">
-              <XCircle className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1 text-slate-500 dark:text-slate-400" />
-              <span className="text-[10px] sm:text-xs text-slate-500 dark:text-vynal-text-secondary">
-                Fermé le {formatFullDate(dispute.closed_at)}
-              </span>
-            </div>
-          )}
-          
-          <div className="mt-1 sm:mt-2">
-            <div className="flex justify-between text-[10px] sm:text-xs">
-              <span className="text-slate-500 dark:text-vynal-text-secondary">
-                <span className="font-medium text-slate-700 dark:text-vynal-text-primary">Avec:</span> {otherPartyName}
-              </span>
-              <span className="text-slate-500 dark:text-vynal-text-secondary">
-                <span className="font-medium text-slate-700 dark:text-vynal-text-primary">ID:</span> {dispute.id.substring(0, 8)}...
-              </span>
-            </div>
-          </div>
-        </div>
-      </CardContent>
-      
-      <CardFooter className="p-2 sm:p-3 flex justify-start bg-white dark:bg-transparent border-t border-slate-100 dark:border-vynal-purple-secondary/10">
-        <Link href={`/dashboard/disputes/${dispute.id}`} passHref>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="text-[10px] sm:text-xs h-7 sm:h-8 bg-gradient-to-r from-pink-100 to-pink-50 hover:from-pink-200 hover:to-pink-100 border-pink-200 text-pink-600 dark:bg-gradient-to-r dark:from-vynal-accent-primary/10 dark:to-vynal-accent-secondary/5 dark:border-vynal-accent-primary/30 dark:text-vynal-accent-secondary dark:hover:bg-vynal-accent-primary/20"
-          >
-            <ExternalLink className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1 sm:mr-1.5" />
-            Voir les détails
-          </Button>
-        </Link>
-      </CardFooter>
-    </Card>
+        </CardContent>
+        
+        <CardFooter className="p-2 sm:p-3 flex justify-start bg-white/50 dark:bg-vynal-purple-secondary/10 backdrop-blur-md border-t border-slate-100 dark:border-vynal-purple-secondary/20">
+          <Link href={`/dashboard/disputes/${dispute.id}`} passHref>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="text-[9px] sm:text-[10px] h-6 sm:h-7 
+                        bg-gradient-to-r from-vynal-accent-primary/10 to-vynal-accent-secondary/5 
+                        hover:from-vynal-accent-primary/20 hover:to-vynal-accent-secondary/10 
+                        border-vynal-accent-primary/30 text-vynal-accent-primary
+                        dark:from-vynal-accent-primary/20 dark:to-vynal-accent-secondary/10
+                        dark:hover:from-vynal-accent-primary/30 dark:hover:to-vynal-accent-secondary/20
+                        dark:border-vynal-accent-primary/30 dark:text-vynal-accent-primary
+                        shadow-sm hover:shadow"
+            >
+              <ExternalLink className="h-2 w-2 sm:h-2.5 sm:w-2.5 mr-1" strokeWidth={2.5} />
+              Voir les détails
+            </Button>
+          </Link>
+        </CardFooter>
+      </Card>
+    </motion.div>
   );
-} 
+}
+
+// Mémoisation du composant pour éviter les re-rendus inutiles
+export default memo(DisputeCard);

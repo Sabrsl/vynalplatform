@@ -1,6 +1,7 @@
 /**
  * Système d'événements simple pour la communication entre les différentes parties de l'application
  */
+import React from 'react';
 
 type EventCallback = (...args: any[]) => void;
 
@@ -54,4 +55,6 @@ export type NotificationEvent = {
   description?: string;
   variant?: 'default' | 'destructive' | 'purple';
   duration?: number;
+  action?: React.ReactNode;
+  priority?: 'high' | 'normal';
 }; 

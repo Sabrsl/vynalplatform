@@ -81,6 +81,7 @@ function ServicesPageContent() {
   const [renderError, setRenderError] = useState<string | null>(null);
   const lastVisibilityTimeRef = useRef<number>(Date.now());
   const forceRefreshRef = useRef<boolean>(false);
+  const mountedRef = useRef<boolean>(true);
   
   // Stats data
   const [statsData, setStatsData] = useState({
@@ -241,16 +242,24 @@ function ServicesPageContent() {
     if (typeof window === 'undefined') return;
     
     const handleForceDataReload = (event: Event) => {
-      const customEvent = event as CustomEvent;
-      const path = customEvent.detail?.path;
+      if (!mountedRef.current) return;
       
-      // Ne déclencher que si cela concerne cette page
-      if (path && (path === '/services' || path.includes('/services'))) {
-        console.log('Recharger les données de la page services après inactivité');
-        // On utilise un délai court pour s'assurer que la page est prête
-        setTimeout(() => {
-          refreshData();
-        }, 100);
+      try {
+        const customEvent = event as CustomEvent;
+        const path = customEvent.detail?.path;
+        
+        // Ne déclencher que si cela concerne cette page
+        if (path && (path === '/services' || path.includes('/services'))) {
+          console.log('Recharger les données de la page services après inactivité');
+          // On utilise un délai court pour s'assurer que la page est prête
+          setTimeout(() => {
+            if (mountedRef.current) {
+              refreshData();
+            }
+          }, 100);
+        }
+      } catch (err) {
+        console.error('Erreur lors du traitement de l\'événement de rechargement des données:', err);
       }
     };
     
@@ -259,14 +268,24 @@ function ServicesPageContent() {
     
     // Écouteur pour l'événement force-refresh plus général
     const handleForceRefresh = (event: Event) => {
-      const customEvent = event as CustomEvent;
-      const pathname = customEvent.detail?.pathname;
-      const inactiveDuration = customEvent.detail?.inactiveDuration || 0;
+      if (!mountedRef.current) return;
       
-      // Si nous sommes sur la page des services et que l'inactivité est significative
-      if ((pathname === '/services' || pathname?.includes('/services')) && inactiveDuration > 10000) {
-        console.log('Forcer le rafraîchissement des services après inactivité');
-        refreshData();
+      try {
+        const customEvent = event as CustomEvent;
+        const pathname = customEvent.detail?.pathname;
+        const inactiveDuration = customEvent.detail?.inactiveDuration || 0;
+        
+        // Si nous sommes sur la page des services et que l'inactivité est significative
+        if ((pathname === '/services' || pathname?.includes('/services')) && inactiveDuration > 10000) {
+          console.log('Forcer le rafraîchissement des services après inactivité');
+          setTimeout(() => {
+            if (mountedRef.current) {
+              refreshData();
+            }
+          }, 100);
+        }
+      } catch (err) {
+        console.error('Erreur lors du traitement de l\'événement de rafraîchissement forcé:', err);
       }
     };
     
@@ -298,6 +317,12 @@ function ServicesPageContent() {
   
   // Rafraîchir les données
   const refreshData = async () => {
+    // Vérifier si le composant est toujours monté
+    if (!mountedRef.current) {
+      console.debug('Rafraîchissement ignoré - composant démonté');
+      return;
+    }
+    
     setIsRefreshing(true);
     setRenderError(null);
     forceRefreshRef.current = true;
@@ -306,27 +331,40 @@ function ServicesPageContent() {
       // Vérifier la connexion
       const { success } = await testConnection();
       if (!success) {
-        setConnectionError('Problème de connexion à la base de données');
+        if (mountedRef.current) {
+          setConnectionError('Problème de connexion à la base de données');
+        }
         return;
       }
       
-      // Actualiser les services
-      refresh();
-      
-      setTimeout(() => {
-        setIsRefreshing(false);
-        setConnectionError(null);
-        forceRefreshRef.current = false;
-      }, 1000);
+      // Actualiser les services seulement si le composant est toujours monté
+      if (mountedRef.current) {
+        refresh();
+        
+        // Délai court pour des raisons d'UI (éviter un flash de chargement)
+        setTimeout(() => {
+          if (mountedRef.current) {
+            setIsRefreshing(false);
+            setConnectionError(null);
+            forceRefreshRef.current = false;
+          }
+        }, 1000);
+      }
     } catch (error) {
-      setIsRefreshing(false);
-      forceRefreshRef.current = false;
+      // S'assurer que nous ne mettons à jour l'état que si le composant est monté
+      if (mountedRef.current) {
+        setIsRefreshing(false);
+        forceRefreshRef.current = false;
+      }
     }
   };
 
   // Gestion du changement de visibilité de la page (retour à l'onglet)
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    
+    // Marquer que le composant est monté
+    mountedRef.current = true;
     
     // Stockage temporaire pour l'état de navigation lors d'une sortie d'onglet
     const saveTabState = () => {
@@ -336,58 +374,95 @@ function ServicesPageContent() {
     
     // Gestionnaire quand le document devient visible (retour à l'onglet)
     const handleVisibilityChange = () => {
+      if (!mountedRef.current) return;
+      
       if (document.visibilityState === 'visible') {
         const lastInactiveTimeStr = sessionStorage.getItem('vynal_tab_inactive_time');
         
         if (lastInactiveTimeStr) {
-          const lastInactiveTime = parseInt(lastInactiveTimeStr, 10);
-          const currentTime = Date.now();
-          const inactiveDuration = currentTime - lastInactiveTime;
-          
-          // Si l'onglet était inactif pendant plus de 10 secondes, forcer le rafraîchissement
-          if (inactiveDuration > 10000 && window.location.pathname === '/services') {
-            console.log('Retour à la page des services après inactivité, rafraîchissement forcé');
-            refreshData();
+          try {
+            const lastInactiveTime = parseInt(lastInactiveTimeStr, 10);
+            const currentTime = Date.now();
+            const inactiveDuration = currentTime - lastInactiveTime;
+            
+            // Si l'onglet était inactif pendant plus de 10 secondes, forcer le rafraîchissement
+            if (inactiveDuration > 10000 && window.location.pathname === '/services' && mountedRef.current) {
+              console.log('Retour à la page des services après inactivité, rafraîchissement forcé');
+              // Utiliser un délai court pour s'assurer que le DOM est stabilisé
+              setTimeout(() => {
+                if (mountedRef.current) {
+                  refreshData();
+                }
+              }, 100);
+            }
+            
+            // Nettoyer le stockage
+            sessionStorage.removeItem('vynal_tab_inactive_time');
+          } catch (err) {
+            console.error('Erreur lors du traitement du changement de visibilité:', err);
           }
-          
-          // Nettoyer le stockage
-          sessionStorage.removeItem('vynal_tab_inactive_time');
         }
       } else {
         // L'onglet devient invisible, sauvegarder l'état
-        saveTabState();
+        try {
+          saveTabState();
+        } catch (err) {
+          console.error('Erreur lors de la sauvegarde de l\'état de l\'onglet:', err);
+        }
       }
     };
     
     // Gestionnaire de focus de la fenêtre
     const handleWindowFocus = () => {
+      if (!mountedRef.current) return;
+      
       const lastInactiveTimeStr = sessionStorage.getItem('vynal_tab_inactive_time');
       
       if (lastInactiveTimeStr) {
-        const lastInactiveTime = parseInt(lastInactiveTimeStr, 10);
-        const currentTime = Date.now();
-        const inactiveDuration = currentTime - lastInactiveTime;
-        
-        // Si la fenêtre était inactive pendant plus de 10 secondes, forcer le rafraîchissement
-        if (inactiveDuration > 10000 && window.location.pathname === '/services') {
-          console.log('Focus retourné à la fenêtre des services après inactivité, rafraîchissement forcé');
-          refreshData();
+        try {
+          const lastInactiveTime = parseInt(lastInactiveTimeStr, 10);
+          const currentTime = Date.now();
+          const inactiveDuration = currentTime - lastInactiveTime;
+          
+          // Si la fenêtre était inactive pendant plus de 10 secondes, forcer le rafraîchissement
+          if (inactiveDuration > 10000 && window.location.pathname === '/services' && mountedRef.current) {
+            console.log('Focus retourné à la fenêtre des services après inactivité, rafraîchissement forcé');
+            // Utiliser un délai court pour s'assurer que le DOM est stabilisé
+            setTimeout(() => {
+              if (mountedRef.current) {
+                refreshData();
+              }
+            }, 100);
+          }
+          
+          // Nettoyer le stockage
+          sessionStorage.removeItem('vynal_tab_inactive_time');
+        } catch (err) {
+          console.error('Erreur lors du traitement du focus de la fenêtre:', err);
         }
-        
-        // Nettoyer le stockage
-        sessionStorage.removeItem('vynal_tab_inactive_time');
       }
     };
     
     // Écouter l'événement personnalisé d'invalidation
     const handleForceRefresh = (event: Event) => {
-      const customEvent = event as CustomEvent;
-      const targetPage = customEvent.detail?.targetPage;
+      if (!mountedRef.current) return;
       
-      // Ne déclencher que si nous sommes sur la page des services
-      if (targetPage === 'services' || !targetPage) {
-        console.log('Rafraîchissement forcé des services demandé par un événement');
-        refreshData();
+      try {
+        const customEvent = event as CustomEvent;
+        const targetPage = customEvent.detail?.targetPage;
+        
+        // Ne déclencher que si nous sommes sur la page des services
+        if (targetPage === 'services' || !targetPage) {
+          console.log('Rafraîchissement forcé des services demandé par un événement');
+          // Utiliser un délai court pour s'assurer que le DOM est stabilisé
+          setTimeout(() => {
+            if (mountedRef.current) {
+              refreshData();
+            }
+          }, 100);
+        }
+      } catch (err) {
+        console.error('Erreur lors du traitement de l\'événement de rafraîchissement forcé:', err);
       }
     };
     
@@ -397,6 +472,9 @@ function ServicesPageContent() {
     window.addEventListener('vynal:force-refresh-after-tab-return', handleForceRefresh);
     
     return () => {
+      // Marquer que le composant est démonté
+      mountedRef.current = false;
+      
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleWindowFocus);
       window.removeEventListener('vynal:force-refresh-after-tab-return', handleForceRefresh);

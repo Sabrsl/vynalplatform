@@ -1,14 +1,9 @@
-import React, { useState, useCallback, memo, useEffect } from 'react';
+import React, { useState, useCallback, memo, useEffect, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { 
-  Card, CardContent, CardFooter, CardTitle 
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import { 
-  Eye, PenSquare, Trash2, Star, Image as ImageIcon
-} from "lucide-react";
+import { Eye, PenSquare, Trash2, Star, ImageIcon } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatPrice } from "@/lib/utils";
 import { CURRENCY } from "@/lib/constants";
@@ -17,6 +12,8 @@ import { useFreelancerRating } from "@/hooks/useFreelancerRating";
 import { Loader } from "@/components/ui/loader";
 import { highlightSearchTerms } from '@/lib/search/smartSearch';
 import Image from 'next/image';
+import { cn } from "@/lib/utils";
+import { useTheme } from "next-themes"; // Assurez-vous d'avoir installé next-themes
 
 // Extension du type pour inclure les propriétés supplémentaires
 interface ExtendedService extends ServiceWithFreelanceAndCategories {
@@ -39,9 +36,13 @@ interface ServiceCardProps {
 }
 
 /**
- * Carte de service réutilisable pour l'affichage dans les listes, grilles et pages de recherche
+ * Carte de service optimisée pour l'affichage dans les listes, grilles et recherche
+ * - Optimisé pour les mobiles avec un design responsive
+ * - Support complet des thèmes clair/sombre
+ * - Réduction des re-rendus avec memoization
+ * - Performance améliorée avec chargement d'images optimisé
  */
-const ServiceCard: React.FC<ServiceCardProps> = memo(({
+const ServiceCard = memo<ServiceCardProps>(({
   service,
   isManageable = false,
   isDeletable = false,
@@ -56,106 +57,154 @@ const ServiceCard: React.FC<ServiceCardProps> = memo(({
   const router = useRouter();
   const searchParams = useSearchParams();
   const searchQuery = searchParams.get('search') || '';
-  const [imageError, setImageError] = useState(false);
-  const [avatarError, setAvatarError] = useState(false);
-  const [localService, setLocalService] = useState(service);
+  const { theme } = useTheme();
+  
+  // État local regroupé pour réduire le nombre de mises à jour
+  const [state, setState] = useState(() => ({
+    imageError: false,
+    avatarError: false,
+    service: service,
+    imagePriority: true, // Charge prioritairement l'image si elle est visible
+  }));
   
   // Récupération des données de notation
   const { averageRating, reviewCount } = useFreelancerRating(service.profiles?.id);
 
-  // Mettre à jour localService lorsque le service prop change
+  // Mise à jour de l'état du service quand les props changent
   useEffect(() => {
-    setLocalService(service);
+    setState(prev => ({ ...prev, service }));
   }, [service]);
   
-  // Écouter les mises à jour de statut pour ce service spécifique
+  // Effet pour gérer les événements de statut avec debounce pour éviter les mises à jour trop fréquentes
   useEffect(() => {
     if (!service.id || typeof window === 'undefined') return;
+    
+    let timeoutId: NodeJS.Timeout;
     
     const handleStatusChange = (event: CustomEvent) => {
       if (!event.detail) return;
       
       const { serviceId, status, active } = event.detail;
       
-      // Vérifier si l'événement concerne ce service
       if (serviceId === service.id) {
-        console.log(`ServiceCard: mise à jour reçue pour ${serviceId}`, status, active);
-        
-        // Mettre à jour l'état local
-        setLocalService(prev => ({
-          ...prev,
-          status,
-          active: typeof active === 'string' ? active === 'true' : Boolean(active)
-        }));
+        // Debounce pour éviter les mises à jour trop fréquentes
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => {
+          setState(prev => ({
+            ...prev,
+            service: {
+              ...prev.service,
+              status,
+              active: typeof active === 'string' ? active === 'true' : Boolean(active)
+            }
+          }));
+        }, 50);
       }
     };
     
-    // Ajouter l'écouteur d'événements
     window.addEventListener('vynal:service-status-change', handleStatusChange as EventListener);
     
-    // Nettoyer
     return () => {
       window.removeEventListener('vynal:service-status-change', handleStatusChange as EventListener);
+      clearTimeout(timeoutId);
     };
   }, [service.id]);
   
-  // Fonction pour vérifier si un service est nouveau (moins de 30 jours)
+  // Observer pour charger l'image en priorité si elle est visible
+  useEffect(() => {
+    if (typeof IntersectionObserver === 'undefined') return;
+    
+    const cardElement = document.getElementById(`service-card-${service.id}`);
+    if (!cardElement) return;
+    
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          setState(prev => ({ ...prev, imagePriority: true }));
+          observer.disconnect();
+        }
+      });
+    }, { threshold: 0.1 });
+    
+    observer.observe(cardElement);
+    
+    return () => observer.disconnect();
+  }, [service.id]);
+  
+  // Fonction memoïsée pour vérifier si un service est nouveau
   const isNewService = useCallback(() => {
     if (!service.created_at) return false;
     
-    const serviceDate = new Date(service.created_at);
-    const currentDate = new Date();
-    const diffTime = currentDate.getTime() - serviceDate.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    return diffDays <= 30;
+    try {
+      const serviceDate = new Date(service.created_at);
+      const currentDate = new Date();
+      const diffTime = currentDate.getTime() - serviceDate.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      return diffDays <= 30;
+    } catch {
+      return false;
+    }
   }, [service.created_at]);
   
-  // Vérifier la validité de l'image
-  const hasValidImage = !imageError && 
-                      localService.images && 
-                      Array.isArray(localService.images) && 
-                      localService.images.length > 0 && 
-                      !!localService.images[0];
-
-  // Formatter le prix pour l'affichage
-  const formattedPrice = new Intl.NumberFormat('fr-FR', {
-    maximumFractionDigits: 0,
-  }).format(localService.price);
+  // Gestionnaires d'erreur d'image optimisés
+  const handleImageError = useCallback(() => {
+    setState(prev => ({ ...prev, imageError: true }));
+  }, []);
   
-  // Limiter la longueur du titre
-  const limitedTitle = localService.title 
-    ? (localService.title.length > 83 ? localService.title.substring(0, 83) + '...' : localService.title)
-    : "Service sans titre";
+  const handleAvatarError = useCallback(() => {
+    setState(prev => ({ ...prev, avatarError: true }));
+  }, []);
 
-  // Mettre en évidence les termes de recherche dans le titre et la description si une recherche est active
-  const highlightedTitle = searchQuery 
-    ? <span dangerouslySetInnerHTML={{ __html: highlightSearchTerms(limitedTitle, searchQuery) }} />
-    : limitedTitle;
+  // Vérification optimisée de la validité de l'image avec fallback
+  const hasValidImage = !state.imageError && 
+                      state.service.images && 
+                      Array.isArray(state.service.images) && 
+                      state.service.images.length > 0 && 
+                      Boolean(state.service.images[0]);
+
+  // Formattage du prix avec mémoïsation
+  const formattedPrice = useMemo(() => {
+    return new Intl.NumberFormat('fr-FR', {
+      maximumFractionDigits: 0,
+    }).format(state.service.price);
+  }, [state.service.price]);
+  
+  // Limitation optimisée de la longueur du titre
+  const limitedTitle = useMemo(() => {
+    const title = state.service.title;
+    if (!title) return "Service sans titre";
+    
+    // Adapter la longueur du titre en fonction de la taille de l'écran
+    const maxLength = window.innerWidth < 640 ? 60 : 83;
+    return title.length > maxLength ? title.substring(0, maxLength) + '...' : title;
+  }, [state.service.title]);
+
+  // Mise en évidence des termes de recherche
+  const highlightedTitle = useMemo(() => {
+    if (!searchQuery) return limitedTitle;
+    return (
+      <span dangerouslySetInnerHTML={{ __html: highlightSearchTerms(limitedTitle, searchQuery) }} />
+    );
+  }, [limitedTitle, searchQuery]);
 
   // Navigation vers la page de détails du service
   const handleCardClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     
-    if (!service?.id) {
-      console.error("Service invalide:", service);
-      return;
-    }
+    if (!service.id) return;
     
-    // En mode gestion, utiliser le gestionnaire personnalisé
     if (isManageable && onView) {
       onView(service.id);
       return;
     }
     
-    // Déterminer la destination
     const targetPath = useDemo 
       ? `/services/demo/${service.id}`
       : service.slug ? `/services/${service.slug}` : `/services/${service.id}`;
     
-    console.log("Navigation vers:", targetPath);
     router.push(targetPath);
-  }, [service?.id, service?.slug, isManageable, onView, useDemo, router]);
+  }, [service.id, service.slug, isManageable, onView, useDemo, router]);
 
   // Navigation vers le profil du freelance
   const goToFreelanceProfile = useCallback((e: React.MouseEvent) => {
@@ -163,7 +212,7 @@ const ServiceCard: React.FC<ServiceCardProps> = memo(({
     if (service.profiles?.id) {
       router.push(`/freelance/${service.profiles.id}`);
     }
-  }, [service, router]);
+  }, [service.profiles, router]);
   
   // Gestionnaires d'action
   const handleView = useCallback((e: React.MouseEvent) => { 
@@ -187,220 +236,127 @@ const ServiceCard: React.FC<ServiceCardProps> = memo(({
     }
   }, [onDelete, service.id]);
 
-  return (
-    <Card 
-      className={`group overflow-hidden transition-all duration-300 hover:shadow-md border border-vynal-purple-secondary/30 bg-vynal-purple-dark/90 shadow-md shadow-vynal-accent-secondary/10 rounded-lg relative flex flex-col h-full backdrop-blur-sm ${
-        !localService.active ? "opacity-85" : ""
-      } ${className}`}
-      onClick={handleCardClick}
-    >
-      {/* Section image - hauteur réduite */}
-      <div className="aspect-[16/10] bg-vynal-purple-secondary/30 relative overflow-hidden w-full flex-shrink-0 rounded-t-lg">
-        {hasValidImage ? (
-          <div className="relative w-full h-full">
-            <Image 
-              src={localService.images?.[0] || ''} 
-              alt={localService.title || "Service"} 
-              className="object-cover object-center transition-transform duration-500 group-hover:scale-105"
-              onError={() => setImageError(true)}
-              fill
-              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-              priority={true}
-            />
-          </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center h-full bg-gradient-to-b from-vynal-purple-dark to-vynal-purple-darkest">
-            <ImageIcon className="h-6 w-6 mb-1 text-vynal-text-secondary" />
-            <span className="text-xs text-vynal-text-secondary font-medium">Image non disponible</span>
-          </div>
-        )}
-        
-        {/* Badge de statut - plus compacts */}
-        {showStatusBadge && (
-          <div className="absolute top-0 left-0 p-1">
-            <Badge 
-              variant="outline" 
-              className={`shadow-sm text-[9px] py-0.5 px-1.5 ${
-                localService.active 
-                  ? "bg-vynal-status-success/80 text-white hover:bg-vynal-status-success font-medium border-vynal-status-success/50" 
-                  : "bg-vynal-status-warning/80 text-white hover:bg-vynal-status-warning font-medium border-vynal-status-warning/50"
-              }`}
-            >
-              {localService.active ? "Actif" : "Inactif"}
-            </Badge>
-            
-            {localService.status === 'pending' && (
-              <Badge
-                variant="outline"
-                className="shadow-sm text-[9px] py-0.5 px-1.5 mt-0.5 bg-amber-500/80 text-white hover:bg-amber-500 border-amber-500/50 font-medium"
-              >
-                En attente
-              </Badge>
-            )}
-            
-            {localService.status === 'rejected' && (
-              <Badge
-                variant="outline"
-                className="shadow-sm text-[9px] py-0.5 px-1.5 mt-0.5 bg-red-500/80 text-white hover:bg-red-500 border-red-500/50 font-medium"
-              >
-                Rejeté
-              </Badge>
-            )}
-        </div>
-      )}
-      
-      {/* Prix - plus compact */}
-      <div className="absolute bottom-0 right-0 p-1">
+  // Déterminer les classes CSS en fonction du thème et de l'état actif
+  const cardClasses = useMemo(() => {
+    return cn(
+      "group overflow-hidden transition-all duration-300 hover:shadow-md",
+      "border border-vynal-purple-secondary/30 shadow-md shadow-vynal-accent-secondary/10 rounded-lg relative flex flex-col h-full",
+      // Support des thèmes clair/sombre
+      theme === 'dark' 
+        ? "bg-vynal-purple-dark/90 backdrop-blur-sm" 
+        : "bg-white/95 backdrop-blur-sm",
+      // État actif/inactif
+      !state.service.active ? "opacity-85" : "",
+      // Classes additionnelles
+      className
+    );
+  }, [theme, state.service.active, className]);
+
+  // Préparation des badges de statut
+  const statusBadge = useMemo(() => {
+    if (!showStatusBadge) return null;
+    
+    return (
+      <div className="absolute top-0 left-0 p-1 z-10">
         <Badge 
           variant="outline" 
-          className="shadow-sm text-[10px] bg-vynal-accent-primary/90 text-white hover:bg-vynal-accent-primary font-semibold border-vynal-accent-primary/30"
-        >
-          {formattedPrice} {CURRENCY.symbol}
-        </Badge>
-      </div>
-      
-    </div>
-    
-    {/* Contenu principal - marges réduites */}
-    <div className="pt-1.5 px-2 flex flex-col flex-grow">
-      {/* Ligne avec avatar et notation - plus compact */}
-      <div className="flex justify-between items-center h-8">
-        {/* Avatar et nom du vendeur */}
-        <div className="flex items-center gap-1.5 min-w-0">
-          <Avatar 
-            className="h-6 w-6 border border-vynal-purple-secondary/30 transition-shadow hover:shadow-md cursor-pointer flex-shrink-0"
-            onClick={goToFreelanceProfile}
-          >
-            <AvatarImage
-              src={!avatarError ? (service.profiles?.avatar_url || '') : ''}
-              alt={service.profiles?.full_name || service.profiles?.username || 'Vendeur'}
-              onError={() => setAvatarError(true)}
-            />
-            <AvatarFallback className="text-[9px] bg-vynal-accent-primary text-vynal-purple-dark">
-              {service.profiles?.full_name?.[0] || service.profiles?.username?.[0] || 'V'}
-            </AvatarFallback>
-          </Avatar>
-          <span 
-            className="text-[10px] text-vynal-text-primary font-medium truncate max-w-[80px] cursor-pointer hover:underline"
-            onClick={goToFreelanceProfile}
-            title={service.profiles?.full_name || service.profiles?.username || 'Vendeur'}
-          >
-            {service.profiles?.full_name || service.profiles?.username || 'Vendeur'}
-          </span>
-        </div>
-        
-        {/* Étoiles de notation */}
-        <div className="flex items-center flex-shrink-0">
-          {averageRating > 0 ? (
-            <>
-              <div className="flex space-x-0.5">
-                {[1, 2, 3, 4, 5].map((s) => (
-                  <Star 
-                    key={s}
-                    className={`h-2.5 w-2.5 ${
-                      s <= Math.round(averageRating) 
-                        ? "text-vynal-accent-primary fill-vynal-accent-primary" 
-                        : "text-vynal-purple-secondary/50"
-                    }`}
-                  />
-                ))}
-              </div>
-              <span className="text-[9px] ml-1 text-vynal-text-secondary">
-                ({reviewCount})
-              </span>
-            </>
-          ) : isNewService() ? (
-            <span className="text-[9px] text-vynal-text-secondary">
-              Nouveau
-            </span>
-          ) : (
-            <>
-              <div className="flex space-x-0.5">
-                {[1, 2, 3, 4, 5].map((s) => (
-                  <Star 
-                    key={s}
-                    className="h-2.5 w-2.5 text-vynal-purple-secondary/50"
-                  />
-                ))}
-              </div>
-              <span className="text-[9px] ml-1 text-vynal-text-secondary">
-                (0)
-              </span>
-            </>
+          className={cn(
+            "shadow-sm text-[9px] py-0.5 px-1.5",
+            state.service.active 
+              ? "bg-vynal-status-success/80 text-white hover:bg-vynal-status-success font-medium border-vynal-status-success/50" 
+              : "bg-vynal-status-warning/80 text-white hover:bg-vynal-status-warning font-medium border-vynal-status-warning/50"
           )}
-        </div>
-      </div>
-      
-      {/* Titre et description - marges réduites */}
-      <div className="mb-1.5 mt-1">
-        <h3 className="text-xs font-medium leading-tight text-vynal-text-primary line-clamp-2">
-          {highlightedTitle}
-        </h3>
+        >
+          {state.service.active ? "Actif" : "Inactif"}
+        </Badge>
         
-        {service.short_description && (
-          <p className="mt-0.5 text-[10px] text-vynal-text-secondary line-clamp-2">
-            {service.short_description}
-          </p>
+        {state.service.status === 'pending' && (
+          <Badge
+            variant="outline"
+            className="shadow-sm text-[9px] py-0.5 px-1.5 mt-0.5 bg-amber-500/80 text-white hover:bg-amber-500 border-amber-500/50 font-medium"
+          >
+            En attente
+          </Badge>
+        )}
+        
+        {state.service.status === 'rejected' && (
+          <Badge
+            variant="outline"
+            className="shadow-sm text-[9px] py-0.5 px-1.5 mt-0.5 bg-red-500/80 text-white hover:bg-red-500 border-red-500/50 font-medium"
+          >
+            Rejeté
+          </Badge>
         )}
       </div>
+    );
+  }, [showStatusBadge, state.service.active, state.service.status]);
+
+  // Badge de prix
+  const priceBadge = useMemo(() => (
+    <div className="absolute bottom-0 right-0 p-1">
+      <Badge 
+        variant="outline" 
+        className="shadow-sm text-[10px] bg-vynal-accent-primary/90 text-white hover:bg-vynal-accent-primary font-semibold border-vynal-accent-primary/30"
+      >
+        {formattedPrice} {CURRENCY.symbol}
+      </Badge>
     </div>
+  ), [formattedPrice]);
+
+  // Composant de notation optimisé
+  const ratingComponent = useMemo(() => {
+    if (averageRating > 0) {
+      return (
+        <>
+          <div className="flex space-x-0.5">
+            {Array.from({ length: 5 }).map((_, idx) => (
+              <Star 
+                key={idx}
+                className={cn(
+                  "h-2.5 w-2.5",
+                  idx < Math.round(averageRating) 
+                    ? "text-vynal-accent-primary fill-vynal-accent-primary" 
+                    : "text-vynal-purple-secondary/50"
+                )}
+              />
+            ))}
+          </div>
+          <span className="text-[9px] ml-1 text-vynal-text-secondary">
+            ({reviewCount})
+          </span>
+        </>
+      );
+    }
     
-    {/* Pied de carte - plus compact */}
-    <div className="mt-auto px-2 pb-2 flex items-center justify-between">
-      {/* Prix */}
-      <div className="flex flex-col">
-        <span className="text-[9px] text-vynal-text-secondary">À partir de</span>
-        <span className="text-sm font-semibold text-vynal-accent-primary">
-          {formattedPrice} {CURRENCY.symbol}
+    if (isNewService()) {
+      return (
+        <span className="text-[9px] text-vynal-text-secondary">
+          Nouveau
         </span>
-      </div>
-      
-      {/* Boutons d'action (mode gestion) */}
-      {isManageable && (
-        <div className="flex gap-1">
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={handleView}
-            className="h-6 w-6 p-0 rounded-full bg-vynal-purple-secondary/10 border border-vynal-purple-secondary/20 hover:bg-vynal-purple-secondary/30 hover:text-vynal-accent-primary text-vynal-text-secondary"
-            title="Voir les détails"
-          >
-            <Eye className="h-3 w-3" />
-          </Button>
-          
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={handleEdit}
-            className="h-6 w-6 p-0 rounded-full bg-vynal-purple-secondary/10 border border-vynal-purple-secondary/20 hover:bg-vynal-purple-secondary/30 hover:text-vynal-accent-primary text-vynal-text-secondary"
-            title="Modifier"
-          >
-            <PenSquare className="h-3 w-3" />
-          </Button>
-          
-          {isDeletable && (
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={handleDelete}
-              disabled={isDeleting}
-              className="h-6 w-6 p-0 rounded-full bg-vynal-purple-secondary/10 border border-vynal-purple-secondary/20 hover:bg-red-500/80 hover:text-white hover:border-red-500/30 text-vynal-text-secondary disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Supprimer"
-            >
-              {isDeleting ? (
-                <span className="flex items-center text-[9px] text-red-500">
-                  <Loader size="xs" variant="primary" className="mr-0.5" />
-                </span>
-              ) : (
-                <Trash2 className="h-3 w-3" />
-              )}
-            </Button>
-          )}
+      );
+    }
+    
+    return (
+      <>
+        <div className="flex space-x-0.5">
+          {Array.from({ length: 5 }).map((_, idx) => (
+            <Star 
+              key={idx}
+              className="h-2.5 w-2.5 text-vynal-purple-secondary/50"
+            />
+          ))}
         </div>
-      )}
-      
-      {/* Bouton de détails (mode public) */}
-      {!isManageable && (
+        <span className="text-[9px] ml-1 text-vynal-text-secondary">
+          (0)
+        </span>
+      </>
+    );
+  }, [averageRating, reviewCount, isNewService]);
+
+  // Composant des boutons d'action
+  const actionButtons = useMemo(() => {
+    if (!isManageable) {
+      return (
         <Button
           size="sm" 
           variant="secondary"
@@ -408,12 +364,167 @@ const ServiceCard: React.FC<ServiceCardProps> = memo(({
         >
           Voir détails
         </Button>
+      );
+    }
+    
+    return (
+      <div className="flex gap-1">
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={handleView}
+          className="h-6 w-6 p-0 rounded-full bg-vynal-purple-secondary/10 border border-vynal-purple-secondary/20 hover:bg-vynal-purple-secondary/30 hover:text-vynal-accent-primary text-vynal-text-secondary"
+          title="Voir les détails"
+        >
+          <Eye className="h-3 w-3" />
+        </Button>
+        
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={handleEdit}
+          className="h-6 w-6 p-0 rounded-full bg-vynal-purple-secondary/10 border border-vynal-purple-secondary/20 hover:bg-vynal-purple-secondary/30 hover:text-vynal-accent-primary text-vynal-text-secondary"
+          title="Modifier"
+        >
+          <PenSquare className="h-3 w-3" />
+        </Button>
+        
+        {isDeletable && (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={handleDelete}
+            disabled={isDeleting}
+            className="h-6 w-6 p-0 rounded-full bg-vynal-purple-secondary/10 border border-vynal-purple-secondary/20 hover:bg-red-500/80 hover:text-white hover:border-red-500/30 text-vynal-text-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Supprimer"
+          >
+            {isDeleting ? (
+              <span className="flex items-center text-[9px] text-red-500">
+                <Loader size="xs" variant="primary" className="mr-0.5" />
+              </span>
+            ) : (
+              <Trash2 className="h-3 w-3" />
+            )}
+          </Button>
+        )}
+      </div>
+    );
+  }, [isManageable, isDeletable, isDeleting, handleView, handleEdit, handleDelete]);
+
+  // Section d'image optimisée
+  const imageSection = useMemo(() => (
+    <div className="aspect-[16/10] bg-vynal-purple-secondary/30 dark:bg-vynal-purple-darkest/50 relative overflow-hidden w-full flex-shrink-0 rounded-t-lg">
+      {hasValidImage ? (
+        <div className="relative w-full h-full">
+          <Image 
+            src={state.service.images?.[0] || ''} 
+            alt={state.service.title || "Service"} 
+            className="object-cover object-center transition-transform duration-500 group-hover:scale-105"
+            onError={handleImageError}
+            fill
+            sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
+            priority={state.imagePriority}
+            quality={70} // Qualité optimisée pour le web
+            loading={state.imagePriority ? "eager" : "lazy"}
+          />
+        </div>
+      ) : (
+        <div className="flex flex-col items-center justify-center h-full bg-gradient-to-b from-vynal-purple-dark to-vynal-purple-darkest dark:from-vynal-purple-darkest dark:to-black">
+          <ImageIcon className="h-6 w-6 mb-1 text-vynal-text-secondary" />
+          <span className="text-xs text-vynal-text-secondary font-medium">Image non disponible</span>
+        </div>
       )}
+      
+      {statusBadge}
+      {priceBadge}
     </div>
+  ), [hasValidImage, state.service.images, state.service.title, state.imagePriority, handleImageError, statusBadge, priceBadge]);
+
+  // Rendre le composant
+  return (
+    <Card 
+      id={`service-card-${service.id}`}
+      className={cardClasses}
+      onClick={handleCardClick}
+      tabIndex={0}
+      role="button"
+      aria-label={`Voir les détails de ${state.service.title || "Service"}`}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handleCardClick(e as unknown as React.MouseEvent);
+        }
+      }}
+    >
+      {imageSection}
+      
+      <div className="pt-1.5 px-2 flex flex-col flex-grow">
+        {/* Ligne avec avatar et notation - optimisée pour mobile */}
+        <div className="flex justify-between items-center h-8">
+          {/* Avatar et nom du vendeur */}
+          <div className="flex items-center gap-1.5 min-w-0">
+            <Avatar 
+              className="h-6 w-6 border border-vynal-purple-secondary/30 transition-shadow hover:shadow-md cursor-pointer flex-shrink-0"
+              onClick={goToFreelanceProfile}
+              tabIndex={-1}
+            >
+              <AvatarImage
+                src={!state.avatarError ? (service.profiles?.avatar_url || '') : ''}
+                alt={service.profiles?.full_name || service.profiles?.username || 'Vendeur'}
+                onError={handleAvatarError}
+              />
+              <AvatarFallback className="text-[9px] bg-vynal-accent-primary text-vynal-purple-dark">
+                {service.profiles?.full_name?.[0] || service.profiles?.username?.[0] || 'V'}
+              </AvatarFallback>
+            </Avatar>
+            <button 
+              className="text-[10px] text-vynal-text-primary font-medium truncate max-w-[80px] cursor-pointer hover:underline focus:outline-none focus:underline"
+              onClick={goToFreelanceProfile}
+              title={service.profiles?.full_name || service.profiles?.username || 'Vendeur'}
+              tabIndex={-1}
+            >
+              {service.profiles?.full_name || service.profiles?.username || 'Vendeur'}
+            </button>
+          </div>
+          
+          {/* Étoiles de notation */}
+          <div className="flex items-center flex-shrink-0">
+            {ratingComponent}
+          </div>
+        </div>
+        
+        {/* Titre et description - optimisés pour mobile */}
+        <div className="mb-1.5 mt-1">
+          <h3 className="text-xs font-medium leading-tight text-vynal-text-primary dark:text-white line-clamp-2">
+            {highlightedTitle}
+          </h3>
+          
+          {state.service.short_description && (
+            <p className="mt-0.5 text-[10px] text-vynal-text-secondary dark:text-vynal-text-secondary/80 line-clamp-2">
+              {state.service.short_description}
+            </p>
+          )}
+        </div>
+      </div>
+      
+      {/* Pied de carte - optimisé pour mobile */}
+      <div className="mt-auto px-2 pb-2 flex items-center justify-between">
+        {/* Prix */}
+        <div className="flex flex-col">
+          <span className="text-[9px] text-vynal-text-secondary dark:text-vynal-text-secondary/80">À partir de</span>
+          <span className="text-sm font-semibold text-vynal-accent-primary">
+            {formattedPrice} {CURRENCY.symbol}
+          </span>
+        </div>
+        
+        {/* Boutons d'action */}
+        {actionButtons}
+      </div>
     </Card>
   );
 });
 
+// Optimisation pour le profiling React
 ServiceCard.displayName = 'ServiceCard';
 
 export default ServiceCard;

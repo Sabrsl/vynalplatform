@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { DisputeMessageList } from "@/components/disputes/DisputeMessageList";
+import DisputeMessageList from "@/components/disputes/DisputeMessageList";
 import { DisputeMessageForm } from "@/components/disputes/DisputeMessageForm";
 import { useDisputeDetail } from "@/hooks/useDisputeDetail";
 import { AlertTriangle, CheckCircle, XCircle, Loader2, ChevronLeft, Clock, User, ArrowLeftRight, RefreshCw } from "lucide-react";

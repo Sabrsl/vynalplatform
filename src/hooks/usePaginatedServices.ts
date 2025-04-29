@@ -109,188 +109,223 @@ export function usePaginatedServices({
     
     // Annuler toute requête précédente
     if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
+      try {
+        abortControllerRef.current.abort();
+      } catch (e) {
+        console.debug('Erreur lors de l\'annulation de la requête précédente:', e);
+      }
+      abortControllerRef.current = null;
     }
     
     // Créer un nouveau contrôleur d'annulation
-    abortControllerRef.current = new AbortController();
-    const signal = abortControllerRef.current.signal;
-    
-    if (!append) {
-      setLoading(true);
-    } else {
-      setIsRefreshing(true);
-    }
-    
-    setError(null);
-
     try {
-      // Calcul des limites de pagination
-      const start = (page - 1) * pageSize;
-      const end = start + pageSize - 1;
-
-      // Construire la requête de base avec les relations
-      let query = supabase
-        .from('services')
-        .select(`
-          *,
-          profiles (id, username, full_name, avatar_url, bio),
-          categories!inner (id, name, slug),
-          subcategories (id, name, slug)
-        `, { count: 'exact' })
-        .abortSignal(signal);
-
-      // Appliquer les filtres
-      if (active !== undefined) {
-        query = query.eq('active', active);
-      }
-
-      if (featured !== undefined) {
-        query = query.eq('is_featured', featured);
-      }
-
-      if (freelanceId) {
-        query = query.eq('freelance_id', freelanceId);
-      }
-
-      if (categoryId) {
-        query = query.eq('category_id', categoryId);
-      }
-
-      if (subcategoryId) {
-        query = query.eq('subcategory_id', subcategoryId);
-      }
-
-      // Optimisation de la recherche textuelle avec FTS si disponible
-      if (searchTerm && searchTerm.trim() !== '') {
-        const term = searchTerm.trim();
-        
-        // Tenter d'utiliser la recherche en texte intégral si disponible
-        // Sinon utiliser une recherche ILIKE standard mais optimisée
-        if (term.length > 2) {
-          const searchCondition = `
-            title.ilike.%${term}%,
-            description.ilike.%${term}%,
-            categories.name.ilike.%${term}%
-          `;
-          query = query.or(searchCondition);
-        }
-      }
-
-      // Tri dynamique
-      let orderColumn = sortBy;
-      if (sortBy === 'popular') {
-        // Le tri par popularité nécessiterait une implémentation spécifique
-        // Pour cet exemple, on utilise created_at par défaut
-        orderColumn = 'created_at';
-      }
+      abortControllerRef.current = new AbortController();
+      const signal = abortControllerRef.current.signal;
       
-      // Appliquer le tri et la pagination
-      query = query
-        .order(orderColumn, { ascending: sortOrder === 'asc' })
-        .range(start, end);
-
-      // Exécuter la requête avec un timeout de sécurité
-      const timeoutPromise = new Promise<{data: null, error: Error}>((_, reject) => {
-        setTimeout(() => {
-          reject(new Error('La requête a expiré après 15 secondes'));
-        }, 15000);
-      });
-
-      // Utiliser Promise.race mais avec un traitement sécurisé du résultat
-      const result = await Promise.race([
-        query,
-        timeoutPromise
-      ]);
-
-      // Vérifier si cette requête est toujours pertinente
-      if (lastFetchTimeRef.current !== fetchStartTime) {
-        console.debug('Résultats ignorés - une requête plus récente a été initiée');
-        return;
-      }
-
-      // Type casting sécurisé
-      const queryResult = result as any;
-      const { data, count, error: supabaseError } = queryResult;
-
-      if (supabaseError) {
-        throw supabaseError;
-      }
-
-      if (signal.aborted) {
-        throw new Error('Requête annulée');
-      }
-
-      if (!data) {
-        throw new Error('Aucune donnée reçue');
-      }
-
-      // Transformer les données pour correspondre au type attendu
-      const formattedServices = data.map((service: any): ServiceWithFreelanceAndCategories => ({
-        ...service,
-        profiles: service.profiles || {
-          id: service.freelance_id || '',
-          username: 'utilisateur',
-          full_name: 'Utilisateur',
-          avatar_url: null,
-          bio: null
-        },
-        categories: service.categories || {
-          id: service.category_id || '',
-          name: 'Catégorie',
-          slug: 'categorie'
-        },
-        subcategories: service.subcategories || null
-      }));
-
-      // Mettre à jour l'état en fonction du mode (append ou replace)
-      if (append && loadMoreMode) {
-        // Éviter les doublons lors de l'ajout de nouveaux services
-        const existingIds = new Set(services.map((s: ServiceWithFreelanceAndCategories) => s.id));
-        const uniqueNewServices = formattedServices.filter((s: ServiceWithFreelanceAndCategories) => !existingIds.has(s.id));
-        
-        setServices(prev => [...prev, ...uniqueNewServices]);
+      if (!append) {
+        setLoading(true);
       } else {
-        setServices(formattedServices);
-      }
-
-      // Calculer les métriques de pagination
-      const total = count || 0;
-      const pages = Math.max(1, Math.ceil(total / pageSize));
-
-      setTotalCount(total);
-      setTotalPages(pages);
-      setHasMore(page < pages);
-      
-    } catch (err) {
-      console.error('Erreur lors du chargement des services:', err);
-      
-      // Ne pas afficher d'erreur si la requête a été délibérément annulée
-      if (err instanceof Error && err.name === 'AbortError') {
-        console.debug('Requête annulée délibérément');
-        return;
+        setIsRefreshing(true);
       }
       
-      // Gestion améliorée des erreurs
-      setError(err instanceof Error ? err : new Error('Erreur inconnue lors du chargement des services'));
-      
-      // Notification utilisateur uniquement pour les erreurs non-techniques
-      if (!append && !(err instanceof Error && err.name === 'AbortError')) {
-        toast({
-          title: 'Erreur de chargement',
-          description: 'Impossible de charger les services. Veuillez réessayer.',
-          variant: 'destructive'
+      setError(null);
+
+      try {
+        // Vérifier si le composant est encore monté ou si la requête a été annulée
+        if (signal.aborted) {
+          console.debug('Requête déjà annulée avant le début de l\'exécution');
+          requestInProgressRef.current = false;
+          return;
+        }
+        
+        // Calcul des limites de pagination
+        const start = (page - 1) * pageSize;
+        const end = start + pageSize - 1;
+
+        // Construire la requête de base avec les relations
+        let query = supabase
+          .from('services')
+          .select(`
+            *,
+            profiles (id, username, full_name, avatar_url, bio),
+            categories!inner (id, name, slug),
+            subcategories (id, name, slug)
+          `, { count: 'exact' })
+          .abortSignal(signal);
+
+        // Appliquer les filtres
+        if (active !== undefined) {
+          query = query.eq('active', active);
+        }
+
+        if (featured !== undefined) {
+          query = query.eq('is_featured', featured);
+        }
+
+        if (freelanceId) {
+          query = query.eq('freelance_id', freelanceId);
+        }
+
+        if (categoryId) {
+          query = query.eq('category_id', categoryId);
+        }
+
+        if (subcategoryId) {
+          query = query.eq('subcategory_id', subcategoryId);
+        }
+
+        // Optimisation de la recherche textuelle avec FTS si disponible
+        if (searchTerm && searchTerm.trim() !== '') {
+          const term = searchTerm.trim();
+          
+          // Tenter d'utiliser la recherche en texte intégral si disponible
+          // Sinon utiliser une recherche ILIKE standard mais optimisée
+          if (term.length > 2) {
+            const searchCondition = `
+              title.ilike.%${term}%,
+              description.ilike.%${term}%,
+              categories.name.ilike.%${term}%
+            `;
+            query = query.or(searchCondition);
+          }
+        }
+
+        // Tri dynamique
+        let orderColumn = sortBy;
+        if (sortBy === 'popular') {
+          // Le tri par popularité nécessiterait une implémentation spécifique
+          // Pour cet exemple, on utilise created_at par défaut
+          orderColumn = 'created_at';
+        }
+        
+        // Appliquer le tri et la pagination
+        query = query
+          .order(orderColumn, { ascending: sortOrder === 'asc' })
+          .range(start, end);
+
+        // Exécuter la requête avec un timeout de sécurité
+        const timeoutPromise = new Promise<{data: null, error: Error}>((_, reject) => {
+          setTimeout(() => {
+            reject(new Error('La requête a expiré après 15 secondes'));
+          }, 15000);
         });
+
+        // Utiliser Promise.race mais avec un traitement sécurisé du résultat
+        const result = await Promise.race([
+          query,
+          timeoutPromise
+        ]);
+
+        // Vérifier si cette requête est toujours pertinente
+        if (lastFetchTimeRef.current !== fetchStartTime) {
+          console.debug('Résultats ignorés - une requête plus récente a été initiée');
+          return;
+        }
+
+        // Type casting sécurisé
+        const queryResult = result as any;
+        const { data, count, error: supabaseError } = queryResult;
+
+        if (supabaseError) {
+          throw supabaseError;
+        }
+
+        // Vérifier à nouveau si le signal a été annulé pendant la requête
+        if (signal.aborted) {
+          console.debug('Requête annulée pendant l\'exécution');
+          requestInProgressRef.current = false;
+          return;
+        }
+
+        if (!data) {
+          throw new Error('Aucune donnée reçue');
+        }
+
+        // Transformer les données pour correspondre au type attendu
+        const formattedServices = data.map((service: any): ServiceWithFreelanceAndCategories => ({
+          ...service,
+          profiles: service.profiles || {
+            id: service.freelance_id || '',
+            username: 'utilisateur',
+            full_name: 'Utilisateur',
+            avatar_url: null,
+            bio: null
+          },
+          categories: service.categories || {
+            id: service.category_id || '',
+            name: 'Catégorie',
+            slug: 'categorie'
+          },
+          subcategories: service.subcategories || null
+        }));
+
+        // Mettre à jour l'état en fonction du mode (append ou replace)
+        if (append && loadMoreMode) {
+          // Éviter les doublons lors de l'ajout de nouveaux services
+          const existingIds = new Set(services.map((s: ServiceWithFreelanceAndCategories) => s.id));
+          const uniqueNewServices = formattedServices.filter((s: ServiceWithFreelanceAndCategories) => !existingIds.has(s.id));
+          
+          setServices(prev => [...prev, ...uniqueNewServices]);
+        } else {
+          setServices(formattedServices);
+        }
+
+        // Calculer les métriques de pagination
+        const total = count || 0;
+        const pages = Math.max(1, Math.ceil(total / pageSize));
+
+        setTotalCount(total);
+        setTotalPages(pages);
+        setHasMore(page < pages);
+        
+      } catch (err) {
+        console.error('Erreur lors du chargement des services:', err);
+        
+        // Vérifier si c'est une erreur d'annulation (plusieurs formes possibles)
+        const isAbortError = 
+          (err instanceof Error && (
+            err.name === 'AbortError' || 
+            err.message === 'The user aborted a request.' || 
+            err.message.includes('abort') || 
+            err.message.includes('signal is aborted')
+          )) || 
+          (err && typeof err === 'object' && 'message' in err && 
+            (typeof err.message === 'string' && (
+              err.message.includes('abort') ||
+              err.message.includes('signal is aborted')
+            ))
+          );
+        
+        if (isAbortError) {
+          console.debug('Requête annulée délibérément - pas d\'erreur à afficher');
+          // Ne pas mettre à jour l'état d'erreur pour les requêtes annulées
+          requestInProgressRef.current = false;
+          return;
+        }
+        
+        // Gestion améliorée des erreurs
+        setError(err instanceof Error ? err : new Error('Erreur inconnue lors du chargement des services'));
+        
+        // Notification utilisateur uniquement pour les erreurs non-techniques
+        if (!append && !isAbortError) {
+          toast({
+            title: 'Erreur de chargement',
+            description: 'Impossible de charger les services. Veuillez réessayer.',
+            variant: 'destructive'
+          });
+        }
+      } finally {
+        // Réinitialiser les états de chargement
+        setLoading(false);
+        setInitialLoading(false);
+        setIsRefreshing(false);
+        requestInProgressRef.current = false;
+        
+        // Ne pas réinitialiser abortControllerRef ici pour permettre l'annulation 
+        // pendant le nettoyage du composant
       }
-    } finally {
-      // Réinitialiser les états de chargement
-      setLoading(false);
-      setInitialLoading(false);
-      setIsRefreshing(false);
-      requestInProgressRef.current = false;
-      
-      // Ne pas réinitialiser abortControllerRef ici pour permettre l'annulation 
-      // pendant le nettoyage du composant
+    } catch (e) {
+      console.error('Erreur lors de la gestion des contrôleurs d\'annulation:', e);
     }
   }, [
     categoryId, 
@@ -355,6 +390,21 @@ export function usePaginatedServices({
     // Appliquer un debounce intelligent en fonction du type de changement
     const debounceTime = searchTerm ? 350 : 100;
     
+    // Assurer que nous n'avons pas de contrôleur d'annulation actif avant d'en créer un nouveau
+    const safeCleanupController = () => {
+      if (abortControllerRef.current) {
+        try {
+          abortControllerRef.current.abort();
+        } catch (e) {
+          console.debug('Erreur lors de l\'annulation de la requête:', e);
+        }
+        abortControllerRef.current = null;
+      }
+    };
+    
+    // Nettoyer immédiatement si nous allons commencer une nouvelle requête
+    safeCleanupController();
+    
     debounceTimerRef.current = setTimeout(() => {
       lastParamsRef.current = currentSignature;
       
@@ -375,12 +425,10 @@ export function usePaginatedServices({
     return () => {
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
       }
       
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-        abortControllerRef.current = null;
-      }
+      safeCleanupController();
     };
   }, [
     getParamsSignature, 
@@ -390,6 +438,29 @@ export function usePaginatedServices({
     forceRefresh, 
     initialLoading
   ]);
+
+  // Effet pour le nettoyage global lors du démontage
+  useEffect(() => {
+    return () => {
+      // S'assurer que tout est proprement nettoyé lors du démontage
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+      }
+      
+      if (abortControllerRef.current) {
+        try {
+          abortControllerRef.current.abort();
+        } catch (e) {
+          console.debug('Erreur lors de l\'annulation finale des requêtes:', e);
+        }
+        abortControllerRef.current = null;
+      }
+      
+      // Indiquer qu'aucune requête n'est en cours
+      requestInProgressRef.current = false;
+    };
+  }, []);
 
   // Compléter les paramètres de retour avec des valeurs dérivées
   const isLastPage = currentPage >= totalPages;

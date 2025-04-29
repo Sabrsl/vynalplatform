@@ -319,7 +319,14 @@ export function useServices(params: UseServicesParams = {}): UseServicesResult {
       setServices(transformedServices);
     } catch (err: any) {
       // Ne pas définir d'erreur si la requête a été annulée délibérément
-      if (err.message === 'AbortError' || err.message === 'The user aborted a request.' || err.message?.includes('aborted')) {
+      if (
+        err.name === 'AbortError' || 
+        err.message === 'AbortError' || 
+        err.message === 'The user aborted a request.' || 
+        err.message?.includes('aborted') || 
+        err.message?.includes('abort') || 
+        err.message?.includes('signal is aborted')
+      ) {
         console.log('Requête de services annulée');
       } else {
         console.error('Erreur lors du chargement des services:', err);

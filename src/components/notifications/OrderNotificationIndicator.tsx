@@ -1,21 +1,34 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback, memo } from "react";
 import { useOrderNotifications } from "./OrderNotificationProvider";
-import { Bell, Package } from "lucide-react";
+import { Bell, Package, CheckCircle2, MailOpen, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
+import { motion, AnimatePresence } from "framer-motion";
+import { usePathname } from 'next/navigation';
 
+/**
+ * Composant optimisé pour afficher les notifications de commandes
+ * et permettre leur gestion rapide
+ */
 export function OrderNotificationIndicator() {
-  const { unreadCount, lastNotifications, markAllAsRead } = useOrderNotifications();
+  const { unreadCount, lastNotifications, markAllAsRead, isLoading } = useOrderNotifications();
   const [isOpen, setIsOpen] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const pathname = usePathname();
 
-  // Gestion de la fermeture au clic à l'extérieur
+  // Auto-fermeture du menu lors de la navigation entre pages
+  useEffect(() => {
+    setIsOpen(false);
+  }, [pathname]);
+
+  // Gestion optimisée de la fermeture au clic à l'extérieur
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -28,20 +41,75 @@ export function OrderNotificationIndicator() {
       }
     };
 
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setIsOpen(false);
+    };
+
+    // Utiliser la capture pour intercepter les clics avant qu'ils n'atteignent d'autres éléments
     if (isOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener("mousedown", handleClickOutside, { capture: true });
+      // Gérer également la touche Échap
+      document.addEventListener("keydown", handleKeyDown);
     }
+    
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside, { capture: true });
+      document.removeEventListener("keydown", handleKeyDown);
     };
   }, [isOpen]);
 
-  // Fonction pour basculer l'état du menu
-  const toggleMenu = (e: React.MouseEvent) => {
+  // Fonction mémorisée pour basculer l'état du menu
+  const toggleMenu = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    setIsOpen(!isOpen);
+    setIsOpen(prev => !prev);
+  }, []);
+
+  // Fonction mémorisée pour marquer toutes les notifications comme lues
+  const handleMarkAllAsRead = useCallback(async () => {
+    if (isProcessing) return;
+    
+    setIsProcessing(true);
+    try {
+      await markAllAsRead();
+      // Fermer le menu après un court délai pour permettre l'animation
+      setTimeout(() => setIsOpen(false), 300);
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [markAllAsRead, isProcessing]);
+
+  // Animations pour le menu
+  const menuVariants = {
+    hidden: { opacity: 0, scale: 0.95, y: -5 },
+    visible: { 
+      opacity: 1, 
+      scale: 1, 
+      y: 0,
+      transition: {
+        duration: 0.2,
+        ease: "easeOut"
+      }
+    },
+    exit: { 
+      opacity: 0, 
+      scale: 0.95, 
+      y: -5,
+      transition: {
+        duration: 0.15
+      }
+    }
   };
 
+  // Si en chargement, afficher un indicateur de chargement
+  if (isLoading) {
+    return (
+      <Button variant="ghost" size="icon" className="relative">
+        <Loader2 className="h-[1.2rem] w-[1.2rem] text-vynal-purple-secondary dark:text-vynal-text-secondary animate-spin" />
+      </Button>
+    );
+  }
+
+  // Si aucune notification, afficher une cloche simple
   if (unreadCount === 0) {
     return (
       <Button variant="ghost" size="icon" className="relative">
@@ -52,88 +120,134 @@ export function OrderNotificationIndicator() {
 
   return (
     <div className="relative">
-      <Button 
-        ref={buttonRef}
-        variant="ghost" 
-        size="icon" 
-        className="relative" 
-        onClick={toggleMenu}
-      >
-        <Bell className="h-[1.2rem] w-[1.2rem] text-vynal-purple-secondary dark:text-vynal-text-secondary" />
-        <Badge 
-          className="absolute -top-0.5 -right-0.5 px-1.5 py-0.5 h-auto min-h-0 min-w-0 rounded-full bg-vynal-accent-primary text-[10px]"
+      <div>
+        <Button 
+          ref={buttonRef}
+          variant="ghost" 
+          size="icon" 
+          className="relative" 
+          onClick={toggleMenu}
+          aria-label={`${unreadCount} notifications non lues`}
+          aria-haspopup="true"
+          aria-expanded={isOpen}
         >
-          {unreadCount}
-        </Badge>
-      </Button>
-
-      {isOpen && (
-        <div 
-          ref={menuRef}
-          className="absolute right-0 mt-2 w-80 z-50 rounded-md border border-vynal-purple-secondary/20 bg-white p-1 text-vynal-purple-dark shadow-md dark:border-vynal-purple-secondary/20 dark:bg-vynal-purple-dark dark:text-vynal-text-primary"
-        >
-          <div className="flex items-center justify-between px-2 py-1.5 text-sm font-semibold">
-            <span>Nouvelles commandes</span>
-            {unreadCount > 0 && (
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="h-7 text-xs"
-                onClick={() => {
-                  markAllAsRead();
-                  setTimeout(() => setIsOpen(false), 300);
-                }}
-              >
-                Tout accepter
-              </Button>
-            )}
+          <Bell className="h-[1.2rem] w-[1.2rem] text-vynal-purple-secondary dark:text-vynal-text-secondary" />
+          <div>
+            <Badge 
+              className="absolute -top-0.5 -right-0.5 px-1.5 py-0.5 h-auto min-h-0 min-w-0 rounded-full bg-vynal-accent-primary text-[10px]"
+            >
+              {unreadCount}
+            </Badge>
           </div>
-          <div className="-mx-1 my-1 h-px bg-vynal-purple-secondary/20 dark:bg-vynal-purple-secondary/20"></div>
-          
-          {lastNotifications.length === 0 ? (
-            <div className="py-2 px-2 text-sm text-vynal-purple-secondary/70 dark:text-vynal-text-secondary/70 text-center">
-              Aucune nouvelle commande
+        </Button>
+      </div>
+
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div 
+            ref={menuRef}
+            className="absolute right-0 mt-2 w-80 z-50 rounded-lg border border-vynal-purple-secondary/20 bg-white p-1 text-vynal-purple-dark shadow-lg dark:border-vynal-purple-secondary/20 dark:bg-vynal-purple-dark dark:text-vynal-text-primary backdrop-blur-sm"
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            variants={menuVariants}
+            role="menu"
+            aria-orientation="vertical"
+          >
+            <div className="flex items-center justify-between px-3 py-2 text-sm font-semibold">
+              <span className="flex items-center gap-1.5">
+                <Package className="h-3.5 w-3.5 text-vynal-accent-primary" strokeWidth={2.5} />
+                <span>Nouvelles commandes</span>
+              </span>
+              {unreadCount > 0 && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-7 text-xs bg-vynal-accent-primary/10 hover:bg-vynal-accent-primary/20 text-vynal-accent-primary flex items-center gap-1.5"
+                  onClick={handleMarkAllAsRead}
+                  disabled={isProcessing}
+                >
+                  {isProcessing ? (
+                    <>
+                      <Loader2 className="h-3 w-3 animate-spin" strokeWidth={2.5} />
+                      <span>Traitement...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="h-3 w-3" strokeWidth={2.5} />
+                      <span>Tout accepter</span>
+                    </>
+                  )}
+                </Button>
+              )}
             </div>
-          ) : (
-            <>
-              {lastNotifications.map((notification) => {
-                const timeAgo = formatDistanceToNow(new Date(notification.created_at), { 
-                  addSuffix: true,
-                  locale: fr
-                });
+            <div className="-mx-1 my-1 h-px bg-vynal-purple-secondary/20 dark:bg-vynal-purple-secondary/20"></div>
+            
+            {lastNotifications.length === 0 ? (
+              <div className="py-6 px-3 text-sm text-vynal-purple-secondary/70 dark:text-vynal-text-secondary/70 text-center flex flex-col items-center">
+                <MailOpen className="w-8 h-8 mb-2 text-vynal-purple-secondary/50 dark:text-vynal-text-secondary/50" strokeWidth={1.5} />
+                <p>Aucune nouvelle commande</p>
+              </div>
+            ) : (
+              <>
+                <div className="max-h-[300px] overflow-y-auto overflow-x-hidden">
+                  {lastNotifications.map((notification, index) => {
+                    const timeAgo = formatDistanceToNow(new Date(notification.created_at), { 
+                      addSuffix: true,
+                      locale: fr
+                    });
+                    
+                    return (
+                      <motion.div
+                        key={notification.id}
+                        initial={{ opacity: 0, x: -5 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                        whileHover={{ backgroundColor: "rgba(99, 102, 241, 0.08)" }}
+                      >
+                        <Link 
+                          href={`/dashboard/orders/${notification.id}`} 
+                          className="relative flex select-none rounded-md px-3 py-2.5 text-sm outline-none transition-colors focus:bg-vynal-purple-secondary/10 dark:hover:bg-vynal-purple-secondary/10 cursor-pointer"
+                          onClick={() => setIsOpen(false)}
+                          role="menuitem"
+                          tabIndex={0}
+                        >
+                          <div className="flex items-center w-full">
+                            <Package className="h-4 w-4 mr-2 text-vynal-accent-primary flex-shrink-0" strokeWidth={2} />
+                            <div className="flex flex-col flex-grow min-w-0">
+                              <span className="font-medium text-sm text-vynal-purple-light dark:text-vynal-text-primary truncate">
+                                {notification.service?.title || "Nouvelle commande"}
+                              </span>
+                              <span className="text-xs text-vynal-purple-secondary/80 dark:text-vynal-text-secondary/80 truncate">
+                                {notification.client?.full_name || notification.client?.username || "Client"}
+                              </span>
+                            </div>
+                            <span className="ml-auto text-xs text-vynal-purple-secondary/70 dark:text-vynal-text-secondary/70 flex-shrink-0">
+                              {timeAgo}
+                            </span>
+                          </div>
+                        </Link>
+                      </motion.div>
+                    );
+                  })}
+                </div>
                 
-                return (
-                  <Link 
-                    key={notification.id}
-                    href={`/dashboard/orders/${notification.id}`} 
-                    className="relative flex select-none rounded-sm px-3 py-2.5 text-sm outline-none transition-colors hover:bg-vynal-purple-secondary/5 focus:bg-vynal-purple-secondary/10 dark:hover:bg-vynal-purple-secondary/10 cursor-pointer"
-                    onClick={() => setIsOpen(false)}
-                  >
-                    <div className="flex items-center w-full">
-                      <Package className="h-4 w-4 mr-2 text-vynal-accent-primary" />
-                      <span className="font-medium text-sm text-vynal-purple-light dark:text-vynal-text-primary">
-                        Nouvelle commande
-                      </span>
-                      <span className="ml-auto text-xs text-vynal-purple-secondary/70 dark:text-vynal-text-secondary/70">
-                        {timeAgo}
-                      </span>
-                    </div>
-                  </Link>
-                );
-              })}
-              
-              <div className="-mx-1 my-1 h-px bg-vynal-purple-secondary/20 dark:bg-vynal-purple-secondary/20"></div>
-              <Link 
-                href="/dashboard/orders?tab=pending" 
-                className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-vynal-purple-secondary/10 focus:text-vynal-purple-dark data-[disabled]:pointer-events-none data-[disabled]:opacity-50 dark:focus:bg-vynal-accent-primary/20 dark:focus:text-vynal-text-primary text-xs text-center justify-center cursor-pointer"
-                onClick={() => setIsOpen(false)}
-              >
-                Voir toutes les commandes en attente
-              </Link>
-            </>
-          )}
-        </div>
-      )}
+                <div className="-mx-1 my-1 h-px bg-vynal-purple-secondary/20 dark:bg-vynal-purple-secondary/20"></div>
+                <Link 
+                  href="/dashboard/orders?tab=pending" 
+                  className="relative flex select-none items-center rounded-md px-3 py-2 text-sm outline-none transition-colors hover:bg-vynal-purple-secondary/5 focus:bg-vynal-purple-secondary/10 dark:hover:bg-vynal-accent-primary/10 text-xs text-center justify-center cursor-pointer font-medium"
+                  onClick={() => setIsOpen(false)}
+                  role="menuitem"
+                >
+                  Voir toutes les commandes en attente
+                </Link>
+              </>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
-} 
+}
+
+export default memo(OrderNotificationIndicator);

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useMemo, memo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Category } from '@/hooks/useCategories';
@@ -14,13 +14,8 @@ interface CategoriesGridProps {
 }
 
 /**
- * Composant réutilisable pour afficher une grille de catégories
- * 
- * @param categories - Liste des catégories à afficher
- * @param selectedCategory - Slug de la catégorie actuellement sélectionnée
- * @param getSubcategoriesCount - Fonction pour obtenir le nombre de sous-catégories d'une catégorie
- * @param baseUrl - URL de base pour les liens de catégories (défaut: '/services')
- * @param className - Classes CSS additionnelles
+ * Composant ultra-moderne pour l'affichage d'une grille de catégories
+ * Support des thèmes clair/sombre et adaptation mobile optimisée
  */
 const CategoriesGrid: React.FC<CategoriesGridProps> = ({
   categories,
@@ -31,32 +26,48 @@ const CategoriesGrid: React.FC<CategoriesGridProps> = ({
 }) => {
   const router = useRouter();
 
-  // Animation variants
-  const containerVariants = {
+  // Animation variants mémorisés
+  const containerVariants = useMemo(() => ({
     hidden: { opacity: 0 },
     show: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.03
+        staggerChildren: 0.02
       }
     }
-  };
+  }), []);
 
-  const itemVariants = {
-    hidden: { opacity: 0, y: 5 },
-    show: { opacity: 1, y: 0 }
-  };
+  const itemVariants = useMemo(() => ({
+    hidden: { opacity: 0, y: 5, scale: 0.95 },
+    show: { 
+      opacity: 1, 
+      y: 0, 
+      scale: 1,
+      transition: {
+        type: "spring",
+        stiffness: 300,
+        damping: 15
+      }
+    }
+  }), []);
 
-  // Fonction pour gérer le clic sur une catégorie
-  const handleCategoryClick = (e: React.MouseEvent, categorySlug: string | null) => {
+  // Fonction mémorisée pour gérer le clic sur une catégorie
+  const handleCategoryClick = useCallback((e: React.MouseEvent, categorySlug: string | null) => {
     e.preventDefault();
-    
-    // Construire l'URL selon que la catégorie est sélectionnée ou non
     const url = categorySlug ? `${baseUrl}?category=${categorySlug}` : baseUrl;
-    
-    // Navigation programmatique pour garantir que l'état est correctement mis à jour
     router.push(url);
-  };
+  }, [router, baseUrl]);
+
+  // Classe CSS pour les éléments sélectionnés/non-sélectionnés
+  const getItemClassName = useCallback((isSelected: boolean) => {
+    return `flex flex-col items-center justify-center 
+      rounded-xl backdrop-blur-sm transition-all duration-300
+      py-1.5 px-1 h-full border
+      ${isSelected 
+        ? 'bg-indigo-500/10 border-indigo-400/30 shadow-md shadow-indigo-500/5' 
+        : 'bg-white/5 border-gray-200/10 hover:bg-indigo-500/5 hover:border-indigo-300/20'
+      }`;
+  }, []);
 
   return (
     <motion.div 
@@ -64,22 +75,23 @@ const CategoriesGrid: React.FC<CategoriesGridProps> = ({
       variants={containerVariants}
       initial="hidden"
       animate="show"
+      data-testid="categories-grid"
     >
-      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-1">
+      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-1.5">
         <motion.div variants={itemVariants} className="flex-shrink-0">
           <Link 
             href={baseUrl}
             onClick={(e) => handleCategoryClick(e, null)}
+            aria-label="Toutes les catégories"
+            aria-current={!selectedCategory ? 'page' : undefined}
+            className="block h-full"
           >
-            <div 
-              className={`flex flex-col items-center justify-center rounded-md backdrop-blur-sm transition-all py-1.5 px-1 h-full ${
-                !selectedCategory 
-                  ? 'bg-white/15 ring-1 ring-indigo-500/30 text-white' 
-                  : 'bg-white/10 hover:bg-white/15 text-white/90 hover:text-white'
-              }`}
-            >
-              <div className="text-md sm:text-lg">🔍</div>
-              <span className="text-[9px] sm:text-[10px] text-center font-medium mt-0.5">Toutes</span>
+            <div className={getItemClassName(!selectedCategory)}>
+              <div className="text-base xs:text-lg sm:text-xl" aria-hidden="true">🔍</div>
+              <span className="text-[8px] xs:text-[9px] sm:text-[10px] text-center font-medium mt-1 
+                text-white transition-colors">
+                Toutes
+              </span>
             </div>
           </Link>
         </motion.div>
@@ -89,20 +101,27 @@ const CategoriesGrid: React.FC<CategoriesGridProps> = ({
           const emoji = getCategoryEmoji(category.name);
           
           return (
-            <motion.div key={category.id} variants={itemVariants} className="flex-shrink-0">
+            <motion.div 
+              key={category.id} 
+              variants={itemVariants} 
+              className="flex-shrink-0"
+              whileHover={{ scale: 1.02 }}
+            >
               <Link 
                 href={`${baseUrl}?category=${category.slug}`}
                 onClick={(e) => handleCategoryClick(e, category.slug)}
+                aria-label={`Catégorie: ${category.name}`}
+                aria-current={isSelected ? 'page' : undefined}
+                className="block h-full"
               >
-                <div 
-                  className={`flex flex-col items-center justify-center rounded-md backdrop-blur-sm transition-all py-1.5 px-1 h-full ${
-                    isSelected 
-                      ? 'bg-white/15 ring-1 ring-indigo-500/30 text-white' 
-                      : 'bg-white/10 hover:bg-white/15 text-white/90 hover:text-white'
-                  }`}
-                >
-                  <div className="text-md sm:text-lg">{emoji}</div>
-                  <span className="text-[9px] sm:text-[10px] text-center font-medium truncate w-full mt-0.5">{category.name}</span>
+                <div className={getItemClassName(isSelected)}>
+                  <div className="text-base xs:text-lg sm:text-xl relative">
+                    <span aria-hidden="true">{emoji}</span>
+                  </div>
+                  <span className="text-[8px] xs:text-[9px] sm:text-[10px] text-center font-medium 
+                    truncate w-full mt-1 text-white transition-colors">
+                    {category.name}
+                  </span>
                 </div>
               </Link>
             </motion.div>
@@ -113,4 +132,5 @@ const CategoriesGrid: React.FC<CategoriesGridProps> = ({
   );
 };
 
-export default CategoriesGrid; 
+// Mémoisation du composant pour éviter les re-rendus inutiles
+export default memo(CategoriesGrid);

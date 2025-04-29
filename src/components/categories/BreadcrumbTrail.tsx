@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import Link from 'next/link';
 import { ChevronRight, Home, Tag } from 'lucide-react';
 import { Category, Subcategory } from '@/hooks/useCategories';
@@ -12,12 +12,7 @@ interface BreadcrumbTrailProps {
 }
 
 /**
- * Composant réutilisable pour le fil d'Ariane (breadcrumb)
- * 
- * @param activeCategory - Catégorie actuellement sélectionnée (optionnel)
- * @param activeSubcategory - Sous-catégorie actuellement sélectionnée (optionnel)
- * @param baseUrl - URL de base pour les liens du fil d'Ariane (défaut: '/services')
- * @param className - Classes CSS additionnelles
+ * Composant ultra-moderne pour le fil d'Ariane (breadcrumb)
  */
 const BreadcrumbTrail: React.FC<BreadcrumbTrailProps> = ({
   activeCategory,
@@ -31,67 +26,112 @@ const BreadcrumbTrail: React.FC<BreadcrumbTrailProps> = ({
     show: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.1
+        staggerChildren: 0.08
       }
     }
   };
 
   const itemVariants = {
-    hidden: { opacity: 0, x: -5 },
-    show: { opacity: 1, x: 0 }
+    hidden: { opacity: 0, x: -3, y: 2 },
+    show: { 
+      opacity: 1, 
+      x: 0, 
+      y: 0,
+      transition: {
+        type: "spring",
+        stiffness: 300,
+        damping: 15
+      }
+    }
   };
+
+  // Construction de l'URL de catégorie une seule fois
+  const categoryUrl = activeCategory ? `${baseUrl}?category=${activeCategory.slug}` : baseUrl;
 
   return (
     <motion.nav 
-      className={`flex items-center flex-wrap text-xs ${className}`}
+      className={`flex items-center flex-wrap text-[10px] xs:text-xs backdrop-blur-sm
+        px-2 py-1 rounded-full bg-white/5
+        border border-gray-100/10 shadow-sm
+        ${className}`}
       variants={containerVariants}
       initial="hidden"
       animate="show"
       aria-label="Breadcrumb"
+      data-testid="breadcrumb-trail"
     >
       <motion.div variants={itemVariants}>
         <Link 
           href="/" 
-          className="text-gray-500 hover:text-indigo-600 transition-colors flex items-center"
+          className="text-gray-300 hover:text-indigo-400 
+            transition-all duration-200 flex items-center
+            hover:scale-105"
+          aria-label="Page d'accueil"
         >
-          <Home className="h-3 w-3 mr-1" />
-          <span>Accueil</span>
+          <span className="p-0.5 rounded-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center">
+            <Home className="h-2.5 w-2.5 xs:h-3 xs:w-3" aria-hidden="true" 
+              strokeWidth={2.5} />
+          </span>
+          <span className="ml-1 hidden xxs:inline font-medium">Accueil</span>
         </Link>
       </motion.div>
       
-      <ChevronRight className="h-2.5 w-2.5 mx-1.5 text-gray-400 flex-shrink-0" />
+      <ChevronRight className="h-2 w-2 xs:h-2.5 xs:w-2.5 mx-1 xxs:mx-1.5 
+        text-gray-600 flex-shrink-0" 
+        aria-hidden="true" strokeWidth={2.5} />
       
       <motion.div variants={itemVariants}>
         <Link 
           href={baseUrl} 
-          className={`hover:text-indigo-600 transition-colors flex items-center ${
-            !activeCategory ? 'text-indigo-600 font-medium' : 'text-gray-500'
-          }`}
+          className={`hover:text-indigo-400 
+            transition-all duration-200 flex items-center
+            hover:scale-105
+            ${!activeCategory 
+              ? 'text-indigo-400 font-semibold' 
+              : 'text-gray-300'}`}
+          aria-label="Liste des services"
+          aria-current={!activeCategory ? 'page' : undefined}
         >
-          <Tag className="h-3 w-3 mr-0.5" />
-          <span>Services</span>
+          <span className="p-0.5 rounded-full bg-gradient-to-br from-indigo-900 to-indigo-800 flex items-center justify-center">
+            <Tag className="h-2.5 w-2.5 xs:h-3 xs:w-3" aria-hidden="true" 
+              strokeWidth={2.5} />
+          </span>
+          <span className="ml-1 font-medium">Services</span>
         </Link>
       </motion.div>
       
       {activeCategory && (
         <>
-          <ChevronRight className="h-2.5 w-2.5 mx-1.5 text-gray-400 flex-shrink-0" />
+          <ChevronRight className="h-2 w-2 xs:h-2.5 xs:w-2.5 mx-1 xxs:mx-1.5 
+            text-gray-600 flex-shrink-0" 
+            aria-hidden="true" strokeWidth={2.5} />
           <motion.div variants={itemVariants}>
             <Link 
-              href={`${baseUrl}?category=${activeCategory.slug}`}
-              className={`transition-colors ${
-                !activeSubcategory ? 'text-indigo-600 font-medium' : 'text-gray-500 hover:text-indigo-600'
-              }`}
+              href={categoryUrl}
+              className={`transition-all duration-200
+                hover:scale-105
+                ${!activeSubcategory 
+                  ? 'text-indigo-400 font-semibold' 
+                  : 'text-gray-300 hover:text-indigo-400'}`}
+              aria-label={`Catégorie: ${activeCategory.name}`}
+              aria-current={!activeSubcategory ? 'page' : undefined}
             >
-              {activeCategory.name}
+              <span className="font-medium">
+                {activeCategory.name}
+              </span>
             </Link>
           </motion.div>
           
           {activeSubcategory && (
             <>
-              <ChevronRight className="h-2.5 w-2.5 mx-1.5 text-gray-400 flex-shrink-0" />
+              <ChevronRight className="h-2 w-2 xs:h-2.5 xs:w-2.5 mx-1 xxs:mx-1.5 
+                text-gray-600 flex-shrink-0" 
+                aria-hidden="true" strokeWidth={2.5} />
               <motion.div variants={itemVariants}>
-                <span className="text-indigo-600 font-medium">
+                <span 
+                  className="text-indigo-400 font-semibold"
+                  aria-current="page"
+                >
                   {activeSubcategory.name}
                 </span>
               </motion.div>
@@ -103,4 +143,5 @@ const BreadcrumbTrail: React.FC<BreadcrumbTrailProps> = ({
   );
 };
 
-export default BreadcrumbTrail; 
+// Mémoisation du composant pour éviter les re-rendus inutiles
+export default memo(BreadcrumbTrail);

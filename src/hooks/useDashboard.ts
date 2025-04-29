@@ -427,8 +427,8 @@ export function useDashboard(options: UseDashboardOptions = {}) {
           recentOrders.forEach((order, index) => {
             mockActivities.push({
               id: `order-${order.id}`,
-              type: 'order_created',
-              content: `Commande #${order.id.substring(0, 8)} ${order.status === 'completed' ? 'terminée' : 'créée'}`,
+              type: order.status === 'completed' ? 'order_completed' : 'order_created',
+              content: `Commande #${order.id ? order.id.substring(0, 8) : 'inconnue'} ${order.status === 'completed' ? 'terminée' : 'créée'}`,
               created_at: order.created_at,
               user_id: userId,
               related_id: order.id
@@ -454,7 +454,7 @@ export function useDashboard(options: UseDashboardOptions = {}) {
             mockActivities.push({
               id: `message-${message.id}`,
               type: 'message_received',
-              content: `Nouveau message reçu dans la conversation #${message.conversation_id.substring(0, 8)}`,
+              content: `Nouveau message reçu dans la conversation #${message.conversation_id ? message.conversation_id.substring(0, 8) : 'inconnue'}`,
               created_at: message.created_at,
               user_id: userId,
               related_id: message.conversation_id

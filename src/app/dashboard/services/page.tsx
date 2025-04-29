@@ -496,6 +496,20 @@ export default function ServicesPage() {
       }));
     } catch (err: any) {
       console.error('Erreur lors du chargement des services:', err);
+      
+      // Ne pas afficher d'erreur si la requête a été annulée délibérément
+      if (
+        err.name === 'AbortError' || 
+        err.message === 'AbortError' || 
+        err.message === 'The user aborted a request.' || 
+        err.message?.includes('aborted') || 
+        err.message?.includes('abort') || 
+        err.message?.includes('signal is aborted')
+      ) {
+        console.log('Requête de services annulée délibérément');
+        return;
+      }
+      
       if (mountedRef.current) {
         safeSetState(prev => ({
           ...prev,
