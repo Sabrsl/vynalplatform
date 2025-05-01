@@ -6,6 +6,15 @@ import { usePathname, useRouter } from 'next/navigation';
 // Chemins à exclure (où le comportement standard est conservé)
 const EXCLUDED_PATHS = ['/messages', '/chat', '/inbox'];
 
+// Chemins où l'on veut gérer la restauration du scroll via useScrollRestoration
+// Ces chemins seront également exclus du reset forcé
+const RESTORE_SCROLL_PATHS = [
+  '/services', 
+  '/dashboard',
+  '/profile',
+  '/client-dashboard'
+];
+
 /**
  * Hook optimisé pour empêcher le reset du scroll lors des navigations tout en préservant la performance
  */
@@ -23,7 +32,14 @@ export function usePreventScrollReset() {
   // Détecter si le chemin actuel est exclu du comportement personnalisé
   const isExcludedPath = useCallback((): boolean => {
     if (!pathname) return false;
-    return EXCLUDED_PATHS.some(path => pathname.includes(path));
+    
+    // Exclure les chemins standards
+    if (EXCLUDED_PATHS.some(path => pathname.includes(path))) return true;
+    
+    // Exclure également les chemins où l'on utilise la restauration de scroll
+    if (RESTORE_SCROLL_PATHS.some(path => pathname.includes(path))) return true;
+    
+    return false;
   }, [pathname]);
 
   // Effet pour gérer les changements de route et réinitialiser le scroll

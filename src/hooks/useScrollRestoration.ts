@@ -1,10 +1,13 @@
 "use client";
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 
 // Type pour stocker les positions de défilement
 type ScrollPositions = Record<string, number>;
+
+// Chemins où le comportement de chat/messaging nécessite un traitement spécial
+const EXCLUDED_PATHS = ['/messages', '/chat', '/inbox'];
 
 /**
  * Hook pour restaurer la position de défilement lors de la navigation avant/arrière
@@ -25,7 +28,16 @@ export function useScrollRestoration() {
   // Référence pour suivre l'URL précédente
   const previousUrlRef = useRef<string | null>(null);
 
+  // Détecter si le chemin actuel doit être exclu
+  const isExcludedPath = useCallback((): boolean => {
+    if (!pathname) return false;
+    return EXCLUDED_PATHS.some(path => pathname.includes(path));
+  }, [pathname]);
+
   useEffect(() => {
+    // Ne pas appliquer la restauration sur les chemins exclus
+    if (isExcludedPath()) return;
+
     // Si nous venons de changer de page (premier rendu après navigation)
     if (previousUrlRef.current !== currentUrlKey) {
       // Si nous arrivons sur une page via history navigation (back/forward)
@@ -41,9 +53,12 @@ export function useScrollRestoration() {
       // Mettre à jour l'URL précédente
       previousUrlRef.current = currentUrlKey;
     }
-  }, [pathname, searchParams, currentUrlKey]);
+  }, [pathname, searchParams, currentUrlKey, isExcludedPath]);
 
   useEffect(() => {
+    // Ne pas enregistrer les positions de défilement pour les chemins exclus
+    if (isExcludedPath()) return;
+
     // Capturer la position de défilement actuelle avant de quitter la page
     const handleBeforeUnload = () => {
       scrollPositionsRef.current[currentUrlKey] = window.scrollY;
@@ -77,7 +92,7 @@ export function useScrollRestoration() {
       // Enregistrer la position à la dernière minute avant de démonter
       scrollPositionsRef.current[currentUrlKey] = window.scrollY;
     };
-  }, [currentUrlKey]);
+  }, [currentUrlKey, isExcludedPath]);
 }
 
 export default useScrollRestoration; 
