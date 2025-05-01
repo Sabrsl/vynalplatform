@@ -10,8 +10,9 @@ type ScrollPositions = Record<string, number>;
 const EXCLUDED_PATHS = ['/messages', '/chat', '/inbox'];
 
 /**
- * Hook pour restaurer la position de défilement lors de la navigation avant/arrière
- * Compatible avec desktop et mobile avec performance optimale
+ * Ce hook permet de se souvenir où l'utilisateur était sur une page
+ * quand il utilise le bouton retour/avant du navigateur.
+ * Marche bien sur PC et mobile sans ralentir le site.
  */
 export function useScrollRestoration() {
   const pathname = usePathname();
