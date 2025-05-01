@@ -11,7 +11,7 @@ import { RefreshCw, AlertCircle, Clock, LineChart, Network, BarChart2, Activity 
  * Cette page utilise le hook usePerformanceMonitor pour afficher les métriques de performance
  */
 export default function PerformancePage() {
-  const { metrics, collectMetrics, startMonitoring, stopMonitoring } = usePerformanceMonitor({
+  const { metrics, collectMetrics } = usePerformanceMonitor({
     enableResourceTiming: true,
     enableNavigationTiming: true,
     collectAutomatically: true
