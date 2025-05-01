@@ -11,6 +11,7 @@ const EXCLUDED_PATHS = ['/messages', '/chat', '/inbox'];
 
 /**
  * Hook pour restaurer la position de défilement lors de la navigation avant/arrière
+ * Compatible avec desktop et mobile
  */
 export function useScrollRestoration() {
   const pathname = usePathname();
@@ -34,6 +35,21 @@ export function useScrollRestoration() {
     return EXCLUDED_PATHS.some(path => pathname.includes(path));
   }, [pathname]);
 
+  // Fonction utilitaire pour détecter si nous sommes sur mobile
+  const isMobileDevice = useCallback(() => {
+    return (
+      typeof window !== 'undefined' && 
+      (navigator.userAgent.match(/Android/i) ||
+       navigator.userAgent.match(/webOS/i) ||
+       navigator.userAgent.match(/iPhone/i) ||
+       navigator.userAgent.match(/iPad/i) ||
+       navigator.userAgent.match(/iPod/i) ||
+       navigator.userAgent.match(/BlackBerry/i) ||
+       navigator.userAgent.match(/Windows Phone/i) ||
+       (window.innerWidth <= 768))
+    );
+  }, []);
+
   useEffect(() => {
     // Ne pas appliquer la restauration sur les chemins exclus
     if (isExcludedPath()) return;
@@ -43,9 +59,17 @@ export function useScrollRestoration() {
       // Si nous arrivons sur une page via history navigation (back/forward)
       if (scrollPositionsRef.current[currentUrlKey] !== undefined) {
         // Restaurer la position de défilement précédemment enregistrée
-        requestAnimationFrame(() => {
-          window.scrollTo(0, scrollPositionsRef.current[currentUrlKey]);
-        });
+        // Avec un délai légèrement plus long sur mobile pour permettre au contenu de se charger
+        const scrollDelay = isMobileDevice() ? 50 : 0;
+        
+        setTimeout(() => {
+          requestAnimationFrame(() => {
+            window.scrollTo({
+              top: scrollPositionsRef.current[currentUrlKey],
+              behavior: 'auto' // 'auto' est plus performant que 'smooth' sur mobile
+            });
+          });
+        }, scrollDelay);
       }
       
       // Marquer que nous venons de naviguer
@@ -53,7 +77,7 @@ export function useScrollRestoration() {
       // Mettre à jour l'URL précédente
       previousUrlRef.current = currentUrlKey;
     }
-  }, [pathname, searchParams, currentUrlKey, isExcludedPath]);
+  }, [pathname, searchParams, currentUrlKey, isExcludedPath, isMobileDevice]);
 
   useEffect(() => {
     // Ne pas enregistrer les positions de défilement pour les chemins exclus
@@ -69,6 +93,9 @@ export function useScrollRestoration() {
       scrollPositionsRef.current[currentUrlKey] = window.scrollY;
     };
 
+    // Optimiser la fréquence d'enregistrement des positions sur mobile pour la performance
+    const isMobile = isMobileDevice();
+    
     // Enregistrer périodiquement la position de défilement pendant la navigation
     const saveScrollPosition = () => {
       // Ne pas écraser la position enregistrée si on vient juste de naviguer
@@ -80,19 +107,43 @@ export function useScrollRestoration() {
       }
     };
 
+    // Utiliser la capture d'événements avec throttling pour mobile
+    let scrollTimeout: number | null = null;
+    const throttledScrollHandler = () => {
+      if (scrollTimeout === null) {
+        scrollTimeout = window.setTimeout(() => {
+          saveScrollPosition();
+          scrollTimeout = null;
+        }, isMobile ? 200 : 100);
+      }
+    };
+
     window.addEventListener('beforeunload', handleBeforeUnload);
     window.addEventListener('popstate', handlePopState);
-    window.addEventListener('scroll', saveScrollPosition, { passive: true });
+    window.addEventListener('scroll', isMobile ? throttledScrollHandler : saveScrollPosition, { passive: true });
+
+    // Événements spécifiques au mobile
+    if (isMobile) {
+      window.addEventListener('touchend', saveScrollPosition, { passive: true });
+    }
 
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       window.removeEventListener('popstate', handlePopState);
-      window.removeEventListener('scroll', saveScrollPosition);
+      window.removeEventListener('scroll', isMobile ? throttledScrollHandler : saveScrollPosition);
+      
+      if (isMobile) {
+        window.removeEventListener('touchend', saveScrollPosition);
+      }
+      
+      if (scrollTimeout) {
+        window.clearTimeout(scrollTimeout);
+      }
       
       // Enregistrer la position à la dernière minute avant de démonter
       scrollPositionsRef.current[currentUrlKey] = window.scrollY;
     };
-  }, [currentUrlKey, isExcludedPath]);
+  }, [currentUrlKey, isExcludedPath, isMobileDevice]);
 }
 
 export default useScrollRestoration; 
