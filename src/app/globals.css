@@ -1,6 +1,7 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Import Tailwind CSS */
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
 
 @layer base {
   :root {
@@ -72,10 +73,14 @@
  
 @layer base {
   * {
-    @apply border-border;
+    border-color: hsl(var(--border));
   }
   body {
-    @apply bg-background text-foreground transition-colors duration-300;
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 300ms;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 
@@ -86,7 +91,7 @@
 
   /* Désactiver le zoom sur les inputs pour mobile */
   input, select, textarea {
-    @apply font-poppins;
+    font-family: var(--font-poppins);
     font-size: 16px; /* Taille minimum pour éviter le zoom sur iOS */
   }
 
@@ -96,7 +101,9 @@
     position: fixed;
     inset: 0;
     z-index: -1;
-    @apply transition-colors duration-300;
+    transition-property: color, background-color, border-color;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 300ms;
   }
 
   /* Mode clair */
@@ -113,21 +120,23 @@
 
   /* Style des titres avec Poppins */
   h1, h2, h3, h4, h5, h6 {
-    @apply font-poppins font-semibold;
+    font-family: var(--font-poppins);
+    font-weight: 600;
   }
 
   p {
-    @apply font-poppins;
+    font-family: var(--font-poppins);
   }
   
   /* Style spécifique pour les boutons */
   button, .btn {
-    @apply font-poppins font-medium;
+    font-family: var(--font-poppins);
+    font-weight: 500;
   }
   
   /* Éléments d'interface utilisateur */
   input, select, textarea {
-    @apply font-poppins;
+    font-family: var(--font-poppins);
   }
 }
 
