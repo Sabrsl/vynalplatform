@@ -16,7 +16,20 @@ const Header = dynamic(() => import("./header"), {
 const Footer = dynamic(() => import("./footer"), {
   ssr: true,
   loading: () => (
-    <div className="h-32 sm:h-48 w-full animate-pulse bg-gradient-to-r from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900" />
+    <footer className="bg-gray-900 text-white dark:bg-vynal-purple-dark border-t border-gray-800 dark:border-vynal-purple-secondary/30 relative overflow-hidden h-auto">
+      <div className="container mx-auto px-4 py-10 relative z-10 opacity-0">
+        {/* Structure squelette identique pour éviter le saut */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+          <div className="lg:col-span-2"></div>
+          <div></div>
+          <div></div>
+          <div></div>
+        </div>
+        <div className="mt-10 pt-8 border-t border-gray-800 dark:border-vynal-purple-secondary/30">
+          <div className="flex flex-col-reverse md:flex-row justify-between items-center"></div>
+        </div>
+      </div>
+    </footer>
   )
 });
 

@@ -228,7 +228,26 @@ function Footer() {
   
   // Éviter tout flash de contenu non stylisé
   if (!mounted) {
-    return <footer className="h-64 md:h-80 bg-gray-900 dark:bg-vynal-purple-dark border-t border-gray-800 dark:border-vynal-purple-secondary/30" />;
+    // Retourner un squelette ayant exactement les mêmes dimensions que le footer réel
+    return (
+      <footer className="bg-gray-900 text-white dark:bg-vynal-purple-dark border-t border-gray-800 dark:border-vynal-purple-secondary/30 relative overflow-hidden h-auto">
+        <div className="container mx-auto px-4 py-10 relative z-10 opacity-0">
+          {/* Structure squelette identique pour éviter le saut */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+            <div className="lg:col-span-2"></div>
+            <div></div>
+            <div></div>
+            <div></div>
+          </div>
+          <div className="mt-10 pt-8 border-t border-gray-800 dark:border-vynal-purple-secondary/30">
+            <div className="flex flex-col-reverse md:flex-row justify-between items-center">
+              <div></div>
+              <div></div>
+            </div>
+          </div>
+        </div>
+      </footer>
+    );
   }
 
   return (
