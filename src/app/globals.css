@@ -89,6 +89,43 @@
     min-height: 100vh;
   }
 
+  /* Style de barre de défilement personnalisée pour PC */
+  @media (min-width: 769px) {
+    html {
+      scrollbar-width: thin; /* Firefox */
+      scrollbar-color: rgba(var(--vynal-purple-primary-rgb, 148, 85, 211), 0.5) transparent; /* Firefox */
+    }
+    
+    ::-webkit-scrollbar {
+      width: 10px;
+    }
+    
+    ::-webkit-scrollbar-track {
+      background-color: transparent;
+      border-radius: 8px;
+    }
+    
+    ::-webkit-scrollbar-thumb {
+      background-color: rgba(var(--vynal-purple-primary-rgb, 148, 85, 211), 0.5);
+      border-radius: 8px;
+      border: 2px solid transparent;
+      background-clip: content-box;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+      background-color: rgba(var(--vynal-purple-primary-rgb, 148, 85, 211), 0.7);
+    }
+    
+    /* Style spécifique pour le mode sombre */
+    .dark ::-webkit-scrollbar-thumb {
+      background-color: rgba(var(--vynal-accent-primary-rgb, 255, 102, 178), 0.5);
+    }
+    
+    .dark ::-webkit-scrollbar-thumb:hover {
+      background-color: rgba(var(--vynal-accent-primary-rgb, 255, 102, 178), 0.7);
+    }
+  }
+
   /* Désactiver le zoom sur les inputs pour mobile */
   input, select, textarea {
     font-family: var(--font-poppins);
