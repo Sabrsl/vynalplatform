@@ -6,6 +6,7 @@ import MainLayout from '@/components/layout/main-layout';
 import { ThemeProvider } from 'next-themes';
 import { Suspense } from 'react';
 import { Inter } from 'next/font/google';
+import ScrollRestoration from './scroll-restoration';
 
 // Utilisation de la police Poppins
 const poppins = Poppins({
@@ -39,6 +40,7 @@ export default function RootLayout({
       </head>
       <body className={`${poppins.variable} font-poppins transition-colors duration-300 no-scrollbar`}>
         <Providers>
+          <ScrollRestoration />
           <Suspense fallback={<Loading />}>
             <MainLayout>
               {children}
