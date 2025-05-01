@@ -14,6 +14,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from '@/lib/utils';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import Image from 'next/image';
 
 export default function DisputeDetailPage() {
   const { id } = useParams();
@@ -255,10 +258,13 @@ export default function DisputeDetailPage() {
                   <div className="flex items-center gap-3">
                     <div className="h-10 w-10 rounded-full bg-slate-200 dark:bg-vynal-purple-secondary/20 overflow-hidden">
                       {dispute.client.avatar_url ? (
-                        <img 
+                        <Image 
                           src={dispute.client.avatar_url} 
                           alt={dispute.client.full_name || dispute.client.username || 'Client'} 
                           className="h-full w-full object-cover"
+                          width={40}
+                          height={40}
+                          unoptimized
                         />
                       ) : (
                         <div className="h-full w-full flex items-center justify-center text-slate-500 dark:text-vynal-text-secondary text-sm font-medium">
@@ -285,10 +291,13 @@ export default function DisputeDetailPage() {
                   <div className="flex items-center gap-3">
                     <div className="h-10 w-10 rounded-full bg-slate-200 dark:bg-vynal-purple-secondary/20 overflow-hidden">
                       {dispute.freelance.avatar_url ? (
-                        <img 
+                        <Image 
                           src={dispute.freelance.avatar_url} 
                           alt={dispute.freelance.full_name || dispute.freelance.username || 'Prestataire'} 
                           className="h-full w-full object-cover"
+                          width={40}
+                          height={40}
+                          unoptimized
                         />
                       ) : (
                         <div className="h-full w-full flex items-center justify-center text-slate-500 dark:text-vynal-text-secondary text-sm font-medium">

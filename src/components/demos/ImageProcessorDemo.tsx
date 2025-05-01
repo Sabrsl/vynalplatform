@@ -4,6 +4,7 @@ import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Upload, Sparkles, Image as ImageIcon, Loader2 } from 'lucide-react';
 import { validateImage, processImage, getImageDimensions } from '@/lib/image-processor';
+import Image from 'next/image';
 
 interface ProcessedImage {
   original: {
@@ -271,10 +272,13 @@ const ImageProcessorDemo: React.FC = () => {
                   <div className="space-y-2">
                     <h3 className="font-medium text-gray-700">Image originale</h3>
                     <div className="aspect-video bg-gray-100 rounded-md overflow-hidden border border-gray-200">
-                      <img
+                      <Image
                         src={item.original.url}
                         alt="Image originale"
                         className="w-full h-full object-contain"
+                        width={800}
+                        height={600}
+                        unoptimized
                       />
                     </div>
                     <div className="text-xs text-gray-500">
@@ -286,10 +290,13 @@ const ImageProcessorDemo: React.FC = () => {
                   <div className="space-y-2">
                     <h3 className="font-medium text-gray-700">Image traitée</h3>
                     <div className="aspect-video bg-gray-100 rounded-md overflow-hidden border border-gray-200">
-                      <img
+                      <Image
                         src={item.processed.url}
                         alt="Image traitée"
                         className="w-full h-full object-contain"
+                        width={800}
+                        height={600}
+                        unoptimized
                       />
                     </div>
                     <div className="text-xs text-gray-500">

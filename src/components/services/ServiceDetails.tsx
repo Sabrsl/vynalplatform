@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useMemo, useCallback } from "react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
@@ -14,6 +16,7 @@ import { formatPrice, formatDate, cn } from "@/lib/utils";
 import { AlertCircle, ArrowLeft, Calendar, Clock, Tag, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
 import { ServiceWithFreelanceAndCategories } from "@/hooks/useServices";
 import { Loader } from "@/components/ui/loader";
+import Image from 'next/image';
 
 // Extension du type avec vérifications strictes pour la robustesse
 interface ExtendedService extends ServiceWithFreelanceAndCategories {
@@ -363,10 +366,13 @@ const ServiceDetails: React.FC<ServiceDetailsProps> = ({
                           isDarkMode ? "bg-slate-800" : "bg-slate-100"
                         )}
                       >
-                        <img 
+                        <Image 
                           src={img} 
                           alt={`Image ${index + 1} du service`} 
                           className="w-full h-full object-cover"
+                          width={500}
+                          height={300}
+                          unoptimized
                           loading={index < 4 ? "eager" : "lazy"}
                           onError={(e) => {
                             // Fallback en cas d'erreur d'image

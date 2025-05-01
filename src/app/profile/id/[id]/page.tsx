@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +14,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatDate } from "@/lib/utils";
 import ReviewReplyComponent from '@/components/reviews/ReviewReply';
 import { Loader } from "@/components/ui/loader";
+import Image from 'next/image';
 
 // Type pour le profil du vendeur et ses services
 type ProfileData = {
@@ -191,10 +192,13 @@ export default function VendorProfileByIdPage() {
               <div className="flex flex-col items-center">
                 <div className="relative mb-4">
                   {vendor.avatar_url ? (
-                    <img 
+                    <Image 
                       src={vendor.avatar_url}
                       alt={vendorName}
                       className="w-24 h-24 rounded-full object-cover"
+                      width={96}
+                      height={96}
+                      unoptimized
                     />
                   ) : (
                     <UserCircle className="w-24 h-24 text-gray-300" />

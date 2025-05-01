@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useCallback, useMemo, memo } from 'react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 
@@ -10,7 +10,7 @@ interface BorderBeamButtonProps {
   className?: string;
 }
 
-export function BorderBeamButton({ href, children, className }: BorderBeamButtonProps) {
+export const BorderBeamButton = memo(function BorderBeamButton({ href, children, className }: BorderBeamButtonProps) {
   const buttonRef = useRef<HTMLAnchorElement>(null);
   const [{ x, y }, setPosition] = useState({ x: 0, y: 0 });
   const [isMounted, setIsMounted] = useState(false);
@@ -21,7 +21,7 @@ export function BorderBeamButton({ href, children, className }: BorderBeamButton
   }, []);
 
   // Gérer le mouvement de la souris sur le bouton
-  function handleMouseMove(e: React.MouseEvent<HTMLAnchorElement>) {
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLAnchorElement>) => {
     if (!buttonRef.current) return;
     
     const rect = buttonRef.current.getBoundingClientRect();
@@ -29,16 +29,53 @@ export function BorderBeamButton({ href, children, className }: BorderBeamButton
       x: e.clientX - rect.left,
       y: e.clientY - rect.top,
     });
-  }
+  }, []);
+
+  // Classes CSS mémorisées
+  const linkClassName = useMemo(() => cn(
+    "border border-vynal-accent-primary text-vynal-accent-primary py-3 px-6 rounded-md font-medium hover:bg-vynal-accent-primary/10 transition-all",
+    className
+  ), [className]);
+
+  const beamLinkClassName = useMemo(() => cn(
+    "relative block bg-vynal-purple-dark/90 text-vynal-accent-primary py-3 px-6 rounded-[3px] font-medium hover:text-white transition-all duration-300 z-10",
+    className
+  ), [className]);
+
+  // Styles mémorisés pour éviter les recréations à chaque rendu
+  const borderTopStyle = useMemo(() => ({
+    background: 'linear-gradient(90deg, transparent 0%, #ff71d4 50%, transparent 100%)',
+    animation: 'moveRightToLeft 3s infinite linear',
+    boxShadow: '0 0 10px rgba(255, 113, 212, 1)'
+  }), []);
+
+  const borderBottomStyle = useMemo(() => ({
+    background: 'linear-gradient(90deg, transparent 0%, #ff52bf 50%, transparent 100%)',
+    animation: 'moveLeftToRight 3s infinite linear',
+    boxShadow: '0 0 10px rgba(255, 82, 191, 1)'
+  }), []);
+
+  const borderLeftStyle = useMemo(() => ({
+    background: 'linear-gradient(180deg, transparent 0%, #ff71d4 50%, transparent 100%)',
+    animation: 'moveBottomToTop 3.5s infinite linear',
+    boxShadow: '0 0 10px rgba(255, 113, 212, 1)'
+  }), []);
+
+  const borderRightStyle = useMemo(() => ({
+    background: 'linear-gradient(180deg, transparent 0%, #ff52bf 50%, transparent 100%)',
+    animation: 'moveTopToBottom 3.5s infinite linear',
+    boxShadow: '0 0 10px rgba(255, 82, 191, 1)'
+  }), []);
+
+  const beamStyle = useMemo(() => ({
+    background: `radial-gradient(120px circle at ${x}px ${y}px, rgba(255, 109, 196, 0.4), transparent 40%)`,
+  }), [x, y]);
 
   if (!isMounted) {
     return (
       <Link
         href={href}
-        className={cn(
-          "border border-vynal-accent-primary text-vynal-accent-primary py-3 px-6 rounded-md font-medium hover:bg-vynal-accent-primary/10 transition-all",
-          className
-        )}
+        className={linkClassName}
       >
         {children}
       </Link>
@@ -53,41 +90,25 @@ export function BorderBeamButton({ href, children, className }: BorderBeamButton
           {/* Première ligne horizontale (haut) */}
           <div
             className="absolute top-0 left-0 w-full h-[2px]"
-            style={{
-              background: 'linear-gradient(90deg, transparent 0%, #ff71d4 50%, transparent 100%)',
-              animation: 'moveRightToLeft 3s infinite linear',
-              boxShadow: '0 0 10px rgba(255, 113, 212, 1)'
-            }}
+            style={borderTopStyle}
           />
           
           {/* Deuxième ligne horizontale (bas) */}
           <div
             className="absolute bottom-0 right-0 w-full h-[2px]"
-            style={{
-              background: 'linear-gradient(90deg, transparent 0%, #ff52bf 50%, transparent 100%)',
-              animation: 'moveLeftToRight 3s infinite linear',
-              boxShadow: '0 0 10px rgba(255, 82, 191, 1)'
-            }}
+            style={borderBottomStyle}
           />
           
           {/* Première ligne verticale (gauche) */}
           <div
             className="absolute top-0 left-0 h-full w-[2px]"
-            style={{
-              background: 'linear-gradient(180deg, transparent 0%, #ff71d4 50%, transparent 100%)',
-              animation: 'moveBottomToTop 3.5s infinite linear',
-              boxShadow: '0 0 10px rgba(255, 113, 212, 1)'
-            }}
+            style={borderLeftStyle}
           />
           
           {/* Deuxième ligne verticale (droite) */}
           <div
             className="absolute top-0 right-0 h-full w-[2px]"
-            style={{
-              background: 'linear-gradient(180deg, transparent 0%, #ff52bf 50%, transparent 100%)',
-              animation: 'moveTopToBottom 3.5s infinite linear',
-              boxShadow: '0 0 10px rgba(255, 82, 191, 1)'
-            }}
+            style={borderRightStyle}
           />
         </div>
       </div>
@@ -96,17 +117,12 @@ export function BorderBeamButton({ href, children, className }: BorderBeamButton
         ref={buttonRef}
         href={href}
         onMouseMove={handleMouseMove}
-        className={cn(
-          "relative block bg-vynal-purple-dark/90 text-vynal-accent-primary py-3 px-6 rounded-[3px] font-medium hover:text-white transition-all duration-300 z-10",
-          className
-        )}
+        className={beamLinkClassName}
       >
         {/* Beam effect on hover */}
         <div 
           className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-          style={{
-            background: `radial-gradient(120px circle at ${x}px ${y}px, rgba(255, 109, 196, 0.4), transparent 40%)`,
-          }}
+          style={beamStyle}
         />
         
         {/* Button content */}
@@ -134,4 +150,4 @@ export function BorderBeamButton({ href, children, className }: BorderBeamButton
       `}</style>
     </div>
   );
-} 
+}); 

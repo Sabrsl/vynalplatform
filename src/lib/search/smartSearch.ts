@@ -92,15 +92,25 @@ function calculateRelevanceScore(
  * 
  * @param text - Texte à traiter
  * @param searchTerm - Terme de recherche
- * @returns Texte avec les termes de recherche surlignés avec des balises <mark>
+ * @param options - Options de mise en évidence
+ * @returns Texte avec les termes de recherche surlignés
  */
-export function highlightSearchTerms(text: string, searchTerm: string): string {
+export function highlightSearchTerms(
+  text: string, 
+  searchTerm: string, 
+  options?: { 
+    highlightClass?: string; 
+    minLength?: number;
+  }
+): string {
   if (!text || !searchTerm?.trim()) {
     return text;
   }
   
+  const { highlightClass = 'mark', minLength = 2 } = options || {};
+  
   const normalizedSearchTerm = searchTerm.trim().toLowerCase();
-  const searchWords = normalizedSearchTerm.split(/\s+/).filter(word => word.length > 2);
+  const searchWords = normalizedSearchTerm.split(/\s+/).filter(word => word.length > minLength);
   
   if (searchWords.length === 0) {
     return text;
@@ -114,7 +124,7 @@ export function highlightSearchTerms(text: string, searchTerm: string): string {
   // Créer une expression régulière pour chaque mot (insensible à la casse)
   for (const word of searchWords) {
     const regex = new RegExp(escapeRegExp(word), 'gi');
-    result = result.replace(regex, match => `<mark>${match}</mark>`);
+    result = result.replace(regex, match => `<span class="${highlightClass}">${match}</span>`);
   }
   
   return result;

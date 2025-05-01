@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { Database } from '@/types/database';
 
@@ -42,38 +42,85 @@ const CATEGORY_NAMES_TO_IDS: Record<string, string> = {
   'Santé & Bien-être': CATEGORY_IDS.SANTE
 };
 
-export function useCategories() {
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+// Cache local pour éviter des requêtes répétées
+const cache = {
+  categories: null as Category[] | null,
+  subcategories: null as Subcategory[] | null,
+  lastUpdate: 0
+};
 
-  useEffect(() => {
-    const fetchCategories = async () => {
-      setLoading(true);
-      setError(null);
+// TTL du cache (10 minutes)
+const CACHE_TTL = 10 * 60 * 1000;
+
+export function useCategories() {
+  const [state, setState] = useState<{
+    categories: Category[];
+    subcategories: Subcategory[];
+    loading: boolean;
+    error: string | null;
+  }>({
+    categories: [],
+    subcategories: [],
+    loading: true,
+    error: null
+  });
+  
+  const mountedRef = useRef(true);
+  const subscriptionsRef = useRef<{
+    categories: any | null;
+    subcategories: any | null;
+  }>({
+    categories: null,
+    subcategories: null
+  });
+
+  // Fonction mémorisée pour récupérer les données
+  const fetchCategories = useCallback(async (forceRefresh = false) => {
+    // Utiliser le cache si disponible et valide
+    const now = Date.now();
+    if (!forceRefresh && 
+        cache.categories && 
+        cache.subcategories && 
+        (now - cache.lastUpdate < CACHE_TTL)) {
+      setState(prev => ({
+        ...prev,
+        categories: cache.categories || [],
+        subcategories: cache.subcategories || [],
+        loading: false
+      }));
+      return;
+    }
+    
+    setState(prev => ({ ...prev, loading: true, error: null }));
+    
+    try {
+      // Récupérer les catégories avec un ordre explicite
+      const { data: categoriesData, error: categoriesError } = await supabase
+        .from('categories')
+        .select('*');
       
-      try {
-        // Récupérer les catégories avec un ordre explicite (ID=UUID dans le seed)
-        const { data: categoriesData, error: categoriesError } = await supabase
-          .from('categories')
-          .select('*');
-        
-        if (categoriesError) throw categoriesError;
-        
-        // Récupérer les sous-catégories
-        const { data: subcategoriesData, error: subcategoriesError } = await supabase
-          .from('subcategories')
-          .select('*');
-        
-        if (subcategoriesError) throw subcategoriesError;
-        
+      if (categoriesError) throw categoriesError;
+      
+      // Récupérer les sous-catégories
+      const { data: subcategoriesData, error: subcategoriesError } = await supabase
+        .from('subcategories')
+        .select('*');
+      
+      if (subcategoriesError) throw subcategoriesError;
+      
+      if (process.env.NODE_ENV === 'development') {
         console.debug('Catégories récupérées:', categoriesData?.length || 0);
         console.debug('Sous-catégories récupérées:', subcategoriesData?.length || 0);
-        
+      }
+      
+      // Valider les données
+      let validatedCategories = categoriesData || [];
+      let validatedSubcategories = subcategoriesData || [];
+      
+      if (process.env.NODE_ENV === 'development') {
+        // Vérifications uniquement en développement
         // Valider chaque catégorie récupérée
         if (categoriesData) {
-          // Vérifier si les IDs des catégories correspondent au seed
           categoriesData.forEach((cat: Category) => {
             const expectedId = CATEGORY_NAMES_TO_IDS[cat.name];
             if (expectedId && cat.id !== expectedId) {
@@ -84,7 +131,7 @@ export function useCategories() {
         
         // Valider que chaque sous-catégorie a une catégorie parent valide
         if (subcategoriesData) {
-          const validSubcategories = subcategoriesData.filter((subcat: Subcategory) => {
+          validatedSubcategories = subcategoriesData.filter((subcat: Subcategory) => {
             // Vérifier si la catégorie parent existe
             const hasValidCategory = categoriesData?.some((cat: Category) => cat.id === subcat.category_id);
             if (!hasValidCategory) {
@@ -94,70 +141,97 @@ export function useCategories() {
           });
           
           // Si des sous-catégories ont été filtrées, log un avertissement
-          if (validSubcategories.length !== subcategoriesData.length) {
-            console.warn(`${subcategoriesData.length - validSubcategories.length} sous-catégories ont été filtrées car leurs catégories parent n'existent pas`);
+          if (validatedSubcategories.length !== subcategoriesData.length) {
+            console.warn(`${subcategoriesData.length - validatedSubcategories.length} sous-catégories ont été filtrées car leurs catégories parent n'existent pas`);
           }
-          
-          setSubcategories(validSubcategories);
-        } else {
-          setSubcategories([]);
         }
-        
-        setCategories(categoriesData || []);
-      } catch (err: any) {
-        console.error('Erreur lors de la récupération des catégories:', err);
-        setError(err.message || 'Une erreur est survenue');
-      } finally {
-        setLoading(false);
       }
-    };
+      
+      // Mettre à jour le cache
+      cache.categories = validatedCategories;
+      cache.subcategories = validatedSubcategories;
+      cache.lastUpdate = now;
+      
+      // Mettre à jour l'état seulement si le composant est toujours monté
+      if (mountedRef.current) {
+        setState({
+          categories: validatedCategories,
+          subcategories: validatedSubcategories,
+          loading: false,
+          error: null
+        });
+      }
+    } catch (err: any) {
+      console.error('Erreur lors de la récupération des catégories:', err);
+      if (mountedRef.current) {
+        setState(prev => ({
+          ...prev,
+          loading: false,
+          error: err.message || 'Une erreur est survenue'
+        }));
+      }
+    }
+  }, []);
+  
+  // Effet pour charger les données et configurer les souscriptions
+  useEffect(() => {
+    mountedRef.current = true;
     
+    // Charger les données
     fetchCategories();
     
-    // Souscrire aux changements des catégories en temps réel
-    const categoriesSubscription = supabase
+    // Configurer les souscriptions en temps réel
+    subscriptionsRef.current.categories = supabase
       .channel('categories-changes')
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
         table: 'categories',
-      }, () => {
-        // Recharger les données quand il y a un changement
-        fetchCategories();
-      })
+      }, () => fetchCategories(true))
       .subscribe();
     
-    // Souscrire aux changements des sous-catégories en temps réel
-    const subcategoriesSubscription = supabase
+    subscriptionsRef.current.subcategories = supabase
       .channel('subcategories-changes')
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
         table: 'subcategories',
-      }, () => {
-        // Recharger les données quand il y a un changement
-        fetchCategories();
-      })
+      }, () => fetchCategories(true))
       .subscribe();
     
     return () => {
-      categoriesSubscription.unsubscribe();
-      subcategoriesSubscription.unsubscribe();
+      mountedRef.current = false;
+      
+      // Nettoyer les souscriptions
+      if (subscriptionsRef.current.categories) {
+        supabase.removeChannel(subscriptionsRef.current.categories);
+      }
+      if (subscriptionsRef.current.subcategories) {
+        supabase.removeChannel(subscriptionsRef.current.subcategories);
+      }
     };
-  }, []);
+  }, [fetchCategories]);
 
-  // Récupérer les sous-catégories d'une catégorie
-  const getSubcategoriesByCategoryId = (categoryId: string) => {
-    const result = subcategories.filter(subcategory => subcategory.category_id === categoryId);
-    console.debug(`Sous-catégories pour la catégorie ${categoryId}:`, result.length);
+  // Fonction mémorisée pour récupérer les sous-catégories d'une catégorie
+  const getSubcategoriesByCategoryId = useCallback((categoryId: string) => {
+    const result = state.subcategories.filter(subcategory => subcategory.category_id === categoryId);
     return result;
-  };
+  }, [state.subcategories]);
 
-  return {
-    categories,
-    subcategories,
-    loading,
-    error,
+  // Créer un objet mémorisé pour éviter les recréations lors du rendu
+  const value = useMemo(() => ({
+    categories: state.categories,
+    subcategories: state.subcategories,
+    loading: state.loading,
+    error: state.error,
     getSubcategoriesByCategoryId
-  };
+  }), [
+    state.categories,
+    state.subcategories,
+    state.loading,
+    state.error,
+    getSubcategoriesByCategoryId
+  ]);
+
+  return value;
 } 

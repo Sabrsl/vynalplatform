@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback, memo } from 'react';
 import { ThemeProvider } from 'next-themes';
 import { Toaster } from '@/components/ui/toaster';
 import NotificationListener from '@/components/notifications/NotificationListener';
@@ -62,7 +62,7 @@ declare global {
   }
 }
 
-// Export pour utilisation globale
+// Export pour utilisation globale - optimisé pour réduire les calculs inutiles
 export const VisibilityState: VisibilityStateType = {
   lastVisible: Date.now(),
   lastHidden: 0,
@@ -76,8 +76,8 @@ export const VisibilityState: VisibilityStateType = {
     VisibilityState.lastVisible = now;
     VisibilityState.isInactiveTab = false;
     
+    // Émettre un événement seulement si l'inactivité était significative (>30s)
     if (typeof window !== 'undefined' && wasInactive && inactiveDuration > 30000) {
-      // Émettre un seul événement unifié si l'inactivité est significative (>30s)
       window.dispatchEvent(new CustomEvent('vynal:app-state-changed', {
         detail: { 
           type: 'visibility',
@@ -94,8 +94,8 @@ export const VisibilityState: VisibilityStateType = {
   }
 };
 
-// Composant de fallback d'erreur
-function ErrorFallback({ error, resetErrorBoundary }: FallbackProps) {
+// Composant de fallback d'erreur mémoïsé
+const ErrorFallback = memo(({ error, resetErrorBoundary }: FallbackProps) => {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-white dark:bg-gray-900 text-center p-4">
       <div className="max-w-md mx-auto p-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
@@ -120,18 +120,21 @@ function ErrorFallback({ error, resetErrorBoundary }: FallbackProps) {
       </div>
     </div>
   );
-}
+});
+
+ErrorFallback.displayName = 'ErrorFallback';
 
 // Gestionnaire d'événements de navigation optimisé
-function NavigationEventHandler() {
+const NavigationEventHandler = memo(() => {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const pathnameRef = useRef(pathname);
   const prevPathRef = useRef<string | null>(null);
   const navigationInProgressRef = useRef(false);
 
-  // Surveiller le changement d'état de navigation
+  // Surveiller le changement d'état de navigation - utilisation de useCallback pour stabiliser les fonctions
   useEffect(() => {
+    // Définir les gestionnaires d'événements en dehors de l'effet pour éviter les recréations
     const handleNavigationStart = () => {
       navigationInProgressRef.current = true;
     };
@@ -142,10 +145,6 @@ function NavigationEventHandler() {
         navigationInProgressRef.current = true;
       }
     };
-
-    // Ajouter les écouteurs d'événements
-    window.addEventListener('beforeunload', handleNavigationStart);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
     
     // Surveiller les changements dans l'état de navigation global
     const handleNavigationStateChange = (event: Event) => {
@@ -155,6 +154,9 @@ function NavigationEventHandler() {
       }
     };
     
+    // Ajouter les écouteurs d'événements
+    window.addEventListener('beforeunload', handleNavigationStart);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('vynal:navigation-changed', handleNavigationStateChange);
     
     return () => {
@@ -172,30 +174,35 @@ function NavigationEventHandler() {
     const fullPath = pathname + (searchParams?.toString() ? `?${searchParams.toString()}` : '');
     
     if (prevPathRef.current !== fullPath) {
-      // Réinitialisation immédiate et fiable de la position
-      window.scrollTo(0, 0);
-      
-      prevPathRef.current = fullPath;
-      navigationInProgressRef.current = false;
+      // Utiliser requestAnimationFrame pour une réinitialisation du scroll plus fluide
+      requestAnimationFrame(() => {
+        window.scrollTo(0, 0);
+        
+        prevPathRef.current = fullPath;
+        navigationInProgressRef.current = false;
+        
+        // Indiquer que la navigation est terminée
+        if (NavigationLoadingState.isNavigating) {
+          NavigationLoadingState.setIsNavigating(false);
+        }
+      });
     }
     
     // Mettre à jour la référence
     pathnameRef.current = pathname;
-    
-    // Indiquer que la navigation est terminée
-    if (NavigationLoadingState.isNavigating) {
-      NavigationLoadingState.setIsNavigating(false);
-    }
   }, [pathname, searchParams]);
 
   return null;
-}
+});
 
-// Composant pour gérer l'état de visibilité de la page
-function VisibilityStateHandler() {
+NavigationEventHandler.displayName = 'NavigationEventHandler';
+
+// Composant pour gérer l'état de visibilité de la page - mémoïsé
+const VisibilityStateHandler = memo(() => {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
+    // Définir le gestionnaire une seule fois pour éviter les recréations
     const handleVisibilityChange = () => {
       try {
         if (document.visibilityState === 'visible') {
@@ -225,8 +232,11 @@ function VisibilityStateHandler() {
   }, []);
 
   return null;
-}
+});
 
+VisibilityStateHandler.displayName = 'VisibilityStateHandler';
+
+// Gestionnaire d'erreurs optimisé avec useCallback
 export function Providers({ children }: { children: React.ReactNode }) {
   // Ajout d'un state pour vérifier si le composant est monté (côté client)
   const [mounted, setMounted] = useState(false);
@@ -237,19 +247,21 @@ export function Providers({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Options pour éviter les rendus inutiles dans ErrorBoundary
-  const onError = (error: Error, info: React.ErrorInfo) => {
+  const onError = useCallback((error: Error, info: React.ErrorInfo) => {
     console.error("Erreur capturée par ErrorBoundary:", error, info);
-  };
+  }, []);
+  
+  const onReset = useCallback(() => {
+    // Réinitialiser l'état de navigation
+    NavigationLoadingState.isNavigating = false;
+    NavigationLoadingState.resetErrorState();
+  }, []);
 
   return (
     <ErrorBoundary 
       FallbackComponent={ErrorFallback}
       onError={onError}
-      onReset={() => {
-        // Réinitialiser l'état de navigation
-        NavigationLoadingState.isNavigating = false;
-        NavigationLoadingState.resetErrorState();
-      }}
+      onReset={onReset}
     >
       <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={true}>
         <OrderNotificationProvider>

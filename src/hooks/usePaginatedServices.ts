@@ -56,85 +56,126 @@ export function usePaginatedServices({
   sortOrder = 'desc',
   updateUrlOnPageChange = false
 }: UsePaginatedServicesParams): UsePaginatedServicesResult {
-  // États
-  const [services, setServices] = useState<ServiceWithFreelanceAndCategories[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [initialLoading, setInitialLoading] = useState(true);
-  const [error, setError] = useState<Error | PostgrestError | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(0);
-  const [totalCount, setTotalCount] = useState(0);
-  const [hasMore, setHasMore] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  // États avec des valeurs par défaut appropriées
+  const [state, setState] = useState<{
+    services: ServiceWithFreelanceAndCategories[];
+    loading: boolean;
+    initialLoading: boolean;
+    error: Error | PostgrestError | null;
+    currentPage: number;
+    totalPages: number;
+    totalCount: number;
+    hasMore: boolean;
+    isRefreshing: boolean;
+  }>({
+    services: [],
+    loading: false,
+    initialLoading: true,
+    error: null,
+    currentPage: 1,
+    totalPages: 0,
+    totalCount: 0,
+    hasMore: false,
+    isRefreshing: false
+  });
   
-  // Références
-  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const lastParamsRef = useRef<string>('');
-  const requestInProgressRef = useRef<boolean>(false);
-  const abortControllerRef = useRef<AbortController | null>(null);
-  const lastFetchTimeRef = useRef<number>(0);
+  // Références groupées pour éviter les re-rendus inutiles
+  const refs = useRef({
+    debounceTimer: null as ReturnType<typeof setTimeout> | null,
+    lastParams: '',
+    requestInProgress: false,
+    abortController: null as AbortController | null,
+    lastFetchTime: 0,
+    currentRequestId: '',
+    isMounted: true,
+    paramsSignature: '' // Cache de la signature des paramètres
+  });
   
-  // Hooks externes - toujours appelés au niveau supérieur
+  // Hooks externes
   const { toast } = useToast();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const toastRef = useRef(toast);
+  
+  // Mettre à jour la référence du toast quand elle change
+  useEffect(() => {
+    toastRef.current = toast;
+  }, [toast]);
 
-  // Fonction pour construire une signature unique des paramètres actuels
+  // Fonction pour obtenir la signature unique des paramètres actuels (mise en cache)
   const getParamsSignature = useCallback((): string => {
-    return JSON.stringify({
-      categoryId,
-      subcategoryId,
-      freelanceId,
-      pageSize,
-      active,
-      featured,
-      searchTerm,
-      sortBy,
-      sortOrder
-    });
+    // Vérifier si nous avons déjà calculé cette signature
+    if (!refs.current.paramsSignature) {
+      refs.current.paramsSignature = JSON.stringify({
+        categoryId,
+        subcategoryId,
+        freelanceId,
+        pageSize,
+        active,
+        featured,
+        searchTerm,
+        sortBy,
+        sortOrder
+      });
+    }
+    return refs.current.paramsSignature;
   }, [categoryId, subcategoryId, freelanceId, pageSize, active, featured, searchTerm, sortBy, sortOrder]);
 
-  // Fonction optimisée pour récupérer les services avec gestion améliorée des erreurs
+  // Réinitialiser la signature en cache quand les dépendances changent
+  useEffect(() => {
+    refs.current.paramsSignature = '';
+  }, [categoryId, subcategoryId, freelanceId, pageSize, active, featured, searchTerm, sortBy, sortOrder]);
+
+  // Fonction de nettoyage du contrôleur d'annulation améliorée
+  const cleanupController = useCallback(() => {
+    if (refs.current.abortController) {
+      try {
+        if (!refs.current.abortController.signal.aborted) {
+          refs.current.abortController.abort();
+        }
+      } catch (e) {
+        // Ignorer silencieusement les erreurs d'annulation
+      } finally {
+        refs.current.abortController = null;
+      }
+    }
+  }, []);
+
+  // Fonction principale de chargement des services
   const fetchServices = useCallback(async (page: number, append: boolean = false): Promise<void> => {
-    // Éviter les requêtes redondantes ou simultanées
-    if (requestInProgressRef.current) {
+    if (typeof window === 'undefined' || !refs.current.isMounted) return;
+    
+    if (refs.current.requestInProgress) {
       console.debug('Requête déjà en cours, ignorée');
       return;
     }
     
-    // Configurer l'état pour cette requête
-    requestInProgressRef.current = true;
+    // Configuration de l'état pour cette requête
+    refs.current.requestInProgress = true;
     const fetchStartTime = Date.now();
-    lastFetchTimeRef.current = fetchStartTime;
+    refs.current.lastFetchTime = fetchStartTime;
+    refs.current.currentRequestId = `fetch-${fetchStartTime}-${Math.random().toString(36).substr(2, 9)}`;
     
-    // Annuler toute requête précédente
-    if (abortControllerRef.current) {
-      try {
-        abortControllerRef.current.abort();
-      } catch (e) {
-        console.debug('Erreur lors de l\'annulation de la requête précédente:', e);
-      }
-      abortControllerRef.current = null;
-    }
+    // Nettoyer toute requête précédente
+    cleanupController();
+    
+    // État de chargement optimisé
+    setState(prev => ({
+      ...prev,
+      loading: !append,
+      isRefreshing: append,
+      error: null
+    }));
     
     // Créer un nouveau contrôleur d'annulation
     try {
-      abortControllerRef.current = new AbortController();
-      const signal = abortControllerRef.current.signal;
-      
-      if (!append) {
-        setLoading(true);
-      } else {
-        setIsRefreshing(true);
-      }
-      
-      setError(null);
+      refs.current.abortController = new AbortController();
+      const signal = refs.current.abortController.signal;
+      const requestId = refs.current.currentRequestId;
 
       try {
-        // Vérifier si le composant est encore monté ou si la requête a été annulée
+        // Vérifier si la requête a déjà été annulée
         if (signal.aborted) {
           console.debug('Requête déjà annulée avant le début de l\'exécution');
-          requestInProgressRef.current = false;
+          refs.current.requestInProgress = false;
           return;
         }
         
@@ -142,7 +183,7 @@ export function usePaginatedServices({
         const start = (page - 1) * pageSize;
         const end = start + pageSize - 1;
 
-        // Construire la requête de base avec les relations
+        // Construire la requête de base
         let query = supabase
           .from('services')
           .select(`
@@ -154,94 +195,56 @@ export function usePaginatedServices({
           .abortSignal(signal);
 
         // Appliquer les filtres
-        if (active !== undefined) {
-          query = query.eq('active', active);
-        }
+        if (active !== undefined) query = query.eq('active', active);
+        if (featured !== undefined) query = query.eq('is_featured', featured);
+        if (freelanceId) query = query.eq('freelance_id', freelanceId);
+        if (categoryId) query = query.eq('category_id', categoryId);
+        if (subcategoryId) query = query.eq('subcategory_id', subcategoryId);
 
-        if (featured !== undefined) {
-          query = query.eq('is_featured', featured);
-        }
-
-        if (freelanceId) {
-          query = query.eq('freelance_id', freelanceId);
-        }
-
-        if (categoryId) {
-          query = query.eq('category_id', categoryId);
-        }
-
-        if (subcategoryId) {
-          query = query.eq('subcategory_id', subcategoryId);
-        }
-
-        // Optimisation de la recherche textuelle avec FTS si disponible
+        // Recherche textuelle optimisée
         if (searchTerm && searchTerm.trim() !== '') {
           const term = searchTerm.trim();
           
-          // Tenter d'utiliser la recherche en texte intégral si disponible
-          // Sinon utiliser une recherche ILIKE standard mais optimisée
           if (term.length > 2) {
-            const searchCondition = `
-              title.ilike.%${term}%,
-              description.ilike.%${term}%,
-              categories.name.ilike.%${term}%
-            `;
-            query = query.or(searchCondition);
+            // Recherche multi-champs avec termes fractionnés pour meilleure performance
+            query = query.or(`title.ilike.%${term}%,description.ilike.%${term}%,categories.name.ilike.%${term}%`);
           }
         }
 
-        // Tri dynamique
-        let orderColumn = sortBy;
-        if (sortBy === 'popular') {
-          // Le tri par popularité nécessiterait une implémentation spécifique
-          // Pour cet exemple, on utilise created_at par défaut
-          orderColumn = 'created_at';
-        }
-        
-        // Appliquer le tri et la pagination
+        // Tri et pagination
+        const orderColumn = sortBy === 'popular' ? 'created_at' : sortBy;
         query = query
           .order(orderColumn, { ascending: sortOrder === 'asc' })
           .range(start, end);
 
-        // Exécuter la requête avec un timeout de sécurité
-        const timeoutPromise = new Promise<{data: null, error: Error}>((_, reject) => {
-          setTimeout(() => {
-            reject(new Error('La requête a expiré après 15 secondes'));
-          }, 15000);
-        });
+        // Timeout de sécurité avec abort signal pour éviter les fuites
+        const timeoutId = setTimeout(() => {
+          if (refs.current.abortController && !signal.aborted) {
+            refs.current.abortController.abort('Request timeout after 15s');
+          }
+        }, 15000);
 
-        // Utiliser Promise.race mais avec un traitement sécurisé du résultat
-        const result = await Promise.race([
-          query,
-          timeoutPromise
-        ]);
+        // Exécuter la requête
+        const { data, count, error: supabaseError } = await query;
+
+        // Nettoyer le timeout
+        clearTimeout(timeoutId);
 
         // Vérifier si cette requête est toujours pertinente
-        if (lastFetchTimeRef.current !== fetchStartTime) {
-          console.debug('Résultats ignorés - une requête plus récente a été initiée');
+        if (!refs.current.isMounted || refs.current.currentRequestId !== requestId) {
+          console.debug('Résultats ignorés - requête obsolète');
           return;
         }
 
-        // Type casting sécurisé
-        const queryResult = result as any;
-        const { data, count, error: supabaseError } = queryResult;
-
-        if (supabaseError) {
-          throw supabaseError;
-        }
-
-        // Vérifier à nouveau si le signal a été annulé pendant la requête
-        if (signal.aborted) {
-          console.debug('Requête annulée pendant l\'exécution');
-          requestInProgressRef.current = false;
+        // Gérer les erreurs
+        if (supabaseError) throw supabaseError;
+        if (signal.aborted || refs.current.currentRequestId !== requestId) {
+          console.debug('Requête annulée pendant l\'exécution ou devenue obsolète');
           return;
         }
+        if (!data) throw new Error('Aucune donnée reçue');
 
-        if (!data) {
-          throw new Error('Aucune donnée reçue');
-        }
-
-        // Transformer les données pour correspondre au type attendu
+        // Formater les services
         const formattedServices = data.map((service: any): ServiceWithFreelanceAndCategories => ({
           ...service,
           profiles: service.profiles || {
@@ -259,225 +262,201 @@ export function usePaginatedServices({
           subcategories: service.subcategories || null
         }));
 
-        // Mettre à jour l'état en fonction du mode (append ou replace)
-        if (append && loadMoreMode) {
+        // Mettre à jour l'état de manière optimisée
+        setState(prev => {
           // Éviter les doublons lors de l'ajout de nouveaux services
-          const existingIds = new Set(services.map((s: ServiceWithFreelanceAndCategories) => s.id));
-          const uniqueNewServices = formattedServices.filter((s: ServiceWithFreelanceAndCategories) => !existingIds.has(s.id));
-          
-          setServices(prev => [...prev, ...uniqueNewServices]);
-        } else {
-          setServices(formattedServices);
-        }
-
-        // Calculer les métriques de pagination
-        const total = count || 0;
-        const pages = Math.max(1, Math.ceil(total / pageSize));
-
-        setTotalCount(total);
-        setTotalPages(pages);
-        setHasMore(page < pages);
+          if (append && loadMoreMode) {
+            const existingIds = new Set(prev.services.map(s => s.id));
+            const uniqueNewServices = formattedServices.filter(s => !existingIds.has(s.id));
+            
+            return {
+              ...prev,
+              services: [...prev.services, ...uniqueNewServices],
+              loading: false,
+              initialLoading: false,
+              error: null,
+              currentPage: page,
+              totalPages: Math.max(1, Math.ceil((count || 0) / pageSize)),
+              totalCount: count || 0,
+              hasMore: page < Math.ceil((count || 0) / pageSize),
+              isRefreshing: false
+            };
+          } else {
+            return {
+              ...prev,
+              services: formattedServices,
+              loading: false,
+              initialLoading: false,
+              error: null,
+              currentPage: page,
+              totalPages: Math.max(1, Math.ceil((count || 0) / pageSize)),
+              totalCount: count || 0,
+              hasMore: page < Math.ceil((count || 0) / pageSize),
+              isRefreshing: false
+            };
+          }
+        });
         
       } catch (err) {
-        console.error('Erreur lors du chargement des services:', err);
+        // Ignorer les erreurs pour les requêtes obsolètes
+        if (!refs.current.isMounted || refs.current.currentRequestId !== requestId) {
+          console.debug('Erreur ignorée - requête obsolète');
+          return;
+        }
         
-        // Vérifier si c'est une erreur d'annulation (plusieurs formes possibles)
+        // Vérifier si c'est une erreur d'annulation
         const isAbortError = 
           (err instanceof Error && (
             err.name === 'AbortError' || 
-            err.message === 'The user aborted a request.' || 
             err.message.includes('abort') || 
             err.message.includes('signal is aborted')
           )) || 
           (err && typeof err === 'object' && 'message' in err && 
-            (typeof err.message === 'string' && (
-              err.message.includes('abort') ||
-              err.message.includes('signal is aborted')
-            ))
+            typeof (err as any).message === 'string' && 
+            ((err as any).message.includes('abort') || (err as any).message.includes('signal is aborted'))
           );
         
         if (isAbortError) {
-          console.debug('Requête annulée délibérément - pas d\'erreur à afficher');
-          // Ne pas mettre à jour l'état d'erreur pour les requêtes annulées
-          requestInProgressRef.current = false;
+          console.debug('Requête annulée délibérément');
           return;
         }
         
-        // Gestion améliorée des erreurs
-        setError(err instanceof Error ? err : new Error('Erreur inconnue lors du chargement des services'));
+        // Gérer l'erreur
+        setState(prev => ({
+          ...prev,
+          error: err instanceof Error ? err : new Error('Erreur inconnue lors du chargement des services'),
+          loading: false,
+          initialLoading: false,
+          isRefreshing: false
+        }));
         
-        // Notification utilisateur uniquement pour les erreurs non-techniques
-        if (!append && !isAbortError) {
-          toast({
+        // Notification utilisateur
+        if (!append && !isAbortError && refs.current.isMounted) {
+          toastRef.current({
             title: 'Erreur de chargement',
             description: 'Impossible de charger les services. Veuillez réessayer.',
             variant: 'destructive'
           });
         }
       } finally {
-        // Réinitialiser les états de chargement
-        setLoading(false);
-        setInitialLoading(false);
-        setIsRefreshing(false);
-        requestInProgressRef.current = false;
-        
-        // Ne pas réinitialiser abortControllerRef ici pour permettre l'annulation 
-        // pendant le nettoyage du composant
+        refs.current.requestInProgress = false;
       }
     } catch (e) {
       console.error('Erreur lors de la gestion des contrôleurs d\'annulation:', e);
+      refs.current.requestInProgress = false;
+      setState(prev => ({
+        ...prev,
+        loading: false,
+        initialLoading: false,
+        isRefreshing: false
+      }));
     }
-  }, [
-    categoryId, 
-    subcategoryId, 
-    freelanceId, 
-    pageSize, 
-    active, 
-    featured, 
-    searchTerm,
-    sortBy,
-    sortOrder,
-    services,
-    loadMoreMode,
-    toast
-  ]);
+  }, [categoryId, subcategoryId, freelanceId, pageSize, active, featured, searchTerm, sortBy, sortOrder, loadMoreMode, cleanupController]);
 
-  // Navigation de page simplifiée - sans manipulation d'URL
+  // Fonctions publiques exposées par le hook
   const goToPage = useCallback((page: number): void => {
-    // Validation de la plage
-    if (page < 1 || (totalPages > 0 && page > totalPages)) {
-      console.warn(`Page ${page} hors limites (1-${totalPages})`);
+    if (page < 1 || (state.totalPages > 0 && page > state.totalPages)) {
+      console.warn(`Page ${page} hors limites (1-${state.totalPages})`);
       return;
     }
     
-    // Nous ne modifions plus l'URL car cette fonction est complexe avec App Router
-    // et n'est pas essentielle à la fonctionnalité principale
-    
-    setCurrentPage(page);
+    setState(prev => ({ ...prev, currentPage: page }));
     fetchServices(page, false);
-  }, [totalPages, fetchServices]);
+  }, [state.totalPages, fetchServices]);
 
-  // Fonction optimisée pour charger plus de services
   const loadMore = useCallback(async (): Promise<void> => {
-    if (currentPage < totalPages && !isRefreshing && !loading) {
-      const nextPage = currentPage + 1;
-      setCurrentPage(nextPage);
+    if (state.currentPage < state.totalPages && !state.isRefreshing && !state.loading) {
+      const nextPage = state.currentPage + 1;
+      setState(prev => ({ ...prev, currentPage: nextPage }));
       await fetchServices(nextPage, true);
     }
-  }, [currentPage, totalPages, isRefreshing, loading, fetchServices]);
+  }, [state.currentPage, state.totalPages, state.isRefreshing, state.loading, fetchServices]);
 
-  // Fonction de rafraîchissement avec retour à la première page
   const refresh = useCallback(async (): Promise<void> => {
-    setCurrentPage(1);
+    setState(prev => ({ ...prev, currentPage: 1 }));
     await fetchServices(1, false);
   }, [fetchServices]);
 
-  // Effet principal pour la gestion des changements de paramètres
+  // Effet principal combiné pour gérer les changements de paramètres
   useEffect(() => {
-    const currentSignature = getParamsSignature();
-    const paramsChanged = currentSignature !== lastParamsRef.current || forceRefresh;
+    if (!refs.current.isMounted) return;
     
-    // Si les paramètres n'ont pas changé et ce n'est pas un chargement initial, ne rien faire
-    if (!paramsChanged && !initialLoading) {
-      return;
-    }
+    const currentSignature = getParamsSignature();
+    const paramsChanged = currentSignature !== refs.current.lastParams || forceRefresh;
+    
+    // Ne rien faire si les paramètres n'ont pas changé et ce n'est pas un chargement initial
+    if (!paramsChanged && !state.initialLoading) return;
     
     // Nettoyer le timer de debounce existant
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
+    if (refs.current.debounceTimer) {
+      clearTimeout(refs.current.debounceTimer);
+      refs.current.debounceTimer = null;
     }
     
-    // Appliquer un debounce intelligent en fonction du type de changement
+    // Debounce optimisé
     const debounceTime = searchTerm ? 350 : 100;
     
-    // Assurer que nous n'avons pas de contrôleur d'annulation actif avant d'en créer un nouveau
-    const safeCleanupController = () => {
-      if (abortControllerRef.current) {
-        try {
-          abortControllerRef.current.abort();
-        } catch (e) {
-          console.debug('Erreur lors de l\'annulation de la requête:', e);
-        }
-        abortControllerRef.current = null;
-      }
-    };
+    // Nettoyer les requêtes précédentes
+    cleanupController();
     
-    // Nettoyer immédiatement si nous allons commencer une nouvelle requête
-    safeCleanupController();
-    
-    debounceTimerRef.current = setTimeout(() => {
-      lastParamsRef.current = currentSignature;
+    // Debounce pour la recherche
+    refs.current.debounceTimer = setTimeout(() => {
+      refs.current.lastParams = currentSignature;
       
-      // En cas de changement de paramètres, toujours revenir à la page 1
-      if (paramsChanged && currentPage !== 1 && !loadMoreMode) {
-        setCurrentPage(1);
+      // Logique de pagination adaptée selon le mode et les changements
+      if (paramsChanged && state.currentPage !== 1 && !loadMoreMode) {
+        setState(prev => ({ ...prev, currentPage: 1 }));
         fetchServices(1, false);
-      } else if (loadMoreMode && currentPage > 1 && !paramsChanged) {
-        // En mode "load more", préserver les résultats existants
-        fetchServices(currentPage, true);
+      } else if (loadMoreMode && state.currentPage > 1 && !paramsChanged) {
+        fetchServices(state.currentPage, true);
       } else {
-        // Cas standard: chargement de la première page
         fetchServices(1, false);
       }
     }, debounceTime);
     
-    // Nettoyage lors du démontage ou changement de dépendances
+    // Nettoyage
     return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-        debounceTimerRef.current = null;
+      if (refs.current.debounceTimer) {
+        clearTimeout(refs.current.debounceTimer);
+        refs.current.debounceTimer = null;
       }
-      
-      safeCleanupController();
+      cleanupController();
     };
-  }, [
-    getParamsSignature, 
-    fetchServices, 
-    loadMoreMode, 
-    currentPage, 
-    forceRefresh, 
-    initialLoading
-  ]);
+  }, [getParamsSignature, fetchServices, loadMoreMode, forceRefresh, state.initialLoading, state.currentPage, cleanupController]);
 
-  // Effet pour le nettoyage global lors du démontage
+  // Effet de nettoyage global
   useEffect(() => {
+    refs.current.isMounted = true;
+    
     return () => {
-      // S'assurer que tout est proprement nettoyé lors du démontage
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-        debounceTimerRef.current = null;
+      refs.current.isMounted = false;
+      
+      if (refs.current.debounceTimer) {
+        clearTimeout(refs.current.debounceTimer);
+        refs.current.debounceTimer = null;
       }
       
-      if (abortControllerRef.current) {
-        try {
-          abortControllerRef.current.abort();
-        } catch (e) {
-          console.debug('Erreur lors de l\'annulation finale des requêtes:', e);
-        }
-        abortControllerRef.current = null;
-      }
-      
-      // Indiquer qu'aucune requête n'est en cours
-      requestInProgressRef.current = false;
+      cleanupController();
     };
-  }, []);
+  }, [cleanupController]);
 
-  // Compléter les paramètres de retour avec des valeurs dérivées
-  const isLastPage = currentPage >= totalPages;
+  // Valeur dérivée
+  const isLastPage = state.currentPage >= state.totalPages;
 
+  // Retourner l'interface publique
   return {
-    services,
-    loading,
-    initialLoading,
-    error,
-    currentPage,
-    totalPages,
-    totalCount,
+    services: state.services,
+    loading: state.loading,
+    initialLoading: state.initialLoading,
+    error: state.error,
+    currentPage: state.currentPage,
+    totalPages: state.totalPages,
+    totalCount: state.totalCount,
     goToPage,
     loadMore,
-    hasMore,
+    hasMore: state.hasMore,
     refresh,
-    isRefreshing,
+    isRefreshing: state.isRefreshing,
     isLastPage
   };
 } 

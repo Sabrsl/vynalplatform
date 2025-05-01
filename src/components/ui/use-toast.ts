@@ -170,23 +170,45 @@ function toast({ ...props }: Toast) {
 }
 
 function useToast() {
-  const [state, setState] = React.useState<State>(memoryState)
+  // Utiliser useRef pour suivre si le composant est monté
+  const isMounted = React.useRef(true);
+  // Utiliser useRef pour garder une référence stable au state
+  const stateRef = React.useRef(memoryState);
+  
+  // Utiliser une fonction de réduction d'état plutôt que le state direct
+  const [state, setState] = React.useState<State>(() => memoryState);
 
   React.useEffect(() => {
-    listeners.push(setState)
-    return () => {
-      const index = listeners.indexOf(setState)
-      if (index > -1) {
-        listeners.splice(index, 1)
+    // Marquer le composant comme monté
+    isMounted.current = true;
+    
+    // Fonction stable pour mettre à jour l'état
+    const updateState = (newState: State) => {
+      // Ne mettre à jour que si le composant est monté
+      if (isMounted.current) {
+        stateRef.current = newState;
+        setState(newState);
       }
-    }
-  }, [])
+    };
+    
+    // Ajouter l'écouteur avec notre fonction stable
+    listeners.push(updateState);
+    
+    // Nettoyage à la démontage
+    return () => {
+      isMounted.current = false;
+      const index = listeners.indexOf(updateState);
+      if (index > -1) {
+        listeners.splice(index, 1);
+      }
+    };
+  }, []);
 
   return {
     ...state,
     toast,
     dismiss: (toastId?: string) => dispatch({ type: actionTypes.DISMISS_TOAST, toastId }),
-  }
+  };
 }
 
 export { useToast, toast } 

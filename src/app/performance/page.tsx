@@ -11,7 +11,7 @@ import { RefreshCw, AlertCircle, Clock, LineChart, Network, BarChart2, Activity 
  * Cette page utilise le hook usePerformanceMonitor pour afficher les métriques de performance
  */
 export default function PerformancePage() {
-  const { metrics, collectMetrics } = usePerformanceMonitor({
+  const { metrics, collectMetrics, startMonitoring, stopMonitoring } = usePerformanceMonitor({
     enableResourceTiming: true,
     enableNavigationTiming: true,
     collectAutomatically: true
@@ -463,8 +463,8 @@ export default function PerformancePage() {
           onClick={() => collectMetrics()} 
           className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded-lg"
         >
-          <RefreshCw className="h-4 w-4" />
-          Rafraîchir les métriques
+          <RefreshCw className="w-4 h-4" />
+          Actualiser les métriques
         </Button>
       </div>
       

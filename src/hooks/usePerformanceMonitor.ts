@@ -1,5 +1,20 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { detectConnectionQuality } from '@/lib/optimizations/network';
+
+// Interface for PerformanceEventTiming to fix type error
+interface PerformanceEventTiming extends PerformanceEntry {
+  processingStart: number;
+  processingEnd: number;
+  duration: number;
+  startTime: number;
+}
+
+// Extend window to include gtag
+declare global {
+  interface Window {
+    gtag?: (command: string, action: string, params: object) => void;
+  }
+}
 
 interface PerformanceMetrics {
   // Métriques de performance Web Vitals
@@ -28,39 +43,109 @@ interface PerformanceMonitorOptions {
   enableNavigationTiming?: boolean;
   collectAutomatically?: boolean;
   reportToAnalytics?: boolean;
+  throttleUpdates?: number; // Temps minimum entre mises à jour en ms
 }
+
+// Valeurs par défaut
+const DEFAULT_THROTTLE_MS = 1000; // 1 seconde entre les mises à jour
+
+// Mémoriser par défaut pour éviter les recréations inutiles
+const DEFAULT_METRICS: PerformanceMetrics = {
+  fcp: null,
+  lcp: null,
+  fid: null,
+  cls: null,
+  ttfb: null,
+  pageLoadTime: null,
+  navigationTiming: {},
+  resourceTiming: {},
+  connection: {
+    effectiveType: 'unknown',
+    downlink: 0,
+    rtt: 0,
+    saveData: false
+  }
+};
 
 /**
  * Hook pour surveiller et améliorer les performances de l'application
+ * Version optimisée avec meilleure gestion des états et des rendus
  */
 export function usePerformanceMonitor(options: PerformanceMonitorOptions = {}) {
   const {
     enableResourceTiming = false,
     enableNavigationTiming = true,
     collectAutomatically = true,
-    reportToAnalytics = false
+    reportToAnalytics = false,
+    throttleUpdates = DEFAULT_THROTTLE_MS
   } = options;
   
-  const [metrics, setMetrics] = useState<PerformanceMetrics>({
-    fcp: null,
-    lcp: null,
-    fid: null,
-    cls: null,
-    ttfb: null,
-    pageLoadTime: null,
-    navigationTiming: {},
-    resourceTiming: {},
-    connection: {
-      effectiveType: 'unknown',
-      downlink: 0,
-      rtt: 0,
-      saveData: false
-    }
+  // État unique pour réduire les rendus
+  const [metrics, setMetrics] = useState<PerformanceMetrics>(DEFAULT_METRICS);
+
+  // Références pour les observers et le suivi interne (ne déclenche pas de rendus)
+  const refs = useRef({
+    observers: new Map<string, PerformanceObserver>(),
+    lastUpdateTime: 0,
+    pendingUpdates: {} as Partial<PerformanceMetrics>,
+    hasUpdates: false,
+    timeoutId: null as NodeJS.Timeout | null,
+    isClient: typeof window !== 'undefined',
+    metricsCollected: false,
+    clsValue: 0,
+    isMounted: true
   });
   
-  // Recueillir les métriques de navigation
+  // Fonction pour mettre à jour les métriques avec throttling
+  const queueMetricUpdate = useCallback((key: keyof PerformanceMetrics, value: any) => {
+    if (!refs.current.isMounted) return;
+    
+    // Stocker la mise à jour en attente
+    refs.current.pendingUpdates = {
+      ...refs.current.pendingUpdates,
+      [key]: value
+    };
+    refs.current.hasUpdates = true;
+    
+    const now = Date.now();
+    
+    // Appliquer les mises à jour immédiatement si suffisamment de temps s'est écoulé
+    if (now - refs.current.lastUpdateTime >= throttleUpdates) {
+      applyPendingUpdates();
+    } else if (!refs.current.timeoutId) {
+      // Sinon, planifier une mise à jour différée
+      const delay = throttleUpdates - (now - refs.current.lastUpdateTime);
+      refs.current.timeoutId = setTimeout(applyPendingUpdates, delay);
+    }
+  }, [throttleUpdates]);
+  
+  // Appliquer toutes les mises à jour en attente - défini avant utilisation
+  const applyPendingUpdates = useCallback(() => {
+    if (!refs.current.hasUpdates || !refs.current.isMounted) return;
+    
+    setMetrics(prev => ({
+      ...prev,
+      ...refs.current.pendingUpdates
+    }));
+    
+    refs.current.lastUpdateTime = Date.now();
+    refs.current.pendingUpdates = {};
+    refs.current.hasUpdates = false;
+    
+    if (refs.current.timeoutId) {
+      clearTimeout(refs.current.timeoutId);
+      refs.current.timeoutId = null;
+    }
+    
+    // Rapport d'analytique si activé
+    if (reportToAnalytics && Object.keys(refs.current.pendingUpdates).length > 0) {
+      sendMetricsToAnalytics(metrics);
+    }
+  }, [metrics, reportToAnalytics]);
+  
+  // Recueillir les métriques de navigation - mémorisé pour éviter les recréations
   const collectNavigationTiming = useCallback(() => {
-    if (typeof window === 'undefined' || !window.performance) return {} as Record<string, number>;
+    if (!refs.current.isClient || !window.performance) return {} as Record<string, number>;
     
     try {
       const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
@@ -80,17 +165,21 @@ export function usePerformanceMonitor(options: PerformanceMonitorOptions = {}) {
     }
   }, []);
   
-  // Recueillir les métriques de ressources
+  // Recueillir les métriques de ressources - mémorisé pour éviter les recréations
   const collectResourceTiming = useCallback(() => {
-    if (typeof window === 'undefined' || !window.performance) return {} as Record<string, number>;
+    if (!refs.current.isClient || !window.performance) return {} as Record<string, number>;
     
     try {
       const resources = performance.getEntriesByType('resource');
-      const resourceMetrics: Record<string, number> = {};
       
-      // Regrouper les ressources par type
-      const groupedResources: Record<string, PerformanceResourceTiming[]> = {};
+      // Optimisation: utiliser une Map pour le regroupement
+      const groupedResources = new Map<string, number>();
       
+      // Initialiser les types que nous suivons
+      const types = ['script', 'style', 'image', 'api', 'font', 'other'];
+      types.forEach(type => groupedResources.set(type, 0));
+      
+      // Grouper et calculer les durées en une seule passe
       resources.forEach((resource) => {
         const resourceTiming = resource as PerformanceResourceTiming;
         const url = resourceTiming.name;
@@ -102,28 +191,29 @@ export function usePerformanceMonitor(options: PerformanceMonitorOptions = {}) {
         else if (url.includes('/api/')) type = 'api';
         else if (url.includes('fonts')) type = 'font';
         
-        if (!groupedResources[type]) groupedResources[type] = [];
-        groupedResources[type].push(resourceTiming);
+        const duration = resourceTiming.responseEnd - resourceTiming.startTime;
+        groupedResources.set(type, (groupedResources.get(type) || 0) + duration);
       });
       
-      // Calculer le temps total pour chaque type
-      Object.entries(groupedResources).forEach(([type, entries]) => {
-        const totalDuration = entries.reduce((sum, entry) => 
-          sum + (entry.responseEnd - entry.startTime), 0);
-        
-        resourceMetrics[`${type}LoadTime`] = Math.round(totalDuration);
+      // Convertir la Map en objet résultat
+      const result: Record<string, number> = {};
+      groupedResources.forEach((duration, type) => {
+        result[`${type}LoadTime`] = Math.round(duration);
       });
       
-      return resourceMetrics;
+      return result;
     } catch (error) {
       console.warn('Erreur lors de la collecte des métriques de ressources:', error);
       return {} as Record<string, number>;
     }
   }, []);
   
-  // Recueillir toutes les métriques
+  // Recueillir toutes les métriques - mémorisé pour éviter les recréations
   const collectMetrics = useCallback(() => {
-    if (typeof window === 'undefined') return;
+    if (!refs.current.isClient || refs.current.metricsCollected) return;
+    
+    // Marquer comme collecté pour éviter les appels en double
+    refs.current.metricsCollected = true;
     
     // Connection info
     const connectionInfo = detectConnectionQuality();
@@ -136,215 +226,179 @@ export function usePerformanceMonitor(options: PerformanceMonitorOptions = {}) {
     
     // Page load time
     const pageLoadTime = 
-      typeof window.performance !== 'undefined' && window.performance.timing
+      window.performance && window.performance.timing
         ? window.performance.timing.loadEventEnd - window.performance.timing.navigationStart
         : null;
     
-    setMetrics(prev => ({
-      ...prev,
-      pageLoadTime,
-      navigationTiming,
-      resourceTiming,
-      connection: {
-        effectiveType: connectionInfo.effectiveType,
-        downlink: connectionInfo.downlink,
-        rtt: connectionInfo.rtt,
-        saveData: connectionInfo.saveData
-      }
-    }));
-    
-    // Envoyer les métriques à l'analytique si activé
-    if (reportToAnalytics) {
-      sendMetricsToAnalytics({
-        pageLoadTime,
-        navigationTiming,
-        resourceTiming,
-        connection: connectionInfo
-      });
-    }
-  }, [collectNavigationTiming, collectResourceTiming, enableNavigationTiming, enableResourceTiming, reportToAnalytics]);
+    // Mettre à jour l'état en une seule fois
+    queueMetricUpdate('pageLoadTime', pageLoadTime);
+    queueMetricUpdate('navigationTiming', navigationTiming);
+    queueMetricUpdate('resourceTiming', resourceTiming);
+    queueMetricUpdate('connection', {
+      effectiveType: connectionInfo.effectiveType,
+      downlink: connectionInfo.downlink,
+      rtt: connectionInfo.rtt,
+      saveData: connectionInfo.saveData
+    });
+  }, [collectNavigationTiming, collectResourceTiming, enableNavigationTiming, enableResourceTiming, queueMetricUpdate]);
   
-  // Observer les métriques Web Vitals
-  useEffect(() => {
-    if (typeof window === 'undefined' || !collectAutomatically) return;
-    
-    const updateFCP = (entry: any) => {
-      setMetrics(prev => ({
-        ...prev,
-        fcp: Math.round(entry.startTime)
-      }));
-    };
-    
-    const updateLCP = (entry: any) => {
-      setMetrics(prev => ({
-        ...prev,
-        lcp: Math.round(entry.startTime)
-      }));
-    };
-    
-    const updateFID = (entry: any) => {
-      setMetrics(prev => ({
-        ...prev,
-        fid: Math.round(entry.processingStart - entry.startTime)
-      }));
-    };
-    
-    const updateCLS = (entry: any) => {
-      setMetrics(prev => ({
-        ...prev,
-        cls: entry.value
-      }));
-    };
-    
-    const updateTTFB = (entry: any) => {
-      setMetrics(prev => ({
-        ...prev,
-        ttfb: Math.round(entry.responseStart)
-      }));
-    };
-    
-    // Observer les métriques avec PerformanceObserver si disponible
+  // Déconnecte tous les observateurs - mémorisé pour la stabilité
+  const disconnectObservers = useCallback(() => {
+    refs.current.observers.forEach(observer => {
+      try {
+        observer.disconnect();
+      } catch (e) {
+        // Ignorer les erreurs
+      }
+    });
+    refs.current.observers.clear();
+  }, []);
+  
+  // Configuration des observers pour les Web Vitals - mémorisé pour éviter les recréations
+  const setupObservers = useCallback(() => {
+    if (!refs.current.isClient || !collectAutomatically) return;
+
     try {
       // FCP
       const fcpObserver = new PerformanceObserver((entryList) => {
         const entries = entryList.getEntries();
         if (entries.length > 0) {
-          updateFCP(entries[0]);
+          queueMetricUpdate('fcp', Math.round(entries[0].startTime));
           fcpObserver.disconnect();
+          refs.current.observers.delete('fcp');
         }
       });
       fcpObserver.observe({ type: 'paint', buffered: true });
+      refs.current.observers.set('fcp', fcpObserver);
       
       // LCP
       const lcpObserver = new PerformanceObserver((entryList) => {
         const entries = entryList.getEntries();
         if (entries.length > 0) {
           // Utiliser la dernière entrée comme LCP définitif
-          updateLCP(entries[entries.length - 1]);
+          queueMetricUpdate('lcp', Math.round(entries[entries.length - 1].startTime));
         }
       });
       lcpObserver.observe({ type: 'largest-contentful-paint', buffered: true });
+      refs.current.observers.set('lcp', lcpObserver);
       
       // FID
       const fidObserver = new PerformanceObserver((entryList) => {
         const entries = entryList.getEntries();
         if (entries.length > 0) {
-          updateFID(entries[0]);
+          const firstEntry = entries[0] as PerformanceEventTiming;
+          queueMetricUpdate('fid', Math.round(firstEntry.processingStart - firstEntry.startTime));
           fidObserver.disconnect();
+          refs.current.observers.delete('fid');
         }
       });
       fidObserver.observe({ type: 'first-input', buffered: true });
+      refs.current.observers.set('fid', fidObserver);
       
       // CLS
-      let clsValue = 0;
       const clsObserver = new PerformanceObserver((entryList) => {
         for (const entry of entryList.getEntries()) {
           // @ts-ignore - L'API Layout Instability n'est pas encore standard
           if (!entry.hadRecentInput) {
             // @ts-ignore
-            clsValue += entry.value;
-            updateCLS({ value: clsValue });
+            refs.current.clsValue += entry.value;
+            queueMetricUpdate('cls', refs.current.clsValue);
           }
         }
       });
       clsObserver.observe({ type: 'layout-shift', buffered: true });
+      refs.current.observers.set('cls', clsObserver);
       
       // TTFB
-      const navigationObserver = new PerformanceObserver((entryList) => {
+      const ttfbObserver = new PerformanceObserver((entryList) => {
         const entries = entryList.getEntries();
-        if (entries.length > 0 && entries[0].entryType === 'navigation') {
-          updateTTFB(entries[0]);
-          navigationObserver.disconnect();
+        if (entries.length > 0) {
+          const navigationEntry = entries[0] as PerformanceNavigationTiming;
+          queueMetricUpdate('ttfb', Math.round(navigationEntry.responseStart));
+          ttfbObserver.disconnect();
+          refs.current.observers.delete('ttfb');
         }
       });
-      navigationObserver.observe({ type: 'navigation', buffered: true });
-      
-      // Collecter les métriques après le chargement de la page
-      window.addEventListener('load', () => {
-        setTimeout(collectMetrics, 1000);
-      });
-      
-      return () => {
-        fcpObserver.disconnect();
-        lcpObserver.disconnect();
-        fidObserver.disconnect();
-        clsObserver.disconnect();
-        navigationObserver.disconnect();
-      };
+      ttfbObserver.observe({ type: 'navigation', buffered: true });
+      refs.current.observers.set('ttfb', ttfbObserver);
     } catch (error) {
-      console.warn('PerformanceObserver n\'est pas pris en charge dans ce navigateur:', error);
+      console.warn('Erreur lors de la configuration des observateurs de performance:', error);
     }
-  }, [collectAutomatically, collectMetrics]);
-  
-  // Fonction pour envoyer les métriques à l'analytique
-  const sendMetricsToAnalytics = (data: any) => {
-    // Cette fonction est un placeholder à implémenter plus tard
-    // avec un service d'analytique réel
-    console.log('Métriques collectées pour analytique:', data);
-    
-    // Exemple d'implémentation avec Google Analytics 4
-    if (typeof window !== 'undefined' && 'gtag' in window) {
-      // @ts-ignore - L'API gtag n'est pas typée
-      window.gtag('event', 'performance_metrics', {
-        page_load_time: data.pageLoadTime,
-        fcp: metrics.fcp,
-        lcp: metrics.lcp,
-        fid: metrics.fid,
-        cls: metrics.cls,
-        ttfb: metrics.ttfb,
-        connection_type: data.connection.effectiveType,
-        ...data.navigationTiming
-      });
-    }
-  };
-  
-  // Fonction pour collecter manuellement les métriques
-  const measure = useCallback(() => {
-    collectMetrics();
-  }, [collectMetrics]);
-  
-  // Fonction pour mesurer une opération spécifique
-  const measureOperation = useCallback((operationName: string, callback: () => any) => {
-    if (typeof window === 'undefined' || !window.performance) {
-      return callback();
-    }
-    
-    const startTime = performance.now();
-    const result = callback();
-    const endTime = performance.now();
-    
-    console.log(`Opération "${operationName}" exécutée en ${Math.round(endTime - startTime)}ms`);
-    
-    return result;
-  }, []);
-  
-  // Fonction pour mesurer une opération asynchrone
-  const measureAsync = useCallback(async (operationName: string, promise: Promise<any>) => {
-    if (typeof window === 'undefined' || !window.performance) {
-      return promise;
-    }
-    
-    const startTime = performance.now();
+  }, [collectAutomatically, queueMetricUpdate]);
+
+  // Envoyer les métriques à Google Analytics ou autre service - mémorisé pour stabilité
+  const sendMetricsToAnalytics = useCallback((data: PerformanceMetrics) => {
+    if (!refs.current.isClient || !window.gtag) return;
     
     try {
-      const result = await promise;
-      const endTime = performance.now();
+      // N'envoyer que les métriques disponibles
+      const analyticsData: Record<string, any> = {};
       
-      console.log(`Opération asynchrone "${operationName}" exécutée en ${Math.round(endTime - startTime)}ms`);
+      // Web Vitals
+      if (data.fcp !== null) analyticsData.fcp = data.fcp;
+      if (data.lcp !== null) analyticsData.lcp = data.lcp;
+      if (data.fid !== null) analyticsData.fid = data.fid;
+      if (data.cls !== null) analyticsData.cls = data.cls;
+      if (data.ttfb !== null) analyticsData.ttfb = data.ttfb;
       
-      return result;
+      // Page load
+      if (data.pageLoadTime !== null) analyticsData.page_load_time = data.pageLoadTime;
+      
+      // Connection info
+      analyticsData.connection_type = data.connection.effectiveType;
+      analyticsData.downlink = data.connection.downlink;
+      analyticsData.rtt = data.connection.rtt;
+      
+      // Navigation timing - sélection des métriques les plus pertinentes
+      if (Object.keys(data.navigationTiming).length > 0) {
+        const { domParse, totalPageLoad, serverResponse } = data.navigationTiming;
+        analyticsData.dom_parse_time = domParse;
+        analyticsData.total_load_time = totalPageLoad;
+        analyticsData.server_response_time = serverResponse;
+      }
+      
+      // Envoi à Google Analytics
+      window.gtag?.('event', 'performance_metrics', analyticsData);
     } catch (error) {
-      const endTime = performance.now();
-      console.error(`Erreur dans l'opération "${operationName}" après ${Math.round(endTime - startTime)}ms:`, error);
-      throw error;
+      console.warn('Erreur lors de l\'envoi des métriques aux analytics:', error);
     }
   }, []);
-  
-  return {
+
+  // Effet principal pour initialiser/nettoyer
+  useEffect(() => {
+    // Marquer comme monté
+    refs.current.isMounted = true;
+    
+    // Ne s'exécuter que côté client
+    if (typeof window === 'undefined') return;
+    refs.current.isClient = true;
+    
+    // Configuration immédiate
+    if (collectAutomatically) {
+      setupObservers();
+      // Délai court pour permettre le chargement initial
+      setTimeout(collectMetrics, 0);
+    }
+    
+    // Nettoyage au démontage
+    return () => {
+      refs.current.isMounted = false;
+      
+      // Nettoyer les timeout et observers
+      if (refs.current.timeoutId) {
+        clearTimeout(refs.current.timeoutId);
+        refs.current.timeoutId = null;
+      }
+      
+      disconnectObservers();
+    };
+  }, [collectAutomatically, collectMetrics, setupObservers, disconnectObservers]);
+
+  // Exposer une API stable avec useMemo
+  return useMemo(() => ({
     metrics,
-    measure,
-    measureOperation,
-    measureAsync,
-    isLowEndDevice: metrics.connection.effectiveType !== '4g' || metrics.connection.saveData
-  };
+    collectMetrics,
+    startMonitoring: setupObservers,
+    stopMonitoring: disconnectObservers
+  }), [metrics, collectMetrics, setupObservers, disconnectObservers]);
 } 

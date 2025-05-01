@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useCallback, memo } from "react";
 import { usePathname } from "next/navigation";
 import dynamic from "next/dynamic";
 import { Loader2 } from "lucide-react";
@@ -20,7 +20,7 @@ const Footer = dynamic(() => import("./footer"), {
   )
 });
 
-// Pages avec des mises en page spéciales
+// Pages avec des mises en page spéciales - déplacé hors du composant pour éviter les recréations
 const SPECIAL_LAYOUTS = {
   AUTH_PAGES: ["/auth/", "/auth/login", "/auth/signup", "/auth/reset-password", "/auth/verify-email"],
   NO_FOOTER_PAGES: ["/chat", "/messages", "/video-call"],
@@ -31,7 +31,65 @@ interface MainLayoutProps {
   children: React.ReactNode;
 }
 
-export default function MainLayout({ children }: MainLayoutProps) {
+// Composant de chargement mémorisé pour éviter des rendus inutiles
+const LoadingSpinner = memo(() => (
+  <div className="fixed inset-0 flex items-center justify-center">
+    <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+  </div>
+));
+
+LoadingSpinner.displayName = "LoadingSpinner";
+
+// Composant d'authentification mémorisé
+const AuthLayout = memo(({ children, pathname }: { children: React.ReactNode, pathname: string | null }) => (
+  <motion.div 
+    className="min-h-screen overflow-hidden bg-gradient-to-br from-indigo-50 to-pink-50 dark:from-slate-900 dark:to-indigo-950"
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    exit={{ opacity: 0 }}
+    transition={{ duration: 0.3 }}
+  >
+    <AnimatePresence mode="wait">
+      <motion.div 
+        key={pathname}
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -10 }}
+        transition={{ duration: 0.3 }}
+        className="p-4 sm:p-6 md:p-8 flex items-center justify-center"
+      >
+        {children}
+      </motion.div>
+    </AnimatePresence>
+  </motion.div>
+));
+
+AuthLayout.displayName = "AuthLayout";
+
+// Composant de mise en page standard mémorisé
+const StandardLayout = memo(({ 
+  children, 
+  isFullWidth, 
+  shouldHideFooter 
+}: { 
+  children: React.ReactNode, 
+  isFullWidth: boolean, 
+  shouldHideFooter: boolean 
+}) => (
+  <div className={`flex flex-col min-h-screen ${
+    isFullWidth ? 'max-w-full' : 'max-w-screen-2xl mx-auto'
+  }`}>
+    <Header />
+    <main className="flex-grow">
+      {children}
+    </main>
+    {!shouldHideFooter && <Footer />}
+  </div>
+));
+
+StandardLayout.displayName = "StandardLayout";
+
+function MainLayout({ children }: MainLayoutProps) {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -57,21 +115,24 @@ export default function MainLayout({ children }: MainLayoutProps) {
     setMounted(true);
   }, []);
 
+  // Gestionnaire d'événement de défilement optimisé
+  const handleScroll = useCallback(() => {
+    if (layoutConfig.shouldHideFooter || layoutConfig.isAuthPage) return;
+    
+    const scrollPosition = window.scrollY + window.innerHeight;
+    const documentHeight = document.documentElement.scrollHeight;
+    
+    if (documentHeight - scrollPosition < 1000) {
+      // Précharger le footer lorsque l'utilisateur approche du bas de la page
+      import("./footer");
+    }
+  }, [layoutConfig]);
+
   // Préchargement des composants lourds lorsque l'utilisateur est sur le point de les voir
   useEffect(() => {
-    // Précharger le footer lorsque l'utilisateur approche du bas de la page
-    const handleScroll = () => {
-      const scrollPosition = window.scrollY + window.innerHeight;
-      const documentHeight = document.documentElement.scrollHeight;
-      
-      if (documentHeight - scrollPosition < 1000 && !layoutConfig.shouldHideFooter && !layoutConfig.isAuthPage) {
-        import("./footer");
-      }
-    };
-    
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [layoutConfig]);
+  }, [handleScroll]);
   
   // Détection du système de couleur préférée pour le thème initial
   useEffect(() => {
@@ -81,68 +142,42 @@ export default function MainLayout({ children }: MainLayoutProps) {
     }
   }, [mounted, setTheme]);
   
+  // Gestionnaire d'événement pour le changement de préférence système
+  const handleSystemThemeChange = useCallback((event: MediaQueryListEvent) => {
+    if (!localStorage.getItem('theme')) {
+      setTheme(event.matches ? 'dark' : 'light');
+    }
+  }, [setTheme]);
+  
   // Gestion de l'événement de changement de préférence système
   useEffect(() => {
-    const handleSystemThemeChange = (event: MediaQueryListEvent) => {
-      if (!localStorage.getItem('theme')) {
-        setTheme(event.matches ? 'dark' : 'light');
-      }
-    };
-    
     const systemThemeMedia = window.matchMedia('(prefers-color-scheme: dark)');
     systemThemeMedia.addEventListener('change', handleSystemThemeChange);
     
     return () => {
       systemThemeMedia.removeEventListener('change', handleSystemThemeChange);
     };
-  }, [setTheme]);
+  }, [handleSystemThemeChange]);
   
   // Appliquer différentes mises en page selon le type de page
   if (!mounted) {
-    // État de chargement initial masqué pour éviter un flash de contenu non thémé
-    return (
-      <div className="fixed inset-0 flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-      </div>
-    );
+    return <LoadingSpinner />;
   }
   
   // Mise en page pour les pages d'authentification
   if (layoutConfig.isAuthPage) {
-    return (
-      <motion.div 
-        className="min-h-screen overflow-hidden bg-gradient-to-br from-indigo-50 to-pink-50 dark:from-slate-900 dark:to-indigo-950"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.3 }}
-      >
-        <AnimatePresence mode="wait">
-          <motion.div 
-            key={pathname}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.3 }}
-            className="p-4 sm:p-6 md:p-8 flex items-center justify-center"
-          >
-            {children}
-          </motion.div>
-        </AnimatePresence>
-      </motion.div>
-    );
+    return <AuthLayout pathname={pathname}>{children}</AuthLayout>;
   }
   
   // Mise en page standard avec options configurables
   return (
-    <div className={`flex flex-col min-h-screen ${
-      layoutConfig.isFullWidth ? 'max-w-full' : 'max-w-screen-2xl mx-auto'
-    }`}>
-      <Header />
-      <main className="flex-grow">
-        {children}
-      </main>
-      {!layoutConfig.shouldHideFooter && <Footer />}
-    </div>
+    <StandardLayout
+      isFullWidth={layoutConfig.isFullWidth}
+      shouldHideFooter={layoutConfig.shouldHideFooter}
+    >
+      {children}
+    </StandardLayout>
   );
 }
+
+export default memo(MainLayout);

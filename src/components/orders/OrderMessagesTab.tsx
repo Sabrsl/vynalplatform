@@ -16,6 +16,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { uploadOrderMessageAttachment } from "@/lib/supabase/file-upload";
 import { uploadOrderFile } from "@/lib/supabase/order-files";
 import { validateMessage } from "@/lib/message-validation";
+import ImageNext from 'next/image';
 
 interface OrderMessagesTabProps {
   order: Order;
@@ -58,10 +59,13 @@ export function OrderMessagesTab({ order, isFreelance }: OrderMessagesTabProps) 
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Set up real-time subscription for messages
+  // Consolidated subscriptions for messages and typing indicators
   useEffect(() => {
-    const channel = supabase
-      .channel('messages')
+    if (!order.id || !supabase || !currentUserId || !otherUserId) return;
+    
+    // Channel for message updates and new messages
+    const messagesChannel = supabase
+      .channel('order-messages')
       .on('postgres_changes', {
         event: 'INSERT',
         schema: 'public',
@@ -83,41 +87,29 @@ export function OrderMessagesTab({ order, isFreelance }: OrderMessagesTabProps) 
         filter: `order_id=eq.${order.id}`
       }, (payload) => {
         const updatedMessage = payload.new as Message;
+        
+        // Handle typing indicator
+        if (updatedMessage.sender_id === otherUserId && updatedMessage.is_typing) {
+          setIsTyping(true);
+          
+          // Auto-clear typing status after 3 seconds
+          setTimeout(() => {
+            setIsTyping(false);
+          }, 3000);
+        }
+        
+        // Update message in the list
         setMessages(prev => prev.map(msg => 
           msg.id === updatedMessage.id ? updatedMessage : msg
         ));
       })
       .subscribe();
 
-    // Clean up subscription on unmount
+    // Clean up subscriptions on unmount
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(messagesChannel);
     };
-  }, [order.id, currentUserId, supabase]);
-
-  // Subscribe to typing indicators
-  useEffect(() => {
-    const channel = supabase
-      .channel('typing')
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'messages',
-        filter: `order_id=eq.${order.id} AND sender_id=eq.${otherUserId} AND is_typing=eq.true`
-      }, () => {
-        setIsTyping(true);
-        
-        // Auto-clear typing status after 3 seconds
-        setTimeout(() => {
-          setIsTyping(false);
-        }, 3000);
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [order.id, otherUserId, supabase]);
+  }, [order.id, currentUserId, otherUserId, supabase]);
 
   // Mark message as read
   const markMessageAsRead = async (messageId: string) => {
@@ -357,10 +349,13 @@ export function OrderMessagesTab({ order, isFreelance }: OrderMessagesTabProps) 
       <div className="mt-2 border rounded-md overflow-hidden">
         {isImage ? (
           <a href={message.attachment_url} target="_blank" rel="noopener noreferrer" className="block">
-            <img 
+            <ImageNext 
               src={message.attachment_url} 
               alt={message.attachment_name || "Pièce jointe"} 
               className="max-h-[200px] max-w-full object-contain"
+              width={200}
+              height={200}
+              unoptimized
             />
           </a>
         ) : (
@@ -442,10 +437,13 @@ export function OrderMessagesTab({ order, isFreelance }: OrderMessagesTabProps) 
               >
                 <div className="flex items-center mb-1">
                   <div className="w-5 h-5 rounded-full overflow-hidden mr-2 flex-shrink-0 bg-gray-200">
-                    <img 
+                    <ImageNext 
                       src={getUserAvatar(message.sender_id)} 
                       alt="Avatar" 
                       className="w-full h-full object-cover"
+                      width={20}
+                      height={20}
+                      unoptimized
                       onError={(e) => {
                         // En cas d'erreur, utiliser l'avatar par défaut
                         const target = e.target as HTMLImageElement;

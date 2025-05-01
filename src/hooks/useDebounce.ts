@@ -3,6 +3,7 @@ import { useEffect, useState, useRef } from 'react';
 /**
  * Un hook personnalisé pour debouncer les valeurs
  * Utile pour limiter les appels API ou les opérations coûteuses lors des saisies 
+ * Version optimisée avec comparaison efficace des valeurs
  * 
  * @param value - La valeur à debouncer
  * @param delay - Le délai en millisecondes (par défaut: 300ms)
@@ -10,50 +11,53 @@ import { useEffect, useState, useRef } from 'react';
  */
 export function useDebounce<T>(value: T, delay: number = 300): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const mountedRef = useRef(true);
-  const previousValueRef = useRef<T>(value);
+  
+  // Utiliser une seule référence pour toutes les données
+  const refs = useRef({
+    timeout: null as NodeJS.Timeout | null,
+    mounted: true,
+    // Utiliser une référence pour la valeur précédente évite la comparaison JSON coûteuse
+    previousValue: value
+  });
   
   useEffect(() => {
-    // Marquer le composant comme monté
-    mountedRef.current = true;
+    // Effet de montage/démontage
+    refs.current.mounted = true;
     
-    // Nettoyage à la destruction
+    // Nettoyage
     return () => {
-      mountedRef.current = false;
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
+      refs.current.mounted = false;
+      if (refs.current.timeout) {
+        clearTimeout(refs.current.timeout);
+        refs.current.timeout = null;
       }
     };
   }, []);
   
   useEffect(() => {
-    // Skip si la valeur n'a pas changé (optimisation de performance)
-    if (JSON.stringify(value) === JSON.stringify(previousValueRef.current)) {
-      return;
-    }
+    // Optimisation: comparer directement pour les types primitifs, superficiellement pour les objets
+    const valueChanged = (
+      typeof value !== typeof refs.current.previousValue ||
+      value !== refs.current.previousValue
+    );
     
-    // Mettre à jour la référence de la valeur précédente
-    previousValueRef.current = value;
+    // Ne rien faire si la valeur n'a pas changé
+    if (!valueChanged) return;
+    
+    // Mettre à jour la référence immédiatement
+    refs.current.previousValue = value;
     
     // Nettoyer le timeout précédent
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
+    if (refs.current.timeout) {
+      clearTimeout(refs.current.timeout);
     }
     
     // Créer un nouveau timeout
-    timeoutRef.current = setTimeout(() => {
-      if (mountedRef.current) {
+    refs.current.timeout = setTimeout(() => {
+      if (refs.current.mounted) {
         setDebouncedValue(value);
       }
     }, delay);
-    
-    // Nettoyage lors du changement
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-    };
   }, [value, delay]);
   
   return debouncedValue;

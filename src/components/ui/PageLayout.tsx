@@ -1,7 +1,8 @@
 "use client";
 
-import React, { ReactNode } from "react";
+import React, { ReactNode, useMemo, memo } from "react";
 import ThemeWrapper from "@/components/ThemeWrapper";
+import { cn } from "@/lib/utils";
 
 interface PageLayoutProps {
   children: ReactNode;
@@ -38,7 +39,7 @@ interface PageLayoutProps {
  * PageLayout - Un composant pour structurer les pages avec le thème Vynal
  * Intègre automatiquement le ThemeWrapper et la structure de conteneur
  */
-export default function PageLayout({
+const PageLayout = memo(function PageLayout({
   children,
   title,
   container = true,
@@ -47,6 +48,15 @@ export default function PageLayout({
   containerClassName = "",
   withPadding = true,
 }: PageLayoutProps) {
+  // Mémoriser les classes CSS pour éviter des recréations inutiles
+  const containerClasses = useMemo(() => 
+    cn(
+      "container mx-auto",
+      withPadding && "py-8 px-4",
+      containerClassName
+    ),
+  [withPadding, containerClassName]);
+
   return (
     <ThemeWrapper 
       fullGradient={fullGradient}
@@ -57,7 +67,7 @@ export default function PageLayout({
       )}
       
       {container ? (
-        <div className={`container mx-auto ${withPadding ? 'py-8 px-4' : ''} ${containerClassName}`}>
+        <div className={containerClasses}>
           {children}
         </div>
       ) : (
@@ -65,4 +75,8 @@ export default function PageLayout({
       )}
     </ThemeWrapper>
   );
-} 
+});
+
+PageLayout.displayName = "PageLayout";
+
+export default PageLayout; 

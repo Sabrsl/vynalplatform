@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useReducer, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '@/lib/supabase/client';
 
 // Type pour les certifications
@@ -14,6 +14,21 @@ export interface Certification {
   category: string;
   icon: string;
 }
+
+// Type pour l'état du hook
+interface CertificationsState {
+  certifications: Certification[];
+  loading: boolean;
+  error: Error | null;
+  lastFetched: number | null;
+}
+
+// Types d'actions pour le reducer
+type CertificationsAction =
+  | { type: 'FETCH_START' }
+  | { type: 'FETCH_SUCCESS'; payload: Certification[] }
+  | { type: 'FETCH_ERROR'; payload: Error }
+  | { type: 'RESET' };
 
 // Données fictives pour la démo
 const MOCK_CERTIFICATIONS: Certification[] = [
@@ -62,70 +77,189 @@ const MOCK_CERTIFICATIONS: Certification[] = [
   }
 ];
 
+// Cache global pour les certifications
+const certificationsCache = new Map<string, {
+  data: Certification[];
+  timestamp: number;
+}>();
+
+// Durée de validité du cache (5 minutes)
+const CACHE_TTL = 5 * 60 * 1000;
+
+// État initial pour le reducer
+const initialState: CertificationsState = {
+  certifications: [],
+  loading: true,
+  error: null,
+  lastFetched: null
+};
+
+// Reducer pour gérer les états
+const certificationsReducer = (state: CertificationsState, action: CertificationsAction): CertificationsState => {
+  switch (action.type) {
+    case 'FETCH_START':
+      return {
+        ...state,
+        loading: true,
+        error: null
+      };
+    case 'FETCH_SUCCESS':
+      return {
+        certifications: action.payload,
+        loading: false,
+        error: null,
+        lastFetched: Date.now()
+      };
+    case 'FETCH_ERROR':
+      return {
+        ...state,
+        loading: false,
+        error: action.payload
+      };
+    case 'RESET':
+      return initialState;
+    default:
+      return state;
+  }
+};
+
 interface UseCertificationsResult {
   certifications: Certification[];
   loading: boolean;
   error: Error | null;
   refreshCertifications: () => void;
+  isStale: boolean;
 }
 
 /**
- * Hook pour gérer les certifications d'un freelance
+ * Hook optimisé pour gérer les certifications d'un freelance
+ * - Utilise useReducer pour une gestion d'état plus prévisible
+ * - Implémente un système de cache pour éviter les requêtes inutiles
+ * - Fournit des informations sur la fraîcheur des données
  */
 export function useCertifications(userId?: string): UseCertificationsResult {
-  const [certifications, setCertifications] = useState<Certification[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<Error | null>(null);
+  const [state, dispatch] = useReducer(certificationsReducer, initialState);
+  
+  // Référence pour savoir si le composant est monté
+  const isMountedRef = useRef(true);
+  
+  // Référence pour suivre les requêtes en cours
+  const abortControllerRef = useRef<AbortController | null>(null);
+  
+  // Mémoiser l'ID utilisateur effectif
+  const effectiveUserId = useMemo(() => userId || 'guest', [userId]);
+  
+  // Vérifier si les données sont périmées (plus de 5 minutes)
+  const isStale = useMemo(() => {
+    if (!state.lastFetched) return true;
+    return Date.now() - state.lastFetched > CACHE_TTL;
+  }, [state.lastFetched]);
 
-  // Fonction pour récupérer les certifications
-  const fetchCertifications = useCallback(async () => {
-    if (!userId) {
-      setCertifications([]);
-      setLoading(false);
+  // Fonction optimisée pour récupérer les certifications
+  const fetchCertifications = useCallback(async (forceRefresh = false) => {
+    // Si pas d'ID utilisateur, on retourne des données vides
+    if (!effectiveUserId) {
+      dispatch({ type: 'FETCH_SUCCESS', payload: [] });
       return;
     }
-
-    setLoading(true);
-    setError(null);
+    
+    // Vérifier le cache si on ne force pas le rafraîchissement
+    if (!forceRefresh) {
+      const cached = certificationsCache.get(effectiveUserId);
+      if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+        dispatch({ type: 'FETCH_SUCCESS', payload: cached.data });
+        return;
+      }
+    }
+    
+    // Annuler toute requête en cours
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    // Créer un nouveau contrôleur d'annulation
+    abortControllerRef.current = new AbortController();
+    
+    // Indiquer le début du chargement
+    dispatch({ type: 'FETCH_START' });
 
     try {
+      // Simulation d'un délai réseau
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
       // Pour la démo, on utilise les données fictives
       // Dans un environnement réel, on effectuerait une requête à Supabase:
       /* 
       const { data, error } = await supabase
         .from('certifications')
         .select('*')
-        .eq('user_id', userId);
+        .eq('user_id', effectiveUserId)
+        .abortSignal(abortControllerRef.current.signal);
       
       if (error) throw error;
-      setCertifications(data || []);
+      const certData = data || [];
       */
       
-      // Simulation d'un délai réseau
-      await new Promise(resolve => setTimeout(resolve, 800));
-      setCertifications(MOCK_CERTIFICATIONS);
+      const certData = MOCK_CERTIFICATIONS;
+      
+      // Mettre à jour le cache
+      certificationsCache.set(effectiveUserId, {
+        data: certData,
+        timestamp: Date.now()
+      });
+      
+      // Ne mettre à jour l'état que si le composant est toujours monté
+      if (isMountedRef.current) {
+        dispatch({ type: 'FETCH_SUCCESS', payload: certData });
+      }
     } catch (err) {
-      setError(err instanceof Error ? err : new Error('Une erreur est survenue lors du chargement des certifications'));
       console.error('Erreur lors du chargement des certifications:', err);
+      
+      // Ne pas mettre à jour en cas d'erreur d'annulation
+      if (err instanceof Error && err.name === 'AbortError') return;
+      
+      // Ne mettre à jour l'état que si le composant est toujours monté
+      if (isMountedRef.current) {
+        dispatch({ 
+          type: 'FETCH_ERROR', 
+          payload: err instanceof Error ? err : new Error('Une erreur est survenue lors du chargement des certifications')
+        });
+      }
     } finally {
-      setLoading(false);
+      // Nettoyer le contrôleur d'annulation
+      if (abortControllerRef.current?.signal.aborted) {
+        abortControllerRef.current = null;
+      }
     }
-  }, [userId]);
+  }, [effectiveUserId]);
 
-  // Charger les certifications au montage du composant
-  useEffect(() => {
-    fetchCertifications();
-  }, [fetchCertifications]);
-
-  // Fonction pour rafraîchir les certifications
+  // Fonction pour rafraîchir les certifications (force le rafraîchissement)
   const refreshCertifications = useCallback(() => {
+    fetchCertifications(true);
+  }, [fetchCertifications]);
+  
+  // Effet pour gérer le cycle de vie du composant
+  useEffect(() => {
+    isMountedRef.current = true;
     fetchCertifications();
+    
+    return () => {
+      isMountedRef.current = false;
+      
+      // Annuler toute requête en cours à la destruction du composant
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+    };
   }, [fetchCertifications]);
 
-  return {
-    certifications,
-    loading,
-    error,
-    refreshCertifications
-  };
+  // Retourner un objet mémorisé pour éviter les reconstructions inutiles
+  return useMemo(() => ({
+    certifications: state.certifications,
+    loading: state.loading,
+    error: state.error,
+    refreshCertifications,
+    isStale
+  }), [state.certifications, state.loading, state.error, refreshCertifications, isStale]);
 } 

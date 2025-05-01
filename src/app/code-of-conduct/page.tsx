@@ -79,7 +79,7 @@ export default function CodeOfConduct() {
         </p>
         <ul className="list-disc pl-5 space-y-2">
           <li>En utilisant la fonction "Signaler" disponible sur la plateforme</li>
-          <li>En contactant notre équipe Support à support@vynal.com</li>
+          <li>En contactant notre équipe Support à support@vynalplatform.com</li>
           <li>Tous les signalements seront examinés rapidement et de manière confidentielle</li>
         </ul>
         

@@ -269,13 +269,15 @@ export function useTransactions(type: string = "all") {
 
   // Fetch data when profile changes or active tab changes
   useEffect(() => {
+    if (!profile?.id) return;
+    
     let isMounted = true;
+    console.log(`Loading wallet and transactions data for user ${profile.id}`);
     
     const loadData = async () => {
-      if (!profile?.id || !isMounted) return;
+      if (!isMounted) return;
       
       try {
-        console.log(`Loading wallet and transactions data for user ${profile.id}`);
         // Load transactions data which includes wallet data
         await fetchTransactionsData();
         console.log('Data loading complete');
@@ -315,22 +317,6 @@ export function useTransactions(type: string = "all") {
       return null;
     }
   };
-
-  // Trigger a refresh when the component mounts
-  useEffect(() => {
-    // Forcer un refresh au chargement uniquement si le profil existe
-    const initData = async () => {
-      if (profile) {
-        await fetchTransactionsData();
-      }
-    };
-    
-    // Exécuter uniquement si le profil est chargé
-    if (profile) {
-      initData();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profile]); // Dépendre uniquement du profile, pas de refreshTransactions
 
   // Fonction pour rafraîchir manuellement les transactions
   const refresh = useCallback(async () => {

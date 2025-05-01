@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, Suspense, useRef } from 'react';
+import { useEffect, useState, Suspense, useRef, useCallback } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useCategories } from '@/hooks/useCategories';
@@ -39,20 +39,19 @@ const CATEGORY_ORDER = [
   'sante-bien-etre'
 ];
 
-// Conteneur de chargement pour le Suspense
+// Composant de chargement simplifié
 function ServicesPageLoading() {
   return (
     <div className="min-h-screen bg-vynal-purple-dark">
-      <section className="bg-gradient-to-b from-vynal-purple-dark to-vynal-purple-darkest text-vynal-text-primary py-8 lg:py-14 relative overflow-hidden">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="text-center max-w-3xl mx-auto pt-4 md:pt-6">
+      <section className="bg-gradient-to-b from-vynal-purple-dark to-vynal-purple-darkest py-8 lg:py-14 relative">
+        <div className="container mx-auto px-4 relative z-10">
+          <div className="text-center max-w-3xl mx-auto pt-4">
             <div className="w-32 h-6 bg-vynal-purple-secondary/30 rounded-full mx-auto mb-4"></div>
             <div className="w-64 h-10 bg-vynal-purple-secondary/30 rounded-lg mx-auto mb-4"></div>
             <div className="w-48 h-4 bg-vynal-purple-secondary/30 rounded mx-auto"></div>
           </div>
         </div>
       </section>
-      
       <div className="container mx-auto px-4 py-12">
         <ServiceSkeletonLoader count={12} />
       </div>
@@ -60,48 +59,67 @@ function ServicesPageLoading() {
   );
 }
 
-// Composant principal avec tous les effets
+// Statistiques pour la page
+const STATS_DATA = {
+  freelancersCount: '50+',
+  clientsCount: '100+',
+  totalPayments: '5M+ FCFA'
+};
+
+// Composant principal content
 function ServicesPageContent() {
+  // Hooks React et Next.js
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  
+  // Extraction des paramètres d'URL
   const categorySlug = searchParams.get('category');
   const subcategorySlug = searchParams.get('subcategory');
   const page = Number(searchParams.get('page') || '1');
   const paginationMode = searchParams.get('mode') || 'pagination';
   const urlSearchQuery = searchParams.get('search') || '';
   
-  const { categories, subcategories, loading: categoriesLoading, error: categoriesError, getSubcategoriesByCategoryId } = useCategories();
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(categorySlug);
-  const [selectedSubcategory, setSelectedSubcategory] = useState<string | null>(subcategorySlug);
+  // États locaux
+  const [selectedCategory, setSelectedCategory] = useState(categorySlug);
+  const [selectedSubcategory, setSelectedSubcategory] = useState(subcategorySlug);
   const [searchQuery, setSearchQuery] = useState(urlSearchQuery);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [renderError, setRenderError] = useState<string | null>(null);
-  const lastVisibilityTimeRef = useRef<number>(Date.now());
-  const forceRefreshRef = useRef<boolean>(false);
-  const mountedRef = useRef<boolean>(true);
   
-  // Stats data
-  const [statsData, setStatsData] = useState({
-    freelancersCount: '50+',
-    clientsCount: '100+',
-    totalPayments: '5M+ FCFA'
+  // Références
+  const refs = useRef({
+    mounted: true,
+    forceRefresh: false,
+    lastVisibilityTime: Date.now(),
+    refreshTimer: null as ReturnType<typeof setTimeout> | null
   });
-
-  // Trouver la catégorie active
+  
+  // Obtenir les catégories
+  const { 
+    categories, 
+    getSubcategoriesByCategoryId 
+  } = useCategories();
+  
+  // Trouver la catégorie et sous-catégorie actives
   const activeCategory = categories.find(cat => cat.slug === selectedCategory);
-
-  // Obtenir les sous-catégories pour la catégorie sélectionnée
   const activeSubcategories = activeCategory 
     ? getSubcategoriesByCategoryId(activeCategory.id)
     : [];
-    
-  // Trouver la sous-catégorie active
   const activeSubcategory = activeSubcategories.find(subcat => subcat.slug === selectedSubcategory);
   
-  // Paramètres pour le hook de pagination des services
+  // Tri des catégories selon l'ordre exact du seed
+  const sortedCategories = [...categories].sort((a, b) => {
+    const indexA = CATEGORY_ORDER.indexOf(a.slug);
+    const indexB = CATEGORY_ORDER.indexOf(b.slug);
+    if (indexA === -1) return 1;
+    if (indexB === -1) return -1;
+    return indexA - indexB;
+  });
+  
+  // Configuration des paramètres de pagination
   const isLoadMoreMode = paginationMode === 'loadmore';
   const paginationParams = {
     categoryId: activeCategory?.id,
@@ -110,10 +128,10 @@ function ServicesPageContent() {
     pageSize: 12,
     loadMoreMode: isLoadMoreMode,
     searchTerm: searchQuery,
-    forceRefresh: forceRefreshRef.current
+    forceRefresh: refs.current.forceRefresh
   };
   
-  // Hook de pagination des services
+  // Utilisation du hook de services avec pagination
   const {
     services: fetchedServices,
     loading: servicesLoading,
@@ -123,17 +141,16 @@ function ServicesPageContent() {
     totalCount,
     goToPage,
     loadMore,
-    hasMore,
     refresh
   } = usePaginatedServices(paginationParams);
   
-  // Appliquer la recherche intelligente côté client en plus de la recherche serveur
+  // Appliquer la recherche intelligente côté client
   const services = searchQuery 
     ? filterServicesBySearchTerm(fetchedServices, searchQuery)
     : fetchedServices;
   
-  // Mettre à jour l'URL avec les paramètres de pagination
-  const updateURLParams = (newPage: number, newSearchQuery?: string) => {
+  // Mémoriser updateURLParams pour éviter les re-rendus
+  const updateURLParams = useCallback((newPage: number, newSearchQuery?: string) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set('page', newPage.toString());
     
@@ -146,64 +163,93 @@ function ServicesPageContent() {
     }
     
     router.push(`${pathname}?${params.toString()}`);
-  };
+  }, [searchParams, router, pathname]);
   
-  // Gérer le changement de page
-  const handlePageChange = (newPage: number) => {
+  // Gestion de la pagination
+  const handlePageChange = useCallback((newPage: number) => {
     updateURLParams(newPage);
     goToPage(newPage);
-    // Défiler vers le haut de la page
-    window.scrollTo({
-      top: 0,
-      behavior: 'smooth'
-    });
-  };
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [updateURLParams, goToPage]);
   
-  // Gérer le chargement de plus de services
-  const handleLoadMore = () => {
+  // Charger plus de services
+  const handleLoadMore = useCallback(() => {
     loadMore();
-  };
+  }, [loadMore]);
   
-  // Changer de mode de pagination
-  const togglePaginationMode = () => {
+  // Basculer le mode de pagination
+  const togglePaginationMode = useCallback(() => {
     const params = new URLSearchParams(searchParams.toString());
     const newMode = isLoadMoreMode ? 'pagination' : 'loadmore';
     params.set('mode', newMode);
     params.set('page', '1');
-    
     router.push(`${pathname}?${params.toString()}`);
-  };
+  }, [isLoadMoreMode, searchParams, router, pathname]);
   
-  // Tester la connexion à la base de données au chargement
-  useEffect(() => {
-    const checkConnection = async () => {
-      try {
-        const { success, error } = await testConnection();
-        if (!success) {
-          setConnectionError(error || 'Erreur de connexion à la base de données');
-        } else {
-          setConnectionError(null);
+  // Fonction optimisée pour rafraîchir les données
+  const refreshData = useCallback(async () => {
+    if (!refs.current.mounted) {
+      console.debug('Rafraîchissement ignoré - composant démonté');
+      return;
+    }
+    
+    if (isRefreshing) {
+      console.debug('Rafraîchissement ignoré - déjà en cours');
+      return;
+    }
+    
+    setIsRefreshing(true);
+    setRenderError(null);
+    refs.current.forceRefresh = true;
+    
+    try {
+      // Vérifier la connexion
+      const { success } = await testConnection();
+      if (!success) {
+        if (refs.current.mounted) {
+          setConnectionError('Problème de connexion à la base de données');
+          setIsRefreshing(false);
+          refs.current.forceRefresh = false;
         }
-      } catch (err) {
-        setConnectionError('Erreur lors de la vérification de la connexion');
+        return;
       }
-    };
-    
-    checkConnection();
-  }, []);
+      
+      // Actualiser les services
+      if (refs.current.mounted) {
+        try {
+          await refresh();
+          // Délai pour éviter un flash de chargement
+          if (refs.current.refreshTimer) {
+            clearTimeout(refs.current.refreshTimer);
+          }
+          refs.current.refreshTimer = setTimeout(() => {
+            if (refs.current.mounted) {
+              setIsRefreshing(false);
+              setConnectionError(null);
+              refs.current.forceRefresh = false;
+            }
+          }, 800);
+        } catch (err) {
+          console.error('Erreur lors du rafraîchissement:', err);
+          if (refs.current.mounted) {
+            setIsRefreshing(false);
+            refs.current.forceRefresh = false;
+          }
+        }
+      }
+    } catch (error) {
+      if (refs.current.mounted) {
+        console.error('Erreur lors du rafraîchissement des données:', error);
+        setIsRefreshing(false);
+        refs.current.forceRefresh = false;
+      }
+    }
+  }, [isRefreshing, refresh]);
   
-  // Intercepteur d'erreur de rendu
+  // Synchroniser searchQuery avec l'URL
   useEffect(() => {
-    const handleError = () => {
-      setRenderError("Une erreur est survenue. Veuillez rafraîchir la page.");
-    };
-    
-    window.addEventListener('error', handleError);
-    
-    return () => {
-      window.removeEventListener('error', handleError);
-    };
-  }, []);
+    setSearchQuery(urlSearchQuery);
+  }, [urlSearchQuery]);
   
   // Mettre à jour les sélections quand l'URL change
   useEffect(() => {
@@ -214,228 +260,84 @@ function ServicesPageContent() {
     if (page && page !== currentPage) {
       goToPage(page);
     }
-  }, [categorySlug, subcategorySlug, page]);
+  }, [categorySlug, subcategorySlug, page, goToPage, currentPage]);
   
-  // Écouter les événements d'invalidation du cache (navigation)
+  // Effet pour les tests de connexion
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    
-    const handleCacheInvalidation = () => {
-      // Vérifier si les paramètres d'URL ont changé avant de rafraîchir pour éviter les doubles appels
-      const shouldRefresh = !isRefreshing;
-      
-      if (shouldRefresh) {
-        refreshData();
+    testConnection().then(({ success, error }) => {
+      if (!success && refs.current.mounted) {
+        setConnectionError(error || 'Erreur de connexion à la base de données');
       }
-    };
-    
-    // Écouter l'événement personnalisé d'invalidation du cache
-    window.addEventListener('vynal:cache-invalidated', handleCacheInvalidation);
-    
-    return () => {
-      window.removeEventListener('vynal:cache-invalidated', handleCacheInvalidation);
-    };
-  }, [isRefreshing]);
-
-  // Écouter les événements de force refresh pour recharger les données après inactivité
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    
-    const handleForceDataReload = (event: Event) => {
-      if (!mountedRef.current) return;
-      
-      try {
-        const customEvent = event as CustomEvent;
-        const path = customEvent.detail?.path;
-        
-        // Ne déclencher que si cela concerne cette page
-        if (path && (path === '/services' || path.includes('/services'))) {
-          console.log('Recharger les données de la page services après inactivité');
-          // On utilise un délai court pour s'assurer que la page est prête
-          setTimeout(() => {
-            if (mountedRef.current) {
-              refreshData();
-            }
-          }, 100);
-        }
-      } catch (err) {
-        console.error('Erreur lors du traitement de l\'événement de rechargement des données:', err);
+    }).catch(() => {
+      if (refs.current.mounted) {
+        setConnectionError('Erreur lors de la vérification de la connexion');
       }
-    };
+    });
     
-    // Écouteur pour l'événement personnalisé vynal:force-data-reload
-    window.addEventListener('vynal:force-data-reload', handleForceDataReload);
-    
-    // Écouteur pour l'événement force-refresh plus général
-    const handleForceRefresh = (event: Event) => {
-      if (!mountedRef.current) return;
-      
-      try {
-        const customEvent = event as CustomEvent;
-        const pathname = customEvent.detail?.pathname;
-        const inactiveDuration = customEvent.detail?.inactiveDuration || 0;
-        
-        // Si nous sommes sur la page des services et que l'inactivité est significative
-        if ((pathname === '/services' || pathname?.includes('/services')) && inactiveDuration > 10000) {
-          console.log('Forcer le rafraîchissement des services après inactivité');
-          setTimeout(() => {
-            if (mountedRef.current) {
-              refreshData();
-            }
-          }, 100);
-        }
-      } catch (err) {
-        console.error('Erreur lors du traitement de l\'événement de rafraîchissement forcé:', err);
-      }
-    };
-    
-    window.addEventListener('vynal:force-refresh', handleForceRefresh);
-    
-    // Nettoyage
-    return () => {
-      window.removeEventListener('vynal:force-data-reload', handleForceDataReload);
-      window.removeEventListener('vynal:force-refresh', handleForceRefresh);
-    };
+    // Intercepteur d'erreur
+    const handleError = () => setRenderError("Une erreur est survenue. Veuillez rafraîchir la page.");
+    window.addEventListener('error', handleError);
+    return () => window.removeEventListener('error', handleError);
   }, []);
   
-  // Tri des catégories selon l'ordre exact du seed
-  const sortedCategories = [...categories].sort((a, b) => {
-    const indexA = CATEGORY_ORDER.indexOf(a.slug);
-    const indexB = CATEGORY_ORDER.indexOf(b.slug);
-    
-    // Si une des catégories n'est pas dans la liste, la placer à la fin
-    if (indexA === -1) return 1;
-    if (indexB === -1) return -1;
-    
-    return indexA - indexB;
-  });
-  
-  // Synchroniser searchQuery avec l'URL quand elle change
-  useEffect(() => {
-    setSearchQuery(urlSearchQuery);
-  }, [urlSearchQuery]);
-  
-  // Rafraîchir les données
-  const refreshData = async () => {
-    // Vérifier si le composant est toujours monté
-    if (!mountedRef.current) {
-      console.debug('Rafraîchissement ignoré - composant démonté');
-      return;
-    }
-    
-    setIsRefreshing(true);
-    setRenderError(null);
-    forceRefreshRef.current = true;
-    
-    try {
-      // Vérifier la connexion
-      const { success } = await testConnection();
-      if (!success) {
-        if (mountedRef.current) {
-          setConnectionError('Problème de connexion à la base de données');
-        }
-        return;
-      }
-      
-      // Actualiser les services seulement si le composant est toujours monté
-      if (mountedRef.current) {
-        refresh();
-        
-        // Délai court pour des raisons d'UI (éviter un flash de chargement)
-        setTimeout(() => {
-          if (mountedRef.current) {
-            setIsRefreshing(false);
-            setConnectionError(null);
-            forceRefreshRef.current = false;
-          }
-        }, 1000);
-      }
-    } catch (error) {
-      // S'assurer que nous ne mettons à jour l'état que si le composant est monté
-      if (mountedRef.current) {
-        setIsRefreshing(false);
-        forceRefreshRef.current = false;
-      }
-    }
-  };
-
-  // Gestion du changement de visibilité de la page (retour à l'onglet)
+  // Effet combiné pour la gestion de visibilité et du focus
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    refs.current.mounted = true;
     
-    // Marquer que le composant est monté
-    mountedRef.current = true;
+    // Nettoyage des états
+    setIsRefreshing(false);
+    refs.current.forceRefresh = false;
     
-    // Stockage temporaire pour l'état de navigation lors d'une sortie d'onglet
+    // Sauvegarde de l'état
     const saveTabState = () => {
       sessionStorage.setItem('vynal_last_page', window.location.href);
       sessionStorage.setItem('vynal_tab_inactive_time', Date.now().toString());
     };
     
-    // Gestionnaire quand le document devient visible (retour à l'onglet)
+    // Gestionnaire de changement de visibilité
     const handleVisibilityChange = () => {
-      if (!mountedRef.current) return;
+      if (!refs.current.mounted) return;
       
       if (document.visibilityState === 'visible') {
         const lastInactiveTimeStr = sessionStorage.getItem('vynal_tab_inactive_time');
-        
         if (lastInactiveTimeStr) {
           try {
             const lastInactiveTime = parseInt(lastInactiveTimeStr, 10);
             const currentTime = Date.now();
             const inactiveDuration = currentTime - lastInactiveTime;
             
-            // Si l'onglet était inactif pendant plus de 10 secondes, forcer le rafraîchissement
-            if (inactiveDuration > 10000 && window.location.pathname === '/services' && mountedRef.current) {
+            if (inactiveDuration > 10000 && window.location.pathname === '/services' && !isRefreshing) {
               console.log('Retour à la page des services après inactivité, rafraîchissement forcé');
-              // Utiliser un délai court pour s'assurer que le DOM est stabilisé
-              setTimeout(() => {
-                if (mountedRef.current) {
-                  refreshData();
-                }
-              }, 100);
+              refreshData();
             }
             
-            // Nettoyer le stockage
             sessionStorage.removeItem('vynal_tab_inactive_time');
           } catch (err) {
             console.error('Erreur lors du traitement du changement de visibilité:', err);
           }
         }
       } else {
-        // L'onglet devient invisible, sauvegarder l'état
-        try {
-          saveTabState();
-        } catch (err) {
-          console.error('Erreur lors de la sauvegarde de l\'état de l\'onglet:', err);
-        }
+        saveTabState();
       }
     };
     
-    // Gestionnaire de focus de la fenêtre
+    // Gestionnaire de focus
     const handleWindowFocus = () => {
-      if (!mountedRef.current) return;
+      if (!refs.current.mounted) return;
       
       const lastInactiveTimeStr = sessionStorage.getItem('vynal_tab_inactive_time');
-      
-      if (lastInactiveTimeStr) {
+      if (lastInactiveTimeStr && !isRefreshing) {
         try {
           const lastInactiveTime = parseInt(lastInactiveTimeStr, 10);
           const currentTime = Date.now();
           const inactiveDuration = currentTime - lastInactiveTime;
           
-          // Si la fenêtre était inactive pendant plus de 10 secondes, forcer le rafraîchissement
-          if (inactiveDuration > 10000 && window.location.pathname === '/services' && mountedRef.current) {
+          if (inactiveDuration > 10000 && window.location.pathname === '/services') {
             console.log('Focus retourné à la fenêtre des services après inactivité, rafraîchissement forcé');
-            // Utiliser un délai court pour s'assurer que le DOM est stabilisé
-            setTimeout(() => {
-              if (mountedRef.current) {
-                refreshData();
-              }
-            }, 100);
+            refreshData();
           }
           
-          // Nettoyer le stockage
           sessionStorage.removeItem('vynal_tab_inactive_time');
         } catch (err) {
           console.error('Erreur lors du traitement du focus de la fenêtre:', err);
@@ -443,65 +345,58 @@ function ServicesPageContent() {
       }
     };
     
-    // Écouter l'événement personnalisé d'invalidation
+    // Événement personnalisé pour le rafraîchissement
     const handleForceRefresh = (event: Event) => {
-      if (!mountedRef.current) return;
+      if (!refs.current.mounted || isRefreshing) return;
       
       try {
         const customEvent = event as CustomEvent;
         const targetPage = customEvent.detail?.targetPage;
         
-        // Ne déclencher que si nous sommes sur la page des services
         if (targetPage === 'services' || !targetPage) {
           console.log('Rafraîchissement forcé des services demandé par un événement');
-          // Utiliser un délai court pour s'assurer que le DOM est stabilisé
-          setTimeout(() => {
-            if (mountedRef.current) {
-              refreshData();
-            }
-          }, 100);
+          refreshData();
         }
       } catch (err) {
         console.error('Erreur lors du traitement de l\'événement de rafraîchissement forcé:', err);
       }
     };
     
-    // Écouter tous les événements pertinents
+    // Ajouter les écouteurs d'événements
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('focus', handleWindowFocus);
     window.addEventListener('vynal:force-refresh-after-tab-return', handleForceRefresh);
     
+    // Nettoyage
     return () => {
-      // Marquer que le composant est démonté
-      mountedRef.current = false;
+      refs.current.mounted = false;
+      
+      if (refs.current.refreshTimer) {
+        clearTimeout(refs.current.refreshTimer);
+        refs.current.refreshTimer = null;
+      }
       
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleWindowFocus);
       window.removeEventListener('vynal:force-refresh-after-tab-return', handleForceRefresh);
     };
-  }, []);
-
-  // Animation variants
-  const fadeInUp = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.5 } }
-  };
-
+  }, [isRefreshing, refreshData]);
+  
+  // JSX - Structure simplifiée
   return (
     <div className="min-h-screen bg-vynal-purple-dark">
-      {/* Hero Section - avec styles mis à jour */}
+      {/* Hero Section */}
       <section className="bg-gradient-to-b from-vynal-purple-dark to-vynal-purple-darkest text-vynal-text-primary py-8 lg:py-14 relative overflow-hidden">
-        {/* Decorative elements */}
+        {/* Background decorations */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-vynal-accent-primary/20 rounded-full blur-3xl"></div>
           <div className="absolute -top-24 -right-24 w-96 h-96 bg-vynal-accent-secondary/20 rounded-full blur-3xl"></div>
           <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-vynal-accent-primary/20 rounded-full blur-3xl"></div>
-          
-          {/* Grid pattern overlay */}
           <div className="absolute inset-0 bg-[url('/img/grid-pattern.svg')] bg-center opacity-10"></div>
         </div>
 
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          {/* Hero content */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -519,7 +414,7 @@ function ServicesPageContent() {
             </p>
           </motion.div>
           
-          {/* Categories intégrées dans la section hero */}
+          {/* Categories grid */}
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -536,7 +431,7 @@ function ServicesPageContent() {
         </div>
       </section>
 
-      {/* Breadcrumbs & Stats combined section */}
+      {/* Navigation bar */}
       <section className="bg-vynal-purple-dark/90 border-y border-vynal-purple-secondary/30 sticky top-0 z-10">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
@@ -586,7 +481,7 @@ function ServicesPageContent() {
         </div>
       </section>
 
-      {/* Sous-catégories (quand une catégorie est sélectionnée) */}
+      {/* Subcategories section */}
       {activeCategory && activeSubcategories.length > 0 && (
         <section className="bg-vynal-purple-dark/80 border-b border-vynal-purple-secondary/30">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
@@ -599,9 +494,9 @@ function ServicesPageContent() {
         </section>
       )}
 
-      {/* Contenu principal - mise à jour des couleurs de fond */}
+      {/* Main content */}
       <div className="container mx-auto px-4 py-12">
-        {/* Résumé des résultats et filtres */}
+        {/* Results header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-2">
           <div>
             <h2 className="text-lg font-semibold text-vynal-text-primary">
@@ -619,14 +514,9 @@ function ServicesPageContent() {
               {currentPage > 1 ? ` • Page ${currentPage} sur ${totalPages}` : ''}
             </p>
           </div>
-          
-          {/* Future section de filtres */}
-          <div className="flex items-center">
-            {/* Bouton filtre supprimé */}
-          </div>
         </div>
         
-        {/* Affichage des erreurs */}
+        {/* Error messages */}
         {(connectionError || servicesError) && (
           <motion.div 
             initial={{ opacity: 0, y: 10 }}
@@ -651,9 +541,9 @@ function ServicesPageContent() {
           </motion.div>
         )}
         
-        {/* État de chargement */}
+        {/* Services loading and results */}
         <AnimatePresence>
-          {servicesLoading && !isLoadMoreMode && (
+          {servicesLoading && !isLoadMoreMode ? (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -662,10 +552,7 @@ function ServicesPageContent() {
             >
               <ServiceSkeletonLoader count={12} />
             </motion.div>
-          )}
-          
-          {/* Résultats des services */}
-          {!servicesLoading && (
+          ) : (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -679,7 +566,7 @@ function ServicesPageContent() {
                 className="mb-4"
               />
               
-              {/* Contrôles de pagination */}
+              {/* Pagination controls */}
               {!servicesError && !servicesLoading && services.length > 0 && (
                 <PaginationControls
                   currentPage={currentPage}
@@ -696,26 +583,25 @@ function ServicesPageContent() {
         </AnimatePresence>
       </div>
 
-      {/* Section Statistiques avec thème adapté */}
+      {/* Stats footer */}
       <section className="py-16 bg-vynal-purple-dark/90 border-t border-vynal-purple-secondary/30 shadow-lg shadow-vynal-accent-secondary/20">
-        {/* Stats content */}
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-8">
             <div className="text-center">
               <h3 className="text-2xl font-semibold text-vynal-text-primary mb-2">
-                {statsData.freelancersCount}
+                {STATS_DATA.freelancersCount}
               </h3>
               <p className="text-sm text-vynal-text-secondary">Freelances</p>
             </div>
             <div className="text-center">
               <h3 className="text-2xl font-semibold text-vynal-text-primary mb-2">
-                {statsData.clientsCount}
+                {STATS_DATA.clientsCount}
               </h3>
               <p className="text-sm text-vynal-text-secondary">Clients</p>
             </div>
             <div className="text-center">
               <h3 className="text-2xl font-semibold text-vynal-text-primary mb-2">
-                {statsData.totalPayments}
+                {STATS_DATA.totalPayments}
               </h3>
               <p className="text-sm text-vynal-text-secondary">Total des paiements</p>
             </div>
@@ -726,7 +612,7 @@ function ServicesPageContent() {
   );
 }
 
-// Page principale avec Suspense boundary
+// Component principal avec Suspense
 export default function ServicesPage() {
   return (
     <Suspense fallback={<ServicesPageLoading />}>

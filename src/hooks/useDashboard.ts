@@ -692,12 +692,13 @@ export function useDashboard(options: UseDashboardOptions = {}) {
     }
   }, [profile?.id, fetchDashboardData]);
 
-  // Abonnement en temps réel aux changements de commandes
+  // Effet consolidé pour les abonnements aux changements en temps réel et événements d'application
   useEffect(() => {
-    if (!profile?.id) return;
+    if (!profile?.id || typeof window === 'undefined') return;
     
-    console.log("[Dashboard] Configuration de l'abonnement aux changements en temps réel");
+    console.log("[Dashboard] Configuration des abonnements et écouteurs");
     
+    // 1. Abonnements aux changements de base de données
     const ordersSubscription = supabase
       .channel('dashboard-orders-changes')
       .on('postgres_changes', {
@@ -713,7 +714,6 @@ export function useDashboard(options: UseDashboardOptions = {}) {
       })
       .subscribe();
 
-    // Abonnement aux changements de messages
     const messagesSubscription = supabase
       .channel('dashboard-messages-changes')
       .on('postgres_changes', {
@@ -727,17 +727,7 @@ export function useDashboard(options: UseDashboardOptions = {}) {
       })
       .subscribe();
     
-    return () => {
-      console.log("[Dashboard] Désinscription des changements en temps réel");
-      ordersSubscription.unsubscribe();
-      messagesSubscription.unsubscribe();
-    };
-  }, [profile?.id, isClient, fetchDashboardData]);
-
-  // Écouteur d'événements pour mettre à jour les données lors du changement d'état de l'application
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
+    // 2. Écouteur pour changements d'état de l'application
     const handleAppVisibility = (event: Event) => {
       const customEvent = event as CustomEvent;
       if (customEvent.detail?.type === 'visibility' && customEvent.detail?.isVisible) {
@@ -751,10 +741,14 @@ export function useDashboard(options: UseDashboardOptions = {}) {
 
     window.addEventListener('vynal:app-state-changed', handleAppVisibility as EventListener);
     
+    // Nettoyage de tous les abonnements et écouteurs
     return () => {
+      console.log("[Dashboard] Nettoyage des abonnements et écouteurs");
+      ordersSubscription.unsubscribe();
+      messagesSubscription.unsubscribe();
       window.removeEventListener('vynal:app-state-changed', handleAppVisibility as EventListener);
     };
-  }, [fetchDashboardData]);
+  }, [profile?.id, isClient, fetchDashboardData, supabase]);
 
   // Fonction pour déclencher un rafraîchissement manuel
   const refreshDashboard = useCallback((force = true) => {

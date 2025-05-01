@@ -25,6 +25,48 @@ interface FreelanceStats {
   servicesCount: number;
 }
 
+// Constantes pour les couleurs et icônes - définis hors du composant pour éviter les recréations
+const STAT_CARD_STYLES = {
+  activeOrders: {
+    iconBgClass: "bg-green-100 dark:bg-green-900/20",
+    iconTextClass: "text-green-600 dark:text-green-400",
+    subtitleBgClass: "bg-green-50 dark:bg-green-900/30",
+    subtitleTextClass: "text-green-700 dark:text-green-400"
+  },
+  unreadMessages: {
+    iconBgClass: "bg-blue-100 dark:bg-blue-900/20",
+    iconTextClass: "text-blue-600 dark:text-blue-400",
+    subtitleBgClass: "bg-blue-50 dark:bg-blue-900/30",
+    subtitleTextClass: "text-blue-700 dark:text-blue-400"
+  },
+  pendingDeliveries: {
+    iconBgClass: "bg-amber-100 dark:bg-amber-900/20",
+    iconTextClass: "text-amber-600 dark:text-amber-400",
+    subtitleBgClass: "bg-amber-50 dark:bg-amber-900/30",
+    subtitleTextClass: "text-amber-700 dark:text-amber-400"
+  },
+  totalEarnings: {
+    iconBgClass: "bg-purple-100 dark:bg-purple-900/20",
+    iconTextClass: "text-purple-600 dark:text-purple-400",
+    subtitleBgClass: "bg-purple-50 dark:bg-purple-900/30",
+    subtitleTextClass: "text-purple-700 dark:text-purple-400"
+  },
+  servicesCount: {
+    iconBgClass: "bg-rose-100 dark:bg-rose-900/20",
+    iconTextClass: "text-rose-600 dark:text-rose-400",
+    subtitleBgClass: "bg-rose-50 dark:bg-rose-900/30",
+    subtitleTextClass: "text-rose-700 dark:text-rose-400"
+  }
+};
+
+const STAT_CARD_ICONS = {
+  activeOrders: ShoppingCart,
+  unreadMessages: MessageSquare,
+  pendingDeliveries: Clock,
+  totalEarnings: CreditCard,
+  servicesCount: FileText
+};
+
 // Composant memoïsé pour les cartes de statistiques
 const StatCard = memo(({ 
   title, 
@@ -77,8 +119,8 @@ StatCard.displayName = 'StatCard';
 
 // Composant memoïsé pour la section des activités récentes
 const RecentActivities = memo(({ activities, loading }: { activities: any[], loading: boolean }) => {
-  // Fonction pour rendre une icône d'activité
-  const getActivityIcon = (type: string) => {
+  // Mémoriser les fonctions pour éviter des calculs répétés
+  const getActivityIcon = useCallback((type: string) => {
     switch (type) {
       case 'order_created': return <ShoppingCart className="h-4 w-4 text-green-500" />;
       case 'review_added': return <Star className="h-4 w-4 text-blue-500" />;
@@ -88,10 +130,9 @@ const RecentActivities = memo(({ activities, loading }: { activities: any[], loa
       case 'delivery_validated': return <CheckCircle className="h-4 w-4 text-rose-500" />;
       default: return <Activity className="h-4 w-4 text-slate-500" />;
     }
-  };
+  }, []);
   
-  // Fonction pour obtenir la couleur de la bordure
-  const getActivityBorderColor = (type: string) => {
+  const getActivityBorderColor = useCallback((type: string) => {
     switch (type) {
       case 'order_created': return 'border-green-400';
       case 'review_added': return 'border-blue-400';
@@ -101,7 +142,21 @@ const RecentActivities = memo(({ activities, loading }: { activities: any[], loa
       case 'delivery_validated': return 'border-rose-400';
       default: return 'border-slate-400';
     }
-  };
+  }, []);
+  
+  // État de chargement mémorisé
+  const loadingContent = useMemo(() => (
+    <div className="flex justify-center items-center py-6">
+      <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-indigo-500"></div>
+    </div>
+  ), []);
+  
+  // État vide mémorisé
+  const emptyContent = useMemo(() => (
+    <div className="flex flex-col items-center justify-center py-6">
+      <p className="text-sm text-vynal-purple-secondary dark:text-vynal-text-secondary">Aucune activité récente</p>
+    </div>
+  ), []);
   
   return (
     <Card className="md:col-span-7 border border-vynal-purple-secondary/10 shadow-sm bg-white relative before:absolute before:inset-0 before:bg-gradient-to-br before:from-vynal-purple-secondary/10 before:via-vynal-purple-secondary/5 before:to-white before:rounded-lg dark:bg-vynal-purple-dark/10 dark:before:from-vynal-purple-secondary/15 dark:before:via-vynal-purple-secondary/5 dark:before:to-transparent hover:shadow-md transition-shadow duration-300">
@@ -119,11 +174,7 @@ const RecentActivities = memo(({ activities, loading }: { activities: any[], loa
         </div>
       </CardHeader>
       <CardContent className="px-3 pb-3 sm:px-6 sm:pb-6 relative z-10">
-        {loading ? (
-          <div className="flex justify-center items-center py-6">
-            <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-indigo-500"></div>
-          </div>
-        ) : activities.length > 0 ? (
+        {loading ? loadingContent : activities.length > 0 ? (
           <div className="space-y-3">
             {activities.map((activity, index) => (
               <div 
@@ -146,11 +197,7 @@ const RecentActivities = memo(({ activities, loading }: { activities: any[], loa
               </div>
             ))}
           </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center py-6">
-            <p className="text-sm text-vynal-purple-secondary dark:text-vynal-text-secondary">Aucune activité récente</p>
-          </div>
-        )}
+        ) : emptyContent}
       </CardContent>
     </Card>
   );
@@ -182,6 +229,77 @@ const RefreshButton = memo(({ onClick, isRefreshing, lastRefreshText }: {
 
 RefreshButton.displayName = 'RefreshButton';
 
+// Composant pour les statistiques du tableau de bord
+const DashboardStats = memo(({ stats, loading }: { 
+  stats: FreelanceStats, 
+  loading: boolean 
+}) => {
+  // Tableau mémorisé des configurations de cartes de statistiques
+  const statCards = useMemo(() => [
+    {
+      key: 'activeOrders',
+      title: 'Commandes actives',
+      value: stats.activeOrders,
+      icon: STAT_CARD_ICONS.activeOrders,
+      ...STAT_CARD_STYLES.activeOrders,
+      subtitleText: 'En cours de traitement'
+    },
+    {
+      key: 'unreadMessages',
+      title: 'Messages non lus',
+      value: stats.unreadMessages,
+      icon: STAT_CARD_ICONS.unreadMessages,
+      ...STAT_CARD_STYLES.unreadMessages,
+      subtitleText: 'À répondre'
+    },
+    {
+      key: 'pendingDeliveries',
+      title: 'Livraisons en attente',
+      value: stats.pendingDeliveries,
+      icon: STAT_CARD_ICONS.pendingDeliveries,
+      ...STAT_CARD_STYLES.pendingDeliveries,
+      subtitleText: 'À livrer'
+    },
+    {
+      key: 'totalEarnings',
+      title: 'Revenus totaux',
+      value: formatPrice(stats.totalEarnings),
+      icon: STAT_CARD_ICONS.totalEarnings,
+      ...STAT_CARD_STYLES.totalEarnings,
+      subtitleText: 'Depuis le début'
+    },
+    {
+      key: 'servicesCount',
+      title: 'Services actifs',
+      value: stats.servicesCount,
+      icon: STAT_CARD_ICONS.servicesCount,
+      ...STAT_CARD_STYLES.servicesCount,
+      subtitleText: 'Visibles aux clients'
+    }
+  ], [stats]);
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+      {statCards.map((card) => (
+        <StatCard
+          key={card.key}
+          title={card.title}
+          value={card.value}
+          icon={card.icon}
+          iconBgClass={card.iconBgClass}
+          iconTextClass={card.iconTextClass}
+          subtitleText={card.subtitleText}
+          subtitleBgClass={card.subtitleBgClass}
+          subtitleTextClass={card.subtitleTextClass}
+          isLoading={loading}
+        />
+      ))}
+    </div>
+  );
+});
+
+DashboardStats.displayName = 'DashboardStats';
+
 // Configuration globale pour le dashboard
 // Forcer le rendu dynamique pour résoudre les erreurs de revalidation
 export const dynamic = 'force-dynamic';
@@ -198,171 +316,153 @@ export default function DashboardPage() {
     refreshDashboard,
     isRefreshing,
     getLastRefreshText
-  } = useDashboard({ useCache: true });
+  } = useDashboard();
   
-  // Utiliser le nom complet du profil en priorité
-  const userName = useMemo(() => 
-    profile?.full_name || profile?.username || user?.user_metadata?.name || "Utilisateur",
-    [profile?.full_name, profile?.username, user?.user_metadata?.name]
-  );
-
-  // Les données des cartes de stats mémoïsées
-  const statCards = useMemo(() => [
-    {
-      title: "Commandes reçues",
-      value: freelanceStats.activeOrders,
-      icon: FileText,
-      iconBgClass: "bg-gradient-to-tr from-vynal-accent-primary/40 to-vynal-accent-primary/20 dark:from-vynal-purple-secondary/30 dark:to-vynal-purple-secondary/20",
-      iconTextClass: "text-vynal-accent-primary dark:text-vynal-accent-primary",
-      subtitleText: "Total commandes",
-      subtitleBgClass: "",
-      subtitleTextClass: "text-vynal-accent-secondary dark:text-emerald-400"
-    },
-    {
-      title: "Messages non lus",
-      value: freelanceStats.unreadMessages,
-      icon: Mail,
-      iconBgClass: "bg-gradient-to-tr from-vynal-accent-secondary/40 to-vynal-accent-secondary/20 dark:from-vynal-purple-secondary/30 dark:to-vynal-purple-secondary/20",
-      iconTextClass: "text-vynal-accent-secondary dark:text-vynal-accent-secondary",
-      subtitleText: freelanceStats.unreadMessages > 0 ? "À lire" : "À jour",
-      subtitleBgClass: "bg-gradient-to-r from-vynal-accent-secondary/30 to-vynal-accent-secondary/20 dark:from-vynal-purple-secondary/30 dark:to-vynal-purple-secondary/20",
-      subtitleTextClass: "text-vynal-accent-secondary"
-    },
-    {
-      title: "Commandes en cours",
-      value: freelanceStats.pendingDeliveries,
-      icon: Package,
-      iconBgClass: "bg-gradient-to-tr from-vynal-purple-secondary/40 to-vynal-purple-secondary/20 dark:from-vynal-purple-secondary/30 dark:to-vynal-purple-secondary/20",
-      iconTextClass: "text-vynal-purple-secondary dark:text-amber-400",
-      subtitleText: "En cours de traitement",
-      subtitleBgClass: "bg-gradient-to-r from-vynal-purple-secondary/30 to-vynal-purple-secondary/20 dark:from-vynal-purple-secondary/30 dark:to-vynal-purple-secondary/20",
-      subtitleTextClass: "text-vynal-purple-secondary dark:text-amber-400"
-    },
-    {
-      title: "Revenus totaux",
-      value: formatPrice(freelanceStats.totalEarnings),
-      icon: CreditCard,
-      iconBgClass: "bg-gradient-to-tr from-vynal-accent-primary/40 to-vynal-accent-primary/20 dark:from-vynal-purple-secondary/30 dark:to-vynal-purple-secondary/20",
-      iconTextClass: "text-vynal-accent-primary dark:text-emerald-400",
-      subtitleText: `Services (${freelanceStats.servicesCount})`,
-      subtitleBgClass: "bg-gradient-to-r from-vynal-accent-primary/30 to-vynal-accent-primary/20 dark:from-vynal-purple-secondary/30 dark:to-vynal-purple-secondary/20",
-      subtitleTextClass: "text-vynal-accent-primary dark:text-emerald-400"
-    }
-  ], [freelanceStats]);
-
-  // Fonction de rafraîchissement memoïsée
+  // Mémoriser le handler pour le rafraîchissement
   const handleRefresh = useCallback(() => {
     if (!isRefreshing) {
       refreshDashboard();
     }
   }, [isRefreshing, refreshDashboard]);
-
+  
+  // Mémoriser le texte du dernier rafraîchissement
+  const lastRefreshText = useMemo(() => getLastRefreshText(true), [getLastRefreshText]);
+  
+  // Effet pour rafraîchir les données quand la page devient visible
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        // Rafraîchir seulement si la page était cachée depuis un certain temps
+        const lastHidden = document.hidden ? Date.now() - 60000 : 0; // 60 secondes
+        if (lastHidden > 0) {
+          refreshDashboard();
+        }
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [refreshDashboard]);
+  
+  // Message de bienvenue mémorisé
+  const welcomeMessage = useMemo(() => {
+    const userName = profile?.full_name || user?.user_metadata?.name || 'Freelance';
+    return `Bienvenue, ${userName} 👋`;
+  }, [profile?.full_name, user?.user_metadata?.name]);
+  
   return (
-    <div className="w-full h-full overflow-x-hidden overflow-y-auto scrollbar-hide bg-gray-50/50 dark:bg-transparent">
-      <div className="p-2 sm:p-4 space-y-6 sm:space-y-8 pb-12 max-w-[1600px] mx-auto">
-        <div className="flex flex-col space-y-1 sm:space-y-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-1">
-              <span className="text-lg font-semibold text-vynal-purple-light dark:text-vynal-text-secondary">Hey</span>
-              <span className="animate-bounce inline-block">👋</span>
-              <span className="text-lg font-bold text-vynal-accent-secondary dark:text-vynal-text-primary">{userName}</span>
-            </div>
-            <RefreshButton 
-              onClick={handleRefresh}
-              isRefreshing={isRefreshing}
-              lastRefreshText={getLastRefreshText(true)}
-            />
-          </div>
-          <p className="text-sm text-vynal-purple-secondary dark:text-vynal-text-secondary/80 mt-1">
-            Voici votre activité sur la plateforme
-          </p>
-        </div>
-       
-        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
-          {statCards.map((card, index) => (
-            <StatCard
-              key={index}
-              title={card.title}
-              value={card.value}
-              icon={card.icon}
-              iconBgClass={card.iconBgClass}
-              iconTextClass={card.iconTextClass}
-              subtitleText={card.subtitleText}
-              subtitleBgClass={card.subtitleBgClass}
-              subtitleTextClass={card.subtitleTextClass}
-              isLoading={loadingStats}
-            />
-          ))}
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mt-8 sm:mt-6">
-          <RecentActivities 
-            activities={recentActivities} 
-            loading={loadingActivities} 
-          />
-          
-          <Card className="md:col-span-5 border border-vynal-purple-secondary/10 shadow-sm bg-white relative before:absolute before:inset-0 before:bg-gradient-to-br before:from-vynal-purple-secondary/10 before:via-vynal-purple-secondary/5 before:to-white before:rounded-lg dark:bg-vynal-purple-dark/10 dark:before:from-vynal-purple-secondary/15 dark:before:via-vynal-purple-secondary/5 dark:before:to-transparent hover:shadow-md transition-shadow duration-300">
-            <CardHeader className="px-3 pt-3 sm:px-6 sm:pt-6 relative z-10">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-base sm:text-lg text-vynal-purple-light dark:text-vynal-text-primary">Actions rapides</CardTitle>
-                  <CardDescription className="mt-1 text-xs sm:text-sm text-vynal-purple-secondary dark:text-vynal-text-secondary/80">
-                    Accès rapide aux fonctionnalités principales
-                  </CardDescription>
-                </div>
-                <div className="p-1.5 sm:p-2 rounded-full bg-gradient-to-tr from-vynal-purple-secondary/30 to-vynal-purple-secondary/20 shadow-sm dark:from-vynal-purple-secondary/20 dark:to-vynal-purple-secondary/10">
-                  <Zap className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-vynal-purple-secondary dark:text-vynal-text-secondary" />
-                </div>
-              </div>
+    <div className="max-w-7xl mx-auto space-y-6">
+      {/* En-tête du Dashboard */}
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl md:text-3xl font-bold text-vynal-purple-light dark:text-vynal-text-primary">
+          {welcomeMessage}
+        </h1>
+        <RefreshButton 
+          onClick={handleRefresh} 
+          isRefreshing={isRefreshing} 
+          lastRefreshText={lastRefreshText}
+        />
+      </div>
+      
+      {/* Section des statistiques */}
+      <DashboardStats stats={freelanceStats} loading={loadingStats} />
+      
+      {/* Section principale avec activités récentes et actions rapides */}
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+        {/* Activités récentes */}
+        <RecentActivities activities={recentActivities} loading={loadingActivities} />
+        
+        {/* Actions rapides */}
+        <div className="md:col-span-5 space-y-4">
+          {/* Carte des actions rapides */}
+          <Card className="border border-vynal-purple-secondary/10 shadow-sm dark:bg-vynal-purple-dark/10">
+            <CardHeader className="px-6 pt-6">
+              <CardTitle className="text-lg text-vynal-purple-light dark:text-vynal-text-primary">Actions rapides</CardTitle>
+              <CardDescription className="text-vynal-purple-secondary dark:text-vynal-text-secondary/80">
+                Accédez rapidement aux fonctionnalités essentielles
+              </CardDescription>
             </CardHeader>
-            <CardContent className="px-3 pb-3 sm:px-6 sm:pb-6 relative z-10">
-              <div className="grid grid-cols-2 gap-2">
-                <Link 
-                  href="/dashboard/orders" 
-                  className="flex items-center p-2 rounded-md bg-gradient-to-r from-gray-50 to-white dark:from-vynal-purple-secondary/10 dark:to-transparent border border-slate-100 dark:border-vynal-purple-secondary/20 hover:shadow-sm transition-all"
-                >
-                  <div className="p-1.5 rounded-full bg-gradient-to-tr from-vynal-accent-primary/20 to-vynal-accent-primary/10 shadow-sm mr-3">
-                    <ShoppingCart className="h-4 w-4 text-vynal-accent-primary" />
-                  </div>
-                  <span className="text-xs font-medium text-vynal-purple-light dark:text-vynal-text-primary">Commandes</span>
+            <CardContent className="px-6 pb-6">
+              <div className="grid grid-cols-2 gap-3">
+                <Link href="/dashboard/services/new" className="bg-vynal-purple-secondary/5 dark:bg-vynal-purple-secondary/10 hover:bg-vynal-purple-secondary/10 dark:hover:bg-vynal-purple-secondary/20 p-4 rounded-lg flex flex-col items-center text-center gap-2 transition-colors">
+                  <Package className="h-6 w-6 text-vynal-accent-primary" />
+                  <span className="text-sm font-medium text-vynal-purple-light dark:text-vynal-text-primary">Créer un service</span>
                 </Link>
-                
-                <Link 
-                  href="/dashboard/messages" 
-                  className="flex items-center p-2 rounded-md bg-gradient-to-r from-gray-50 to-white dark:from-vynal-purple-secondary/10 dark:to-transparent border border-slate-100 dark:border-vynal-purple-secondary/20 hover:shadow-sm transition-all"
-                >
-                  <div className="p-1.5 rounded-full bg-gradient-to-tr from-vynal-accent-secondary/20 to-vynal-accent-secondary/10 shadow-sm mr-3">
-                    <MessageCircle className="h-4 w-4 text-vynal-accent-secondary" />
-                  </div>
-                  <span className="text-xs font-medium text-vynal-purple-light dark:text-vynal-text-primary">Messages</span>
+                <Link href="/dashboard/messages" className="bg-vynal-purple-secondary/5 dark:bg-vynal-purple-secondary/10 hover:bg-vynal-purple-secondary/10 dark:hover:bg-vynal-purple-secondary/20 p-4 rounded-lg flex flex-col items-center text-center gap-2 transition-colors">
+                  <MessageCircle className="h-6 w-6 text-vynal-accent-primary" />
+                  <span className="text-sm font-medium text-vynal-purple-light dark:text-vynal-text-primary">Messages</span>
                 </Link>
-                
-                <Link 
-                  href="/dashboard/services" 
-                  className="flex items-center p-2 rounded-md bg-gradient-to-r from-gray-50 to-white dark:from-vynal-purple-secondary/10 dark:to-transparent border border-slate-100 dark:border-vynal-purple-secondary/20 hover:shadow-sm transition-all"
-                >
-                  <div className="p-1.5 rounded-full bg-gradient-to-tr from-vynal-purple-secondary/20 to-vynal-purple-secondary/10 shadow-sm mr-3">
-                    <FileText className="h-4 w-4 text-vynal-purple-secondary" />
-                  </div>
-                  <span className="text-xs font-medium text-vynal-purple-light dark:text-vynal-text-primary">Services</span>
+                <Link href="/dashboard/orders" className="bg-vynal-purple-secondary/5 dark:bg-vynal-purple-secondary/10 hover:bg-vynal-purple-secondary/10 dark:hover:bg-vynal-purple-secondary/20 p-4 rounded-lg flex flex-col items-center text-center gap-2 transition-colors">
+                  <Clock className="h-6 w-6 text-vynal-accent-primary" />
+                  <span className="text-sm font-medium text-vynal-purple-light dark:text-vynal-text-primary">Commandes</span>
                 </Link>
-                
-                <Link 
-                  href="/dashboard/wallet" 
-                  className="flex items-center p-2 rounded-md bg-gradient-to-r from-gray-50 to-white dark:from-vynal-purple-secondary/10 dark:to-transparent border border-slate-100 dark:border-vynal-purple-secondary/20 hover:shadow-sm transition-all"
-                >
-                  <div className="p-1.5 rounded-full bg-gradient-to-tr from-vynal-purple-light/20 to-vynal-purple-light/10 shadow-sm mr-3">
-                    <CreditCard className="h-4 w-4 text-vynal-purple-light" />
-                  </div>
-                  <span className="text-xs font-medium text-vynal-purple-light dark:text-vynal-text-primary">Paiements</span>
+                <Link href="/dashboard/wallet" className="bg-vynal-purple-secondary/5 dark:bg-vynal-purple-secondary/10 hover:bg-vynal-purple-secondary/10 dark:hover:bg-vynal-purple-secondary/20 p-4 rounded-lg flex flex-col items-center text-center gap-2 transition-colors">
+                  <CreditCard className="h-6 w-6 text-vynal-accent-primary" />
+                  <span className="text-sm font-medium text-vynal-purple-light dark:text-vynal-text-primary">Paiements</span>
                 </Link>
               </div>
             </CardContent>
           </Card>
-        </div>
-
-        <div className="text-xs text-slate-400 dark:text-vynal-text-secondary/60 text-right mt-4 pr-2">
-          {getLastRefreshText()}
+          
+          {/* Section Performance */}
+          <Card className="border border-vynal-purple-secondary/10 shadow-sm bg-white dark:bg-vynal-purple-dark/10 overflow-hidden">
+            <CardHeader className="px-6 pt-6 pb-3">
+              <div className="flex justify-between items-center">
+                <CardTitle className="text-lg text-vynal-purple-light dark:text-vynal-text-primary">Performance</CardTitle>
+                <div className="bg-vynal-accent-primary/10 p-1.5 rounded-full">
+                  <Zap className="h-4 w-4 text-vynal-accent-primary" />
+                </div>
+              </div>
+              <CardDescription className="text-vynal-purple-secondary dark:text-vynal-text-secondary/80">
+                Analyse de vos performances récentes
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="px-6 pb-6">
+              <div className="flex flex-col gap-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-10 h-10 bg-vynal-purple-secondary/5 dark:bg-vynal-purple-secondary/20 rounded-full flex items-center justify-center">
+                      <Star className="h-5 w-5 text-amber-500" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-vynal-purple-light dark:text-vynal-text-primary">Note moyenne</p>
+                      <p className="text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary">Sur les 30 derniers jours</p>
+                    </div>
+                  </div>
+                  <div className="text-xl font-semibold text-vynal-purple-light dark:text-vynal-text-primary">4.9/5</div>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-10 h-10 bg-vynal-purple-secondary/5 dark:bg-vynal-purple-secondary/20 rounded-full flex items-center justify-center">
+                      <Eye className="h-5 w-5 text-blue-500" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-vynal-purple-light dark:text-vynal-text-primary">Visiteurs</p>
+                      <p className="text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary">Sur votre profil</p>
+                    </div>
+                  </div>
+                  <div className="text-xl font-semibold text-vynal-purple-light dark:text-vynal-text-primary">324</div>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-10 h-10 bg-vynal-purple-secondary/5 dark:bg-vynal-purple-secondary/20 rounded-full flex items-center justify-center">
+                      <Users className="h-5 w-5 text-green-500" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-vynal-purple-light dark:text-vynal-text-primary">Taux de conversion</p>
+                      <p className="text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary">Visiteurs → Commandes</p>
+                    </div>
+                  </div>
+                  <div className="text-xl font-semibold text-vynal-purple-light dark:text-vynal-text-primary">8.2%</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

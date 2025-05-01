@@ -91,32 +91,6 @@ export function OrderButton({
   const supabase = createClientComponentClient();
   const { initiatePayment } = useVynalPayment();
 
-  // Charger les données du service lorsque le modal s'ouvre ou qu'on appuie sur le bouton de test
-  useEffect(() => {
-    if (serviceId && !serviceData && !loadingService) {
-      console.log("Effet déclenché : chargement automatique des données du service", serviceId);
-      fetchServiceData();
-    }
-  }, [serviceId, serviceData, loadingService]);
-
-  // Réinitialiser les états lorsque le modal se ferme
-  useEffect(() => {
-    if (!isOpen) {
-      console.log("Effet déclenché : modal fermé, réinitialisation des états");
-      // Ne pas réinitialiser serviceData pour éviter des rechargements inutiles
-    }
-  }, [isOpen]);
-
-  // Vérifier l'authentification à chaque rendu
-  useEffect(() => {
-    if (isOpen && !user && !authLoading) {
-      console.log("Effet déclenché : utilisateur non connecté, fermeture du modal");
-      setIsOpen(false);
-      hotToast.error("Vous devez être connecté pour commander");
-      router.push("/sign-in");
-    }
-  }, [isOpen, user, authLoading, router]);
-
   // Fonction pour récupérer les données du service
   const fetchServiceData = async () => {
     if (!serviceId) return false;
@@ -154,6 +128,32 @@ export function OrderButton({
       setLoadingService(false);
     }
   };
+
+  // Charger les données du service lorsque le modal s'ouvre ou qu'on appuie sur le bouton de test
+  useEffect(() => {
+    if (serviceId && !serviceData && !loadingService) {
+      console.log("Effet déclenché : chargement automatique des données du service", serviceId);
+      fetchServiceData();
+    }
+  }, [serviceId, serviceData, loadingService, fetchServiceData]);
+
+  // Réinitialiser les états lorsque le modal se ferme
+  useEffect(() => {
+    if (!isOpen) {
+      console.log("Effet déclenché : modal fermé, réinitialisation des états");
+      // Ne pas réinitialiser serviceData pour éviter des rechargements inutiles
+    }
+  }, [isOpen]);
+
+  // Vérifier l'authentification à chaque rendu
+  useEffect(() => {
+    if (isOpen && !user && !authLoading) {
+      console.log("Effet déclenché : utilisateur non connecté, fermeture du modal");
+      setIsOpen(false);
+      hotToast.error("Vous devez être connecté pour commander");
+      router.push("/sign-in");
+    }
+  }, [isOpen, user, authLoading, router]);
 
   // Obtenir le service actuel (réel ou démo)
   const currentService = serviceData || demoService;

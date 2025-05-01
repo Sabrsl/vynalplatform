@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useMemo } from "react";
+import React, { useState, useRef, useEffect, useMemo, useCallback, memo } from "react";
 import Image from "next/image";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
  * - Animation fluide sans dépendances lourdes
  * - Responsive design avancé
  */
-const PartnersSection = () => {
+const PartnersSection = memo(() => {
   // Détection du thème
   const { resolvedTheme } = useTheme();
   const isDarkMode = resolvedTheme === 'dark';
@@ -77,6 +77,18 @@ const PartnersSection = () => {
     };
   }, []);
   
+  // Fonction mémorisée pour mettre à jour la durée d'animation
+  const updateAnimationDuration = useCallback(() => {
+    if (!scrollerRef.current) return;
+    const scroller = scrollerRef.current;
+    
+    // La largeur totale influence la durée pour une vitesse constante
+    const scrollerWidth = scroller.scrollWidth;
+    const baseDuration = 40; // secondes
+    const calculatedDuration = (scrollerWidth / 2000) * baseDuration;
+    scroller.style.animationDuration = `${calculatedDuration}s`;
+  }, []);
+  
   // Gestion de l'animation CSS
   useEffect(() => {
     if (!scrollerRef.current) return;
@@ -91,15 +103,6 @@ const PartnersSection = () => {
     // Pause/reprise de l'animation
     scroller.style.animationPlayState = isPaused || !isInView ? 'paused' : 'running';
     
-    // Calcul dynamique de la durée d'animation
-    const updateAnimationDuration = () => {
-      // La largeur totale influence la durée pour une vitesse constante
-      const scrollerWidth = scroller.scrollWidth;
-      const baseDuration = 40; // secondes
-      const calculatedDuration = (scrollerWidth / 2000) * baseDuration;
-      scroller.style.animationDuration = `${calculatedDuration}s`;
-    };
-    
     updateAnimationDuration();
     
     // Recalculer si la fenêtre change de taille
@@ -111,31 +114,59 @@ const PartnersSection = () => {
     return () => {
       window.removeEventListener('resize', handleResize);
     };
-  }, [isPaused, isInView, isReducedMotion]);
+  }, [isPaused, isInView, isReducedMotion, updateAnimationDuration]);
   
   // Alternance pause/lecture
-  const handlePauseToggle = () => {
+  const handlePauseToggle = useCallback(() => {
     setIsPaused(!isPaused);
-  };
+  }, [isPaused]);
+  
+  // Classes CSS mémorisées pour les performances
+  const sectionClasses = useMemo(() => cn(
+    "py-12 sm:py-16 md:py-20 overflow-hidden w-screen relative -mx-4 md:-mx-8 lg:-mx-12",
+    isDarkMode ? "bg-vynal-purple-dark/50" : "bg-indigo-50/80"
+  ), [isDarkMode]);
+  
+  const headingClasses = useMemo(() => cn(
+    "text-2xl sm:text-3xl font-bold text-center bg-gradient-to-r bg-clip-text text-transparent",
+    isDarkMode 
+      ? "from-vynal-accent-primary to-vynal-accent-secondary" 
+      : "from-indigo-600 to-indigo-800"
+  ), [isDarkMode]);
+  
+  const leftGradientClasses = useMemo(() => cn(
+    "absolute left-0 w-16 sm:w-24 md:w-32 h-full z-10",
+    "bg-gradient-to-r",
+    isDarkMode 
+      ? "from-vynal-purple-dark/95 to-transparent"
+      : "from-indigo-50/95 to-transparent"
+  ), [isDarkMode]);
+  
+  const rightGradientClasses = useMemo(() => cn(
+    "absolute right-0 w-16 sm:w-24 md:w-32 h-full z-10",
+    "bg-gradient-to-l",
+    isDarkMode 
+      ? "from-vynal-purple-dark/95 to-transparent"
+      : "from-indigo-50/95 to-transparent"
+  ), [isDarkMode]);
+  
+  // Styles d'animation mémorisés
+  const scrollerStyle = useMemo(() => ({
+    animation: isReducedMotion ? 'none' : 'scroll 40s linear infinite',
+    willChange: 'transform',
+    animationPlayState: isPaused || !isInView ? 'paused' : 'running'
+  }), [isReducedMotion, isPaused, isInView]);
   
   return (
     <section 
       ref={containerRef}
       aria-labelledby="partners-heading"
-      className={cn(
-        "py-12 sm:py-16 md:py-20 overflow-hidden w-screen relative -mx-4 md:-mx-8 lg:-mx-12",
-        isDarkMode ? "bg-vynal-purple-dark/50" : "bg-indigo-50/80"
-      )}
+      className={sectionClasses}
     >
       <div className="container mx-auto px-4 mb-8 sm:mb-10 md:mb-12">
         <h2 
           id="partners-heading"
-          className={cn(
-            "text-2xl sm:text-3xl font-bold text-center bg-gradient-to-r bg-clip-text text-transparent",
-            isDarkMode 
-              ? "from-vynal-accent-primary to-vynal-accent-secondary" 
-              : "from-indigo-600 to-indigo-800"
-          )}
+          className={headingClasses}
         >
           Ils nous font confiance
         </h2>
@@ -149,23 +180,11 @@ const PartnersSection = () => {
       >
         {/* Dégradés sur les côtés pour un effet d'estompage */}
         <div 
-          className={cn(
-            "absolute left-0 w-16 sm:w-24 md:w-32 h-full z-10",
-            "bg-gradient-to-r",
-            isDarkMode 
-              ? "from-vynal-purple-dark/95 to-transparent"
-              : "from-indigo-50/95 to-transparent"
-          )} 
+          className={leftGradientClasses} 
           aria-hidden="true"
         />
         <div 
-          className={cn(
-            "absolute right-0 w-16 sm:w-24 md:w-32 h-full z-10",
-            "bg-gradient-to-l",
-            isDarkMode 
-              ? "from-vynal-purple-dark/95 to-transparent"
-              : "from-indigo-50/95 to-transparent"
-          )} 
+          className={rightGradientClasses}
           aria-hidden="true"
         />
         
@@ -177,39 +196,39 @@ const PartnersSection = () => {
           onMouseLeave={handlePauseToggle}
           onTouchStart={handlePauseToggle}
           onTouchEnd={handlePauseToggle}
-          style={{
-            // Animation CSS pour des performances optimales
-            animation: isReducedMotion ? 'none' : 'scroll 40s linear infinite',
-            // Garantit une mise à l'échelle correcte pour les petits écrans
-            willChange: 'transform',
-          }}
+          style={scrollerStyle}
         >
-          {duplicatedPartners.map((partner, index) => (
-            <div 
-              key={`${partner.name}-${index}`} 
-              className="inline-block"
-              aria-hidden={index >= partners.length ? "true" : "false"}
-            >
-              <div className="w-24 sm:w-28 md:w-32 h-20 sm:h-22 md:h-24 relative flex items-center justify-center">
-                <Image
-                  src={partner.image}
-                  alt={`Logo ${partner.name}`}
-                  width={100}
-                  height={70}
-                  className={cn(
-                    "h-auto w-auto object-contain max-h-full max-w-full transition-all duration-300",
-                    "hover:scale-105 select-none",
-                    isDarkMode
-                      ? "filter hue-rotate-275 brightness-100 contrast-100 opacity-85 hover:opacity-100"
-                      : "opacity-90 hover:opacity-100"
-                  )}
-                  loading={index < partners.length ? "eager" : "lazy"}
-                  // Optimisation de la priorité pour les LCP
-                  priority={index < partners.length}
-                />
+          {duplicatedPartners.map((partner, index) => {
+            // Mémoriser les classes d'image pour chaque partenaire
+            const imageClasses = cn(
+              "h-auto w-auto object-contain max-h-full max-w-full transition-all duration-300",
+              "hover:scale-105 select-none",
+              isDarkMode
+                ? "filter hue-rotate-275 brightness-100 contrast-100 opacity-85 hover:opacity-100"
+                : "opacity-90 hover:opacity-100"
+            );
+            
+            return (
+              <div 
+                key={`${partner.name}-${index}`} 
+                className="inline-block"
+                aria-hidden={index >= partners.length ? "true" : "false"}
+              >
+                <div className="w-24 sm:w-28 md:w-32 h-20 sm:h-22 md:h-24 relative flex items-center justify-center">
+                  <Image
+                    src={partner.image}
+                    alt={`Logo ${partner.name}`}
+                    width={100}
+                    height={70}
+                    className={imageClasses}
+                    loading={index < partners.length ? "eager" : "lazy"}
+                    // Optimisation de la priorité pour les LCP
+                    priority={index < partners.length}
+                  />
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
       
@@ -257,6 +276,8 @@ const PartnersSection = () => {
       `}</style>
     </section>
   );
-};
+});
+
+PartnersSection.displayName = "PartnersSection";
 
 export default PartnersSection;

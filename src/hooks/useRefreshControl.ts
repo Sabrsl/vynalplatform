@@ -23,6 +23,7 @@ interface RefreshControlOptions {
 /**
  * Hook personnalisé pour contrôler les rafraîchissements de données
  * Évite les rafraîchissements excessifs et fournit une API cohérente
+ * Version optimisée avec références consolidées
  */
 export function useRefreshControl(options: RefreshControlOptions = {}) {
   const {
@@ -31,17 +32,38 @@ export function useRefreshControl(options: RefreshControlOptions = {}) {
     debounceDelay = 1000
   } = options;
   
-  // Références pour suivre les états
-  const lastRefreshTimeRef = useRef<number>(0);
-  const refreshCountRef = useRef<number>(0);
-  const timersRef = useRef<NodeJS.Timeout[]>([]);
+  // Consolidation des références en un seul objet
+  const refs = useRef({
+    lastRefreshTime: 0,
+    refreshCount: 0,
+    timers: new Set<NodeJS.Timeout>(),
+    isMounted: true
+  });
   
   // Nettoyer tous les timers au démontage
   useEffect(() => {
+    refs.current.isMounted = true;
+    
     return () => {
-      timersRef.current.forEach(timer => clearTimeout(timer));
-      timersRef.current = [];
+      refs.current.isMounted = false;
+      // Nettoyer tous les timers en une seule fois
+      refs.current.timers.forEach(timer => clearTimeout(timer));
+      refs.current.timers.clear();
     };
+  }, []);
+  
+  /**
+   * Fonction utilitaire pour ajouter un timer et le suivre
+   */
+  const trackTimer = useCallback((timer: NodeJS.Timeout): void => {
+    refs.current.timers.add(timer);
+  }, []);
+  
+  /**
+   * Fonction utilitaire pour supprimer un timer du suivi
+   */
+  const untrackTimer = useCallback((timer: NodeJS.Timeout): void => {
+    refs.current.timers.delete(timer);
   }, []);
   
   /**
@@ -49,7 +71,7 @@ export function useRefreshControl(options: RefreshControlOptions = {}) {
    */
   const canRefresh = useCallback((force: boolean = false): boolean => {
     const now = Date.now();
-    return force || (now - lastRefreshTimeRef.current >= minInterval);
+    return force || (now - refs.current.lastRefreshTime >= minInterval);
   }, [minInterval]);
   
   /**
@@ -63,28 +85,33 @@ export function useRefreshControl(options: RefreshControlOptions = {}) {
     // Créer un timer et le stocker
     const timerId = setTimeout(() => {
       // Vérifier à nouveau avant d'exécuter
-      if (canRefresh(force)) {
-        lastRefreshTimeRef.current = Date.now();
-        refreshCountRef.current += 1;
+      if (refs.current.isMounted && canRefresh(force)) {
+        refs.current.lastRefreshTime = Date.now();
+        refs.current.refreshCount += 1;
         callback();
       }
+      // Retirer le timer de la liste une fois exécuté
+      untrackTimer(timerId);
     }, delay);
     
-    timersRef.current.push(timerId);
+    // Suivre le timer pour le nettoyage
+    trackTimer(timerId);
     
     // Retourner une fonction pour annuler si nécessaire
     return () => {
       clearTimeout(timerId);
-      timersRef.current = timersRef.current.filter(id => id !== timerId);
+      untrackTimer(timerId);
     };
-  }, [canRefresh, debounceDelay]);
+  }, [canRefresh, debounceDelay, trackTimer, untrackTimer]);
   
   /**
    * Planifie un rafraîchissement en arrière-plan si nécessaire
    */
   const scheduleBackgroundRefresh = useCallback((callback: () => void): void => {
+    if (!refs.current.isMounted) return;
+    
     const now = Date.now();
-    if (now - lastRefreshTimeRef.current >= backgroundRefreshInterval) {
+    if (now - refs.current.lastRefreshTime >= backgroundRefreshInterval) {
       scheduleRefresh(callback, debounceDelay, false);
     }
   }, [backgroundRefreshInterval, debounceDelay, scheduleRefresh]);
@@ -93,8 +120,10 @@ export function useRefreshControl(options: RefreshControlOptions = {}) {
    * Exécute immédiatement un rafraîchissement manuel
    */
   const refreshNow = useCallback((callback: () => void): void => {
-    lastRefreshTimeRef.current = Date.now();
-    refreshCountRef.current += 1;
+    if (!refs.current.isMounted) return;
+    
+    refs.current.lastRefreshTime = Date.now();
+    refs.current.refreshCount += 1;
     callback();
   }, []);
   
@@ -103,7 +132,7 @@ export function useRefreshControl(options: RefreshControlOptions = {}) {
    */
   const getTimeUntilNextRefresh = useCallback((): number => {
     const now = Date.now();
-    const elapsed = now - lastRefreshTimeRef.current;
+    const elapsed = now - refs.current.lastRefreshTime;
     return Math.max(0, minInterval - elapsed);
   }, [minInterval]);
   
@@ -111,7 +140,7 @@ export function useRefreshControl(options: RefreshControlOptions = {}) {
    * Retourne le nombre total de rafraîchissements effectués
    */
   const getRefreshCount = useCallback((): number => {
-    return refreshCountRef.current;
+    return refs.current.refreshCount;
   }, []);
   
   return {
@@ -121,6 +150,6 @@ export function useRefreshControl(options: RefreshControlOptions = {}) {
     refreshNow,
     getTimeUntilNextRefresh,
     getRefreshCount,
-    lastRefreshTime: lastRefreshTimeRef
+    lastRefreshTime: refs.current.lastRefreshTime
   };
 } 

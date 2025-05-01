@@ -2,93 +2,139 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 
-// Constante pour l'initialisation côté serveur
+// Cache global pour les résultats de media queries
+const mediaQueryCache = new Map<string, {
+  mql: MediaQueryList;
+  listeners: Set<(matches: boolean) => void>;
+  matches: boolean;
+}>();
+
+// Constante pour l'initialisation côté serveur avec valeurs par défaut pour les tailles d'écran courantes
 const DEFAULT_SSR_MATCHES: Record<string, boolean> = {
-  '(max-width: 640px)': false,
-  '(max-width: 768px)': false,
-  '(max-width: 1024px)': true,
-  '(max-width: 1280px)': true,
-  '(max-width: 1536px)': true,
+  '(max-width: 640px)': false,  // mobile
+  '(max-width: 768px)': false,  // tablet
+  '(max-width: 1024px)': true,  // small desktop
+  '(max-width: 1280px)': true,  // medium desktop
+  '(max-width: 1536px)': true,  // large desktop
   '(prefers-color-scheme: dark)': false,
   '(prefers-reduced-motion: reduce)': false
 };
 
 /**
- * Hook optimisé pour gérer les media queries avec performance maximale.
+ * Hook optimisé pour gérer les media queries avec performance maximale et partage de listeners.
+ * - Mise en cache globale pour éviter la duplication des MediaQueryList
+ * - Gestion optimisée des abonnements/désabonnements
+ * - Support SSR amélioré
  * 
  * @param {string} query - La media query à surveiller (ex: "(max-width: 768px)")
  * @returns {boolean} - Retourne true si la media query correspond, sinon false
  */
 export function useMediaQuery(query: string): boolean {
-  // Utiliser useRef pour éviter de recréer la media query à chaque rendu
-  const mediaQueryRef = useRef<MediaQueryList | null>(null);
+  // Vérifier si nous sommes côté client
+  const isClient = typeof window !== 'undefined';
   
-  // État pour suivre si la media query correspond
-  const [matches, setMatches] = useState<boolean>(() => {
-    // Initialisation intelligente avec des valeurs par défaut pour SSR
-    if (typeof window === 'undefined') {
+  // Utiliser le cache pour l'état initial si disponible
+  const initialState = useMemo(() => {
+    if (!isClient) {
       return DEFAULT_SSR_MATCHES[query] ?? false;
     }
     
-    // Initialisation côté client
+    // Utiliser la valeur du cache si elle existe
+    if (mediaQueryCache.has(query)) {
+      return mediaQueryCache.get(query)!.matches;
+    }
+    
+    // Sinon, créer une nouvelle entrée dans le cache
     try {
       const mql = window.matchMedia(query);
-      mediaQueryRef.current = mql;
+      mediaQueryCache.set(query, {
+        mql,
+        listeners: new Set(),
+        matches: mql.matches
+      });
       return mql.matches;
     } catch (e) {
       console.warn(`Media query error for "${query}":`, e);
       return false;
     }
-  });
-
-  // Gestionnaire d'événement mémorisé pour éviter les recréations
-  const handleChange = useCallback((event: MediaQueryListEvent): void => {
-    setMatches(event.matches);
-  }, []);
-
-  // Effet pour gérer l'abonnement/désabonnement
-  useEffect(() => {
-    // Ne rien faire côté serveur
-    if (typeof window === 'undefined') return;
+  }, [query, isClient]);
+  
+  // État pour suivre si la media query correspond
+  const [matches, setMatches] = useState<boolean>(initialState);
+  
+  // Référence pour savoir si le composant est monté
+  const mountedRef = useRef(true);
+  
+  // Gestionnaire d'événement mémorisé avec référence stable
+  const handleChange = useCallback((event: MediaQueryListEvent | boolean): void => {
+    if (!mountedRef.current) return;
     
-    // Nettoyer l'ancienne requête si elle existe
-    const cleanupOldQuery = (): void => {
-      if (mediaQueryRef.current) {
-        try {
-          mediaQueryRef.current.removeEventListener('change', handleChange);
-        } catch (e) {
-          // Gestion silencieuse des erreurs de nettoyage
+    // Si c'est un booléen, c'est une mise à jour directe
+    const newMatches = typeof event === 'boolean' ? event : event.matches;
+    
+    setMatches(newMatches);
+    
+    // Mettre à jour le cache
+    if (isClient && mediaQueryCache.has(query)) {
+      mediaQueryCache.get(query)!.matches = newMatches;
+    }
+  }, [query, isClient]);
+  
+  // Effet unique pour la gestion du cycle de vie et des abonnements
+  useEffect(() => {
+    if (!isClient) return;
+    
+    mountedRef.current = true;
+    
+    let cacheEntry = mediaQueryCache.get(query);
+    
+    // Créer une nouvelle entrée dans le cache si nécessaire
+    if (!cacheEntry) {
+      try {
+        const mql = window.matchMedia(query);
+        cacheEntry = {
+          mql,
+          listeners: new Set(),
+          matches: mql.matches
+        };
+        mediaQueryCache.set(query, cacheEntry);
+      } catch (e) {
+        console.warn(`Failed to initialize media query for "${query}":`, e);
+        return () => {};
+      }
+    }
+    
+    // S'assurer que l'état local est synchronisé avec le cache
+    if (matches !== cacheEntry.matches) {
+      setMatches(cacheEntry.matches);
+    }
+    
+    // Créer un gestionnaire spécifique pour cette instance
+    const listener = (e: MediaQueryListEvent) => handleChange(e);
+    
+    // Ajouter l'écouteur d'événement
+    cacheEntry.listeners.add(handleChange);
+    cacheEntry.mql.addEventListener('change', listener);
+    
+    // Nettoyage à la destruction du composant
+    return () => {
+      mountedRef.current = false;
+      
+      if (mediaQueryCache.has(query)) {
+        const entry = mediaQueryCache.get(query)!;
+        
+        // Supprimer l'écouteur d'événement
+        entry.mql.removeEventListener('change', listener);
+        entry.listeners.delete(handleChange);
+        
+        // Si plus aucun composant n'utilise cette media query, la supprimer du cache
+        if (entry.listeners.size === 0) {
+          mediaQueryCache.delete(query);
         }
       }
     };
-    
-    try {
-      // Créer une nouvelle instance de MediaQueryList
-      const mql = window.matchMedia(query);
-      
-      // Mettre à jour la référence
-      cleanupOldQuery();
-      mediaQueryRef.current = mql;
-      
-      // Mettre à jour immédiatement l'état
-      if (matches !== mql.matches) {
-        setMatches(mql.matches);
-      }
-      
-      // Ajouter l'écouteur d'événement avec la méthode moderne
-      mql.addEventListener('change', handleChange);
-      
-      // Nettoyage à la destruction du composant ou lors du changement de query
-      return () => {
-        mql.removeEventListener('change', handleChange);
-        mediaQueryRef.current = null;
-      };
-    } catch (e) {
-      console.warn(`Failed to initialize media query for "${query}":`, e);
-      return cleanupOldQuery;
-    }
-  }, [query, handleChange, matches]);
-
+  }, [query, matches, handleChange, isClient]);
+  
   // Retourner une valeur mémorisée pour éviter les re-rendus inutiles
   return useMemo(() => matches, [matches]);
 } 

@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useCallback, memo } from "react";
 import { cn } from "@/lib/utils";
 
-export const TextRevealCard = ({
+export const TextRevealCard = memo(({
   text,
   revealText,
   children,
@@ -16,14 +16,23 @@ export const TextRevealCard = ({
 }) => {
   const [isHovered, setIsHovered] = useState(false);
 
+  // Utilisation de useCallback pour éviter de recréer ces fonctions à chaque rendu
+  const handleMouseEnter = useCallback(() => {
+    setIsHovered(true);
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    setIsHovered(false);
+  }, []);
+
   return (
     <div
       className={cn(
         "bg-vynal-purple-dark/80 border border-vynal-purple-secondary/30 shadow-lg shadow-vynal-accent-secondary/10 p-8 md:p-12 rounded-xl w-full max-w-3xl mx-auto",
         className
       )}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
       <div className="flex flex-col space-y-4">
         <div className="text-3xl md:text-5xl font-bold text-center relative overflow-hidden">
@@ -46,9 +55,11 @@ export const TextRevealCard = ({
       </div>
     </div>
   );
-};
+});
 
-export const TextRevealCardTitle = ({
+TextRevealCard.displayName = "TextRevealCard";
+
+export const TextRevealCardTitle = memo(({
   children,
   className,
 }: {
@@ -60,9 +71,11 @@ export const TextRevealCardTitle = ({
       {children}
     </div>
   );
-};
+});
 
-export const TextRevealCardDescription = ({
+TextRevealCardTitle.displayName = "TextRevealCardTitle";
+
+export const TextRevealCardDescription = memo(({
   children,
   className,
 }: {
@@ -74,4 +87,6 @@ export const TextRevealCardDescription = ({
       {children}
     </div>
   );
-}; 
+});
+
+TextRevealCardDescription.displayName = "TextRevealCardDescription"; 
