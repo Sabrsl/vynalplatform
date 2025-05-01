@@ -84,6 +84,12 @@
     min-height: 100vh;
   }
 
+  /* Désactiver le zoom sur les inputs pour mobile */
+  input, select, textarea {
+    @apply font-poppins;
+    font-size: 16px; /* Taille minimum pour éviter le zoom sur iOS */
+  }
+
   /* Créer un élément fixe pour le dégradé de fond */
   body::before {
     content: '';

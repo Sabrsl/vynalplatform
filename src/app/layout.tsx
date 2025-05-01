@@ -24,6 +24,7 @@ export const metadata: Metadata = {
   title: 'Vynal Platform | Mise en relation freelances et clients',
   description: 'Plateforme de mise en relation entre freelances et clients pour des services de qualité',
   keywords: 'freelance, clients, services, marketplace, gig economy',
+  viewport: 'width=device-width, initial-scale=1, maximum-scale=1',
 };
 
 export default function RootLayout({
@@ -33,6 +34,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fr" suppressHydrationWarning className="overflow-x-hidden no-scrollbar">
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+      </head>
       <body className={`${poppins.variable} font-poppins transition-colors duration-300 no-scrollbar`}>
         <Providers>
           <Suspense fallback={<Loading />}>
