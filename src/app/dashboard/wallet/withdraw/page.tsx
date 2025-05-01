@@ -13,6 +13,7 @@ import { ArrowLeft, AlertCircle, CheckCircle, Loader, Wallet, BanknoteIcon } fro
 import { PaymentMethodCard } from "@/components/orders/PaymentMethodCard";
 import { CURRENCY } from "@/lib/constants";
 import { useUser } from "@/hooks/useUser";
+import Image from 'next/image';
 
 // Données fictives pour la démo
 const MOCK_WALLET = {
@@ -488,10 +489,13 @@ export default function WithdrawPage() {
                           ? "bg-slate-100 dark:bg-vynal-purple-dark/60" 
                           : "bg-slate-100 dark:bg-vynal-purple-dark/40"
                       }`}>
-                        <img 
+                        <Image 
                           src={method.logo} 
                           alt={method.name} 
                           className="h-6 w-6"
+                          width={24}
+                          height={24}
+                          unoptimized={method.logo.startsWith('data:')}
                         />
                       </div>
                       <div className="text-left">

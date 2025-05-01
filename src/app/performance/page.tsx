@@ -11,13 +11,39 @@ import { RefreshCw, AlertCircle, Clock, LineChart, Network, BarChart2, Activity 
  * Cette page utilise le hook usePerformanceMonitor pour afficher les métriques de performance
  */
 export default function PerformancePage() {
-  const { metrics, measure, isLowEndDevice } = usePerformanceMonitor({
+  const { metrics, collectMetrics } = usePerformanceMonitor({
     enableResourceTiming: true,
     enableNavigationTiming: true,
     collectAutomatically: true
   });
   
   const [showAlert, setShowAlert] = useState(false);
+  const [isLowEndDevice, setIsLowEndDevice] = useState(false);
+  
+  // Détecter les appareils à faibles performances
+  useEffect(() => {
+    // Utiliser une approche sécurisée sans dépendre des types spécifiques de l'API Navigator
+    if (typeof window !== 'undefined') {
+      try {
+        // Vérification simplifiée des faibles performances
+        // @ts-ignore - Accéder de manière sécurisée aux propriétés non standard
+        const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+        const effectiveType = connection?.effectiveType;
+        const slowConnection = effectiveType === '2g' || effectiveType === 'slow-2g';
+        
+        // @ts-ignore - Accéder de manière sécurisée à deviceMemory
+        const limitedMemory = navigator.deviceMemory < 4;
+        
+        // La propriété hardwareConcurrency est standard mais vérifions quand même
+        const lowCPU = navigator.hardwareConcurrency < 4;
+        
+        setIsLowEndDevice(slowConnection || limitedMemory || lowCPU || false);
+      } catch (e) {
+        // Fallback en cas d'erreur
+        setIsLowEndDevice(false);
+      }
+    }
+  }, []);
   
   // Afficher un avertissement pour les appareils à faibles performances
   useEffect(() => {
@@ -434,7 +460,7 @@ export default function PerformancePage() {
       
       <div className="flex justify-center mt-8">
         <Button 
-          onClick={() => measure()} 
+          onClick={() => collectMetrics()} 
           className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded-lg"
         >
           <RefreshCw className="h-4 w-4" />

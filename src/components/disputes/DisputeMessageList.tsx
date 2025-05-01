@@ -1,9 +1,12 @@
+"use client";
+
 import React, { useMemo, memo } from 'react';
 import { DisputeMessage } from '@/lib/supabase/disputes';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { CheckCircle, Download, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FileText, Download, Image, CheckCircle } from 'lucide-react';
+import NextImage from 'next/image';
 
 interface DisputeMessageListProps {
   messages: DisputeMessage[];
@@ -38,11 +41,15 @@ function DisputeMessageList({ messages, currentUserId, formatDate }: DisputeMess
         <div className="mt-2">
           {isImage ? (
             <div className="group relative overflow-hidden rounded-md border border-slate-200 bg-slate-50 inline-block max-w-full">
-              <img 
+              <NextImage 
                 src={url} 
                 alt="Pièce jointe" 
                 className="w-auto h-auto max-h-40 max-w-full object-contain"
-                onError={(e) => (e.currentTarget.style.display = 'none')}
+                width={160}
+                height={160}
+                style={{ maxHeight: '160px' }}
+                unoptimized={url.startsWith('data:')}
+                onError={(e: any) => (e.currentTarget.style.display = 'none')}
               />
               <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                 <a 

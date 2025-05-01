@@ -14,6 +14,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'react-hot-toast';
+import Image from 'next/image';
 
 // Type pour les utilisateurs
 interface UserData {
@@ -524,7 +525,14 @@ export default function AdminUsersPage() {
                   <div className="flex items-center">
                     <div className="h-5 w-5 rounded-full bg-gray-200 dark:bg-vynal-purple-secondary/20 flex items-center justify-center">
                       {user.avatar_url ? (
-                        <img src={user.avatar_url} alt={user.username || ''} className="h-5 w-5 rounded-full" />
+                        <Image 
+                          src={user.avatar_url} 
+                          alt={user.username || ''} 
+                          className="h-5 w-5 rounded-full" 
+                          width={20}
+                          height={20}
+                          unoptimized={user.avatar_url.startsWith('data:')}
+                        />
                       ) : (
                         <span className="text-[10px] font-medium text-gray-500 dark:text-vynal-text-secondary">
                           {user.full_name?.charAt(0) || user.username?.charAt(0) || user.email?.charAt(0) || '?'}
@@ -638,7 +646,15 @@ export default function AdminUsersPage() {
               <div className="flex items-center gap-3 mb-3">
                 <div className="h-14 w-14 rounded-full bg-gray-200 dark:bg-vynal-purple-secondary/20 flex items-center justify-center overflow-hidden border-2 border-vynal-accent-primary/30">
                   {currentUser.avatar_url ? (
-                    <img src={currentUser.avatar_url} alt={currentUser.username || ''} className="h-full w-full object-cover" />
+                    <Image 
+                      src={currentUser.avatar_url} 
+                      alt={currentUser.username || ''} 
+                      className="h-full w-full object-cover" 
+                      width={56}
+                      height={56}
+                      unoptimized={currentUser.avatar_url.startsWith('data:')}
+                      fill
+                    />
                   ) : (
                     <User className="h-7 w-7 text-gray-500 dark:text-vynal-text-secondary" />
                   )}

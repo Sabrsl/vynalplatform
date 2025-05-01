@@ -14,6 +14,7 @@ import {
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { MessageSquare, FileIcon } from 'lucide-react';
 import { OrderMessageForm } from './OrderMessageForm';
+import Image from 'next/image';
 
 // Constantes locales pour éviter les dépendances problématiques
 const CONVERSATIONS_KEY = 'conversations';
@@ -505,10 +506,13 @@ const MessagingInterface: React.FC<MessagingInterfaceProps> = ({
                         {!isCurrentUser && (
                           <div className="h-8 w-8 rounded-full bg-gray-200 dark:bg-gray-700 mr-2 overflow-hidden">
                             {message.sender?.avatar_url ? (
-                              <img 
+                              <Image 
                                 src={message.sender.avatar_url} 
                                 alt={message.sender.full_name || message.sender.username} 
                                 className="h-full w-full object-cover"
+                                width={32}
+                                height={32}
+                                unoptimized={message.sender.avatar_url.startsWith('data:')}
                               />
                             ) : (
                               <div className="h-full w-full flex items-center justify-center bg-purple-500 text-white">
@@ -529,10 +533,14 @@ const MessagingInterface: React.FC<MessagingInterfaceProps> = ({
                             <div className="mt-2">
                               {message.attachment_type?.startsWith('image/') ? (
                                 <a href={message.attachment_url} target="_blank" rel="noopener noreferrer" className="block">
-                                  <img 
+                                  <Image 
                                     src={message.attachment_url} 
                                     alt={message.attachment_name || "Pièce jointe"} 
                                     className="max-h-[150px] max-w-full object-contain rounded"
+                                    width={300}
+                                    height={150}
+                                    style={{ maxHeight: '150px' }}
+                                    unoptimized={message.attachment_url.startsWith('data:')}
                                   />
                                 </a>
                               ) : (

@@ -6,6 +6,7 @@ import { Message } from '@/lib/stores/useMessagingStore';
 import { Check, CheckCheck } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { FileIcon } from '@/components/ui/icons/FileIcon';
+import Image from 'next/image';
 
 interface MessageBubbleProps {
   message: Message;
@@ -133,11 +134,15 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           {hasAttachment && (
             <div className={`mt-1 ${message.content ? 'pt-2 border-t border-white/10' : ''}`}>
               {isImageAttachment ? (
-                <div className="rounded-md overflow-hidden bg-gray-100 dark:bg-gray-700">
-                  <img 
+                <div className="rounded-md overflow-hidden bg-gray-100 dark:bg-gray-700 relative">
+                  <Image 
                     src={attachmentUrl} 
                     alt={attachmentName} 
                     className="max-w-full h-auto max-h-80 object-contain" 
+                    width={300}
+                    height={300}
+                    style={{ maxHeight: '320px' }}
+                    unoptimized={attachmentUrl.startsWith('data:')}
                   />
                 </div>
               ) : (
