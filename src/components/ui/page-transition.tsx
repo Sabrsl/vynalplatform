@@ -263,7 +263,7 @@ export default function PageTransition() {
 
   // Utilisons un fond complètement opaque pour éviter tout problème de transparence
   return (
-    <div className="fixed inset-0 z-[9999] bg-white dark:bg-vynal-purple-dark flex flex-col items-center justify-start pt-20 animate-in fade-in duration-300">
+    <div className="absolute inset-0 z-[9999] bg-white dark:bg-vynal-purple-dark flex flex-col items-center justify-start pt-20 animate-in fade-in duration-300" data-testid="page-transition">
       <div className="container mx-auto px-4 max-w-5xl">
         {renderSkeleton()}
       </div>

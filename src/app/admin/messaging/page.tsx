@@ -466,12 +466,12 @@ export default function MessagingPage() {
 
       {/* Dialogue de message de contact */}
       <Dialog open={showConversationDialog} onOpenChange={setShowConversationDialog}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-3xl" aria-describedby="conversation-description">
           <DialogHeader className="pb-2">
-            <DialogTitle className="text-sm">
+            <DialogTitle className="text-base font-semibold">
               {currentConversation && `Message de contact de ${currentConversation.contact_name}`}
             </DialogTitle>
-            <DialogDescription className="text-xs flex justify-between">
+            <DialogDescription id="conversation-description" className="text-xs flex justify-between">
               <span>
                 Date: {currentConversation && formatDate(currentConversation.last_message_time)}
               </span>

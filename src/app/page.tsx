@@ -174,7 +174,7 @@ export default function Home() {
       {/* Features Section - solid background cards */}
       <section className="py-20">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-16 text-foreground dark:text-muted-foreground">Comment ça fonctionne</h2>
+          <h2 className="text-3xl font-bold text-center mb-16 bg-gradient-to-r from-vynal-accent-primary to-vynal-accent-secondary bg-clip-text text-transparent">Comment ça fonctionne</h2>
           <div className="grid md:grid-cols-3 gap-10">
             <SpotlightCard className="flex flex-col items-center text-center bg-white dark:bg-vynal-purple-dark/80 p-8 rounded-xl text-foreground dark:text-vynal-text-primary border border-vynal-purple-dark/20 dark:border-vynal-purple-secondary/30 shadow-lg shadow-vynal-accent-secondary/10 min-h-[320px] justify-between">
               <div className="mb-6 flex items-center justify-center">

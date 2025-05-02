@@ -132,7 +132,6 @@ export function OrderButton({
   // Charger les données du service lorsque le modal s'ouvre ou qu'on appuie sur le bouton de test
   useEffect(() => {
     if (serviceId && !serviceData && !loadingService) {
-      console.log("Effet déclenché : chargement automatique des données du service", serviceId);
       fetchServiceData();
     }
   }, [serviceId, serviceData, loadingService, fetchServiceData]);
@@ -140,7 +139,6 @@ export function OrderButton({
   // Réinitialiser les états lorsque le modal se ferme
   useEffect(() => {
     if (!isOpen) {
-      console.log("Effet déclenché : modal fermé, réinitialisation des états");
       // Ne pas réinitialiser serviceData pour éviter des rechargements inutiles
     }
   }, [isOpen]);
@@ -148,7 +146,6 @@ export function OrderButton({
   // Vérifier l'authentification à chaque rendu
   useEffect(() => {
     if (isOpen && !user && !authLoading) {
-      console.log("Effet déclenché : utilisateur non connecté, fermeture du modal");
       setIsOpen(false);
       hotToast.error("Vous devez être connecté pour commander");
       router.push("/sign-in");
@@ -161,10 +158,7 @@ export function OrderButton({
   // Fonction de traitement de paiement réelle (bouton principal)
   const handleOrderButtonClick = async () => {
     try {
-      console.log("=== DÉBUT PROCESSUS DE COMMANDE ===");
-      
       if (isLoading) {
-        console.log("Processus déjà en cours, annulation");
         return;
       }
       
@@ -173,17 +167,13 @@ export function OrderButton({
       
       // Vérifier que l'utilisateur est connecté
       if (!user) {
-        console.log("Erreur: Utilisateur non connecté");
         hotToast.error("Vous devez être connecté pour commander");
         router.push("/sign-in");
         return;
       }
       
-      console.log("Utilisateur connecté:", user.id);
-      
       // Vérifier si l'utilisateur est un client et non un freelance
       if (user.user_metadata?.role === "freelance") {
-        console.log("Erreur: Utilisateur est un freelance, commande non autorisée");
         toast({
           title: "Action non autorisée",
           description: "En tant que freelance, vous ne pouvez pas commander de services",
@@ -195,15 +185,10 @@ export function OrderButton({
       // Charger les données du service si nécessaire
       let serviceReady = true;
       if (serviceId && !serviceData) {
-        console.log("Récupération des données du service...");
         serviceReady = await fetchServiceData();
-        console.log("Résultat de la récupération:", serviceReady ? "Succès" : "Échec");
-      } else {
-        console.log("Utilisation des données de service existantes ou du service de démo");
       }
       
       if (!serviceReady) {
-        console.log("Erreur: Échec de la récupération des données du service");
         hotToast.error("Impossible de charger les informations du service");
         return;
       }
@@ -211,24 +196,17 @@ export function OrderButton({
       // Vérifier que les données du service sont disponibles
       const serviceDetails = serviceData || demoService;
       if (!serviceDetails) {
-        console.log("Erreur: Aucune donnée de service disponible");
         hotToast.error("Données de service manquantes");
         return;
       }
       
-      console.log("Données du service:", serviceDetails.id);
-      
       // Ouvrir le modal avec les bonnes étapes
-      console.log("Ouverture du modal de commande");
       setIsTestMode(false);
       setCurrentStep("requirements");
       setIsOpen(true);
-      
-      console.log("=== FIN DÉMARRAGE PROCESSUS DE COMMANDE ===");
     } catch (error) {
       console.error("Exception lors du démarrage de la commande:", error);
       const errorMessage = error instanceof Error ? error.message : "Erreur inconnue";
-      console.error("Message d'erreur détaillé:", errorMessage);
       
       hotToast.error(`Erreur: ${errorMessage}`);
     } finally {
@@ -239,10 +217,7 @@ export function OrderButton({
   // Fonction pour le paiement fictif direct (bouton test)
   const runTestPayment = async () => {
     try {
-      console.log("=== DÉBUT PAIEMENT TEST ===");
-      
       if (isTestLoading) {
-        console.log("Test déjà en cours, annulation");
         return false;
       }
       
@@ -250,20 +225,14 @@ export function OrderButton({
       setError(null);
       setTestPaymentSuccess(null);
       
-      console.log("État de chargement test activé");
-      
       // Vérifications préliminaires
       if (!user) {
-        console.log("Erreur: Utilisateur non connecté");
         hotToast.error("Vous devez être connecté pour effectuer un test");
         router.push("/sign-in");
         return false;
       }
       
-      console.log("Utilisateur connecté:", user.id);
-      
       if (user.user_metadata?.role === "freelance") {
-        console.log("Erreur: Utilisateur est un freelance, test non autorisé");
         toast({
           title: "Action non autorisée",
           description: "En tant que freelance, vous ne pouvez pas effectuer de test",
@@ -275,27 +244,20 @@ export function OrderButton({
       // Récupération des données du service
       let currentServiceData = serviceData;
       if (serviceId && !currentServiceData) {
-        console.log("Récupération des données du service...");
         const serviceSuccess = await fetchServiceData();
         
         if (serviceSuccess) {
           currentServiceData = serviceData;
-          console.log("Données du service récupérées avec succès");
         } else {
-          console.log("Échec de la récupération des données du service");
           hotToast.error("Impossible de récupérer les informations du service");
           return false;
         }
-      } else {
-        console.log("Utilisation des données de service existantes ou du service de démo");
       }
       
       // Utiliser les données disponibles
       const serviceDetails = currentServiceData || demoService;
-      console.log("Service pour le test:", serviceDetails ? "Disponible" : "Non disponible");
       
       if (!serviceDetails) {
-        console.log("Erreur: Aucune donnée de service disponible");
         hotToast.error("Données de service manquantes");
         return false;
       }
@@ -303,7 +265,6 @@ export function OrderButton({
       // Vérification des identifiants essentiels
       const effectiveServiceId = serviceId || (serviceDetails ? serviceDetails.id : null);
       if (!effectiveServiceId) {
-        console.log("Erreur: ID de service manquant");
         hotToast.error("Identifiant de service manquant");
         return false;
       }
@@ -311,12 +272,9 @@ export function OrderButton({
       const effectiveFreelanceId = serviceDetails.freelance_id || 
         (serviceDetails.profiles ? serviceDetails.profiles.id : null);
       if (!effectiveFreelanceId) {
-        console.log("Erreur: ID de freelance manquant");
         hotToast.error("Identifiant de freelance manquant");
         return false;
       }
-      
-      console.log("Identifiants disponibles - Service:", effectiveServiceId, "Freelance:", effectiveFreelanceId);
       
       // Préparer les paramètres pour le paiement fictif
       const testPaymentRequest = {
@@ -328,16 +286,10 @@ export function OrderButton({
         deliveryTime: serviceDetails.delivery_time || 3
       };
       
-      console.log("Requête de paiement test préparée:", JSON.stringify(testPaymentRequest));
-      
       // Traiter le paiement fictif via le service dédié
-      console.log("Traitement du paiement fictif en cours...");
       const paymentResult = await processMockPayment(testPaymentRequest);
-      console.log("Résultat du paiement test:", JSON.stringify(paymentResult));
       
       if (paymentResult.success && paymentResult.orderId) {
-        console.log("Succès: Paiement test réussi, orderId:", paymentResult.orderId);
-        
         // Mettre à jour les états
         setOrderId(paymentResult.orderId);
         setTestPaymentSuccess(true);
@@ -352,14 +304,11 @@ export function OrderButton({
           hotToast.success("Test de paiement réussi!");
         }, 100);
         
-        console.log("=== FIN PAIEMENT TEST: SUCCÈS ===");
         return true;
       } else {
         console.log("Échec: Paiement test échoué:", paymentResult.error);
         setTestPaymentSuccess(false);
         hotToast.error(paymentResult.error || "Échec du test de paiement");
-        
-        console.log("=== FIN PAIEMENT TEST: ÉCHEC ===");
         return false;
       }
     } catch (error) {
@@ -369,12 +318,9 @@ export function OrderButton({
       
       setTestPaymentSuccess(false);
       hotToast.error(`Erreur: ${errorMessage}`);
-      
-      console.log("=== FIN PAIEMENT TEST: ERREUR ===");
       return false;
     } finally {
       setIsTestLoading(false);
-      console.log("État de chargement test désactivé");
     }
   };
   
@@ -430,8 +376,6 @@ export function OrderButton({
           deliveryTime: serviceDetails.delivery_time || 3
         };
         
-        console.log("Lancement du paiement test direct:", mockPaymentRequest);
-        
         // Traiter le paiement fictif
         const paymentResult = await processMockPayment(mockPaymentRequest);
         
@@ -471,8 +415,6 @@ export function OrderButton({
           requirements: requirements || "Aucune exigence spécifique",
           deliveryTime: serviceDetails.delivery_time || 3
         };
-        
-        console.log("Lancement du paiement via hook useVynalPayment:", paymentData);
         
         // Traitement du paiement via le hook
         const paymentResult = await initiatePayment(paymentData);
@@ -662,17 +604,16 @@ export function OrderButton({
       <Dialog 
         open={isOpen} 
         onOpenChange={(open) => {
-          console.log("Dialog onOpenChange:", open);
           setIsOpen(open);
           if (!open) {
             handleClose();
           }
         }}
       >
-        <DialogContent className="sm:max-w-[500px] bg-vynal-purple-dark/90 border-vynal-purple-secondary/30 rounded-xl shadow-lg shadow-vynal-accent-secondary/20 backdrop-blur-sm text-vynal-text-primary">
+        <DialogContent className="sm:max-w-[500px] bg-vynal-purple-dark/90 border-vynal-purple-secondary/30 rounded-xl shadow-lg shadow-vynal-accent-secondary/20 backdrop-blur-sm text-vynal-text-primary" aria-describedby="order-description">
           <DialogHeader>
-            <DialogTitle className="sr-only">Commande de service</DialogTitle>
-            <DialogDescription className="sr-only">Formulaire de commande et de paiement</DialogDescription>
+            <DialogTitle className="text-lg font-semibold mb-2">Commande de service</DialogTitle>
+            <DialogDescription id="order-description">Formulaire de commande et de paiement</DialogDescription>
           </DialogHeader>
           
           {loadingService && (

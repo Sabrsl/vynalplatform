@@ -59,7 +59,7 @@ interface IntersectionOptions {
 
 const useInView = (options: IntersectionOptions = {}): [(node: HTMLDivElement | null) => void, boolean] => {
   const [ref, setRef] = useState<HTMLDivElement | null>(null);
-  const [isInView, setIsInView] = useState(false);
+  const [isInView, setIsInView] = useState(options.triggerOnce ? true : false);
   
   useEffect(() => {
     if (!ref) return;
@@ -70,14 +70,28 @@ const useInView = (options: IntersectionOptions = {}): [(node: HTMLDivElement | 
       return;
     }
     
+    // Utilisation d'une variable pour stocker la position initiale
+    let initialScroll = window.scrollY;
+    
     const observer = new IntersectionObserver(([entry]) => {
+      // Éviter tout scroll brusque en préservant la position
+      const currentScroll = window.scrollY;
+      
       setIsInView(entry.isIntersecting);
+      
+      // Assurer que le scroll reste stable
+      if (Math.abs(currentScroll - initialScroll) > 5) {
+        setTimeout(() => window.scrollTo(0, currentScroll), 10);
+      }
       
       // Si triggerOnce est activé, déconnecte l'observer après la première intersection
       if (entry.isIntersecting && options.triggerOnce) {
         observer.disconnect();
       }
-    }, options);
+    }, {
+      threshold: options.threshold || 0,
+      rootMargin: options.rootMargin || '0px',
+    });
     
     observer.observe(ref);
     
@@ -151,13 +165,13 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
   const [relatedRef, relatedInView] = useInView({ 
     threshold: 0.1, 
     triggerOnce: true,
-    rootMargin: '100px 0px' // Préchargement avant que la section soit visible
+    rootMargin: '200px 0px' // Plus large pour un préchargement anticipé
   });
   
   const [reviewsRef, reviewsInView] = useInView({ 
     threshold: 0.1, 
     triggerOnce: true,
-    rootMargin: '150px 0px'
+    rootMargin: '250px 0px'
   });
   
   // État pour la mise en favoris

@@ -25,7 +25,9 @@ import {
   Wallet,
   ChevronDown,
   Loader,
-  Keyboard
+  Keyboard,
+  Moon,
+  Sun
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useTheme } from "next-themes";
@@ -211,7 +213,7 @@ const UnauthenticatedMenu = memo(({ router }: { router: any }) => {
         <Button 
           variant="default" 
           size="sm" 
-          className="text-sm flex rounded-lg bg-gradient-to-r from-vynal-accent-primary to-vynal-accent-secondary text-white hover:from-vynal-accent-primary/90 hover:to-vynal-accent-secondary/90 shadow-sm hover:shadow-md transition-all"
+          className="text-sm hidden sm:flex rounded-lg bg-gradient-to-r from-vynal-accent-primary to-vynal-accent-secondary text-white hover:from-vynal-accent-primary/90 hover:to-vynal-accent-secondary/90 shadow-sm hover:shadow-md transition-all"
           onClick={handleClick}
         >
           Se connecter
@@ -428,6 +430,7 @@ const MobileSearchBar = memo(({
           placeholder="Rechercher un service..."
           showFiltersButton={false}
           autoFocus={true}
+          isMobile={true}
         />
         <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-1 text-[10px] text-gray-400 px-1.5 py-0.5 bg-gray-100/50 dark:bg-vynal-purple-secondary/20 rounded">
           <Keyboard className="h-3 w-3" />
@@ -442,11 +445,12 @@ MobileSearchBar.displayName = 'MobileSearchBar';
 
 // Composant principal du Header
 function Header() {
-  // États
-  const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [searchBarVisible, setSearchBarVisible] = useState<boolean>(false);
+  // États locaux
   const [isScrolled, setIsScrolled] = useState<boolean>(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
+  const [searchBarVisible, setSearchBarVisible] = useState<boolean>(false);
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isLoggingOut, setIsLoggingOut] = useState<boolean>(false);
   const [activePath, setActivePath] = useState<string>('');
   const [isNavigating, setIsNavigating] = useState<boolean>(false);
@@ -460,11 +464,16 @@ function Header() {
   // Hooks Next.js
   const router = useRouter();
   const pathname = usePathname();
-  const { theme } = useTheme();
+  const { theme, setTheme } = useTheme();
   
   // Hooks personnalisés
   const auth = useAuth();
   const userProfile = useUser();
+  
+  // Fonction pour changer le thème
+  const toggleTheme = useCallback(() => {
+    setTheme(theme === "dark" ? "light" : "dark");
+  }, [theme, setTheme]);
   
   // Effet d'initialisation
   useEffect(() => {
@@ -473,7 +482,7 @@ function Header() {
       setActivePath(pathname);
     }
   }, [pathname]);
-  
+
   // Effet combiné pour tous les écouteurs d'événements
   useEffect(() => {
     if (!isMounted) return;
@@ -692,106 +701,163 @@ function Header() {
       
       <div className="container mx-auto px-4 relative z-10">
         <div className="flex justify-between items-center h-16">
-          {/* Logo avec animation */}
-          <Logo router={router} />
-
-          {/* Search Bar - Desktop */}
-          <SearchBarContainer 
-            pathname={pathname} 
-            searchQuery={searchQuery} 
-            setSearchQuery={setSearchQuery} 
-            handleSearch={handleSearch}
-            isDark={isDark}
-          />
+          {/* Logo et barre de recherche */}
+          <div className="flex items-center space-x-4">
+            <Logo router={router} />
+            
+            {/* Search Bar - Desktop */}
+            {pathname?.includes('/services') && (
+              <div className="hidden md:block ml-4">
+                <SearchBarContainer 
+                  pathname={pathname} 
+                  searchQuery={searchQuery} 
+                  setSearchQuery={setSearchQuery} 
+                  handleSearch={handleSearch}
+                  isDark={isDark}
+                />
+              </div>
+            )}
+          </div>
 
           {/* Navigation - Desktop */}
-          <Navigation 
-            items={BASE_NAVIGATION} 
-            isActive={isActive} 
-            isNavigating={isNavigating} 
-            activePath={activePath} 
-            handleNavigation={handleNavigation} 
-          />
-
-          {/* Auth Buttons / User Menu */}
-          <AnimatePresence mode="wait">
-            {!userStatus.isAuthenticated && !userStatus.authLoading ? (
-              // Options pour utilisateur non connecté
-              <UnauthenticatedMenu router={router} />
-            ) : userStatus.authLoading || userStatus.profileLoading ? (
-              // État de chargement
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-              >
-                <Button variant="ghost" size="icon" className="opacity-50 cursor-wait">
-                  <Loader className="h-5 w-5 animate-spin text-vynal-purple-secondary dark:text-vynal-text-secondary" strokeWidth={2.5} />
-                </Button>
-              </motion.div>
-            ) : (
-              // Utilisateur connecté
-              <motion.div 
-                className="flex items-center gap-1 sm:gap-2"
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                transition={{ duration: 0.2 }}
-              >
-                {/* Notifications uniquement pour les freelances */}
-                {userStatus.isFreelance && (
-                  <OrderNotificationIndicator />
-                )}
-                
-                {/* Bouton du tableau de bord */}
-                <DashboardButton 
-                  activePath={activePath} 
-                  isNavigating={isNavigating} 
-                  handleNavigation={handleNavigation} 
-                />
-
-                {/* Avatar utilisateur - CACHÉ SUR MOBILE */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <UserAvatar 
-                      avatarUrl={userStatus.avatarUrl} 
-                      username={userStatus.username} 
-                      isDark={isDark} 
-                    />
-                  </DropdownMenuTrigger>
-                  {/* Dropdown menu content would go here */}
-                </DropdownMenu>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Mobile Menu Button and Search Icon */}
-          <div className="md:hidden flex items-center gap-3">
-            {pathname?.includes('/services') && (
-              <button
-                ref={searchButtonRef}
-                onClick={toggleSearchBar}
-                className={`p-1.5 rounded-full transition-all ${
-                  isDark 
-                    ? "text-vynal-text-secondary hover:text-vynal-accent-primary hover:bg-vynal-purple-secondary/20" 
-                    : "text-vynal-purple-500 hover:text-vynal-purple-600 hover:bg-vynal-purple-200/30"
-                }`}
-                aria-label="Rechercher"
-              >
-                <Search className="h-4 w-4" strokeWidth={2.5} />
-              </button>
-            )}
-            
-            {/* Mobile Menu Button with Profile Picture */}
-            <MobileMenuButton 
-              mobileMenuOpen={mobileMenuOpen} 
-              setMobileMenuOpen={setMobileMenuOpen} 
-              isAuthenticated={isAuthenticated}
-              profileLoading={userStatus.profileLoading} 
-              avatarUrl={userStatus.avatarUrl} 
-              username={userStatus.username} 
-              isDark={isDark} 
+          <div className="hidden md:flex items-center justify-center absolute left-1/2 transform -translate-x-1/2">
+            <Navigation 
+              items={BASE_NAVIGATION} 
+              isActive={isActive} 
+              isNavigating={isNavigating} 
+              activePath={activePath} 
+              handleNavigation={handleNavigation} 
             />
+          </div>
+          
+          {/* Actions */}
+          <div className="flex items-center space-x-2 sm:space-x-3">
+            {/* Auth Buttons / User Menu */}
+            <AnimatePresence mode="wait">
+              {!userStatus.isAuthenticated && !userStatus.authLoading ? (
+                // Options pour utilisateur non connecté
+                <div className="flex items-center space-x-2">
+                 {/* Bouton de thème */}
+                 <motion.button 
+                   onClick={toggleTheme}
+                   className="w-8 h-8 flex items-center justify-center rounded-full bg-transparent hover:bg-gray-200/20 dark:hover:bg-vynal-purple-secondary/40 transition-all focus:outline-none"
+                   aria-label="Changer de thème"
+                   whileHover={{ scale: 1.1 }}
+                   whileTap={{ scale: 0.9 }}
+                 >
+                   {theme === "dark" ? (
+                     <Sun size={18} className="text-vynal-accent-primary" />
+                   ) : (
+                     <Moon size={18} className="text-vynal-purple-dark" />
+                   )}
+                 </motion.button>
+                 <UnauthenticatedMenu router={router} />
+                </div>
+              ) : userStatus.authLoading || userStatus.profileLoading ? (
+                // État de chargement
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="flex items-center space-x-2"
+                >
+                  {/* Bouton de thème */}
+                  <motion.button 
+                   onClick={toggleTheme}
+                   className="w-8 h-8 flex items-center justify-center rounded-full bg-transparent hover:bg-gray-200/20 dark:hover:bg-vynal-purple-secondary/40 transition-all focus:outline-none"
+                   aria-label="Changer de thème"
+                   whileHover={{ scale: 1.1 }}
+                   whileTap={{ scale: 0.9 }}
+                 >
+                   {theme === "dark" ? (
+                     <Sun size={18} className="text-vynal-accent-primary" />
+                   ) : (
+                     <Moon size={18} className="text-vynal-purple-dark" />
+                   )}
+                 </motion.button>
+                  <Button variant="ghost" size="icon" className="opacity-50 cursor-wait">
+                    <Loader className="h-5 w-5 animate-spin text-vynal-purple-secondary dark:text-vynal-text-secondary" strokeWidth={2.5} />
+                  </Button>
+                </motion.div>
+              ) : (
+                // Utilisateur connecté
+                <motion.div 
+                  className="flex items-center gap-1 sm:gap-2"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  {/* Bouton de thème */}
+                  <motion.button 
+                   onClick={toggleTheme}
+                   className="w-8 h-8 flex items-center justify-center rounded-full bg-transparent hover:bg-gray-200/20 dark:hover:bg-vynal-purple-secondary/40 transition-all focus:outline-none"
+                   aria-label="Changer de thème"
+                   whileHover={{ scale: 1.1 }}
+                   whileTap={{ scale: 0.9 }}
+                  >
+                   {theme === "dark" ? (
+                     <Sun size={18} className="text-vynal-accent-primary" />
+                   ) : (
+                     <Moon size={18} className="text-vynal-purple-dark" />
+                   )}
+                  </motion.button>
+                  
+                  {/* Notifications uniquement pour les freelances */}
+                  {userStatus.isFreelance && (
+                    <OrderNotificationIndicator />
+                  )}
+                  
+                  {/* Bouton du tableau de bord */}
+                  <DashboardButton 
+                    activePath={activePath} 
+                    isNavigating={isNavigating} 
+                    handleNavigation={handleNavigation} 
+                  />
+
+                  {/* Avatar utilisateur - CACHÉ SUR MOBILE */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <UserAvatar 
+                        avatarUrl={userStatus.avatarUrl} 
+                        username={userStatus.username} 
+                        isDark={isDark} 
+                      />
+                    </DropdownMenuTrigger>
+                    {/* Dropdown menu content would go here */}
+                  </DropdownMenu>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Mobile Menu Button and Search Icon */}
+            <div className="md:hidden flex items-center gap-3">
+              {pathname?.includes('/services') && (
+                <button
+                  ref={searchButtonRef}
+                  onClick={toggleSearchBar}
+                  className={`p-1.5 rounded-full transition-all ${
+                    isDark 
+                      ? "text-vynal-text-secondary hover:text-vynal-accent-primary hover:bg-vynal-purple-secondary/20" 
+                      : "text-vynal-purple-500 hover:text-vynal-purple-600 hover:bg-vynal-purple-200/30"
+                  }`}
+                  aria-label="Rechercher"
+                >
+                  <Search className="h-4 w-4" strokeWidth={2.5} />
+                </button>
+              )}
+              
+              {/* Mobile Menu Button with Profile Picture */}
+              <MobileMenuButton 
+                mobileMenuOpen={mobileMenuOpen} 
+                setMobileMenuOpen={setMobileMenuOpen} 
+                isAuthenticated={isAuthenticated}
+                profileLoading={userStatus.profileLoading} 
+                avatarUrl={userStatus.avatarUrl} 
+                username={userStatus.username} 
+                isDark={isDark} 
+              />
+            </div>
           </div>
         </div>
       </div>

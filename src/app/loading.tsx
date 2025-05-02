@@ -2,7 +2,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function Loading() {
   return (
-    <div className="fixed inset-0 z-[9999] bg-vynal-purple-dark flex flex-col items-center justify-start pt-10 animate-in fade-in">
+    <div className="absolute inset-0 z-[9999] bg-vynal-purple-dark flex flex-col items-center justify-start pt-10 animate-in fade-in" data-testid="app-loading">
       <div className="container mx-auto px-4 w-full max-w-5xl">
         <div className="flex flex-col md:flex-row gap-8">
           <div className="w-full md:w-2/3">

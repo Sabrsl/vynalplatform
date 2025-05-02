@@ -27,7 +27,7 @@ export const TextRevealSection = memo(({
       <div className="container mx-auto px-4">
         <div className="flex flex-col items-center justify-center">
           {eyebrow && (
-            <p className="text-sm uppercase font-semibold mb-3 text-vynal-accent-secondary tracking-wider">
+            <p className="text-sm uppercase font-semibold mb-3 bg-gradient-to-r from-vynal-accent-primary to-vynal-accent-secondary bg-clip-text text-transparent tracking-wider">
               {eyebrow}
             </p>
           )}

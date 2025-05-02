@@ -523,13 +523,14 @@ function ServicesPageContent() {
         )}
         
         {/* Services loading and results */}
-        <AnimatePresence>
+        <AnimatePresence mode="wait">
           {servicesLoading && !isLoadMoreMode ? (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               key="loading"
+              transition={{ duration: 0.2 }}
             >
               <ServiceSkeletonLoader 
                 count={12}
@@ -541,27 +542,46 @@ function ServicesPageContent() {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
               key="results"
+              transition={{ duration: 0.2 }}
+              className="w-full"
             >
-              <ServiceResults 
-                services={services}
-                loading={false}
-                error={null}
-                onRetry={refreshData}
-                className="mb-4"
-              />
-              
-              {/* Pagination controls */}
-              {!servicesError && !servicesLoading && services.length > 0 && (
-                <PaginationControls
-                  currentPage={currentPage}
-                  totalPages={totalPages}
-                  onPageChange={handlePageChange}
-                  showLoadMore={isLoadMoreMode}
-                  onLoadMore={handleLoadMore}
-                  isLoading={isLoadMoreMode && servicesLoading}
-                  className="mt-8"
-                />
+              {services.length === 0 ? (
+                <div className="py-8">
+                  <ServiceSkeletonLoader 
+                    count={12}
+                    showShimmer={true}
+                    className="mb-4"
+                  />
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {services.map((service) => (
+                      <ServiceCard
+                        key={service.id}
+                        service={service}
+                        showStatusBadge={false}
+                        useDemo={false}
+                        className="h-full"
+                      />
+                    ))}
+                  </div>
+                  
+                  {/* Pagination controls */}
+                  {!servicesError && services.length > 0 && (
+                    <PaginationControls
+                      currentPage={currentPage}
+                      totalPages={totalPages}
+                      onPageChange={handlePageChange}
+                      showLoadMore={isLoadMoreMode}
+                      onLoadMore={handleLoadMore}
+                      isLoading={isLoadMoreMode && servicesLoading}
+                      className="mt-8"
+                    />
+                  )}
+                </>
               )}
             </motion.div>
           )}

@@ -157,43 +157,52 @@ const ServiceResults = ({
     return <LoadingState className={className} />;
   }
 
-  if (!services.length) {
-    return <EmptyState className={className} />;
-  }
-
-  // Affichage des services avec la grille optimisée
+  // On retourne le composant de résultats même si la liste est vide
+  // Mais on ne l'affiche que si les services sont chargés et vides
   return (
     <div className={`${className} w-full`} data-testid="service-results-grid">
       <AnimatePresence mode="wait">
-        <motion.div 
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
-          variants={CONTAINER_VARIANTS}
-          initial="hidden"
-          animate="show"
-          exit="exit"
-          key={`services-${services.length}`}
-          aria-live="polite"
-        >
-          {services.map((service) => {
-            if (!service?.id) return null;
-            
-            return (
-              <motion.div 
-                key={service.id} 
-                variants={ITEM_VARIANTS} 
-                className="relative"
-                layout
-              >
-                <ServiceCard
-                  service={service}
-                  showStatusBadge={false}
-                  useDemo={false}
-                  className="h-full transition-transform hover:scale-[1.01]"
-                />
-              </motion.div>
-            );
-          })}
-        </motion.div>
+        {!services.length ? (
+          <motion.div
+            key="empty-state"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            <EmptyState className="" />
+          </motion.div>
+        ) : (
+          <motion.div 
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
+            variants={CONTAINER_VARIANTS}
+            initial="hidden"
+            animate="show"
+            exit="exit"
+            key={`services-${services.length}`}
+            aria-live="polite"
+          >
+            {services.map((service) => {
+              if (!service?.id) return null;
+              
+              return (
+                <motion.div 
+                  key={service.id} 
+                  variants={ITEM_VARIANTS} 
+                  className="relative"
+                  layout
+                >
+                  <ServiceCard
+                    service={service}
+                    showStatusBadge={false}
+                    useDemo={false}
+                    className="h-full transition-transform hover:scale-[1.01]"
+                  />
+                </motion.div>
+              );
+            })}
+          </motion.div>
+        )}
       </AnimatePresence>
     </div>
   );

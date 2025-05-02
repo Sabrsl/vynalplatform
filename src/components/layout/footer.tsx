@@ -94,14 +94,14 @@ const ContactInfo = memo(() => {
   return (
     <div className="flex flex-col md:flex-row md:space-x-8 space-y-4 md:space-y-0">
       <div 
-        className="flex items-center relative group"
+        className="flex items-center relative group w-full"
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
-        <Mail className="w-4 h-4 mr-2 text-gray-400 dark:text-vynal-text-secondary" strokeWidth={2} />
+        <Mail className="w-4 h-4 mr-2 text-gray-400 dark:text-vynal-text-secondary flex-shrink-0" strokeWidth={2} />
         <a 
           href={`mailto:${CONTACT_EMAIL}`} 
-          className="text-xs text-gray-400 dark:text-vynal-text-secondary hover:text-white dark:hover:text-vynal-accent-primary transition-colors"
+          className="text-xs text-gray-400 dark:text-vynal-text-secondary hover:text-gray-600 dark:hover:text-gray-600 transition-colors whitespace-nowrap"
         >
           {CONTACT_EMAIL}
         </a>
@@ -203,7 +203,7 @@ const LinkGroup = memo(({ section }: { section: typeof FOOTER_LINKS[0] }) => {
           >
             <Link
               href={link.href}
-              className="text-xs text-gray-400 hover:text-white dark:text-vynal-text-secondary dark:hover:text-vynal-accent-primary transition-colors block py-1"
+              className="text-xs text-gray-400 hover:text-gray-600 dark:text-vynal-text-secondary dark:hover:text-gray-600 transition-colors block py-1"
             >
               {link.name}
             </Link>
@@ -307,9 +307,8 @@ function Footer() {
         >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <ContactInfo />
-            <div className="flex items-center justify-between text-gray-400 dark:text-vynal-text-secondary md:text-right">
-              <ThemeToggleButton />
-              <span className="text-xs">&copy; {currentYear} Vynal Platform. Tous droits réservés.</span>
+            <div className="flex items-center justify-start md:justify-end text-gray-400 dark:text-vynal-text-secondary md:text-right">
+              <span className="text-[10px] opacity-70">&copy; {currentYear} Vynal Platform. Tous droits réservés.</span>
             </div>
           </div>
         </motion.div>

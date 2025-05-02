@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, Suspense } from 'react';
+import React, { useEffect, useState, Suspense, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { validate as isUUID } from 'uuid';
 import { supabase } from '@/lib/supabase/client';
@@ -18,6 +18,8 @@ function ServiceDetailContent() {
   const [service, setService] = useState<any>(null);
   const [relatedServices, setRelatedServices] = useState<any[]>([]);
   const [loadingRelated, setLoadingRelated] = useState(true);
+  // Nouvelle référence pour stocker la position de scroll
+  const scrollPositionRef = useRef(0);
 
   // Obtenir le paramètre slug ou id de l'URL
   const params = useParams<{ slug: string }>();
@@ -93,6 +95,13 @@ function ServiceDetailContent() {
       setLoadingRelated(false);
     } finally {
       setIsLoading(false);
+      
+      // Restaurer la position de défilement après le rendu
+      setTimeout(() => {
+        if (typeof window !== 'undefined' && scrollPositionRef.current > 0) {
+          window.scrollTo(0, scrollPositionRef.current);
+        }
+      }, 50);
     }
   };
 
@@ -125,6 +134,11 @@ function ServiceDetailContent() {
 
   // Effet pour charger les données initiales
   useEffect(() => {
+    // Sauvegarder la position de défilement avant le chargement
+    if (typeof window !== 'undefined') {
+      scrollPositionRef.current = window.scrollY;
+    }
+    
     setIsLoading(true);
     fetchServiceData();
   }, [slugOrId]);
@@ -135,6 +149,9 @@ function ServiceDetailContent() {
     
     const handleCacheInvalidation = () => {
       if (service) {
+        // Sauvegarder la position de défilement avant l'actualisation
+        scrollPositionRef.current = window.scrollY;
+        
         // Rafraîchir les données du service sans montrer l'état de chargement complet
         fetchServiceData();
       }
@@ -151,24 +168,24 @@ function ServiceDetailContent() {
   // Rendu pour l'état de chargement
   if (isLoading) {
     return (
-      <div className="fixed inset-0 z-[9999] bg-vynal-purple-dark flex flex-col items-center justify-start pt-10 animate-in fade-in">
-        <div className="container mx-auto px-4 w-full max-w-5xl">
-        <div className="flex flex-col md:flex-row gap-8">
-          <div className="w-full md:w-2/3">
-            <Skeleton className="h-[400px] w-full mb-4 bg-vynal-purple-secondary/30" />
-            <div className="grid grid-cols-4 gap-2">
-              {[1, 2, 3, 4].map((i) => (
-                <Skeleton key={i} className="h-24 w-full bg-vynal-purple-secondary/30" />
-              ))}
+      <div className="min-h-screen bg-vynal-purple-dark animate-in fade-in">
+        <div className="container mx-auto px-4 w-full max-w-5xl py-8">
+          <div className="flex flex-col md:flex-row gap-8">
+            <div className="w-full md:w-2/3">
+              <Skeleton className="h-[400px] w-full mb-4 bg-vynal-purple-secondary/30" />
+              <div className="grid grid-cols-4 gap-2">
+                {[1, 2, 3, 4].map((i) => (
+                  <Skeleton key={i} className="h-24 w-full bg-vynal-purple-secondary/30" />
+                ))}
+              </div>
             </div>
-          </div>
-          
-          <div className="w-full md:w-1/3">
-            <Skeleton className="h-8 w-3/4 mb-4 bg-vynal-purple-secondary/30" />
-            <Skeleton className="h-6 w-1/2 mb-2 bg-vynal-purple-secondary/30" />
-            <Skeleton className="h-32 w-full mb-6 bg-vynal-purple-secondary/30" />
-            <Skeleton className="h-10 w-full mb-2 bg-vynal-purple-secondary/30" />
-            <Skeleton className="h-10 w-full bg-vynal-purple-secondary/30" />
+            
+            <div className="w-full md:w-1/3">
+              <Skeleton className="h-8 w-3/4 mb-4 bg-vynal-purple-secondary/30" />
+              <Skeleton className="h-6 w-1/2 mb-2 bg-vynal-purple-secondary/30" />
+              <Skeleton className="h-32 w-full mb-6 bg-vynal-purple-secondary/30" />
+              <Skeleton className="h-10 w-full mb-2 bg-vynal-purple-secondary/30" />
+              <Skeleton className="h-10 w-full bg-vynal-purple-secondary/30" />
             </div>
           </div>
         </div>
@@ -229,8 +246,8 @@ function ServiceDetailContent() {
 // Conteneur de chargement pour le Suspense
 function ServiceDetailLoading() {
   return (
-    <div className="fixed inset-0 z-[9999] bg-vynal-purple-dark flex flex-col items-center justify-start pt-10 animate-in fade-in">
-      <div className="container mx-auto px-4 w-full max-w-5xl">
+    <div className="min-h-screen bg-vynal-purple-dark animate-in fade-in">
+      <div className="container mx-auto px-4 w-full max-w-5xl py-8">
         <div className="flex flex-col md:flex-row gap-8">
           <div className="w-full md:w-2/3">
             <Skeleton className="h-[400px] w-full mb-4 bg-vynal-purple-secondary/30" />
