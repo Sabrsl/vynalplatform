@@ -228,15 +228,15 @@ const ServiceDetails: React.FC<ServiceDetailsProps> = ({
               <div className="flex justify-between items-start gap-2">
                 <div className="max-w-full">
                   <CardTitle className={cn(
-                    "break-words text-sm sm:text-lg md:text-xl",
+                    "break-words text-sm sm:text-lg md:text-xl font-normal",
                     isDarkMode ? "text-white" : "text-gray-900"
                   )}>{service.title || "Sans titre"}</CardTitle>
-                  <CardDescription className="text-xs mt-0.5">
+                  <CardDescription className="text-xs mt-2">
                     ID: {service.id || "N/A"}
                   </CardDescription>
                 </div>
                 <div className={cn(
-                  "text-base sm:text-lg font-bold text-right whitespace-nowrap",
+                  "text-base sm:text-lg text-right whitespace-nowrap mt-2",
                   isDarkMode ? "text-vynal-accent-primary" : "text-indigo-600"
                 )}>
                   {formatPrice(service.price || 0)} FCFA
@@ -265,7 +265,7 @@ const ServiceDetails: React.FC<ServiceDetailsProps> = ({
             <div className="space-y-3 sm:space-y-4">
               <div>
                 <h3 className={cn(
-                  "text-sm sm:text-base font-medium mb-1.5",
+                  "text-sm sm:text-base font-normal mb-1.5",
                   isDarkMode ? "text-white" : "text-gray-900"
                 )}>Description</h3>
                 <div className={cn(
@@ -291,7 +291,7 @@ const ServiceDetails: React.FC<ServiceDetailsProps> = ({
                       isDarkMode ? "text-gray-400" : "text-gray-500"
                     )}>Catégorie</p>
                     <p className={cn(
-                      "text-xs sm:text-sm font-medium",
+                      "text-xs sm:text-sm font-normal",
                       isDarkMode ? "text-white" : "text-gray-900"
                     )}>{service.categories?.name || "Non spécifiée"}</p>
                   </div>
@@ -309,7 +309,7 @@ const ServiceDetails: React.FC<ServiceDetailsProps> = ({
                         isDarkMode ? "text-gray-400" : "text-gray-500"
                       )}>Sous-catégorie</p>
                       <p className={cn(
-                        "text-xs sm:text-sm font-medium",
+                        "text-xs sm:text-sm font-normal",
                         isDarkMode ? "text-white" : "text-gray-900"
                       )}>{service.subcategories.name}</p>
                     </div>
@@ -327,7 +327,7 @@ const ServiceDetails: React.FC<ServiceDetailsProps> = ({
                       isDarkMode ? "text-gray-400" : "text-gray-500"
                     )}>Livraison</p>
                     <p className={cn(
-                      "text-xs sm:text-sm font-medium",
+                      "text-xs sm:text-sm font-normal",
                       isDarkMode ? "text-white" : "text-gray-900"
                     )}>{service.delivery_time || 0} jour{(service.delivery_time || 0) > 1 ? 's' : ''}</p>
                   </div>
@@ -344,7 +344,7 @@ const ServiceDetails: React.FC<ServiceDetailsProps> = ({
                       isDarkMode ? "text-gray-400" : "text-gray-500"
                     )}>Créé le</p>
                     <p className={cn(
-                      "text-xs sm:text-sm font-medium",
+                      "text-xs sm:text-sm font-normal",
                       isDarkMode ? "text-white" : "text-gray-900"
                     )}>{formatDate(service.created_at || new Date().toISOString())}</p>
                   </div>
@@ -353,7 +353,7 @@ const ServiceDetails: React.FC<ServiceDetailsProps> = ({
               
               <div>
                 <h3 className={cn(
-                  "text-sm sm:text-base font-medium mb-1.5",
+                  "text-sm sm:text-base font-normal mb-1.5",
                   isDarkMode ? "text-white" : "text-gray-900"
                 )}>Images</h3>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">

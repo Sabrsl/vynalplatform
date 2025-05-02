@@ -354,10 +354,10 @@ export default function DisputeDetailPage() {
                     Fermer le litige
                   </Button>
                 </DialogTrigger>
-                <DialogContent>
+                <DialogContent aria-labelledby="close-dispute-title" aria-describedby="close-dispute-description">
                   <DialogHeader>
-                    <DialogTitle>Fermer ce litige</DialogTitle>
-                    <DialogDescription>
+                    <DialogTitle id="close-dispute-title">Fermer ce litige</DialogTitle>
+                    <DialogDescription id="close-dispute-description">
                       Fermez ce litige sans le résoudre. Cette action est définitive.
                     </DialogDescription>
                   </DialogHeader>
@@ -392,10 +392,10 @@ export default function DisputeDetailPage() {
                     Résoudre le litige
                   </Button>
                 </DialogTrigger>
-                <DialogContent>
+                <DialogContent aria-labelledby="resolve-dispute-title" aria-describedby="resolve-dispute-description">
                   <DialogHeader>
-                    <DialogTitle>Résoudre ce litige</DialogTitle>
-                    <DialogDescription>
+                    <DialogTitle id="resolve-dispute-title">Résoudre ce litige</DialogTitle>
+                    <DialogDescription id="resolve-dispute-description">
                       Marquez ce litige comme résolu en expliquant la solution trouvée.
                     </DialogDescription>
                   </DialogHeader>

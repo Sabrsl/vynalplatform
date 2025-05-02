@@ -18,6 +18,8 @@ export interface UserProfile {
   verification_level: number | null;
   last_seen: string | null;
   phone: string | null;
+  is_certified?: boolean | null;
+  certification_type?: 'standard' | 'premium' | 'expert' | null;
 }
 
 interface UpdateProfileResult {

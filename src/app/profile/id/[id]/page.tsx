@@ -423,7 +423,7 @@ export default function VendorProfileByIdPage() {
                       href={`/services/${service.slug}`}
                       className="block h-full transition-transform duration-300 hover:scale-[1.01]"
                     >
-                      <ServiceCard service={service} className="h-full shadow-sm" />
+                      <ServiceCard service={service} className="h-full" />
                     </Link>
                   ))}
                 </div>

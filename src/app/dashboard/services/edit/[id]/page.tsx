@@ -233,6 +233,14 @@ export default function EditServicePage() {
         throw new Error("La description est obligatoire");
       }
       
+      if (formData.description.trim().length < 3000) {
+        throw new Error("La description doit contenir au moins 3000 caractères pour bien décrire votre service");
+      }
+
+      if (formData.description.trim().length > 10000) {
+        throw new Error("La description ne doit pas dépasser 10000 caractères");
+      }
+      
       if (!formData.category_id) {
         throw new Error("La catégorie est obligatoire");
       }
@@ -257,6 +265,15 @@ export default function EditServicePage() {
       
       if (isNaN(delivery_time) || delivery_time <= 0 || !Number.isInteger(delivery_time)) {
         throw new Error("Le temps de livraison doit être un nombre entier positif");
+      }
+      
+      // Vérification des images
+      if (images.length === 0) {
+        throw new Error("Veuillez ajouter au moins une image pour illustrer votre service");
+      }
+      
+      if (images.length > 3) {
+        throw new Error("Vous ne pouvez pas ajouter plus de 3 images");
       }
     } catch (err: any) {
       setError(err.message || "Une erreur est survenue lors de la validation du formulaire");
@@ -408,8 +425,12 @@ export default function EditServicePage() {
                   onChange={handleChange}
                   placeholder="Décrivez en détail ce que vous proposez, vos compétences, le process, etc."
                   rows={8}
+                  maxLength={10000}
                   required
                 />
+                <p className="text-xs text-gray-500">
+                  {formData.description.length}/10000 caractères (minimum 3000 caractères requis)
+                </p>
               </div>
               
               <div className="grid grid-cols-2 gap-4">
@@ -502,7 +523,7 @@ export default function EditServicePage() {
           <Card className="md:col-span-1">
             <CardHeader>
               <CardTitle>Images</CardTitle>
-              <CardDescription>Ajoutez ou modifiez les images de votre service</CardDescription>
+              <CardDescription>Ajoutez ou modifiez les images de votre service (1 à 3 images)</CardDescription>
             </CardHeader>
             <CardContent>
               <ServiceImageUploader 

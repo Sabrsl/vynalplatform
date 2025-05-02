@@ -28,6 +28,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { ProfileQRShare } from "@/components/profile/ProfileQRShare";
 import Image from "next/image";
 import { ProfilePageSkeleton } from "@/components/skeletons/ProfilePageSkeleton";
+import { CertificationBadge } from "@/components/ui/certification-badge";
 
 export default function ProfilePage() {
   const { user } = useAuth();
@@ -82,6 +83,13 @@ export default function ProfilePage() {
       // Validation de base
       if (!usernameIsSet && !cleanUsername) {
         setUpdateError("Le nom d'utilisateur est requis et ne pourra plus être modifié ultérieurement.");
+        setSaving(false);
+        return;
+      }
+      
+      // Validation de la longueur de la biographie
+      if (cleanBio.length > 150) {
+        setUpdateError("La biographie ne doit pas dépasser 150 caractères.");
         setSaving(false);
         return;
       }
@@ -335,6 +343,18 @@ export default function ProfilePage() {
                   <>Nom d'utilisateur non défini</>
                 )}
               </p>
+              
+              {/* Ajouter l'affichage du badge de certification */}
+              {userProfile?.is_certified && userProfile?.certification_type && (
+                <div className="mt-2 flex items-center justify-center">
+                  <CertificationBadge 
+                    type={userProfile.certification_type as 'standard' | 'premium' | 'expert'} 
+                    size="md"
+                    showLabel
+                  />
+                </div>
+              )}
+              
               <div className="mt-2 flex items-center justify-center gap-1 text-xs text-vynal-accent-primary dark:text-vynal-accent-secondary">
                 <Share2 className="h-3 w-3" />
                 <span>Utilisez le bouton en haut à droite pour partager votre profil</span>
@@ -492,10 +512,11 @@ export default function ProfilePage() {
                     onChange={handleChange}
                     placeholder="Parlez un peu de vous..."
                     rows={4}
+                    maxLength={150}
                     className="border-vynal-border dark:border-vynal-purple-secondary/40 dark:bg-vynal-purple-secondary/10 resize-none"
                   />
                   <p className="text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary/70">
-                    Une courte description pour vous présenter aux autres utilisateurs (500 caractères max)
+                    Une courte description pour vous présenter aux autres utilisateurs (150 caractères max)
                   </p>
                 </div>
 

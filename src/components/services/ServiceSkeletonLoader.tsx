@@ -86,7 +86,7 @@ const ServiceSkeletonLoader: React.FC<ServiceSkeletonLoaderProps> = ({
           "relative rounded-xl shadow-md border overflow-hidden",
           showShimmer ? "animate-pulse" : "",
           preserveAspectRatio ? "flex flex-col" : "",
-          "bg-white dark:bg-vynal-purple-dark/90 border-vynal-purple-secondary/10 dark:border-vynal-purple-secondary/30"
+          "bg-white dark:bg-vynal-purple-dark/90 border-vynal-purple-secondary/40 dark:border-vynal-purple-secondary/40"
         )}
         style={{
           // Optimisation des performances de rendu avec will-change

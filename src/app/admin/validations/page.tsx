@@ -293,9 +293,9 @@ export default function ValidationsPage() {
 
       {rejectDialogOpen && selectedService && (
         <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
-          <DialogContent aria-describedby="rejection-description">
+          <DialogContent aria-labelledby="rejection-title" aria-describedby="rejection-description">
             <DialogHeader className="pb-2">
-              <DialogTitle className="text-base font-medium">Refuser le service</DialogTitle>
+              <DialogTitle id="rejection-title" className="text-base font-medium">Refuser le service</DialogTitle>
               <DialogDescription id="rejection-description" className="text-xs">
                 Veuillez indiquer la raison du refus. Cette information sera transmise au freelance.
               </DialogDescription>

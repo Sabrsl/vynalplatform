@@ -122,9 +122,9 @@ const ServiceReviews = ({ serviceId, initialReviews }: ServiceReviewsProps) => {
 
   if (loading) {
     return (
-      <div className="py-6">
-        <h2 className="text-xl font-medium text-vynal-text-primary mb-4 flex items-center">
-          <MessageSquare className="h-5 w-5 mr-2" />
+      <div className="py-4">
+        <h2 className="text-base font-medium text-vynal-text-primary mb-3 flex items-center">
+          <MessageSquare className="h-4 w-4 mr-1.5 text-vynal-accent-primary" />
           Avis clients
         </h2>
         <div className="space-y-4">
@@ -137,13 +137,13 @@ const ServiceReviews = ({ serviceId, initialReviews }: ServiceReviewsProps) => {
 
   if (error) {
     return (
-      <div className="py-6">
-        <h2 className="text-xl font-medium text-vynal-text-primary mb-4 flex items-center">
-          <MessageSquare className="h-5 w-5 mr-2" />
+      <div className="py-4">
+        <h2 className="text-base font-medium text-vynal-text-primary mb-3 flex items-center">
+          <MessageSquare className="h-4 w-4 mr-1.5 text-vynal-accent-primary" />
           Avis clients
         </h2>
-        <Card className="backdrop-blur-md bg-vynal-purple-dark/90 border-vynal-purple-secondary/30 rounded-xl shadow-lg shadow-vynal-accent-secondary/20">
-          <CardContent className="p-4 text-center text-vynal-text-secondary">
+        <Card className="backdrop-blur-md bg-vynal-purple-dark/90 border-vynal-purple-secondary/40 rounded-xl">
+          <CardContent className="p-3 text-center text-vynal-text-secondary text-sm">
             {error}
           </CardContent>
         </Card>
@@ -154,13 +154,13 @@ const ServiceReviews = ({ serviceId, initialReviews }: ServiceReviewsProps) => {
   // Si pas d'avis, afficher un message
   if (reviews.length === 0) {
     return (
-      <div className="py-6">
-        <h2 className="text-xl font-medium text-vynal-text-primary mb-4 flex items-center">
-          <MessageSquare className="h-5 w-5 mr-2" />
+      <div className="py-4">
+        <h2 className="text-base font-medium text-vynal-text-primary mb-3 flex items-center">
+          <MessageSquare className="h-4 w-4 mr-1.5 text-vynal-accent-primary" />
           Avis clients
         </h2>
-        <Card className="backdrop-blur-md bg-vynal-purple-dark/90 border-vynal-purple-secondary/30 rounded-xl shadow-lg shadow-vynal-accent-secondary/20">
-          <CardContent className="p-4 text-center text-vynal-text-secondary">
+        <Card className="backdrop-blur-md bg-vynal-purple-dark/90 border-vynal-purple-secondary/40 rounded-xl">
+          <CardContent className="p-5 lg:p-4 text-center text-vynal-text-secondary text-sm">
             Ce service n'a pas encore d'avis.
           </CardContent>
         </Card>
@@ -178,10 +178,10 @@ const ServiceReviews = ({ serviceId, initialReviews }: ServiceReviewsProps) => {
     }
 
     return (
-      <div className="space-y-4">
+      <div className="space-y-5 lg:space-y-4">
         {reviewsList.map((review) => (
-          <Card key={review.id} className="backdrop-blur-md bg-vynal-purple-dark/90 border-vynal-purple-secondary/30 rounded-xl shadow-lg shadow-vynal-accent-secondary/20 overflow-hidden">
-            <CardContent className="p-5">
+          <Card key={review.id} className="backdrop-blur-md bg-vynal-purple-dark/90 border-vynal-purple-secondary/40 rounded-xl overflow-hidden">
+            <CardContent className="p-5 lg:p-4">
               <div className="flex items-start gap-3">
                 <Avatar className="h-10 w-10 border border-vynal-purple-secondary/30">
                   <AvatarImage src={review.client?.avatar_url || undefined} />
@@ -225,10 +225,10 @@ const ServiceReviews = ({ serviceId, initialReviews }: ServiceReviewsProps) => {
   };
 
   return (
-    <div className="py-6">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-medium text-vynal-text-primary flex items-center">
-          <MessageSquare className="h-5 w-5 mr-2" />
+    <div className="py-4">
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-base font-medium text-vynal-text-primary flex items-center">
+          <MessageSquare className="h-4 w-4 mr-1.5 text-vynal-accent-primary" />
           Avis clients ({reviews.length})
         </h2>
         

@@ -40,6 +40,8 @@ export default function NewServicePage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [activeServicesCount, setActiveServicesCount] = useState<number | null>(null);
+  const [checkingServices, setCheckingServices] = useState(true);
   
   const [formData, setFormData] = useState({
     title: "",
@@ -55,6 +57,57 @@ export default function NewServicePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [images, setImages] = useState<string[]>([]);
+  
+  // Vérifier le nombre de services actifs et rediriger si nécessaire
+  useEffect(() => {
+    if (!profile) return;
+
+    const checkActiveServices = async () => {
+      setCheckingServices(true);
+      try {
+        // Si pas freelance ou si admin, pas besoin de vérifier
+        if (!isFreelance || profile.role === 'admin') {
+          setCheckingServices(false);
+          return;
+        }
+
+        // Si le freelance est certifié expert, pas besoin de limiter
+        if (profile.is_certified && profile.certification_type === 'expert') {
+          setCheckingServices(false);
+          return;
+        }
+
+        // Compter les services actifs
+        const { data, error } = await supabase
+          .from('services')
+          .select('id', { count: 'exact' })
+          .eq('freelance_id', profile.id)
+          .eq('active', true);
+
+        if (error) {
+          console.error('Erreur lors du comptage des services actifs:', error);
+          setError('Erreur lors de la vérification de vos services actifs');
+          setCheckingServices(false);
+          return;
+        }
+
+        // Stocker le nombre de services actifs
+        const count = data ? data.length : 0;
+        setActiveServicesCount(count);
+        
+        // Rediriger si le nombre de services actifs est >= 6
+        if (count >= 6) {
+          router.push('/dashboard/services?error=max_services_reached');
+        }
+      } catch (err) {
+        console.error('Erreur lors de la vérification des services actifs:', err);
+      } finally {
+        setCheckingServices(false);
+      }
+    };
+
+    checkActiveServices();
+  }, [profile, isFreelance, router]);
   
   // Charger les catégories et sous-catégories
   useEffect(() => {
@@ -145,8 +198,12 @@ export default function NewServicePage() {
         throw new Error("La description est obligatoire");
       }
       
-      if (formData.description.trim().length < 50) {
-        throw new Error("La description doit contenir au moins 50 caractères pour bien décrire votre service");
+      if (formData.description.trim().length < 3000) {
+        throw new Error("La description doit contenir au moins 3000 caractères pour bien décrire votre service");
+      }
+      
+      if (formData.description.trim().length > 10000) {
+        throw new Error("La description ne doit pas dépasser 10000 caractères");
       }
       
       if (!formData.category_id) {
@@ -192,8 +249,8 @@ export default function NewServicePage() {
         throw new Error("Veuillez ajouter au moins une image pour illustrer votre service");
       }
       
-      if (images.length > 5) {
-        throw new Error("Vous ne pouvez pas ajouter plus de 5 images");
+      if (images.length > 3) {
+        throw new Error("Vous ne pouvez pas ajouter plus de 3 images");
       }
     } catch (err: any) {
       setError(err.message || "Une erreur est survenue lors de la validation du formulaire");
@@ -234,7 +291,7 @@ export default function NewServicePage() {
     }
   };
   
-  if (categoriesLoading) {
+  if (categoriesLoading || checkingServices) {
     return (
       <div className="flex justify-center items-center min-h-screen">
         <Loader size="lg" variant="primary" showText={true} />
@@ -265,6 +322,16 @@ export default function NewServicePage() {
 
       <form onSubmit={handleSubmit}>
         <div className="grid gap-6 md:grid-cols-2">
+          {profile && !profile.is_certified && profile.role === 'freelance' && (
+            <div className="md:col-span-2 mb-2 p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg flex items-start gap-2">
+              <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="font-medium text-sm">Limitation des services actifs</p>
+                <p className="text-xs">Sans certification expert, vous êtes limité à 6 services actifs maximum. Pour supprimer cette limitation, obtenez une certification expert.</p>
+              </div>
+            </div>
+          )}
+          
           <Card className="md:col-span-1">
             <CardHeader>
               <CardTitle>Informations générales</CardTitle>
@@ -296,10 +363,11 @@ export default function NewServicePage() {
                   onChange={handleChange}
                   placeholder="Décrivez en détail ce que vous proposez, vos compétences, le process, etc."
                   rows={8}
+                  maxLength={10000}
                   required
                 />
                 <p className="text-xs text-gray-500">
-                  Minimum 50 caractères, {formData.description.length} caractères saisis
+                  {formData.description.length}/10000 caractères (minimum 3000 caractères requis)
                 </p>
               </div>
               
@@ -396,7 +464,7 @@ export default function NewServicePage() {
           <Card className="md:col-span-1">
             <CardHeader>
               <CardTitle>Images</CardTitle>
-              <CardDescription>Ajoutez des images représentatives de votre service (1 à 5 images)</CardDescription>
+              <CardDescription>Ajoutez des images représentatives de votre service (1 à 3 images)</CardDescription>
             </CardHeader>
             <CardContent>
               <ServiceImageUploader onImagesChange={setImages} />

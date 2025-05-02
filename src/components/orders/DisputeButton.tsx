@@ -36,10 +36,10 @@ export function DisputeButton({
           Signaler un problème
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md" aria-labelledby="dispute-dialog-title" aria-describedby="dispute-dialog-description">
         <DialogHeader>
-          <DialogTitle>Ouvrir un litige</DialogTitle>
-          <DialogDescription>
+          <DialogTitle id="dispute-dialog-title">Ouvrir un litige</DialogTitle>
+          <DialogDescription id="dispute-dialog-description">
             Signalez un problème concernant cette commande. Notre équipe l'examinera afin de trouver une solution.
           </DialogDescription>
         </DialogHeader>

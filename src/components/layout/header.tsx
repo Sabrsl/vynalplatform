@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useMemo, useCallback, memo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback, memo, forwardRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
@@ -258,18 +258,16 @@ const DashboardButton = memo(({
 
 DashboardButton.displayName = 'DashboardButton';
 
-// Composant pour l'avatar utilisateur mémorisé
-const UserAvatar = memo(({ 
-  avatarUrl, 
-  username, 
-  isDark 
-}: { 
-  avatarUrl: string | null, 
-  username: string | null, 
-  isDark: boolean 
-}) => {
+// Bouton avatar utilisateur mémorisé
+const UserAvatar = forwardRef<HTMLButtonElement, { 
+  avatarUrl: string | null; 
+  username: string | null; 
+  isDark: boolean;
+  onClick?: (e: React.MouseEvent) => void;
+}>(({ avatarUrl, username, isDark, onClick }, ref) => {
   return (
     <motion.button
+      ref={ref}
       className={`relative h-9 w-9 rounded-full overflow-hidden hidden sm:flex items-center justify-center ${
         isDark 
           ? "ring-1 ring-vynal-purple-secondary/40 hover:ring-vynal-accent-primary/60" 
@@ -277,6 +275,7 @@ const UserAvatar = memo(({
       }`}
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
+      onClick={onClick}
     >
       {avatarUrl ? (
         <Image 
@@ -818,11 +817,36 @@ function Header() {
                   {/* Avatar utilisateur - CACHÉ SUR MOBILE */}
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <UserAvatar 
-                        avatarUrl={userStatus.avatarUrl} 
-                        username={userStatus.username} 
-                        isDark={isDark} 
-                      />
+                      <motion.button
+                        className={`relative h-9 w-9 rounded-full transition-all duration-300 overflow-hidden hidden sm:flex items-center justify-center ${
+                          isDark 
+                            ? "ring-1 ring-vynal-purple-secondary/40 hover:ring-vynal-accent-primary/60" 
+                            : "ring-1 ring-vynal-purple-300/60 hover:ring-vynal-purple-500/60"
+                        }`}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        aria-label="Menu utilisateur"
+                      >
+                        {userStatus.avatarUrl ? (
+                          <Image 
+                            src={userStatus.avatarUrl} 
+                            alt="Profile" 
+                            width={36}
+                            height={36}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <div className={`h-full w-full flex items-center justify-center ${
+                            isDark 
+                              ? "bg-vynal-purple-secondary text-vynal-accent-primary" 
+                              : "bg-vynal-purple-100 text-vynal-purple-600"
+                          }`}>
+                            <span className="text-sm font-medium">
+                              {userStatus.username?.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                        )}
+                      </motion.button>
                     </DropdownMenuTrigger>
                     {/* Dropdown menu content would go here */}
                   </DropdownMenu>

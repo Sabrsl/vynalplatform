@@ -6,34 +6,53 @@
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --foreground: 272 45% 20%; /* #2C1A4C - Texte principal (violet profond) */
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 272 45% 20%; /* #2C1A4C - Texte principal */
  
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 272 45% 20%; /* #2C1A4C - Texte principal */
  
     --primary: 222.2 47.4% 11.2%;
     --primary-foreground: 210 40% 98%;
  
     --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary-foreground: 0 0% 33.3%; /* #555555 - Texte secondaire (gris anthracite) */
  
     --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted-foreground: 0 0% 33.3%; /* #555555 - Texte secondaire */
  
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 284 100% 53.3%; /* #A020F0 - Accent (violet brillant) */
+    --accent-foreground: 0 0% 100%; /* #FFFFFF pour les textes sur fond accent */
  
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 0 0% 88%; /* #E0E0E0 - Bordures (gris clair) */
+    --input: 0 0% 88%; /* #E0E0E0 - Bordures (gris clair) */
+    --ring: 284 100% 53.3%; /* #A020F0 - Accent */
  
     --radius: 0.5rem;
+    
+    /* Variables RGB pour les couleurs Vynal (light mode) */
+    --vynal-text-primary-rgb: 44, 26, 76; /* #2C1A4C - Violet profond */
+    --vynal-text-secondary-rgb: 85, 85, 85; /* #555555 - Gris anthracite */
+    --vynal-accent-primary-rgb: 255, 102, 178; /* #FF66B2 - Rose - MODIFIÉ */
+    --vynal-accent-secondary-rgb: 123, 31, 162; /* #7B1FA2 - Violet plus foncé (hover) */
+    --vynal-border-rgb: 224, 224, 224; /* #E0E0E0 - Gris clair (bordures) */
+    
+    /* Variables CSS non-RGB */
+    --vynal-text-primary: #2C1A4C;
+    --vynal-text-secondary: #555555;
+    --vynal-accent-primary: #FF66B2; /* MODIFIÉ: maintenant rose au lieu de violet */
+    --vynal-accent-secondary: #7B1FA2;
+    --vynal-border: #E0E0E0;
+    
+    /* Nouvelles variables pour les boutons roses */
+    --vynal-btn-primary-bg: #FF66B2;
+    --vynal-btn-primary-hover: #FF007F;
+    --vynal-btn-primary-text: #2C1A4C;
   }
  
   .dark {
@@ -68,6 +87,20 @@
     --border: 267 75% 20%; /* #2A0C57 - Fond secondaire */
     --input: 267 75% 20%; /* #2A0C57 - Fond secondaire */
     --ring: 329 100% 70%; /* #FF66B2 - Accent principal */
+    
+    /* Variables RGB pour les couleurs Vynal (dark mode) */
+    --vynal-text-primary-rgb: 255, 255, 255; /* #FFFFFF - Blanc */
+    --vynal-text-secondary-rgb: 214, 214, 214; /* #D6D6D6 - Gris clair */
+    --vynal-accent-primary-rgb: 255, 102, 178; /* #FF66B2 - Rose */
+    --vynal-accent-secondary-rgb: 255, 0, 127; /* #FF007F - Rose vif */
+    --vynal-border-rgb: 42, 12, 87; /* #2A0C57 - Violet foncé */
+    
+    /* Variables CSS non-RGB */
+    --vynal-text-primary: #FFFFFF;
+    --vynal-text-secondary: #D6D6D6;
+    --vynal-accent-primary: #FF66B2;
+    --vynal-accent-secondary: #FF007F;
+    --vynal-border: #2A0C57;
   }
 }
  
@@ -384,6 +417,58 @@
       transform: scale(0.95);
     }
   }
+
+  /* Styles spécifiques pour les textes dans ServiceView */
+  .prose {
+    color: var(--vynal-text-primary);
+  }
+  
+  .dark .prose {
+    color: var(--vynal-text-primary);
+  }
+  
+  /* Style pour les textes dans ServiceView qui doivent être en violet profond */
+  .vynal-service-text {
+    color: var(--vynal-text-primary) !important;
+  }
+  
+  .dark .vynal-service-text {
+    color: var(--vynal-text-secondary) !important;
+  }
+  
+  /* Textes de livraison, support, etc. avec la couleur principale */
+  .lg\:space-y-2 li span, 
+  .flex-col span {
+    color: var(--vynal-text-primary) !important;
+  }
+  
+  .dark .lg\:space-y-2 li span, 
+  .dark .flex-col span {
+    color: var(--vynal-text-secondary) !important;
+  }
+  
+  /* Texte secondaire pour le prix et les sous-titres */
+  h2 + p.text-xs,
+  p.text-sm.ml-7,
+  p.text-xs.group-hover\:text-vynal-text-secondary {
+    color: var(--vynal-text-secondary) !important;
+  }
+  
+  .dark h2 + p.text-xs,
+  .dark p.text-sm.ml-7,
+  .dark p.text-xs.group-hover\:text-vynal-text-secondary {
+    color: var(--vynal-text-secondary) !important;
+  }
+  
+  /* Prix en rose en mode dark */
+  .dark .price-value {
+    color: var(--vynal-accent-primary) !important;
+  }
+  
+  /* Règle spécifique pour les prix dans les cards de services */
+  .dark .flex-col span.price-value {
+    color: var(--vynal-accent-primary) !important;
+  }
 }
 
 @keyframes fadeIn {
@@ -534,4 +619,109 @@ mark {
 
 mark:hover {
   background-color: rgba(var(--vynal-accent-primary-rgb), 0.5);
+}
+
+/* Nouvelles classes utilitaires pour les composants communs */
+@layer components {
+  /* Boutons primaires */
+  .btn-vynal-primary {
+    font-weight: 500;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    transform: scale(1);
+    transition-property: all;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
+  }
+  
+  .btn-vynal-primary:hover {
+    transform: scale(1.02);
+  }
+  
+  .btn-vynal-primary.light {
+    background-color: #FF66B2;
+    color: #2C1A4C;
+  }
+  
+  .btn-vynal-primary.light:hover {
+    background-color: #FF007F;
+  }
+  
+  .btn-vynal-primary.dark {
+    background-color: var(--vynal-accent-primary);
+    color: var(--vynal-purple-dark);
+  }
+  
+  .btn-vynal-primary.dark:hover {
+    background-color: var(--vynal-accent-secondary);
+  }
+  
+  /* Boutons secondaires avec contour */
+  .btn-vynal-outline {
+    transition-property: color, background-color, border-color;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
+  }
+  
+  .btn-vynal-outline.light {
+    border-color: rgba(255, 102, 178, 0.3);
+    color: #2C1A4C;
+  }
+  
+  .btn-vynal-outline.light:hover {
+    background-color: rgba(255, 102, 178, 0.1);
+  }
+  
+  .btn-vynal-outline.dark {
+    background-color: rgba(42, 12, 87, 0.1);
+    border-color: rgba(42, 12, 87, 0.4);
+  }
+  
+  .btn-vynal-outline.dark:hover {
+    background-color: rgba(42, 12, 87, 0.2);
+  }
+  
+  /* Cartes */
+  .card-vynal {
+    overflow: hidden;
+    border-width: 1px;
+    border-radius: 0.75rem;
+  }
+  
+  .card-vynal.light {
+    border-color: rgb(229, 231, 235);
+    background-color: white;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  }
+  
+  .card-vynal.dark {
+    border-color: rgba(42, 12, 87, 0.4);
+    background-color: rgba(16, 4, 34, 0.2);
+    backdrop-filter: blur(4px);
+  }
+  
+  /* Textes */
+  .text-vynal-title {
+    color: #2C1A4C;
+  }
+  
+  .dark .text-vynal-title {
+    color: var(--vynal-text-primary);
+  }
+  
+  .text-vynal-body {
+    color: #555555;
+  }
+  
+  .dark .text-vynal-body {
+    color: var(--vynal-text-secondary);
+  }
+  
+  /* Icônes */
+  .icon-vynal {
+    color: #2C1A4C;
+  }
+  
+  .dark .icon-vynal {
+    color: var(--vynal-accent-primary);
+  }
 } 

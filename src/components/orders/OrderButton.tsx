@@ -46,6 +46,14 @@ interface OrderButtonProps {
 // Types d'étapes du processus de commande
 type OrderStep = "requirements" | "selection" | "payment" | "summary";
 
+// Mapping des titres pour chaque étape
+const orderStepTitles: Record<OrderStep, string> = {
+  requirements: "Détails de la commande",
+  selection: "Méthode de paiement",
+  payment: "Détails du paiement",
+  summary: "Résumé de la commande"
+};
+
 export function OrderButton({
   serviceId,
   price,
@@ -610,10 +618,18 @@ export function OrderButton({
           }
         }}
       >
-        <DialogContent className="sm:max-w-[500px] bg-vynal-purple-dark/90 border-vynal-purple-secondary/30 rounded-xl shadow-lg shadow-vynal-accent-secondary/20 backdrop-blur-sm text-vynal-text-primary" aria-describedby="order-description">
-          <DialogHeader>
-            <DialogTitle className="text-lg font-semibold mb-2">Commande de service</DialogTitle>
-            <DialogDescription id="order-description">Formulaire de commande et de paiement</DialogDescription>
+        <DialogContent 
+          className="sm:max-w-[500px] bg-vynal-purple-dark/90 border-vynal-purple-secondary/30 rounded-xl shadow-lg shadow-vynal-accent-secondary/20 backdrop-blur-sm text-vynal-text-primary" 
+          aria-labelledby="order-dialog-title"
+          aria-describedby="order-description"
+        >
+          <DialogHeader className="pb-2">
+            <DialogTitle id="order-dialog-title" className="text-lg font-semibold text-vynal-accent-primary">
+              {orderStepTitles[currentStep]}
+            </DialogTitle>
+            <DialogDescription id="order-description" className="text-vynal-text-secondary">
+              Formulaire de commande et de paiement
+            </DialogDescription>
           </DialogHeader>
           
           {loadingService && (

@@ -3,7 +3,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Eye, PenSquare, Trash2, Star, ImageIcon } from "lucide-react";
+import { Eye, PenSquare, Trash2, Star, ImageIcon, Shield, Medal, Sparkles } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatPrice } from "@/lib/utils";
 import { CURRENCY } from "@/lib/constants";
@@ -14,6 +14,7 @@ import { highlightSearchTerms } from '@/lib/search/smartSearch';
 import Image from 'next/image';
 import { cn } from "@/lib/utils";
 import { useTheme } from "next-themes"; // Assurez-vous d'avoir installé next-themes
+import { CertificationBadge } from '@/components/ui/certification-badge';
 
 // Extension du type pour inclure les propriétés supplémentaires
 interface ExtendedService extends ServiceWithFreelanceAndCategories {
@@ -67,9 +68,8 @@ const ServiceImage = memo(({
           onError={onError}
           fill
           sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
-          priority={isPriority}
+          priority={isPriority || (typeof image === 'string' && image.includes('storage/v1/object/public/services'))}
           quality={70}
-          loading={isPriority ? "eager" : "lazy"}
         />
       </div>
     ) : (
@@ -141,10 +141,10 @@ const PriceBadge = memo(({ price }: { price?: number }) => {
   }, [price]);
   
   return (
-    <div className="absolute bottom-0 right-0 p-1">
+    <div className="absolute bottom-0 right-0 p-1 hidden sm:block">
       <Badge 
         variant="outline" 
-        className="shadow-sm text-[10px] bg-vynal-accent-primary/90 text-white hover:bg-vynal-accent-primary font-semibold border-vynal-accent-primary/30"
+        className="shadow-sm text-[10px] bg-vynal-accent-primary/90 text-white hover:bg-vynal-accent-primary border-vynal-accent-primary/30"
       >
         {formattedPrice} {CURRENCY.symbol}
       </Badge>
@@ -163,7 +163,7 @@ const FreelanceAvatar = memo(({
   onError: () => void; 
   onClick: (e: React.MouseEvent) => void;
 }) => (
-  <div className="flex items-center gap-1.5 min-w-0">
+  <div className="flex items-center gap-2 min-w-0">
     <Avatar 
       className="h-6 w-6 border border-vynal-purple-secondary/30 transition-shadow hover:shadow-md cursor-pointer flex-shrink-0"
       onClick={onClick}
@@ -178,14 +178,23 @@ const FreelanceAvatar = memo(({
         {profile?.full_name?.[0] || profile?.username?.[0] || 'V'}
       </AvatarFallback>
     </Avatar>
-    <button 
-      className="text-[10px] text-vynal-text-primary font-medium truncate max-w-[80px] cursor-pointer hover:underline focus:outline-none focus:underline"
-      onClick={onClick}
-      title={profile?.full_name || profile?.username || 'Vendeur'}
-      tabIndex={-1}
-    >
-      {profile?.full_name || profile?.username || 'Vendeur'}
-    </button>
+    <div className="flex items-center gap-1 min-w-0">
+      <button 
+        className="text-[10px] text-vynal-text-primary truncate max-w-[80px] cursor-pointer hover:underline focus:outline-none focus:underline font-normal"
+        onClick={onClick}
+        title={profile?.full_name || profile?.username || 'Vendeur'}
+        tabIndex={-1}
+      >
+        {profile?.full_name || profile?.username || 'Vendeur'}
+      </button>
+      
+      {/* Badge de certification - uniquement si l'utilisateur est certifié */}
+      {profile?.is_certified && profile?.certification_type && (
+        <CertificationBadge 
+          type={profile.certification_type as 'standard' | 'premium' | 'expert'} 
+        />
+      )}
+    </div>
   </div>
 ));
 
@@ -270,7 +279,7 @@ const ActionButtons = memo(({
       <Button
         size="sm" 
         variant="secondary"
-        className="rounded-full px-2 py-0.5 h-auto text-[10px] font-medium bg-vynal-purple-secondary/40 text-vynal-text-primary hover:bg-vynal-accent-primary hover:text-vynal-purple-dark border border-vynal-purple-secondary/30 hover:border-vynal-accent-primary"
+        className="rounded-full px-2 py-0.5 h-auto text-[10px] bg-vynal-purple-secondary/40 text-vynal-text-primary hover:bg-vynal-accent-primary hover:text-vynal-purple-dark border border-vynal-purple-secondary/30 hover:border-vynal-accent-primary"
       >
         Voir détails
       </Button>
@@ -589,8 +598,8 @@ const ServiceCard = memo<ServiceCardProps>(
     // Compute card classes based on actual dependencies
     const cardClasses = useMemo(() => {
       return cn(
-        "group overflow-hidden transition-all duration-300 hover:shadow-md",
-        "border border-vynal-purple-secondary/30 shadow-md shadow-vynal-accent-secondary/10 rounded-lg relative flex flex-col h-full",
+        "group overflow-hidden transition-all duration-300",
+        "border border-vynal-purple-secondary/40 rounded-lg relative flex flex-col h-full",
         theme === 'dark' 
           ? "bg-vynal-purple-dark/90 backdrop-blur-sm" 
           : "bg-white/95 backdrop-blur-sm",
@@ -616,9 +625,9 @@ const ServiceCard = memo<ServiceCardProps>(
   
     // Simplified JSX structure - grouped by logical sections
     return (
-      <Card 
+      <div 
         id={`service-card-${service.id}`}
-        className={cardClasses}
+        className="group overflow-hidden transition-all duration-300 border border-vynal-purple-secondary/40 rounded-lg relative flex flex-col h-full bg-white/95 dark:bg-vynal-purple-dark/90 backdrop-blur-sm"
         onClick={handleCardClick}
         tabIndex={0}
         role="button"
@@ -633,13 +642,12 @@ const ServiceCard = memo<ServiceCardProps>(
           isPriority={state.imagePriority}
         >
           {showStatusBadge && <StatusBadges active={service.active} status={service.status} />}
-          <PriceBadge price={service.price} />
         </ServiceImage>
         
         {/* Content section */}
         <div className="pt-1.5 px-2 flex flex-col flex-grow">
           {/* Profile and rating */}
-          <div className="flex justify-between items-center h-8">
+          <div className="flex justify-between items-center h-8 mb-2">
             <FreelanceAvatar 
               profile={service.profiles} 
               onError={handleAvatarError} 
@@ -656,13 +664,13 @@ const ServiceCard = memo<ServiceCardProps>(
           </div>
           
           {/* Title and description */}
-          <div className="mb-1.5 mt-1">
-            <h3 className="text-xs font-medium leading-tight text-vynal-text-primary dark:text-white line-clamp-2">
+          <div className="mb-4 mt-2">
+            <h3 className="text-sm leading-tight text-vynal-text-primary dark:text-white line-clamp-2 font-normal">
               {highlightedTitle}
             </h3>
             
             {service.short_description && (
-              <p className="mt-0.5 text-[10px] text-vynal-text-secondary dark:text-vynal-text-secondary/80 line-clamp-2">
+              <p className="mt-1 text-[10px] text-vynal-text-secondary dark:text-vynal-text-secondary/80 line-clamp-2">
                 {service.short_description}
               </p>
             )}
@@ -673,7 +681,7 @@ const ServiceCard = memo<ServiceCardProps>(
         <div className="mt-auto px-2 pb-2 flex items-center justify-between">
           <div className="flex flex-col">
             <span className="text-[9px] text-vynal-text-secondary dark:text-vynal-text-secondary/80">À partir de</span>
-            <span className="text-sm font-semibold text-vynal-accent-primary">
+            <span className="text-base font-medium text-vynal-accent-primary dark:text-vynal-accent-primary mt-0.5 price-value">
               {formattedPrice} {CURRENCY.symbol}
             </span>
           </div>
@@ -687,7 +695,7 @@ const ServiceCard = memo<ServiceCardProps>(
             onDelete={handleDelete}
           />
         </div>
-      </Card>
+      </div>
     );
   },
   arePropsEqual

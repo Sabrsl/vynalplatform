@@ -52,7 +52,7 @@ export function CreateReviewForm({
   };
 
   return (
-    <div className="bg-vynal-purple-dark/90 border border-vynal-purple-secondary/30 rounded-xl p-4 shadow-lg shadow-vynal-accent-secondary/20">
+    <div className="bg-vynal-purple-dark/90 border border-vynal-purple-secondary/40 rounded-xl p-4">
       <h3 className="text-lg font-semibold text-vynal-text-primary mb-4">Évaluez votre expérience</h3>
       
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -101,7 +101,7 @@ export function CreateReviewForm({
             value={comment}
             onChange={(e) => setComment(e.target.value)}
             placeholder="Partagez votre expérience avec ce service et ce freelance..."
-            className="min-h-[120px] resize-none bg-transparent border-vynal-purple-secondary/30 text-vynal-text-primary focus-visible:ring-vynal-accent-primary"
+            className="min-h-[120px] resize-none bg-transparent border-vynal-purple-secondary/40 text-vynal-text-primary focus-visible:ring-vynal-accent-primary"
           />
         </div>
         

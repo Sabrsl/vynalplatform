@@ -113,14 +113,14 @@ const NewConversationDialog: React.FC<NewConversationDialogProps> = ({
         </Button>
       </DialogTrigger>
       
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px]" aria-labelledby="new-conversation-title" aria-describedby="new-conversation-description">
         <DialogHeader>
-          <DialogTitle>
+          <DialogTitle id="new-conversation-title">
             {isFreelance 
               ? "Démarrer une conversation avec un client" 
               : "Contacter un freelance"}
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription id="new-conversation-description">
             {isFreelance 
               ? "Recherchez un client pour commencer une nouvelle conversation." 
               : "Trouvez un freelance pour discuter de vos projets."}

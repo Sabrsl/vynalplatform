@@ -16,6 +16,8 @@ export type ServiceWithFreelanceAndCategories = Service & {
     email?: string | null;
     role?: string | null;
     bio?: string | null;
+    is_certified?: boolean;
+    certification_type?: 'standard' | 'premium' | 'expert' | null;
   };
   categories: {
     id: string;
@@ -87,7 +89,7 @@ interface UseServicesResult {
 const DEFAULT_THROTTLE_MS = 2000; // Temps minimum entre les rafraîchissements
 const DEFAULT_SERVICE_FIELDS = `
   *,
-  profiles (id, username, full_name, avatar_url, bio, email, role),
+  profiles (id, username, full_name, avatar_url, bio, email, role, is_certified, certification_type),
   categories (id, name, slug),
   subcategories (id, name, slug)
 `;
@@ -184,7 +186,9 @@ export function useServices(params: UseServicesParams = {}): UseServicesResult {
         username: 'utilisateur',
         full_name: 'Utilisateur',
         avatar_url: null,
-        bio: null
+        bio: null,
+        is_certified: false,
+        certification_type: null
       },
       categories: data.categories || {
         id: data.category_id || '',
@@ -389,7 +393,9 @@ export function useServices(params: UseServicesParams = {}): UseServicesResult {
             avatar_url, 
             email, 
             role,
-            bio
+            bio,
+            is_certified,
+            certification_type
           ),
           categories (id, name, slug),
           subcategories (id, name, slug)
@@ -423,7 +429,9 @@ export function useServices(params: UseServicesParams = {}): UseServicesResult {
           username: 'utilisateur',
           full_name: 'Utilisateur',
           avatar_url: null,
-          bio: null
+          bio: null,
+          is_certified: false,
+          certification_type: null
         },
         categories: data.categories || {
           id: data.category_id || '',
@@ -629,6 +637,28 @@ export function useServices(params: UseServicesParams = {}): UseServicesResult {
       if (serviceFields.freelance_id !== profile.id && profile.role !== 'admin') {
         return { success: false, error: 'Vous n\'êtes pas autorisé à créer ce service' };
       }
+
+      // Vérifier le nombre de services actifs pour les freelances sans badge de certification expert
+      if (profile.role !== 'admin' && (!profile.is_certified || profile.certification_type !== 'expert')) {
+        // Compter le nombre de services actifs du freelance
+        const { data: activeServices, error: countError } = await supabase
+          .from('services')
+          .select('id')
+          .eq('freelance_id', profile.id)
+          .eq('active', true);
+
+        if (countError) {
+          console.error('Erreur lors du comptage des services actifs:', countError);
+          return { success: false, error: 'Erreur lors de la vérification de vos services actifs' };
+        }
+
+        if (activeServices && activeServices.length >= 6) {
+          return { 
+            success: false, 
+            error: 'Vous ne pouvez pas avoir plus de 6 services actifs sans certification expert. Veuillez désactiver ou supprimer un service existant. Pour supprimer cette limitation, obtenez une certification expert.'
+          };
+        }
+      }
       
       // Ajouter les champs de métadonnées
       const serviceWithMeta = {
@@ -733,6 +763,30 @@ export function useServices(params: UseServicesParams = {}): UseServicesResult {
           
         // Log pour le débogage
         console.log(`Service ${serviceId} - active: ${fieldsWithTimestamp.active}, type: ${typeof fieldsWithTimestamp.active}`);
+        
+        // Vérifier la limite de services actifs si le service passe de inactif à actif
+        if (fieldsWithTimestamp.active === true && serviceToUpdate.active === false) {
+          if (profile.role !== 'admin' && (!profile.is_certified || profile.certification_type !== 'expert')) {
+            // Compter le nombre de services actifs du freelance
+            const { data: activeServices, error: countError } = await supabase
+              .from('services')
+              .select('id')
+              .eq('freelance_id', profile.id)
+              .eq('active', true);
+
+            if (countError) {
+              console.error('Erreur lors du comptage des services actifs:', countError);
+              return { success: false, error: 'Erreur lors de la vérification de vos services actifs' };
+            }
+
+            if (activeServices && activeServices.length >= 6) {
+              return { 
+                success: false, 
+                error: 'Vous ne pouvez pas avoir plus de 6 services actifs sans certification expert. Veuillez désactiver ou supprimer un service existant. Pour supprimer cette limitation, obtenez une certification expert.'
+              };
+            }
+          }
+        }
       }
       
       // Si l'utilisateur est un freelance (non-admin), mettre le statut à 'pending' pour revalidation

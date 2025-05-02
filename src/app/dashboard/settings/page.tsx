@@ -1218,13 +1218,13 @@ export default function SettingsPage() {
                 </Button>
                 
                 <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-                  <DialogContent className="dark:bg-vynal-purple-dark dark:border-vynal-purple-secondary/40">
+                  <DialogContent className="dark:bg-vynal-purple-dark dark:border-vynal-purple-secondary/40" aria-labelledby="delete-account-title" aria-describedby="delete-account-description">
                     <DialogHeader>
-                      <DialogTitle className="text-red-600 dark:text-red-400 flex items-center gap-2">
+                      <DialogTitle id="delete-account-title" className="text-red-600 dark:text-red-400 flex items-center gap-2">
                         <Trash2 className="h-5 w-5" />
                         Supprimer définitivement votre compte ?
                       </DialogTitle>
-                      <DialogDescription className="text-vynal-purple-secondary dark:text-vynal-text-secondary">
+                      <DialogDescription id="delete-account-description" className="text-vynal-purple-secondary dark:text-vynal-text-secondary">
                         Cette action est irréversible. Veuillez saisir SUPPRIMER pour confirmer.
                       </DialogDescription>
                     </DialogHeader>

@@ -466,9 +466,9 @@ export default function MessagingPage() {
 
       {/* Dialogue de message de contact */}
       <Dialog open={showConversationDialog} onOpenChange={setShowConversationDialog}>
-        <DialogContent className="max-w-3xl" aria-describedby="conversation-description">
+        <DialogContent className="max-w-3xl" aria-labelledby="conversation-title" aria-describedby="conversation-description">
           <DialogHeader className="pb-2">
-            <DialogTitle className="text-base font-semibold">
+            <DialogTitle id="conversation-title" className="text-base font-semibold">
               {currentConversation && `Message de contact de ${currentConversation.contact_name}`}
             </DialogTitle>
             <DialogDescription id="conversation-description" className="text-xs flex justify-between">

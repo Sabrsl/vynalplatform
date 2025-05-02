@@ -139,10 +139,10 @@ export function AddPaymentMethodModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px]" aria-labelledby="payment-method-title" aria-describedby="payment-method-description">
         <DialogHeader>
-          <DialogTitle className="text-xl font-semibold">Ajouter un moyen de paiement</DialogTitle>
-          <DialogDescription>
+          <DialogTitle id="payment-method-title" className="text-xl font-semibold">Ajouter un moyen de paiement</DialogTitle>
+          <DialogDescription id="payment-method-description">
             Entrez vos coordonnées bancaires ci-dessous pour ajouter un nouveau moyen de paiement.
           </DialogDescription>
         </DialogHeader>

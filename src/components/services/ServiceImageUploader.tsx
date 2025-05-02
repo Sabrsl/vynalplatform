@@ -19,7 +19,7 @@ const ServiceImageUploader: React.FC<ServiceImageUploaderProps> = ({
   serviceId,
   initialImages = [],
   onImagesChange,
-  maxImages = 5,
+  maxImages = 3,
   isRequired = true,
   className
 }) => {
@@ -37,7 +37,7 @@ const ServiceImageUploader: React.FC<ServiceImageUploaderProps> = ({
   }, [initialImages]);
 
   // Gestionnaire de fichiers sélectionnés
-  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
     
     // Vérifier si on a atteint le nombre maximum d'images
@@ -47,37 +47,105 @@ const ServiceImageUploader: React.FC<ServiceImageUploaderProps> = ({
     }
     
     const files = Array.from(e.target.files);
+    const newFiles = files.slice(0, maxImages - images.length);
     
-    // Simuler un upload réussi (dans une vraie implémentation, uploaderait les fichiers)
-    const newUrls = files.map(file => URL.createObjectURL(file));
-    const updatedImages = [...images, ...newUrls].slice(0, maxImages);
-    
-    setImages(updatedImages);
-    onImagesChange(updatedImages);
-    
-    // Réinitialiser l'input file
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+    try {
+      setError(null);
+      
+      // Tableau pour stocker les URL définitives
+      const uploadedUrls: string[] = [];
+      
+      // Pour chaque fichier, télécharger vers le bucket "services"
+      for (const file of newFiles) {
+        // Générer un nom de fichier unique
+        const fileExt = file.name.split('.').pop();
+        const fileName = `temp_${crypto.randomUUID()}.${fileExt}`;
+        
+        // Télécharger le fichier vers Supabase
+        const { data, error } = await supabase.storage
+          .from('services')
+          .upload(fileName, file, {
+            cacheControl: '3600',
+            upsert: false
+          });
+        
+        if (error) {
+          throw new Error(`Erreur lors du téléchargement de l'image: ${error.message}`);
+        }
+        
+        // Obtenir l'URL publique du fichier
+        const { data: urlData } = supabase.storage
+          .from('services')
+          .getPublicUrl(fileName);
+        
+        // Ajouter l'URL au tableau
+        uploadedUrls.push(urlData.publicUrl);
+      }
+      
+      // Mise à jour de l'état avec les nouvelles URL
+      const updatedImages = [...images, ...uploadedUrls];
+      setImages(updatedImages);
+      onImagesChange(updatedImages);
+      
+      // Afficher une notification de succès
+      toast({
+        title: "Images téléchargées",
+        description: `${uploadedUrls.length} image(s) téléchargée(s) avec succès`
+      });
+    } catch (err: any) {
+      console.error("Erreur lors du téléchargement des images:", err);
+      setError(err.message || "Une erreur est survenue lors du téléchargement des images");
+    } finally {
+      // Réinitialiser l'input file
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
-  }, [images, maxImages, onImagesChange]);
+  }, [images, maxImages, onImagesChange, toast]);
 
   // Supprimer une image
-  const handleRemoveImage = useCallback((index: number) => {
+  const handleRemoveImage = useCallback(async (index: number) => {
     // Ne pas permettre de supprimer si c'est la dernière image et qu'une image est requise
     if (isRequired && images.length === 1) {
       setError("Un service doit avoir au moins une image");
       return;
     }
     
-    const updatedImages = [...images];
-    updatedImages.splice(index, 1);
-    setImages(updatedImages);
-    onImagesChange(updatedImages);
-    
-    toast({
-      title: "Image supprimée",
-      description: "L'image a été supprimée avec succès"
-    });
+    try {
+      const imageUrl = images[index];
+      
+      // Si l'image est stockée dans le bucket "services", essayer de la supprimer
+      if (imageUrl && imageUrl.includes('/services/')) {
+        // Extraire le nom du fichier de l'URL
+        const fileName = imageUrl.split('/').pop();
+        
+        if (fileName) {
+          // Supprimer le fichier du bucket
+          const { error } = await supabase.storage
+            .from('services')
+            .remove([fileName]);
+          
+          if (error) {
+            console.warn("Erreur lors de la suppression de l'image du stockage:", error);
+            // On continue malgré l'erreur pour que l'utilisateur puisse quand même supprimer l'image de l'interface
+          }
+        }
+      }
+      
+      // Mettre à jour la liste des images
+      const updatedImages = [...images];
+      updatedImages.splice(index, 1);
+      setImages(updatedImages);
+      onImagesChange(updatedImages);
+      
+      toast({
+        title: "Image supprimée",
+        description: "L'image a été supprimée avec succès"
+      });
+    } catch (err) {
+      console.error("Erreur lors de la suppression de l'image:", err);
+      setError("Une erreur est survenue lors de la suppression de l'image");
+    }
   }, [images, isRequired, onImagesChange, toast]);
 
   return (
@@ -106,6 +174,7 @@ const ServiceImageUploader: React.FC<ServiceImageUploaderProps> = ({
                     className="object-cover" 
                     fill
                     sizes="(max-width: 768px) 50vw, 33vw"
+                    priority={index === 0 || image.includes('/services/temp_')}
                   />
                 </div>
                 <button

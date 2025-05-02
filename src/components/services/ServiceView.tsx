@@ -1,7 +1,31 @@
-import React, { useMemo, useState, useCallback, useEffect, Suspense, Dispatch, SetStateAction, LegacyRef } from "react";
+import React, { useMemo, useState, useCallback, useEffect, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
+import { useTheme } from "next-themes";
+
+// Composants UI - import seulement ceux nécessaires
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { CertificationBadge } from "@/components/ui/certification-badge";
+
+// Composants métier
+import ServiceCard from "@/components/services/ServiceCard";
+import ServiceImageGallery from './ServiceImageGallery';
+import MessagingDialog from "@/components/messaging/MessagingDialog";
+import { OrderButton } from "@/components/orders/OrderButton";
+
+// Hooks et utils
+import { ServiceWithFreelanceAndCategories } from "@/hooks/useServices";
+import { formatPrice, formatDate, cn } from "@/lib/utils";
+import { useFreelancerRating } from "@/hooks/useFreelancerRating";
+import { useUser } from "@/hooks/useUser";
+import { CURRENCY } from "@/lib/constants";
+
+// Icônes - n'importer que celles utilisées
 import { 
   ChevronRight, 
   Clock, 
@@ -18,26 +42,8 @@ import {
   Tag,
   Image as ImageIcon,
   MessageSquare,
-  ShoppingBag,
-  CreditCard,
-  PackageCheck,
-  ExternalLink,
   X
 } from "lucide-react";
-import { ServiceWithFreelanceAndCategories } from "@/hooks/useServices";
-import { formatPrice, formatDate, cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import ServiceCard from "@/components/services/ServiceCard";
-import ServiceImageGallery from './ServiceImageGallery';
-import { useFreelancerRating } from "@/hooks/useFreelancerRating";
-import MessagingDialog from "@/components/messaging/MessagingDialog";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useUser } from "@/hooks/useUser";
-import { OrderButton } from "@/components/orders/OrderButton";
-import { useTheme } from "next-themes";
 
 // Chargement différé des composants lourds
 const ServiceReviews = dynamic(() => import('../reviews/ServiceReviews'), {
@@ -50,13 +56,42 @@ const ServiceReviews = dynamic(() => import('../reviews/ServiceReviews'), {
   ssr: false
 });
 
-// Hook personnalisé pour l'intersection observer
+// Types
 interface IntersectionOptions {
   threshold?: number;
   triggerOnce?: boolean;
   rootMargin?: string;
 }
 
+// Extension du type pour inclure les propriétés supplémentaires
+interface ExtendedService extends ServiceWithFreelanceAndCategories {
+  images?: string[];
+  profiles: {
+    id: string;
+    username: string | null;
+    full_name: string | null;
+    avatar_url: string | null;
+    email?: string | null;
+    role?: string | null;
+    bio?: string | null;
+    is_certified?: boolean;
+    certification_type?: 'standard' | 'premium' | 'expert' | null;
+  };
+}
+
+interface ServiceViewProps {
+  service: ExtendedService | null;
+  loading?: boolean;
+  error?: string | null;
+  isFreelanceView?: boolean;
+  relatedServices?: ServiceWithFreelanceAndCategories[];
+  loadingRelated?: boolean;
+  onBack?: () => void;
+  onEdit?: () => void;
+  className?: string;
+}
+
+// Hook personnalisé pour l'intersection observer
 const useInView = (options: IntersectionOptions = {}): [(node: HTMLDivElement | null) => void, boolean] => {
   const [ref, setRef] = useState<HTMLDivElement | null>(null);
   const [isInView, setIsInView] = useState(options.triggerOnce ? true : false);
@@ -108,22 +143,340 @@ const useInView = (options: IntersectionOptions = {}): [(node: HTMLDivElement | 
   return [nodeRef, isInView];
 };
 
-// Extension du type pour inclure les propriétés supplémentaires
-interface ExtendedService extends ServiceWithFreelanceAndCategories {
-  images?: string[];
-}
+// Style global pour les titres et textes secondaires
+const textStyles = {
+  title: (isDark: boolean) => cn(
+    "text-vynal-title"
+  ),
+  secondary: (isDark: boolean) => cn(
+    "text-vynal-body"
+  ),
+  accent: (isDark: boolean) => cn(
+    isDark ? "text-vynal-accent-primary" : "text-[#A020F0]"
+  )
+};
 
-interface ServiceViewProps {
-  service: ExtendedService | null;
-  loading?: boolean;
-  error?: string | null;
-  isFreelanceView?: boolean;
-  relatedServices?: ServiceWithFreelanceAndCategories[];
-  loadingRelated?: boolean;
-  onBack?: () => void;
-  onEdit?: () => void;
-  className?: string;
-}
+/**
+ * Composant d'erreur pour afficher lorsque le service n'est pas disponible
+ */
+const ServiceErrorView = React.memo(({ error, onBack, isDarkMode }: { 
+  error: string | null, 
+  onBack?: () => void, 
+  isDarkMode: boolean 
+}) => (
+  <div className="container mx-auto px-4 py-12">
+    <Card className={cn(
+      "max-w-2xl mx-auto overflow-hidden card-vynal",
+      isDarkMode ? "dark" : "light"
+    )}>
+      <div className={cn(
+        "p-4 flex items-center space-x-3 border-b",
+        isDarkMode 
+          ? "bg-vynal-purple-dark/90 border-vynal-purple-secondary/30" 
+          : "bg-gray-50 border-gray-200"
+      )}>
+        <AlertCircle className={cn(
+          "h-6 w-6 flex-shrink-0",
+          isDarkMode ? "text-vynal-status-error" : "text-red-500"
+        )} />
+        <h2 className="text-lg font-semibold text-vynal-title">Service non disponible</h2>
+      </div>
+      <CardContent className="p-6">
+        <p className="mb-6 text-vynal-body">{error || "Ce service n'existe pas ou a été supprimé."}</p>
+        <div className="flex flex-wrap gap-2">
+          {onBack ? (
+            <Button 
+              variant="outline" 
+              onClick={onBack} 
+              className={cn(
+                "group transition-colors btn-vynal-outline",
+                isDarkMode ? "dark" : "light"
+              )}
+            >
+              <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" />
+              Retour
+            </Button>
+          ) : (
+            <Link href="/services" className="group">
+              <Button variant="outline" className={cn(
+                "transition-colors btn-vynal-outline",
+                isDarkMode ? "dark" : "light"
+              )}>
+                <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" />
+                Retour aux services
+              </Button>
+            </Link>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  </div>
+));
+ServiceErrorView.displayName = 'ServiceErrorView';
+
+/**
+ * Composant de chargement (Skeleton)
+ */
+const ServiceLoadingView = React.memo(({ isDarkMode }: { isDarkMode: boolean }) => (
+  <div className="min-h-screen py-8">
+    <div className="container mx-auto px-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-4">
+          <Skeleton className="w-full aspect-video rounded-lg bg-vynal-purple-secondary/30" />
+          <Card className={cn(
+            "rounded-xl",
+            isDarkMode 
+              ? "bg-vynal-purple-dark/90 border-vynal-purple-secondary/30"
+              : "bg-white border-gray-200"
+          )}>
+            <CardContent className="p-6">
+              <Skeleton className="h-8 w-3/4 mb-4 bg-vynal-purple-secondary/30" />
+              <div className="space-y-2 mb-6">
+                <Skeleton className="h-4 w-full bg-vynal-purple-secondary/30" />
+                <Skeleton className="h-4 w-full bg-vynal-purple-secondary/30" />
+                <Skeleton className="h-4 w-2/3 bg-vynal-purple-secondary/30" />
+              </div>
+              <Skeleton className="h-24 w-full bg-vynal-purple-secondary/30" />
+            </CardContent>
+          </Card>
+        </div>
+        <div>
+          <Card className={cn(
+            "mb-4 rounded-xl",
+            isDarkMode 
+              ? "bg-vynal-purple-dark/90 border-vynal-purple-secondary/30"
+              : "bg-white border-gray-200"
+          )}>
+            <CardContent className="p-6 space-y-4">
+              <Skeleton className="h-8 w-full bg-vynal-purple-secondary/30" />
+              <Skeleton className="h-10 w-full bg-vynal-purple-secondary/30" />
+              <div className="flex space-x-2">
+                <Skeleton className="h-8 w-1/2 bg-vynal-purple-secondary/30" />
+                <Skeleton className="h-8 w-1/2 bg-vynal-purple-secondary/30" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card className={cn(
+            "rounded-xl",
+            isDarkMode 
+              ? "bg-vynal-purple-dark/90 border-vynal-purple-secondary/30"
+              : "bg-white border-gray-200"
+          )}>
+            <CardContent className="p-6 space-y-4">
+              <div className="flex items-center space-x-3">
+                <Skeleton className="h-12 w-12 rounded-full bg-vynal-purple-secondary/30" />
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-32 bg-vynal-purple-secondary/30" />
+                  <Skeleton className="h-3 w-20 bg-vynal-purple-secondary/30" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  </div>
+));
+ServiceLoadingView.displayName = 'ServiceLoadingView';
+
+/**
+ * Composant de partage modal
+ */
+const ShareModal = React.memo(({ 
+  isOpen, 
+  onClose, 
+  isDarkMode, 
+  isClient, 
+  copySuccess, 
+  onCopy 
+}: { 
+  isOpen: boolean, 
+  onClose: () => void, 
+  isDarkMode: boolean, 
+  isClient: boolean, 
+  copySuccess: boolean, 
+  onCopy: () => void 
+}) => {
+  if (!isOpen) return null;
+  
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+      <div 
+        className={cn(
+          "w-full max-w-md rounded-lg p-6 relative card-vynal",
+          isDarkMode ? "dark" : "light"
+        )}
+      >
+        <button 
+          onClick={onClose}
+          className="absolute top-3 right-3 rounded-full p-1 hover:bg-gray-200/20"
+        >
+          <X className="h-5 w-5 text-vynal-body" />
+        </button>
+        
+        <h3 className="text-lg font-bold mb-4 text-vynal-title">Partager ce service</h3>
+        
+        <div className="flex items-center">
+          <input 
+            type="text" 
+            value={isClient ? window.location.href : ''}
+            readOnly
+            className={cn(
+              "flex-1 px-3 py-2 rounded-l-md border-r-0 focus:outline-none",
+              isDarkMode 
+                ? "bg-vynal-purple-darkest/50 border-vynal-purple-secondary/50 text-white" 
+                : "bg-gray-50 border-[#E0E0E0] text-[#2C1A4C]"
+            )}
+          />
+          <button 
+            onClick={onCopy}
+            className={cn(
+              "px-3 py-2 rounded-r-md font-medium focus:outline-none transition-colors",
+              copySuccess ? (
+                "bg-green-600 text-white"
+              ) : (
+                isDarkMode 
+                  ? "bg-vynal-accent-primary text-vynal-purple-dark hover:bg-vynal-accent-secondary" 
+                  : "bg-[#FF66B2] text-[#2C1A4C] hover:bg-[#FF007F]"
+              )
+            )}
+          >
+            {copySuccess ? "Copié !" : "Copier"}
+          </button>
+        </div>
+        
+        <div className="mt-6 flex justify-end">
+          <Button 
+            variant="outline" 
+            onClick={onClose}
+            className={cn(
+              "btn-vynal-outline",
+              isDarkMode ? "dark" : "light"
+            )}
+          >
+            Fermer
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+});
+ShareModal.displayName = 'ShareModal';
+
+/**
+ * Composant d'information de service
+ */
+const ServiceInfo = React.memo(({ 
+  category, 
+  subcategory, 
+  deliveryTime, 
+  createdAt,
+  isDarkMode 
+}: { 
+  category: any, 
+  subcategory: any, 
+  deliveryTime: number, 
+  createdAt: string,
+  isDarkMode: boolean 
+}) => (
+  <div className={cn(
+    "flex flex-wrap gap-3 mb-5 py-3 px-0 rounded-lg border text-xs",
+    isDarkMode 
+      ? "bg-vynal-purple-darkest/30 border-vynal-purple-mid/20" 
+      : "bg-gray-50 border-gray-200"
+  )}>
+    {/* Catégorie */}
+    <div className="flex items-center">
+      <div className="w-3 flex justify-center">
+        <Tag className="h-3 w-3 flex-shrink-0 icon-vynal" aria-hidden="true" />
+      </div>
+      <div className="flex items-center ml-0.5">
+        <p className="text-[10px] mr-1 text-vynal-body">Catégorie:</p>
+        <p className="text-[10px] font-medium truncate max-w-[120px] text-vynal-title">
+          {category?.name || 'Non spécifiée'}
+        </p>
+      </div>
+    </div>
+    
+    {/* Temps de livraison */}
+    <div className="flex items-center">
+      <div className="w-3 flex justify-center">
+        <Clock className="h-3 w-3 flex-shrink-0 icon-vynal" aria-hidden="true" />
+      </div>
+      <div className="flex items-center ml-0.5">
+        <p className="text-[10px] mr-1 text-vynal-body">Temps de livraison:</p>
+        <p className="text-[10px] font-medium text-vynal-title">
+          {deliveryTime} jour{Number(deliveryTime) > 1 ? 's' : ''}
+        </p>
+      </div>
+    </div>
+    
+    {/* Date de création */}
+    <div className="flex items-center">
+      <div className="w-3 flex justify-center">
+        <Calendar className="h-3 w-3 flex-shrink-0 icon-vynal" aria-hidden="true" />
+      </div>
+      <div className="flex items-center ml-0.5">
+        <p className="text-[10px] mr-1 text-vynal-body">Créé le:</p>
+        <p className="text-[10px] font-medium text-vynal-title">
+          {formatDate(createdAt)}
+        </p>
+      </div>
+    </div>
+    
+    {/* Sous-catégorie */}
+    {subcategory && (
+      <div className="flex items-center">
+        <div className="w-3 flex justify-center">
+          <FileText className="h-3 w-3 flex-shrink-0 icon-vynal" aria-hidden="true" />
+        </div>
+        <div className="flex items-center ml-0.5">
+          <p className="text-[10px] mr-1 text-vynal-body">Sous-catégorie:</p>
+          <p className="text-[10px] font-medium truncate max-w-[120px] text-vynal-title">
+            {subcategory.name}
+          </p>
+        </div>
+      </div>
+    )}
+  </div>
+));
+ServiceInfo.displayName = 'ServiceInfo';
+
+/**
+ * Composant de garanties de service
+ */
+const ServiceGuarantees = React.memo(({ deliveryTime }: { deliveryTime: number }) => (
+  <div className="pt-3 lg:pt-2">
+    <ul className="space-y-2.5 lg:space-y-2 mt-2">
+      <li className="flex items-center">
+        <div className="w-4 flex justify-center">
+          <Clock className="h-3 w-3 flex-shrink-0 icon-vynal" aria-hidden="true" />
+        </div>
+        <span className="text-xs ml-1.5 text-vynal-body">
+          Livraison en {deliveryTime} jour{Number(deliveryTime) > 1 ? 's' : ''}
+        </span>
+      </li>
+      <li className="flex items-center">
+        <div className="w-4 flex justify-center">
+          <MessageSquare className="h-3 w-3 flex-shrink-0 icon-vynal" aria-hidden="true" />
+        </div>
+        <span className="text-xs ml-1.5 text-vynal-body">Support personnalisé assuré</span>
+      </li>
+      <li className="flex flex-col">
+        <div className="flex items-center">
+          <div className="w-4 flex justify-center">
+            <Shield className="h-3 w-3 flex-shrink-0 text-green-500" aria-hidden="true" />
+          </div>
+          <span className="text-xs ml-1.5 text-vynal-body">Paiement sécurisé</span>
+        </div>
+        <span className="text-[10px] ml-6 text-vynal-body">
+          Vos informations sont chiffrées par TLS
+        </span>
+      </li>
+    </ul>
+  </div>
+));
+ServiceGuarantees.displayName = 'ServiceGuarantees';
 
 /**
  * Composant de vue détaillée d'un service - optimisé pour performances
@@ -147,10 +500,12 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
     className = ""
   } = props;
   
-  // Hooks React et personnalisés
+  // === Hooks React et personnalisés ===
   const router = useRouter();
   const user = useUser();
+  const { averageRating, reviewCount } = useFreelancerRating(service?.profiles?.id || '');
   
+  // === Gestion du thème ===
   // Vérification du rendu côté client
   const [isClient, setIsClient] = useState(false);
   useEffect(() => {
@@ -161,7 +516,13 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
   const { theme, resolvedTheme } = useTheme();
   const isDarkMode = isClient ? (resolvedTheme === 'dark' || theme === 'dark') : false;
   
-  // Observers pour les sections avec chargement différé
+  // === États locaux ===
+  // États pour les interactions utilisateur
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [copySuccess, setCopySuccess] = useState(false);
+  
+  // === Observers pour le chargement différé ===
   const [relatedRef, relatedInView] = useInView({ 
     threshold: 0.1, 
     triggerOnce: true,
@@ -174,16 +535,7 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
     rootMargin: '250px 0px'
   });
   
-  // État pour la mise en favoris
-  const [isFavorite, setIsFavorite] = useState(false);
-  
-  // États pour le partage
-  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
-  const [copySuccess, setCopySuccess] = useState(false);
-  
-  // Récupération des données de notation avec cache interne
-  const { averageRating, reviewCount } = useFreelancerRating(service?.profiles?.id || '');
-
+  // === Données dérivées mémoïsées ===
   // Mémoïsation des données du service pour éviter les recalculs
   const serviceMeta = useMemo(() => {
     if (!service) return null;
@@ -262,6 +614,11 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
       .slice(0, 3);
   }, [relatedServices, serviceMeta?.id]);
   
+  // Formattage du prix pour éviter les recalculs
+  const formattedPrice = useMemo(() => 
+    formatPrice(serviceMeta?.price || 0), 
+  [serviceMeta?.price]);
+  
   // Création de la liste d'étoiles de notation une seule fois
   const ratingStars = useMemo(() => {
     if (!averageRating) return null;
@@ -283,7 +640,7 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                 "h-3.5 w-3.5",
                 isDarkMode 
                   ? "text-vynal-purple-secondary/40 fill-vynal-purple-secondary/40" 
-                  : "text-vynal-purple-secondary/30 fill-vynal-purple-secondary/30"
+                  : "text-[#A020F0]/30 fill-[#A020F0]/30"
               )} />
               
               {/* Étoile colorée (complète ou partielle) */}
@@ -294,7 +651,12 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                     width: isFilled ? '100%' : `${fillPercentage}%` 
                   }}
                 >
-                  <Star className="h-3.5 w-3.5 text-vynal-accent-primary fill-vynal-accent-primary" />
+                  <Star className={cn(
+                    "h-3.5 w-3.5",
+                    isDarkMode 
+                      ? "text-vynal-accent-primary fill-vynal-accent-primary"
+                      : "text-[#A020F0] fill-[#A020F0]"
+                  )} />
                 </div>
               )}
             </div>
@@ -304,19 +666,21 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
     );
   }, [averageRating, isDarkMode]);
   
+  // === Handlers d'événements ===
   // Toggle favoris
   const handleToggleFavorite = useCallback(() => {
     setIsFavorite(prev => !prev);
     // Ici, vous pourriez ajouter une logique pour sauvegarder l'état dans l'API
   }, []);
   
-  // Partage du service
+  // Partage du service - optimisé avec moins de dépendances
   const handleShare = useCallback(() => {
+    const shareTitle = serviceMeta?.title || 'Service';
     // Vérifier si l'API de partage est disponible
-    if (navigator.share && serviceMeta) {
+    if (navigator.share) {
       navigator.share({
-        title: serviceMeta.title,
-        text: `Découvrez ce service : ${serviceMeta.title}`,
+        title: shareTitle,
+        text: `Découvrez ce service : ${shareTitle}`,
         url: window.location.href
       }).catch(() => {
         setIsShareModalOpen(true);
@@ -324,7 +688,7 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
     } else {
       setIsShareModalOpen(true);
     }
-  }, [serviceMeta]);
+  }, [serviceMeta?.title]);
   
   // Copie du lien dans le presse-papier
   const copyToClipboard = useCallback(() => {
@@ -351,140 +715,20 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
         : `/profile/id/${serviceMeta.freelance.id}`;
     
     router.push(path);
-  }, [serviceMeta?.freelance, user?.profile?.id, router]);
+  }, [serviceMeta?.freelance?.id, serviceMeta?.freelance?.username, user?.profile?.id, router]);
   
-  // Formattage du prix pour éviter les recalculs
-  const formattedPrice = useMemo(() => formatPrice(serviceMeta?.price || 0), [serviceMeta?.price]);
-  
+  // === Rendu conditionnel ===
   // État de chargement - Composant optimisé avec Skeleton
   if (loading) {
     return (
-      <div className="min-h-screen py-8">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 space-y-4">
-              <Skeleton className="w-full aspect-video rounded-lg bg-vynal-purple-secondary/30" />
-              <Card className={cn(
-                "rounded-xl shadow-lg",
-                isDarkMode 
-                  ? "bg-vynal-purple-dark/90 border-vynal-purple-secondary/30 shadow-vynal-accent-secondary/20" 
-                  : "bg-white border-gray-200 shadow-gray-200/20"
-              )}>
-                <CardContent className="p-6">
-                  <Skeleton className="h-8 w-3/4 mb-4 bg-vynal-purple-secondary/30" />
-                  <div className="space-y-2 mb-6">
-                    <Skeleton className="h-4 w-full bg-vynal-purple-secondary/30" />
-                    <Skeleton className="h-4 w-full bg-vynal-purple-secondary/30" />
-                    <Skeleton className="h-4 w-2/3 bg-vynal-purple-secondary/30" />
-                  </div>
-                  <Skeleton className="h-24 w-full bg-vynal-purple-secondary/30" />
-                </CardContent>
-              </Card>
-            </div>
-            <div>
-              <Card className={cn(
-                "mb-4 rounded-xl shadow-lg",
-                isDarkMode 
-                  ? "bg-vynal-purple-dark/90 border-vynal-purple-secondary/30 shadow-vynal-accent-secondary/20" 
-                  : "bg-white border-gray-200 shadow-gray-200/20"
-              )}>
-                <CardContent className="p-6 space-y-4">
-                  <Skeleton className="h-8 w-full bg-vynal-purple-secondary/30" />
-                  <Skeleton className="h-10 w-full bg-vynal-purple-secondary/30" />
-                  <div className="flex space-x-2">
-                    <Skeleton className="h-8 w-1/2 bg-vynal-purple-secondary/30" />
-                    <Skeleton className="h-8 w-1/2 bg-vynal-purple-secondary/30" />
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className={cn(
-                "rounded-xl shadow-lg",
-                isDarkMode 
-                  ? "bg-vynal-purple-dark/90 border-vynal-purple-secondary/30 shadow-vynal-accent-secondary/20" 
-                  : "bg-white border-gray-200 shadow-gray-200/20"
-              )}>
-                <CardContent className="p-6 space-y-4">
-                  <div className="flex items-center space-x-3">
-                    <Skeleton className="h-12 w-12 rounded-full bg-vynal-purple-secondary/30" />
-                    <div className="space-y-2">
-                      <Skeleton className="h-4 w-32 bg-vynal-purple-secondary/30" />
-                      <Skeleton className="h-3 w-20 bg-vynal-purple-secondary/30" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        </div>
-      </div>
+      <ServiceLoadingView isDarkMode={isDarkMode} />
     );
   }
 
   // État d'erreur - Interface améliorée
   if (error || !service) {
     return (
-      <div className={cn(
-        "container mx-auto px-4 py-12",
-        className
-      )}>
-        <Card className={cn(
-          "max-w-2xl mx-auto overflow-hidden rounded-xl shadow-lg",
-          isDarkMode 
-            ? "bg-vynal-purple-dark/90 border-vynal-purple-secondary/30 shadow-vynal-accent-secondary/20" 
-            : "bg-white border-gray-200 shadow-gray-100"
-        )}>
-          <div className={cn(
-            "p-4 flex items-center space-x-3 border-b",
-            isDarkMode 
-              ? "bg-vynal-purple-dark/90 border-vynal-purple-secondary/30" 
-              : "bg-gray-50 border-gray-200"
-          )}>
-            <AlertCircle className={cn(
-              "h-6 w-6 flex-shrink-0",
-              isDarkMode ? "text-vynal-status-error" : "text-red-500"
-            )} />
-            <h2 className={cn(
-              "text-lg font-semibold",
-              isDarkMode ? "text-vynal-text-primary" : "text-gray-800"
-            )}>Service non disponible</h2>
-          </div>
-          <CardContent className="p-6">
-            <p className={cn(
-              "mb-6",
-              isDarkMode ? "text-vynal-text-secondary" : "text-gray-600"
-            )}>{error || "Ce service n'existe pas ou a été supprimé."}</p>
-            <div className="flex flex-wrap gap-2">
-              {onBack ? (
-                <Button 
-                  variant="outline" 
-                  onClick={onBack} 
-                  className={cn(
-                    "group transition-colors",
-                    isDarkMode 
-                      ? "border-vynal-purple-secondary/50 bg-vynal-purple-secondary/30 text-vynal-text-primary hover:bg-vynal-purple-secondary/50" 
-                      : "border-gray-300 bg-white text-gray-700 hover:bg-gray-100"
-                  )}
-                >
-                  <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" />
-                  Retour
-                </Button>
-              ) : (
-                <Link href="/services" className="group">
-                  <Button variant="outline" className={cn(
-                    "transition-colors",
-                    isDarkMode 
-                      ? "border-vynal-purple-secondary/50 bg-vynal-purple-secondary/30 text-vynal-text-primary hover:bg-vynal-purple-secondary/50" 
-                      : "border-gray-300 bg-white text-gray-700 hover:bg-gray-100"
-                  )}>
-                    <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" />
-                    Retour aux services
-                  </Button>
-                </Link>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <ServiceErrorView error={error} onBack={onBack} isDarkMode={isDarkMode} />
     );
   }
 
@@ -500,7 +744,7 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
       className
     )}>
       {/* Bannière stylisée - uniquement visible en mode public */}
-      {!isFreelanceView && (
+      {false && !isFreelanceView && (
         <div className={cn(
           "h-32 sm:h-48 relative overflow-hidden",
           isDarkMode 
@@ -525,80 +769,34 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
         </div>
       )}
       
-      <div className={cn(
-        "container mx-auto px-3 sm:px-4 lg:px-6 relative",
-        !isFreelanceView ? "-mt-16 sm:-mt-24" : ""
-      )}>
-        {/* Fil d'Ariane - version publique */}
-        {!isFreelanceView && serviceMeta.category && (
+      <div className="container mx-auto px-3 sm:px-4 lg:px-6 relative">
+        {/* Fil d'Ariane - version publique - temporairement masqué */}
+        {/* Pour réactiver, supprimez simplement ce commentaire et décommentez le bloc ci-dessous
+        {!isFreelanceView && serviceMeta?.category && (
           <nav 
             className={cn(
-              "flex items-center text-xs sm:text-sm mb-3 sm:mb-4 rounded-lg shadow-lg p-2 border overflow-x-auto whitespace-nowrap",
+              "flex items-center text-[10px] mb-2 rounded-lg p-1.5 border overflow-x-auto whitespace-nowrap",
               isDarkMode 
-                ? "bg-vynal-purple-dark/90 shadow-vynal-accent-secondary/20 border-vynal-purple-secondary/30 text-vynal-text-primary" 
-                : "bg-white shadow-gray-200/40 border-gray-200 text-gray-700"
+                ? "bg-vynal-purple-dark/90 border-vynal-purple-secondary/30 text-vynal-text-primary"
+                : "bg-white border-[#E0E0E0] text-[#2C1A4C]"
             )}
             aria-label="Fil d'Ariane"
           >
-            <Link href="/" className={cn(
-              "transition-colors",
-              isDarkMode ? "text-vynal-text-secondary hover:text-vynal-accent-primary" : "text-gray-500 hover:text-indigo-600"
-            )}>
-              Accueil
-            </Link>
-            <ChevronRight className={cn(
-              "h-4 w-4 mx-2 flex-shrink-0",
-              isDarkMode ? "text-vynal-text-secondary" : "text-gray-400"
-            )} aria-hidden="true" />
-            
-            <Link href="/services" className={cn(
-              "transition-colors",
-              isDarkMode ? "text-vynal-text-secondary hover:text-vynal-accent-primary" : "text-gray-500 hover:text-indigo-600"
-            )}>
-              Services
-            </Link>
-            <ChevronRight className={cn(
-              "h-4 w-4 mx-2 flex-shrink-0",
-              isDarkMode ? "text-vynal-text-secondary" : "text-gray-400"
-            )} aria-hidden="true" />
-            
-            <Link 
-              href={`/services?category=${serviceMeta.category.slug}`} 
-              className={cn(
-                "transition-colors",
-                isDarkMode ? "text-vynal-text-secondary hover:text-vynal-accent-primary" : "text-gray-500 hover:text-indigo-600"
-              )}
-            >
-              {serviceMeta.category.name}
-            </Link>
-            
-            {serviceMeta.subcategory && (
+            <Link href="/">Accueil</Link>
+            <ChevronRight className="h-3 w-3 mx-1 flex-shrink-0" aria-hidden="true" />
+            <Link href="/services">Services</Link>
+            <ChevronRight className="h-3 w-3 mx-1 flex-shrink-0" aria-hidden="true" />
+            <Link href={`/services?category=${serviceMeta?.category?.slug}`}>{serviceMeta?.category?.name}</Link>
+            {serviceMeta?.subcategory && (
               <>
-                <ChevronRight className={cn(
-                  "h-4 w-4 mx-2 flex-shrink-0",
-                  isDarkMode ? "text-vynal-text-secondary" : "text-gray-400"
-                )} aria-hidden="true" />
-                <Link 
-                  href={`/services?category=${serviceMeta.category.slug}&subcategory=${serviceMeta.subcategory.slug}`} 
-                  className={cn(
-                    "transition-colors",
-                    isDarkMode ? "text-vynal-text-secondary hover:text-vynal-accent-primary" : "text-gray-500 hover:text-indigo-600"
-                  )}
-                >
-                  {serviceMeta.subcategory.name}
+                <ChevronRight className="h-3 w-3 mx-1 flex-shrink-0" aria-hidden="true" />
+                <Link href={`/services?category=${serviceMeta?.category?.slug}&subcategory=${serviceMeta?.subcategory?.slug}`}>
+                  {serviceMeta?.subcategory?.name}
                 </Link>
               </>
             )}
-            
-            <ChevronRight className={cn(
-              "h-4 w-4 mx-2 flex-shrink-0",
-              isDarkMode ? "text-vynal-text-secondary" : "text-gray-400"
-            )} aria-hidden="true" />
-            
-            <span className={cn(
-              "font-medium truncate",
-              isDarkMode ? "text-vynal-accent-primary" : "text-indigo-600"
-            )}>{serviceMeta.title}</span>
+            <ChevronRight className="h-3 w-3 mx-1 flex-shrink-0" aria-hidden="true" />
+            <span className="font-medium truncate text-[10px]">{serviceMeta?.title}</span>
           </nav>
         )}
 
@@ -613,26 +811,24 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                   "mr-4 group transition-colors",
                   isDarkMode 
                     ? "border-vynal-purple-secondary/30 bg-vynal-purple-secondary/10 text-vynal-text-primary hover:bg-vynal-purple-secondary/30 hover:text-vynal-accent-primary" 
-                    : "border-gray-200 bg-gray-100/50 text-gray-700 hover:bg-gray-200/50 hover:text-indigo-600"
+                    : "border-[#E0E0E0] bg-gray-100/50 text-[#2C1A4C] hover:bg-gray-200/50 hover:text-[#A020F0]"
                 )}
                 aria-label="Retour"
               >
-                <ArrowLeft className="h-4 w-4 mr-2 group-hover:-translate-x-1 transition-transform" />
+                <ArrowLeft className={cn(
+                  "h-4 w-4 mr-2 group-hover:-translate-x-1 transition-transform",
+                  textStyles.accent(isDarkMode)
+                )} />
                 Retour
               </Button>
             )}
             
-            <h1 className={cn(
-              "text-2xl font-bold",
-              isDarkMode ? "text-vynal-text-primary" : "text-gray-800"
-            )}>Détails du service</h1>
+            <h1 className="text-2xl font-normal text-vynal-title">Détails du service</h1>
             
             {onEdit && (
               <Button onClick={onEdit} className={cn(
-                "ml-auto transition-all",
-                isDarkMode 
-                  ? "bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-vynal-purple-dark" 
-                  : "bg-indigo-600 hover:bg-indigo-700 text-white"
+                "ml-auto transition-all btn-vynal-primary",
+                isDarkMode ? "dark" : "light"
               )}>
                 Modifier
               </Button>
@@ -640,11 +836,11 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-4">
           {/* Partie gauche: informations principales du service */}
           <div className="lg:col-span-2">
             {/* Galerie d'images du service */}
-            <div className="mb-4">
+            <div className="mb-8 lg:mb-6">
               {serviceMeta.hasImages ? (
                 <ServiceImageGallery
                   images={serviceMeta.images}
@@ -653,29 +849,20 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                 />
               ) : (
                 <div className={cn(
-                  "aspect-video rounded-lg flex items-center justify-center shadow-inner",
-                  isDarkMode ? "bg-vynal-purple-secondary/30" : "bg-gray-100"
+                  "aspect-video rounded-lg flex items-center justify-center",
+                  isDarkMode ? "bg-vynal-purple-secondary/10" : "bg-gray-50 border border-[#E0E0E0]"
                 )}>
-                  <ImageIcon className={cn(
-                    "h-12 w-12",
-                    isDarkMode ? "text-vynal-text-secondary" : "text-gray-400"
-                  )} aria-hidden="true" />
-                  <span className="sr-only">Aucune image disponible</span>
-                  <p className={cn(
-                    "ml-2",
-                    isDarkMode ? "text-vynal-text-secondary" : "text-gray-500"
-                  )}>Aucune image disponible</p>
+                  <ImageIcon className="h-12 w-12 text-vynal-body" aria-hidden="true" />
+                  <span className="ml-2 text-vynal-body">Aucune image disponible</span>
                 </div>
               )}
             </div>
 
             <Card className={cn(
-              "overflow-hidden border shadow-lg rounded-xl",
-              isDarkMode 
-                ? "border-vynal-purple-secondary/30 shadow-vynal-accent-secondary/20 bg-vynal-purple-dark/90 backdrop-blur-sm" 
-                : "border-gray-200 shadow-gray-100 bg-white"
+              "card-vynal",
+              isDarkMode ? "dark" : "light"
             )}>
-              <CardContent className="p-4 sm:p-6">
+              <CardContent className="p-5 sm:p-6">
                 {/* Statut du service - visible uniquement en mode admin */}
                 {isFreelanceView && serviceMeta.active !== undefined && (
                   <div className="mb-4 flex justify-between items-center">
@@ -687,20 +874,14 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                       {serviceMeta.active ? "Actif" : "Inactif"}
                     </Badge>
                     
-                    <span className={cn(
-                      "text-xs",
-                      isDarkMode ? "text-gray-300" : "text-gray-500"
-                    )}>ID: {serviceMeta.id}</span>
+                    <span className="text-xs text-vynal-body">ID: {serviceMeta.id}</span>
                   </div>
                 )}
 
                 {/* Titre du service */}
-                <div className="mb-3 sm:mb-4">
+                <div className="mb-4 sm:mb-5">
                   <h1 
-                    className={cn(
-                      "text-xl sm:text-2xl md:text-3xl font-bold break-words",
-                      isDarkMode ? "text-white" : "text-gray-900"
-                    )} 
+                    className="text-lg sm:text-xl md:text-2xl font-bold break-words text-vynal-title"
                     id="service-title"
                   >
                     {serviceMeta.title}
@@ -708,135 +889,37 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                 </div>
                 
                 {/* Informations principales */}
-                <div className={cn(
-                  "flex flex-wrap gap-2 mb-4 p-3 rounded-lg border",
-                  isDarkMode 
-                    ? "bg-vynal-purple-darkest/50 border-vynal-purple-mid/20" 
-                    : "bg-gray-50 border-gray-200"
-                )}>
-                  <div className="flex items-center space-x-2">
-                    <Tag className={cn(
-                      "h-4 w-4 flex-shrink-0",
-                      isDarkMode ? "text-vynal-purple-light" : "text-indigo-500"
-                    )} aria-hidden="true" />
-                    <div className="flex items-center">
-                      <p className={cn(
-                        "text-xs mr-1",
-                        isDarkMode ? "text-gray-400" : "text-gray-500"
-                      )}>Catégorie:</p>
-                      <p className={cn(
-                        "text-xs font-medium truncate max-w-[120px]",
-                        isDarkMode ? "text-white" : "text-gray-900"
-                      )}>{serviceMeta.category?.name || 'Non spécifiée'}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center space-x-2">
-                    <Clock className={cn(
-                      "h-4 w-4 flex-shrink-0",
-                      isDarkMode ? "text-vynal-purple-light" : "text-indigo-500"
-                    )} aria-hidden="true" />
-                    <div className="flex items-center">
-                      <p className={cn(
-                        "text-xs mr-1",
-                        isDarkMode ? "text-gray-400" : "text-gray-500"
-                      )}>Temps de livraison:</p>
-                      <p className={cn(
-                        "text-xs font-medium",
-                        isDarkMode ? "text-white" : "text-gray-900"
-                      )}>{serviceMeta.delivery_time} jour{Number(serviceMeta.delivery_time) > 1 ? 's' : ''}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center space-x-2">
-                    <Calendar className={cn(
-                      "h-4 w-4 flex-shrink-0",
-                      isDarkMode ? "text-vynal-purple-light" : "text-indigo-500"
-                    )} aria-hidden="true" />
-                    <div className="flex items-center">
-                      <p className={cn(
-                        "text-xs mr-1",
-                        isDarkMode ? "text-gray-400" : "text-gray-500"
-                      )}>Créé le:</p>
-                      <p className={cn(
-                        "text-xs font-medium",
-                        isDarkMode ? "text-white" : "text-gray-900"
-                      )}>{formatDate(serviceMeta.created_at)}</p>
-                    </div>
-                  </div>
-                  
-                  {serviceMeta.subcategory && (
-                    <div className="flex items-center space-x-2">
-                      <FileText className={cn(
-                        "h-4 w-4 flex-shrink-0",
-                        isDarkMode ? "text-vynal-purple-light" : "text-indigo-500"
-                      )} aria-hidden="true" />
-                      <div className="flex items-center">
-                        <p className={cn(
-                          "text-xs mr-1",
-                          isDarkMode ? "text-gray-400" : "text-gray-500"
-                        )}>Sous-catégorie:</p>
-                        <p className={cn(
-                          "text-xs font-medium truncate max-w-[120px]",
-                          isDarkMode ? "text-white" : "text-gray-900"
-                        )}>{serviceMeta.subcategory.name}</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                <ServiceInfo 
+                  category={serviceMeta.category}
+                  subcategory={serviceMeta.subcategory}
+                  deliveryTime={serviceMeta.delivery_time}
+                  createdAt={serviceMeta.created_at}
+                  isDarkMode={isDarkMode}
+                />
                 
                 {/* Description du service */}
-                <div className="mb-4">
-                  <h2 className={cn(
-                    "text-lg font-semibold mb-2",
-                    isDarkMode ? "text-white" : "text-gray-900"
-                  )}>Description</h2>
+                <div className="mb-2">
+                  <h2 className="text-base font-semibold mb-2 text-vynal-title">Description</h2>
                   <div className={cn(
-                    "border rounded-lg p-4 shadow-inner",
-                    isDarkMode 
-                      ? "bg-vynal-purple-darkest/50 border-vynal-purple-mid/20" 
-                      : "bg-gray-50 border-gray-200"
+                    "rounded-lg py-2 px-0",
+                    isDarkMode ? "" : "bg-gray-50"
                   )}>
-                    <div className={cn(
-                      "prose prose-sm max-w-none overflow-hidden break-words",
-                      isDarkMode ? "text-gray-300" : "text-gray-700"
-                    )}>
+                    <div className="prose prose-sm max-w-none overflow-hidden break-words text-sm text-vynal-title">
                       {formattedDescription}
                     </div>
                   </div>
                 </div>
               </CardContent>
             </Card>
-
-            {/* Ajout des avis sur le service - après les services connexes */}
-            {!isFreelanceView && serviceMeta.id && (
-              <div
-                ref={reviewsRef}
-                className="mt-8 sm:mt-10"
-              >
-                {reviewsInView && (
-                  <Suspense fallback={
-                    <div className="animate-pulse space-y-4">
-                      <div className="h-10 bg-vynal-purple-secondary/30 rounded w-1/3"></div>
-                      <div className="h-40 bg-vynal-purple-secondary/30 rounded"></div>
-                    </div>
-                  }>
-                    <ServiceReviews serviceId={serviceMeta.id} />
-                  </Suspense>
-                )}
-              </div>
-            )}
           </div>
           
           {/* Partie droite: prix, actions, et info freelance */}
           <div className="lg:block">
-            <div className="lg:sticky lg:top-4 space-y-4">
+            <div className="lg:sticky lg:top-4 space-y-6 lg:space-y-4">
               {/* Carte de prix et actions */}
               <Card className={cn(
-                "overflow-hidden shadow-md border rounded-xl",
-                isDarkMode 
-                  ? "border-vynal-purple-secondary/30 shadow-vynal-accent-secondary/20 bg-vynal-purple-dark/90" 
-                  : "border-gray-200 shadow-gray-100 bg-white"
+                "card-vynal", 
+                isDarkMode ? "dark" : "light"
               )}>
                 <div className={cn(
                   "p-4 border-b",
@@ -844,20 +927,14 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                     ? "bg-gradient-to-r from-vynal-purple-darkest to-vynal-purple-dark border-vynal-purple-mid/20" 
                     : "bg-gradient-to-r from-gray-50 to-white border-gray-200"
                 )}>
-                  <h2 className={cn(
-                    "text-2xl font-bold",
-                    isDarkMode ? "text-white" : "text-gray-900"
-                  )}>
-                    {formattedPrice} FCFA
+                  <h2 className="text-2xl font-bold text-vynal-title">
+                    {formattedPrice}
                   </h2>
-                  <p className={cn(
-                    "text-xs",
-                    isDarkMode ? "text-gray-400" : "text-gray-500"
-                  )}>Prix final, sans frais supplémentaires</p>
+                  <p className="text-xs text-vynal-body">Prix final, sans frais supplémentaires</p>
                 </div>
                 
-                <CardContent className="p-4">
-                  <div className="space-y-3 mb-4">
+                <CardContent className="p-5 lg:p-4">
+                  <div className="space-y-4 mb-5">
                     <OrderButton
                       serviceId={serviceMeta.id}
                       price={Number(serviceMeta.price)}
@@ -865,117 +942,74 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                       fullWidth={true}
                       variant="default"
                       className={cn(
-                        "font-medium shadow-md transform hover:scale-[1.02] transition-all",
-                        isDarkMode
-                          ? "bg-gradient-to-r from-vynal-purple-light to-vynal-purple-mid hover:from-vynal-purple-mid hover:to-vynal-purple"
-                          : "bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white"
+                        "btn-vynal-primary",
+                        isDarkMode ? "dark" : "light",
+                        "py-3 lg:py-2"
                       )}
                       customLabel="Commander ce service"
                     />
                     
-                    <div className="flex space-x-2">
+                    <div className="flex space-x-3 lg:space-x-2">
                       <Button 
                         variant="outline" 
                         className={cn(
-                          "flex-1 text-xs",
-                          isFavorite ? (
-                            isDarkMode
-                              ? "bg-vynal-purple-secondary/30 text-vynal-accent-primary border-vynal-accent-primary/50"
-                              : "bg-indigo-50 text-indigo-600 border-indigo-200"
-                          ) : ""
+                          "flex-1 text-xs py-2.5 lg:py-2 btn-vynal-outline",
+                          isDarkMode ? "dark" : "light",
+                          isFavorite && "bg-[#FF66B2]/10"
                         )} 
                         size="sm"
-                        onClick={handleToggleFavorite}
+                        disabled={isFavorite ? false : true}
                       >
                         <Heart className={cn(
-                          "h-4 w-4 mr-1.5",
-                          isFavorite ? "fill-current" : ""
+                          "h-4 w-4 mr-1 icon-vynal",
+                          isFavorite && "fill-current"
                         )} aria-hidden="true" />
                         {isFavorite ? "Favori" : "Favoris"}
                       </Button>
                       <Button 
                         variant="outline" 
-                        className="flex-1 text-xs" 
+                        className={cn(
+                          "flex-1 text-xs py-2.5 lg:py-2 btn-vynal-outline",
+                          isDarkMode ? "dark" : "light"
+                        )} 
                         size="sm"
                         onClick={handleShare}
                       >
-                        <Share2 className="h-4 w-4 mr-1.5" aria-hidden="true" />
+                        <Share2 className="h-4 w-4 mr-1 icon-vynal" aria-hidden="true" />
                         Partager
                       </Button>
                     </div>
                   </div>
                   
                   {/* Garanties du service */}
-                  <div className={cn(
-                    "border-t pt-3",
-                    isDarkMode ? "border-vynal-purple-mid/20" : "border-gray-200"
-                  )}>
-                    <ul className="space-y-2">
-                      <li className="flex items-start">
-                        <Clock className={cn(
-                          "h-4 w-4 mr-2 mt-0.5 flex-shrink-0",
-                          isDarkMode ? "text-vynal-purple-light" : "text-indigo-500"
-                        )} aria-hidden="true" />
-                        <span className={cn(
-                          "text-sm",
-                          isDarkMode ? "text-gray-300" : "text-gray-600"
-                        )}>Livraison en {serviceMeta.delivery_time} jour{Number(serviceMeta.delivery_time) > 1 ? 's' : ''}</span>
-                      </li>
-                      <li className="flex items-start">
-                        <MessageSquare className={cn(
-                          "h-4 w-4 mr-2 mt-0.5 flex-shrink-0",
-                          isDarkMode ? "text-vynal-purple-light" : "text-indigo-500"
-                        )} aria-hidden="true" />
-                        <span className={cn(
-                          "text-sm",
-                          isDarkMode ? "text-gray-300" : "text-gray-600"
-                        )}>Support personnalisé assuré</span>
-                      </li>
-                      <li className="flex flex-col">
-                        <div className="flex items-start">
-                          <Shield className="h-4 w-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" aria-hidden="true" />
-                          <span className={cn(
-                            "text-sm",
-                            isDarkMode ? "text-gray-300" : "text-gray-600"
-                          )}>Paiement sécurisé</span>
-                        </div>
-                        <span className={cn(
-                          "text-xs ml-6",
-                          isDarkMode ? "text-gray-400" : "text-gray-500"
-                        )}>Vos informations sont chiffrées par TLS</span>
-                      </li>
-                    </ul>
-                  </div>
+                  <ServiceGuarantees deliveryTime={serviceMeta.delivery_time} />
                 </CardContent>
               </Card>
               
               {/* Informations sur le freelance */}
               <Card className={cn(
-                "overflow-hidden shadow-md border rounded-xl",
-                isDarkMode 
-                  ? "border-vynal-purple-secondary/30 shadow-vynal-accent-secondary/20 bg-vynal-purple-dark/90" 
-                  : "border-gray-200 shadow-gray-100 bg-white"
+                "card-vynal", 
+                isDarkMode ? "dark" : "light"
               )}>
                 <div className={cn(
-                  "p-4 border-b",
+                  "p-5 lg:p-4",
                   isDarkMode 
-                    ? "bg-gradient-to-r from-vynal-purple-darkest to-vynal-purple-dark border-vynal-purple-mid/20" 
-                    : "bg-gradient-to-r from-gray-50 to-white border-gray-200"
+                    ? "border-b border-vynal-purple-secondary/40" 
+                    : "bg-gradient-to-r from-gray-50 to-white border-b border-gray-200"
                 )}>
-                  <h3 className={cn(
-                    "font-semibold",
-                    isDarkMode ? "text-white" : "text-gray-900"
-                  )}>À propos du vendeur</h3>
+                  <h3 className="font-semibold mb-2 text-vynal-title">À propos du vendeur</h3>
                 </div>
                 
-                <CardContent className="p-4">
+                <CardContent className="p-5 lg:p-4">
                   {/* Vérifier la présence des données du freelance */}
                   {serviceMeta.freelance && (
                     <>
-                      <div className="flex items-center mb-3">
+                      <div className="flex items-center mb-2">
                         <Avatar className={cn(
-                          "h-12 w-12 mr-3 border shadow-sm",
-                          isDarkMode ? "border-vynal-purple-mid/30" : "border-gray-200"
+                          "h-14 w-14 lg:h-12 lg:w-12 mr-3 border",
+                          isDarkMode 
+                            ? "border-vynal-purple-secondary/40"
+                            : "border-gray-200"
                         )}>
                           <AvatarImage 
                             src={serviceMeta.freelance.avatar_url || undefined} 
@@ -984,30 +1018,35 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                           />
                           <AvatarFallback className={cn(
                             "text-sm",
-                            isDarkMode ? "bg-vynal-purple-light text-white" : "bg-indigo-500 text-white"
+                            isDarkMode ? "bg-vynal-accent-primary text-vynal-purple-dark" : "bg-[#FF66B2] text-[#2C1A4C]"
                           )}>
                             {freelanceInitials}
                           </AvatarFallback>
                         </Avatar>
                         <div className="overflow-hidden">
-                          <h3 className={cn(
-                            "font-semibold text-sm truncate",
-                            isDarkMode ? "text-white" : "text-gray-900"
-                          )}>
+                          <h3 className="text-sm truncate font-normal text-vynal-title">
                             {serviceMeta.freelance.full_name || serviceMeta.freelance.username || 'Vendeur'}
                           </h3>
-                          <p className={cn(
-                            "text-xs truncate",
-                            isDarkMode ? "text-gray-400" : "text-gray-500"
-                          )}>@{serviceMeta.freelance.username || 'username'}</p>
+                          <div className="flex items-center">
+                            <p className="text-xs truncate text-vynal-body">
+                              @{serviceMeta.freelance.username || 'username'}
+                            </p>
+                            
+                            {/* Badge de certification */}
+                            {serviceMeta.freelance.is_certified && serviceMeta.freelance.certification_type && (
+                              <div className="ml-2">
+                                <CertificationBadge 
+                                  type={serviceMeta.freelance.certification_type as 'standard' | 'premium' | 'expert'} 
+                                  size="sm"
+                                />
+                              </div>
+                            )}
+                          </div>
                           
                           {/* Affichage de la note moyenne */}
                           <div className="flex items-center mt-1">
                             {ratingStars}
-                            <span className={cn(
-                              "text-xs ml-1.5 font-medium",
-                              isDarkMode ? "text-gray-300" : "text-gray-600"
-                            )}>
+                            <span className="text-xs ml-1.5 font-medium text-vynal-body">
                               {averageRating > 0 
                                 ? `${averageRating.toFixed(1)} (${reviewCount})` 
                                 : "Aucun avis"}
@@ -1019,34 +1058,26 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                       {/* Bio du vendeur si disponible */}
                       {serviceMeta.freelance.bio && (
                         <div className={cn(
-                          "mb-3 p-2.5 rounded-md",
-                          isDarkMode ? "bg-vynal-purple-darkest/50" : "bg-gray-50"
+                          "mb-4 p-3 rounded-md",
+                          isDarkMode ? "" : "bg-gray-50"
                         )}>
-                          <h4 className={cn(
-                            "text-xs font-medium mb-1",
-                            isDarkMode ? "text-white" : "text-gray-900"
-                          )}>À propos du vendeur</h4>
-                          <p className={cn(
-                            "text-xs line-clamp-3",
-                            isDarkMode ? "text-gray-300" : "text-gray-600"
-                          )}>
+                          <h4 className="text-xs font-normal mb-1 text-vynal-title">À propos du vendeur</h4>
+                          <p className="text-xs line-clamp-3 text-vynal-body">
                             {serviceMeta.freelance.bio}
                           </p>
                         </div>
                       )}
                       
-                      <div className="space-y-2">
-                        <div className="flex gap-2">
+                      <div className="space-y-3 lg:space-y-2">
+                        <div className="flex gap-3 lg:gap-2">
                           {serviceMeta.freelance.id && (
                             <MessagingDialog 
                               freelanceId={serviceMeta.freelance.id}
                               freelanceName={serviceMeta.freelance.full_name || serviceMeta.freelance.username || 'Freelance'}
                               buttonVariant="default"
                               className={cn(
-                                "w-full text-xs",
-                                isDarkMode
-                                  ? "bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-vynal-purple-dark"
-                                  : "bg-indigo-600 hover:bg-indigo-700 text-white"
+                                "w-full text-xs btn-vynal-primary",
+                                isDarkMode ? "dark" : "light"
                               )}
                               size="sm"
                             />
@@ -1054,11 +1085,14 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                           
                           <Button 
                             variant="outline" 
-                            className="w-full text-xs flex items-center justify-center" 
+                            className={cn(
+                              "w-full text-xs flex items-center justify-center btn-vynal-outline",
+                              isDarkMode ? "dark" : "light"
+                            )}
                             size="sm"
                             onClick={handleViewProfile}
                           >
-                            <User className="h-3.5 w-3.5 mr-1.5" aria-hidden="true" />
+                            <User className="h-3.5 w-3.5 mr-1 icon-vynal" aria-hidden="true" />
                             {user?.profile?.id === serviceMeta.freelance.id ? "Mon profil" : "Voir profil"}
                           </Button>
                         </div>
@@ -1072,11 +1106,20 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                             } 
                             className="w-full block"
                           >
-                            <Button variant="ghost" className="w-full text-xs group" size="sm">
+                            <Button 
+                              variant="ghost" 
+                              className={cn(
+                                "w-full text-xs group",
+                                isDarkMode
+                                  ? "text-vynal-text-secondary hover:text-vynal-text-primary hover:bg-vynal-purple-secondary/20"
+                                  : "text-[#2C1A4C] hover:text-[#2C1A4C] hover:bg-[#FF66B2]/10"
+                              )} 
+                              size="sm"
+                            >
                               {user?.profile?.id === serviceMeta.freelance.id 
                                 ? "Gérer mes services" 
                                 : "Voir tous ses services"}
-                              <ChevronRight className="h-3.5 w-3.5 ml-1 group-hover:translate-x-1 transition-transform" aria-hidden="true" />
+                              <ChevronRight className="h-3.5 w-3.5 ml-0.5 group-hover:translate-x-1 transition-transform icon-vynal" aria-hidden="true" />
                             </Button>
                           </Link>
                         )}
@@ -1084,12 +1127,34 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                     </>
                   )}
                   {!serviceMeta.freelance && (
-                    <div className="text-center p-2 text-gray-400 text-sm">
+                    <div className="text-center p-2 text-sm text-vynal-body">
                       <p>Information du vendeur non disponible</p>
                     </div>
                   )}
                 </CardContent>
               </Card>
+              
+              {/* Ajout des avis sur le service - déplacé ici */}
+              {!isFreelanceView && serviceMeta.id && (
+                <div
+                  ref={reviewsRef}
+                  className="mt-0"
+                >
+                  {reviewsInView && (
+                    <Suspense fallback={
+                      <div className={cn(
+                        "animate-pulse space-y-4",
+                        textStyles.secondary(isDarkMode)
+                      )}>
+                        <div className="h-10 bg-vynal-purple-secondary/30 rounded w-1/3"></div>
+                        <div className="h-40 bg-vynal-purple-secondary/30 rounded"></div>
+                      </div>
+                    }>
+                      <ServiceReviews serviceId={serviceMeta.id} />
+                    </Suspense>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -1098,27 +1163,21 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
         {!isFreelanceView && serviceMeta.freelance?.id && (
           <div
             ref={relatedRef}
-            className="mt-8 sm:mt-10"
+            className="mt-12 lg:mt-10"
           >
-            <div className="mb-4">
-              <h2 className={cn(
-                "text-base sm:text-lg font-bold flex items-center",
-                isDarkMode ? "text-white" : "text-gray-900"
-              )}>
+            <div className="mb-5">
+              <h2 className="text-base sm:text-lg flex items-center text-vynal-title">
                 <Package2 className={cn(
                   "h-5 w-5 mr-2",
-                  isDarkMode ? "text-vynal-purple-light" : "text-indigo-500"
+                  textStyles.accent(isDarkMode)
                 )} aria-hidden="true" />
-                Autres services de {serviceMeta.freelance.full_name || serviceMeta.freelance.username}
+                Autres services de<span style={{ display: 'inline-block', width: '0.25em' }}></span>{serviceMeta.freelance.full_name || serviceMeta.freelance.username}
               </h2>
-              <p className={cn(
-                "text-sm ml-7",
-                isDarkMode ? "text-gray-300" : "text-gray-600"
-              )}>Découvrez d'autres services proposés par ce vendeur</p>
+              <p className="text-sm ml-7 text-vynal-body">Découvrez d'autres services proposés par ce vendeur</p>
             </div>
             
             {relatedInView && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8 lg:gap-6">
                 {loadingRelated ? (
                   // Skeletons pour les services en chargement
                   Array(3).fill(0).map((_, i) => (
@@ -1126,7 +1185,7 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                       "overflow-hidden h-64 border",
                       isDarkMode 
                         ? "border-vynal-purple-secondary/30 bg-vynal-purple-dark/60" 
-                        : "border-gray-200 bg-white"
+                        : "border-[#E0E0E0] bg-white"
                     )}>
                       <div className="h-32 animate-pulse bg-vynal-purple-secondary/30"></div>
                       <CardContent className="p-3">
@@ -1151,7 +1210,7 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                         >
                           <ServiceCard 
                             service={relatedService} 
-                            className="h-full shadow-sm"
+                            className="h-full"
                             useDemo={false} 
                           />
                         </Link>
@@ -1166,15 +1225,15 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                     )}>
                       <Package2 className={cn(
                         "h-10 w-10 mx-auto mb-3",
-                        isDarkMode ? "text-gray-400" : "text-gray-300"
+                        textStyles.secondary(isDarkMode)
                       )} aria-hidden="true" />
                       <p className={cn(
                         "mb-1",
-                        isDarkMode ? "text-gray-300" : "text-gray-600"
+                        textStyles.secondary(isDarkMode)
                       )}>Ce vendeur n'a pas d'autres services pour le moment</p>
                       <p className={cn(
                         "text-sm",
-                        isDarkMode ? "text-gray-400" : "text-gray-500"
+                        textStyles.secondary(isDarkMode)
                       )}>Revenez plus tard pour découvrir ses nouveaux services</p>
                     </div>
                   )
@@ -1198,18 +1257,18 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                         )}>
                           <Package2 className={cn(
                             "h-5 w-5",
-                            isDarkMode ? "text-vynal-purple-light" : "text-indigo-500"
+                            textStyles.accent(isDarkMode)
                           )} aria-hidden="true" />
                         </div>
                         <h3 className={cn(
                           "text-sm font-medium mb-1 group-hover:text-white transition-colors",
-                          isDarkMode ? "text-gray-300" : "text-gray-700"
+                          textStyles.title(isDarkMode)
                         )}>
                           Voir tous les services
                         </h3>
                         <p className={cn(
-                          "text-xs group-hover:text-gray-300 transition-colors",
-                          isDarkMode ? "text-gray-400" : "text-gray-500"
+                          "text-xs group-hover:text-vynal-text-secondary transition-colors",
+                          textStyles.secondary(isDarkMode)
                         )}>
                           Découvrez la liste complète des services
                         </p>
@@ -1225,71 +1284,14 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
       
       {/* Modal de partage simplifié pour optimiser les performances */}
       {isShareModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div 
-            className={cn(
-              "w-full max-w-md rounded-lg p-6 relative",
-              isDarkMode ? "bg-vynal-purple-dark border border-vynal-purple-secondary/50" : "bg-white shadow-xl"
-            )}
-          >
-            <button 
-              onClick={() => setIsShareModalOpen(false)}
-              className="absolute top-3 right-3 rounded-full p-1 hover:bg-gray-200/20"
-            >
-              <X className="h-5 w-5" />
-            </button>
-            
-            <h3 className={cn(
-              "text-lg font-bold mb-4",
-              isDarkMode ? "text-white" : "text-gray-900"
-            )}>Partager ce service</h3>
-            
-            <div className="flex items-center">
-              <input 
-                type="text" 
-                value={isClient ? window.location.href : ''}
-                readOnly
-                className={cn(
-                  "flex-1 px-3 py-2 rounded-l-md border-r-0 focus:outline-none",
-                  isDarkMode 
-                    ? "bg-vynal-purple-darkest/50 border-vynal-purple-secondary/50 text-white" 
-                    : "bg-gray-50 border-gray-300 text-gray-900"
-                )}
-              />
-              <button 
-                onClick={copyToClipboard}
-                className={cn(
-                  "px-3 py-2 rounded-r-md font-medium focus:outline-none transition-colors",
-                  copySuccess ? (
-                    isDarkMode 
-                      ? "bg-green-600 text-white" 
-                      : "bg-green-600 text-white"
-                  ) : (
-                    isDarkMode 
-                      ? "bg-vynal-accent-primary text-vynal-purple-dark hover:bg-vynal-accent-secondary" 
-                      : "bg-indigo-600 text-white hover:bg-indigo-700"
-                  )
-                )}
-              >
-                {copySuccess ? "Copié !" : "Copier"}
-              </button>
-            </div>
-            
-            <div className="mt-6 flex justify-end">
-              <Button 
-                variant="outline" 
-                onClick={() => setIsShareModalOpen(false)}
-                className={cn(
-                  isDarkMode 
-                    ? "border-vynal-purple-secondary/50 bg-vynal-purple-secondary/20 text-white hover:bg-vynal-purple-secondary/40" 
-                    : "border-gray-300 bg-white text-gray-700 hover:bg-gray-100"
-                )}
-              >
-                Fermer
-              </Button>
-            </div>
-          </div>
-        </div>
+        <ShareModal 
+          isOpen={isShareModalOpen}
+          onClose={() => setIsShareModalOpen(false)}
+          isDarkMode={isDarkMode}
+          isClient={isClient}
+          copySuccess={copySuccess}
+          onCopy={copyToClipboard}
+        />
       )}
     </div>
   );

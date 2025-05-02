@@ -188,7 +188,7 @@ export function usePaginatedServices({
           .from('services')
           .select(`
             *,
-            profiles (id, username, full_name, avatar_url, bio),
+            profiles (id, username, full_name, avatar_url, bio, is_certified, certification_type),
             categories!inner (id, name, slug),
             subcategories (id, name, slug)
           `, { count: 'exact' })
@@ -252,7 +252,9 @@ export function usePaginatedServices({
             username: 'utilisateur',
             full_name: 'Utilisateur',
             avatar_url: null,
-            bio: null
+            bio: null,
+            is_certified: false,
+            certification_type: null
           },
           categories: service.categories || {
             id: service.category_id || '',

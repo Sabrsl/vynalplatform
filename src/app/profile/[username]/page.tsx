@@ -16,6 +16,7 @@ import { formatDate } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import ReviewReplyComponent from '@/components/reviews/ReviewReply';
 import Image from 'next/image';
+import { CertificationBadge } from "@/components/ui/certification-badge";
 /* Imports générant des erreurs - à créer plus tard
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
@@ -36,6 +37,8 @@ type ProfileData = {
   role: string;
   email?: string;
   created_at?: string;
+  is_certified?: boolean;
+  certification_type?: 'standard' | 'premium' | 'expert' | null;
 };
 
 // Type pour les avis
@@ -200,7 +203,7 @@ InfoBadge.displayName = 'InfoBadge';
 
 // Composant pour une carte d'avis mémorisée
 const ReviewCard = memo(({ review, profileId }: { review: Review, profileId: string }) => (
-  <Card className="backdrop-blur-md bg-vynal-purple-dark/90 border-vynal-purple-secondary/30 rounded-xl shadow-lg shadow-vynal-accent-secondary/20 overflow-hidden">
+  <Card className="backdrop-blur-md bg-vynal-purple-dark/90 border-vynal-purple-secondary/30 rounded-xl">
     <CardContent className="p-4">
       <div className="flex items-start gap-2">
         <Avatar className="h-8 w-8 border border-vynal-purple-secondary/30">
@@ -379,7 +382,7 @@ export default function ProfilePage() {
       // Récupérer le profil
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")
-        .select("*")
+        .select("*, is_certified, certification_type")
         .eq("username", username)
         .single();
       
@@ -466,7 +469,7 @@ export default function ProfilePage() {
     return (
       <div className="min-h-screen bg-vynal-purple-dark py-14 px-4">
         <div className="max-w-2xl mx-auto">
-          <Card className="backdrop-blur-md bg-vynal-purple-dark/90 border-vynal-purple-secondary/30 shadow-lg shadow-vynal-accent-secondary/20 rounded-xl">
+          <Card className="backdrop-blur-md bg-vynal-purple-dark/90 border-vynal-purple-secondary/30 rounded-xl">
             <CardContent className="p-6 flex flex-col items-center">
               <div className="w-14 h-14 rounded-full bg-vynal-purple-secondary/30 flex items-center justify-center mb-5">
                 <UserCircle className="h-7 w-7 text-vynal-accent-primary" />
@@ -507,13 +510,13 @@ export default function ProfilePage() {
               <Image
                 src={profile.avatar_url}
                 alt={fullName}
-                className="w-28 h-28 rounded-full object-cover border-4 border-vynal-purple-dark shadow-lg shadow-vynal-accent-secondary/20"
+                className="w-28 h-28 rounded-full object-cover border-4 border-vynal-purple-dark"
                 width={112}
                 height={112}
                 unoptimized
               />
             ) : (
-              <div className="w-28 h-28 rounded-full bg-vynal-purple-secondary/30 flex items-center justify-center border-4 border-vynal-purple-dark shadow-lg shadow-vynal-accent-secondary/20">
+              <div className="w-28 h-28 rounded-full bg-vynal-purple-secondary/30 flex items-center justify-center border-4 border-vynal-purple-dark">
                 <UserCircle className="h-14 w-14 text-vynal-accent-primary" />
               </div>
             )}
@@ -529,6 +532,17 @@ export default function ProfilePage() {
           
           {username_display && (
             <p className="text-vynal-text-secondary mb-2 text-sm">@{username_display}</p>
+          )}
+          
+          {/* Badge de certification */}
+          {profile.is_certified && profile.certification_type && (
+            <div className="mb-3">
+              <CertificationBadge 
+                type={profile.certification_type} 
+                size="md"
+                showLabel
+              />
+            </div>
           )}
           
           {/* Note moyenne et nombre d'avis */}
@@ -576,7 +590,7 @@ export default function ProfilePage() {
         
         {/* Bio et informations principales */}
         {profile.bio && (
-          <Card className="max-w-3xl mx-auto mb-10 backdrop-blur-md bg-vynal-purple-dark/90 border-vynal-purple-secondary/30 rounded-xl shadow-lg shadow-vynal-accent-secondary/20">
+          <Card className="max-w-3xl mx-auto mb-10 backdrop-blur-md bg-vynal-purple-dark/90 border-vynal-purple-secondary/30 rounded-xl">
             <CardContent className="p-6">
               <h2 className="text-lg text-vynal-text-primary mb-3 font-medium">À propos</h2>
               <p className="text-vynal-text-secondary leading-relaxed text-sm">{profile.bio}</p>

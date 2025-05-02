@@ -282,10 +282,10 @@ const MessagingDialog: React.FC<MessagingDialogProps> = ({
       {/* Contenu du dialogue */}
       {isOpen && (
         <Dialog open={isOpen} onOpenChange={(open) => !open && setIsOpen(false)}>
-          <DialogContent className="sm:max-w-[425px]">
+          <DialogContent className="sm:max-w-[425px]" aria-labelledby="messaging-dialog-title" aria-describedby="messaging-dialog-description">
             <DialogHeader>
-              <DialogTitle>Envoyer un message à {freelanceName}</DialogTitle>
-              <DialogDescription>
+              <DialogTitle id="messaging-dialog-title">Envoyer un message à {freelanceName}</DialogTitle>
+              <DialogDescription id="messaging-dialog-description">
                 Utilisez ce formulaire pour envoyer un message direct au freelance.
               </DialogDescription>
             </DialogHeader>

@@ -785,11 +785,22 @@ export default function ServicesPage() {
     
     const searchParams = new URLSearchParams(window.location.search);
     const status = searchParams.get('status');
+    const error = searchParams.get('error');
     
     if (status === 'created-without-images') {
       safeSetState(prev => ({
         ...prev,
         error: "Votre service a été créé avec succès, mais les images n'ont pas pu être associées. Vous pouvez les ajouter en modifiant votre service."
+      }));
+      
+      // Nettoyer l'URL pour éviter que le message ne réapparaisse après refresh
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+    
+    if (error === 'max_services_reached') {
+      safeSetState(prev => ({
+        ...prev,
+        error: "Vous avez atteint la limite maximale de 6 services actifs. Pour créer un nouveau service, vous devez d'abord désactiver ou supprimer un service existant. Pour supprimer cette limitation, obtenez une certification expert."
       }));
       
       // Nettoyer l'URL pour éviter que le message ne réapparaisse après refresh
@@ -1041,6 +1052,10 @@ export default function ServicesPage() {
             <Button 
               onClick={() => router.push("/dashboard/services/new")} 
               className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 transition-all h-8 text-xs flex-grow sm:flex-grow-0 sm:text-sm"
+              disabled={!loading && profile !== null && profile !== undefined && profile.role === 'freelance' && (!profile.is_certified || profile.certification_type !== 'expert') && activeServicesCount >= 6}
+              title={!loading && profile !== null && profile !== undefined && profile.role === 'freelance' && (!profile.is_certified || profile.certification_type !== 'expert') && activeServicesCount >= 6 ? 
+                "Vous avez atteint la limite de 6 services actifs" : 
+                "Créer un nouveau service"}
             >
               <Plus className="mr-1.5 h-3.5 w-3.5" /> Nouveau service
             </Button>
@@ -1068,6 +1083,17 @@ export default function ServicesPage() {
           title="Erreur lors de la suppression"
           message={deleteError}
         />
+      )}
+
+      {/* Message d'information sur la limitation des services actifs */}
+      {!loading && profile && profile.role === 'freelance' && (!profile.is_certified || profile.certification_type !== 'expert') && (
+        <div className="mb-3 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-400 rounded-lg flex items-start gap-2">
+          <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-500 mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="font-medium text-sm">Limitation des services actifs</p>
+            <p className="text-xs">Sans certification expert, vous êtes limité à 6 services actifs maximum. Actuellement, vous avez {activeServicesCount} service{activeServicesCount > 1 ? 's' : ''} actif{activeServicesCount > 1 ? 's' : ''}. Pour supprimer cette limitation, obtenez une certification expert.</p>
+          </div>
+        </div>
       )}
 
       {/* Onglets de filtrage avec optimisation des callbacks */}
@@ -1233,9 +1259,9 @@ export default function ServicesPage() {
 
       {/* Boîte de dialogue des commentaires de modération */}
       <Dialog open={moderationDialog.isOpen} onOpenChange={(open) => setModerationDialog(prev => ({ ...prev, isOpen: open }))}>
-        <DialogContent className="sm:max-w-[550px]">
+        <DialogContent className="sm:max-w-[550px]" aria-labelledby="moderation-dialog-title" aria-describedby="moderation-dialog-description">
           <DialogHeader>
-            <DialogTitle className={`flex items-center gap-2 ${
+            <DialogTitle id="moderation-dialog-title" className={`flex items-center gap-2 ${
               moderationDialog.status === 'rejected' ? 'text-red-600' : 'text-green-600'
             }`}>
               {moderationDialog.status === 'rejected' ? (
@@ -1250,7 +1276,7 @@ export default function ServicesPage() {
                 </>
               )}
             </DialogTitle>
-            <DialogDescription className="pt-2">
+            <DialogDescription id="moderation-dialog-description" className="pt-2">
               <p className="text-base font-medium mb-1">{moderationDialog.title}</p>
               <div className={`mt-4 p-3 rounded-md border ${
                 moderationDialog.status === 'rejected' 

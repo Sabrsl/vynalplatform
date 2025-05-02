@@ -33,6 +33,7 @@ export function ServiceSummary({ service }: ServiceSummaryProps) {
             alt={service.title}
             fill
             className="object-cover"
+            priority={true}
           />
           {service.category && (
             <div className="absolute top-2 left-2">

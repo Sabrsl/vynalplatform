@@ -415,10 +415,10 @@ export function ProfileQRShare({ profileData, baseUrl }: ProfileQRShareProps) {
                     QR Code de mon profil
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-[425px]">
+                <DialogContent className="sm:max-w-[425px]" aria-labelledby="qr-code-dialog-title" aria-describedby="qr-code-dialog-description">
                   <DialogHeader>
-                    <DialogTitle className="text-vynal-purple-light dark:text-vynal-text-primary">QR Code de votre profil</DialogTitle>
-                    <DialogDescription className="text-vynal-purple-secondary dark:text-vynal-text-secondary">
+                    <DialogTitle id="qr-code-dialog-title" className="text-vynal-purple-light dark:text-vynal-text-primary">QR Code de votre profil</DialogTitle>
+                    <DialogDescription id="qr-code-dialog-description" className="text-vynal-purple-secondary dark:text-vynal-text-secondary">
                       {isProfileComplete 
                         ? "Téléchargez ou partagez votre QR code personnalisé." 
                         : "Complétez votre profil pour télécharger un QR code personnalisé."}
