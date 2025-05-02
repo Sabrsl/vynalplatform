@@ -43,8 +43,8 @@ import { useTheme } from "next-themes";
 const ServiceReviews = dynamic(() => import('../reviews/ServiceReviews'), {
   loading: () => (
     <div className="animate-pulse space-y-4">
-      <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded w-1/3"></div>
-      <div className="h-40 bg-gray-200 dark:bg-gray-700 rounded"></div>
+      <div className="h-10 bg-vynal-purple-secondary/30 rounded w-1/3"></div>
+      <div className="h-40 bg-vynal-purple-secondary/30 rounded"></div>
     </div>
   ),
   ssr: false
@@ -136,14 +136,16 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
   // Hooks React et personnalisés
   const router = useRouter();
   const user = useUser();
-  const { theme, resolvedTheme } = useTheme();
-  const isDarkMode = resolvedTheme === 'dark' || theme === 'dark';
   
   // Vérification du rendu côté client
   const [isClient, setIsClient] = useState(false);
   useEffect(() => {
     setIsClient(true);
   }, []);
+  
+  // Use theme only on client side to prevent hydration mismatches
+  const { theme, resolvedTheme } = useTheme();
+  const isDarkMode = isClient ? (resolvedTheme === 'dark' || theme === 'dark') : false;
   
   // Observers pour les sections avec chargement différé
   const [relatedRef, relatedInView] = useInView({ 
@@ -347,10 +349,7 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-4">
-              <Skeleton className={cn(
-                "w-full aspect-video rounded-lg",
-                isDarkMode ? "bg-vynal-purple-secondary/30" : "bg-gray-200"
-              )} />
+              <Skeleton className="w-full aspect-video rounded-lg bg-vynal-purple-secondary/30" />
               <Card className={cn(
                 "rounded-xl shadow-lg",
                 isDarkMode 
@@ -358,28 +357,13 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                   : "bg-white border-gray-200 shadow-gray-200/20"
               )}>
                 <CardContent className="p-6">
-                  <Skeleton className={cn(
-                    "h-8 w-3/4 mb-4",
-                    isDarkMode ? "bg-vynal-purple-secondary/30" : "bg-gray-200"
-                  )} />
+                  <Skeleton className="h-8 w-3/4 mb-4 bg-vynal-purple-secondary/30" />
                   <div className="space-y-2 mb-6">
-                    <Skeleton className={cn(
-                      "h-4 w-full",
-                      isDarkMode ? "bg-vynal-purple-secondary/30" : "bg-gray-200"
-                    )} />
-                    <Skeleton className={cn(
-                      "h-4 w-full",
-                      isDarkMode ? "bg-vynal-purple-secondary/30" : "bg-gray-200"
-                    )} />
-                    <Skeleton className={cn(
-                      "h-4 w-2/3",
-                      isDarkMode ? "bg-vynal-purple-secondary/30" : "bg-gray-200"
-                    )} />
+                    <Skeleton className="h-4 w-full bg-vynal-purple-secondary/30" />
+                    <Skeleton className="h-4 w-full bg-vynal-purple-secondary/30" />
+                    <Skeleton className="h-4 w-2/3 bg-vynal-purple-secondary/30" />
                   </div>
-                  <Skeleton className={cn(
-                    "h-24 w-full",
-                    isDarkMode ? "bg-vynal-purple-secondary/30" : "bg-gray-200"
-                  )} />
+                  <Skeleton className="h-24 w-full bg-vynal-purple-secondary/30" />
                 </CardContent>
               </Card>
             </div>
@@ -391,23 +375,11 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                   : "bg-white border-gray-200 shadow-gray-200/20"
               )}>
                 <CardContent className="p-6 space-y-4">
-                  <Skeleton className={cn(
-                    "h-8 w-full",
-                    isDarkMode ? "bg-vynal-purple-secondary/30" : "bg-gray-200"
-                  )} />
-                  <Skeleton className={cn(
-                    "h-10 w-full",
-                    isDarkMode ? "bg-vynal-purple-secondary/30" : "bg-gray-200"
-                  )} />
+                  <Skeleton className="h-8 w-full bg-vynal-purple-secondary/30" />
+                  <Skeleton className="h-10 w-full bg-vynal-purple-secondary/30" />
                   <div className="flex space-x-2">
-                    <Skeleton className={cn(
-                      "h-8 w-1/2",
-                      isDarkMode ? "bg-vynal-purple-secondary/30" : "bg-gray-200"
-                    )} />
-                    <Skeleton className={cn(
-                      "h-8 w-1/2",
-                      isDarkMode ? "bg-vynal-purple-secondary/30" : "bg-gray-200"
-                    )} />
+                    <Skeleton className="h-8 w-1/2 bg-vynal-purple-secondary/30" />
+                    <Skeleton className="h-8 w-1/2 bg-vynal-purple-secondary/30" />
                   </div>
                 </CardContent>
               </Card>
@@ -419,19 +391,10 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
               )}>
                 <CardContent className="p-6 space-y-4">
                   <div className="flex items-center space-x-3">
-                    <Skeleton className={cn(
-                      "h-12 w-12 rounded-full",
-                      isDarkMode ? "bg-vynal-purple-secondary/30" : "bg-gray-200"
-                    )} />
+                    <Skeleton className="h-12 w-12 rounded-full bg-vynal-purple-secondary/30" />
                     <div className="space-y-2">
-                      <Skeleton className={cn(
-                        "h-4 w-32",
-                        isDarkMode ? "bg-vynal-purple-secondary/30" : "bg-gray-200"
-                      )} />
-                      <Skeleton className={cn(
-                        "h-3 w-20",
-                        isDarkMode ? "bg-vynal-purple-secondary/30" : "bg-gray-200"
-                      )} />
+                      <Skeleton className="h-4 w-32 bg-vynal-purple-secondary/30" />
+                      <Skeleton className="h-3 w-20 bg-vynal-purple-secondary/30" />
                     </div>
                   </div>
                 </CardContent>
@@ -840,8 +803,8 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                 {reviewsInView && (
                   <Suspense fallback={
                     <div className="animate-pulse space-y-4">
-                      <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded w-1/3"></div>
-                      <div className="h-40 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                      <div className="h-10 bg-vynal-purple-secondary/30 rounded w-1/3"></div>
+                      <div className="h-40 bg-vynal-purple-secondary/30 rounded"></div>
                     </div>
                   }>
                     <ServiceReviews serviceId={serviceMeta.id} />
@@ -1151,23 +1114,11 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                         ? "border-vynal-purple-secondary/30 bg-vynal-purple-dark/60" 
                         : "border-gray-200 bg-white"
                     )}>
-                      <div className={cn(
-                        "h-32 animate-pulse",
-                        isDarkMode ? "bg-vynal-purple-mid/20" : "bg-gray-200"
-                      )}></div>
+                      <div className="h-32 animate-pulse bg-vynal-purple-secondary/30"></div>
                       <CardContent className="p-3">
-                        <Skeleton className={cn(
-                          "h-4 w-3/4 mb-2",
-                          isDarkMode ? "bg-vynal-purple-mid/30" : "bg-gray-200"
-                        )} />
-                        <Skeleton className={cn(
-                          "h-4 w-1/2 mb-2",
-                          isDarkMode ? "bg-vynal-purple-mid/30" : "bg-gray-200"
-                        )} />
-                        <Skeleton className={cn(
-                          "h-6 w-1/3 mt-4",
-                          isDarkMode ? "bg-vynal-purple-mid/30" : "bg-gray-200"
-                        )} />
+                        <Skeleton className="h-4 w-3/4 mb-2 bg-vynal-purple-secondary/30" />
+                        <Skeleton className="h-4 w-1/2 mb-2 bg-vynal-purple-secondary/30" />
+                        <Skeleton className="h-6 w-1/3 mt-4 bg-vynal-purple-secondary/30" />
                       </CardContent>
                     </Card>
                   ))

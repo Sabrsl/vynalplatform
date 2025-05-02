@@ -687,23 +687,23 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                 </div>
               )}
               
-              {/* Loader lors du chargement initial des messages - Simplifier l'animation */}
+              {/* Loader lors du chargement initial des messages - Amélioration de l'animation */}
               {isLoadingMessages && visibleMessages.length === 0 && (
-                <div className="flex justify-center items-center h-[200px] animate-in fade-in duration-500 ease-in-out">
+                <div className="flex justify-center items-center h-[200px] animate-in fade-in duration-300 ease-in-out">
                   <div className="flex flex-col items-center space-y-2">
-                    <div className="flex flex-col space-y-2 w-3/4 max-w-md">
-                      {/* Skeleton message items */}
+                    <div className="flex flex-col space-y-3 w-3/4 max-w-md">
+                      {/* Skeleton message items avec animation douce */}
                       {[...Array(3)].map((_, i) => (
                         <div 
                           key={i} 
-                          className={`flex items-start ${i % 2 === 0 ? 'justify-end' : ''}`}
-                          style={{ animationDelay: `${i * 100}ms` }}
+                          className={`flex items-start ${i % 2 === 0 ? 'justify-end' : ''} animate-pulse`}
+                          style={{ animationDelay: `${i * 150}ms`, opacity: 1 - (i * 0.15) }}
                         >
                           {i % 2 !== 0 && (
-                            <div className="h-8 w-8 rounded-full bg-gray-200 dark:bg-gray-700 mr-2"></div>
+                            <div className="h-8 w-8 rounded-full bg-vynal-purple-secondary/30 mr-2"></div>
                           )}
                           <div 
-                            className={`h-[60px] rounded-2xl ${i % 2 === 0 ? 'bg-indigo-100 dark:bg-indigo-900/30 w-[65%]' : 'bg-gray-100 dark:bg-gray-800 w-[70%]'}`}
+                            className={`h-[60px] rounded-2xl ${i % 2 === 0 ? 'bg-vynal-purple-secondary/30 w-[65%]' : 'bg-vynal-purple-secondary/30 w-[70%]'}`}
                           ></div>
                         </div>
                       ))}
@@ -744,9 +744,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                     </Avatar>
                     <div className="bg-white dark:bg-gray-800 rounded-2xl px-4 py-2 shadow-sm flex items-center">
                       <div className="flex space-x-1">
-                        <span className="bg-gray-300 dark:bg-gray-600 rounded-full h-2 w-2 animate-bounce" style={{ animationDelay: '0s' }}></span>
-                        <span className="bg-gray-300 dark:bg-gray-600 rounded-full h-2 w-2 animate-bounce" style={{ animationDelay: '0.2s' }}></span>
-                        <span className="bg-gray-300 dark:bg-gray-600 rounded-full h-2 w-2 animate-bounce" style={{ animationDelay: '0.4s' }}></span>
+                        <span className="bg-vynal-purple-secondary/30 rounded-full h-2 w-2 animate-bounce" style={{ animationDelay: '0s' }}></span>
+                        <span className="bg-vynal-purple-secondary/30 rounded-full h-2 w-2 animate-bounce" style={{ animationDelay: '0.2s' }}></span>
+                        <span className="bg-vynal-purple-secondary/30 rounded-full h-2 w-2 animate-bounce" style={{ animationDelay: '0.4s' }}></span>
                       </div>
                     </div>
                   </div>

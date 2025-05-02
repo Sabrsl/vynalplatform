@@ -15,6 +15,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { RefreshIndicator } from "@/components/ui/refresh-indicator";
 import { useCallback, useMemo, memo, useState, useEffect } from "react";
+import { DashboardPageSkeleton } from "@/components/skeletons/DashboardPageSkeleton";
 
 // Type pour les statistiques d'un freelance
 interface FreelanceStats {
@@ -352,6 +353,11 @@ export default function DashboardPage() {
     const userName = profile?.full_name || user?.user_metadata?.name || 'Freelance';
     return `Bienvenue, ${userName} 👋`;
   }, [profile?.full_name, user?.user_metadata?.name]);
+  
+  // Afficher le skeleton pendant le chargement initial
+  if (loadingStats && loadingActivities) {
+    return <DashboardPageSkeleton />;
+  }
   
   return (
     <div className="max-w-7xl mx-auto space-y-6">

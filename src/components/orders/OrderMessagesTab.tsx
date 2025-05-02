@@ -427,7 +427,7 @@ export function OrderMessagesTab({ order, isFreelance }: OrderMessagesTabProps) 
                 key={message.id}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
+                transition={{ duration: 0.3, delay: Math.min(index * 0.05, 0.3) }}
                 className={clsx(
                   "flex flex-col py-3 px-4 rounded-lg mb-4 max-w-[80%]",
                   message.sender_id === user?.id
@@ -436,7 +436,7 @@ export function OrderMessagesTab({ order, isFreelance }: OrderMessagesTabProps) 
                 )}
               >
                 <div className="flex items-center mb-1">
-                  <div className="w-5 h-5 rounded-full overflow-hidden mr-2 flex-shrink-0 bg-gray-200">
+                  <div className="w-5 h-5 rounded-full overflow-hidden mr-2 flex-shrink-0 bg-vynal-purple-secondary/30">
                     <ImageNext 
                       src={getUserAvatar(message.sender_id)} 
                       alt="Avatar" 
@@ -477,11 +477,11 @@ export function OrderMessagesTab({ order, isFreelance }: OrderMessagesTabProps) 
             
             {isTyping && (
               <div className="flex justify-start">
-                <div className="max-w-[60%] rounded-lg p-2 bg-vynal-purple-secondary/5 dark:bg-vynal-purple-secondary/10 text-vynal-purple-secondary dark:text-vynal-text-secondary">
-                  <div className="flex items-center space-x-1">
-                    <div className="w-1.5 h-1.5 bg-current rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                    <div className="w-1.5 h-1.5 bg-current rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                    <div className="w-1.5 h-1.5 bg-current rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                <div className="max-w-[60%] rounded-lg p-2 bg-vynal-purple-secondary/5 dark:bg-vynal-purple-secondary/10 text-vynal-purple-secondary dark:text-vynal-text-secondary animate-in fade-in slide-in-from-bottom-2 duration-200">
+                  <div className="flex space-x-1 items-center text-vynal-accent-primary dark:text-vynal-text-secondary animate-in fade-in slide-in-from-bottom-2 duration-200">
+                    <div className="w-1.5 h-1.5 bg-vynal-purple-secondary/30 rounded-full animate-bounce" style={{ animationDelay: '0ms', animationDuration: '1s' }} />
+                    <div className="w-1.5 h-1.5 bg-vynal-purple-secondary/30 rounded-full animate-bounce" style={{ animationDelay: '150ms', animationDuration: '1s' }} />
+                    <div className="w-1.5 h-1.5 bg-vynal-purple-secondary/30 rounded-full animate-bounce" style={{ animationDelay: '300ms', animationDuration: '1s' }} />
                   </div>
                 </div>
               </div>

@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useUser } from "@/hooks/useUser";
 import { Loader } from "@/components/ui/loader";
 import Link from "next/link";
+import { ClientDashboardPageSkeleton } from "@/components/skeletons/ClientDashboardPageSkeleton";
 
 export default function ClientDashboardPage() {
   const { user } = useAuth();
@@ -47,6 +48,10 @@ export default function ClientDashboardPage() {
     );
   }
 
+  if (loadingStats) {
+    return <ClientDashboardPageSkeleton />;
+  }
+
   const userName = profile?.full_name || profile?.username || user?.user_metadata?.name || "Client";
 
   return (
@@ -69,11 +74,7 @@ export default function ClientDashboardPage() {
             <div>
               <p className="text-sm font-medium text-indigo-600 dark:text-indigo-400 mb-1">Commandes actives</p>
               <p className="text-2xl font-bold text-indigo-700 dark:text-indigo-300">
-                {loadingStats ? (
-                  <Clock className="h-6 w-6 animate-pulse" />
-                ) : (
-                  stats.activeOrders
-                )}
+                {stats.activeOrders}
               </p>
             </div>
             <div className="p-3 rounded-full bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400">
@@ -87,11 +88,7 @@ export default function ClientDashboardPage() {
             <div>
               <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400 mb-1">Livraisons en attente</p>
               <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">
-                {loadingStats ? (
-                  <Clock className="h-6 w-6 animate-pulse" />
-                ) : (
-                  stats.pendingDeliveries
-                )}
+                {stats.pendingDeliveries}
               </p>
             </div>
             <div className="p-3 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400">
@@ -105,11 +102,7 @@ export default function ClientDashboardPage() {
             <div>
               <p className="text-sm font-medium text-amber-600 dark:text-amber-400 mb-1">Messages non lus</p>
               <p className="text-2xl font-bold text-amber-700 dark:text-amber-300">
-                {loadingStats ? (
-                  <Clock className="h-6 w-6 animate-pulse" />
-                ) : (
-                  stats.unreadMessages
-                )}
+                {stats.unreadMessages}
               </p>
             </div>
             <div className="p-3 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400">
@@ -123,11 +116,7 @@ export default function ClientDashboardPage() {
             <div>
               <p className="text-sm font-medium text-violet-600 dark:text-violet-400 mb-1">Commandes terminées</p>
               <p className="text-2xl font-bold text-violet-700 dark:text-violet-300">
-                {loadingStats ? (
-                  <Clock className="h-6 w-6 animate-pulse" />
-                ) : (
-                  stats.completedOrders
-                )}
+                {stats.completedOrders}
               </p>
             </div>
             <div className="p-3 rounded-full bg-violet-100 dark:bg-violet-900/40 text-violet-600 dark:text-violet-400">
@@ -185,11 +174,7 @@ export default function ClientDashboardPage() {
             <CardTitle className="text-lg">Commandes récentes</CardTitle>
           </CardHeader>
           <CardContent>
-            {loadingStats ? (
-              <div className="flex justify-center py-6">
-                <Loader className="h-6 w-6" />
-              </div>
-            ) : stats.activeOrders > 0 ? (
+            {stats.activeOrders > 0 ? (
               <div className="space-y-3">
                 <div className="border-l-2 border-indigo-400 pl-3 py-2">
                   <p className="text-sm font-medium">Développement d'un site web</p>

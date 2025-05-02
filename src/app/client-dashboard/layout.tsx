@@ -24,6 +24,7 @@ import MobileMenu from "@/components/MobileMenu";
 import { useUserNotifications } from "@/hooks/useUserNotifications";
 import NotificationBadge from "@/components/ui/notification-badge";
 import { NavigationLoadingState } from "@/app/providers";
+import { ClientDashboardPageSkeleton } from "@/components/skeletons/ClientDashboardPageSkeleton";
 
 interface NavItemProps {
   href: string;
@@ -108,13 +109,9 @@ export default function ClientDashboardLayout({
     setActivePath(pathname || "/client-dashboard");
   }, [pathname, setActivePath]);
 
-  // Si toujours en chargement, afficher un indicateur
+  // Si toujours en chargement, afficher le skeleton loader
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader className="h-8 w-8 animate-spin text-indigo-600" />
-      </div>
-    );
+    return <ClientDashboardPageSkeleton />;
   }
 
   return (

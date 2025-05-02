@@ -151,30 +151,25 @@ function ServiceDetailContent() {
   // Rendu pour l'état de chargement
   if (isLoading) {
     return (
-      <div className="container mx-auto py-8 px-4 bg-vynal-purple-dark/90 text-vynal-text-primary rounded-xl shadow-lg shadow-vynal-accent-secondary/20 border border-vynal-purple-secondary/30">
-        <div className="mb-6">
-          <Link href="/services" className="inline-flex items-center text-vynal-text-primary hover:text-vynal-accent-primary transition-colors">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Retour aux services
-          </Link>
-        </div>
-        
-        <div className="flex flex-col md:flex-row gap-8">
-          <div className="w-full md:w-2/3">
-            <Skeleton className="h-[400px] w-full mb-4 bg-vynal-purple-secondary/30" />
-            <div className="grid grid-cols-4 gap-2">
-              {[1, 2, 3, 4].map((i) => (
-                <Skeleton key={i} className="h-24 w-full bg-vynal-purple-secondary/30" />
-              ))}
+      <div className="fixed inset-0 z-[9999] bg-vynal-purple-dark flex flex-col items-center justify-start pt-10 animate-in fade-in">
+        <div className="container mx-auto px-4 w-full max-w-5xl">
+          <div className="flex flex-col md:flex-row gap-8">
+            <div className="w-full md:w-2/3">
+              <Skeleton className="h-[400px] w-full mb-4 bg-vynal-purple-secondary/30" />
+              <div className="grid grid-cols-4 gap-2">
+                {[1, 2, 3, 4].map((i) => (
+                  <Skeleton key={i} className="h-24 w-full bg-vynal-purple-secondary/30" />
+                ))}
+              </div>
             </div>
-          </div>
-          
-          <div className="w-full md:w-1/3">
-            <Skeleton className="h-8 w-3/4 mb-4 bg-vynal-purple-secondary/30" />
-            <Skeleton className="h-6 w-1/2 mb-2 bg-vynal-purple-secondary/30" />
-            <Skeleton className="h-32 w-full mb-6 bg-vynal-purple-secondary/30" />
-            <Skeleton className="h-10 w-full mb-2 bg-vynal-purple-secondary/30" />
-            <Skeleton className="h-10 w-full bg-vynal-purple-secondary/30" />
+            
+            <div className="w-full md:w-1/3">
+              <Skeleton className="h-8 w-3/4 mb-4 bg-vynal-purple-secondary/30" />
+              <Skeleton className="h-6 w-1/2 mb-2 bg-vynal-purple-secondary/30" />
+              <Skeleton className="h-32 w-full mb-6 bg-vynal-purple-secondary/30" />
+              <Skeleton className="h-10 w-full mb-2 bg-vynal-purple-secondary/30" />
+              <Skeleton className="h-10 w-full bg-vynal-purple-secondary/30" />
+            </div>
           </div>
         </div>
       </div>
@@ -207,7 +202,7 @@ function ServiceDetailContent() {
   // Rendu pour afficher les détails du service
   return (
     <div className="min-h-screen bg-vynal-purple-dark">
-      <div className="container mx-auto py-8 px-4">
+      <div className="container mx-auto py-8 px-4 animate-in fade-in duration-300">
         <div className="mb-6">
           <Link href="/services" className="inline-flex items-center text-vynal-text-primary hover:text-vynal-accent-primary transition-colors">
             <ArrowLeft className="h-4 w-4 mr-2" />
@@ -223,6 +218,7 @@ function ServiceDetailContent() {
             isFreelanceView={false}
             relatedServices={relatedServices}
             loadingRelated={loadingRelated}
+            className="animate-in fade-in duration-300"
           />
         )}
       </div>
@@ -233,15 +229,8 @@ function ServiceDetailContent() {
 // Conteneur de chargement pour le Suspense
 function ServiceDetailLoading() {
   return (
-    <div className="min-h-screen bg-vynal-purple-dark">
-      <div className="container mx-auto py-8 px-4">
-        <div className="mb-6">
-          <Link href="/services" className="inline-flex items-center text-vynal-text-primary hover:text-vynal-accent-primary transition-colors">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Retour aux services
-          </Link>
-        </div>
-        
+    <div className="fixed inset-0 z-[9999] bg-vynal-purple-dark flex flex-col items-center justify-start pt-10 animate-in fade-in">
+      <div className="container mx-auto px-4 w-full max-w-5xl">
         <div className="flex flex-col md:flex-row gap-8">
           <div className="w-full md:w-2/3">
             <Skeleton className="h-[400px] w-full mb-4 bg-vynal-purple-secondary/30" />

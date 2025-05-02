@@ -35,16 +35,16 @@ const ChatWindow = dynamic(() => import('./ChatWindow'), {
 const ConversationListSkeleton = () => (
   <div className="flex flex-col h-full">
     <div className="p-4 border-b border-gray-200 dark:border-gray-800 bg-gray-100 dark:bg-gray-800">
-      <div className="h-7 w-32 bg-gray-200 dark:bg-gray-700 rounded mb-4"></div>
-      <div className="h-10 w-full bg-gray-200 dark:bg-gray-700 rounded-full"></div>
+      <div className="h-7 w-32 bg-vynal-purple-secondary/30 rounded mb-4 animate-pulse"></div>
+      <div className="h-10 w-full bg-vynal-purple-secondary/30 rounded-full animate-pulse"></div>
     </div>
     <div className="flex-1 p-2 space-y-2">
       {[...Array(5)].map((_, i) => (
         <div key={i} className="flex items-center p-3 mb-1 rounded-lg bg-white dark:bg-gray-850">
-          <div className="h-12 w-12 rounded-full bg-gray-200 dark:bg-gray-700 flex-shrink-0"></div>
+          <div className="h-12 w-12 rounded-full bg-vynal-purple-secondary/30 flex-shrink-0 animate-pulse"></div>
           <div className="ml-3 flex-1 space-y-2">
-            <div className="h-4 w-1/2 bg-gray-200 dark:bg-gray-700 rounded"></div>
-            <div className="h-3 w-4/5 bg-gray-200 dark:bg-gray-700 rounded"></div>
+            <div className="h-4 w-1/2 bg-vynal-purple-secondary/30 rounded animate-pulse"></div>
+            <div className="h-3 w-4/5 bg-vynal-purple-secondary/30 rounded animate-pulse"></div>
           </div>
         </div>
       ))}
@@ -56,10 +56,10 @@ const ConversationListSkeleton = () => (
 const ChatWindowSkeleton = () => (
   <div className="flex flex-col h-full">
     <div className="flex items-center px-4 py-3 border-b border-gray-200 dark:border-gray-800 bg-gradient-to-r from-pink-600 to-purple-600">
-      <div className="h-10 w-10 rounded-full bg-white/20"></div>
+      <div className="h-10 w-10 rounded-full bg-vynal-purple-secondary/30"></div>
       <div className="ml-3">
-        <div className="h-4 w-32 bg-white/20 rounded mb-1"></div>
-        <div className="h-3 w-24 bg-white/30 rounded"></div>
+        <div className="h-4 w-32 bg-vynal-purple-secondary/30 rounded mb-1"></div>
+        <div className="h-3 w-24 bg-vynal-purple-secondary/30 rounded"></div>
       </div>
     </div>
     <div className="flex-1 p-4 bg-gray-50 dark:bg-gray-900">
@@ -67,10 +67,10 @@ const ChatWindowSkeleton = () => (
         {[...Array(4)].map((_, i) => (
           <div key={i} className={`flex items-start ${i % 2 === 0 ? 'justify-end' : ''}`}>
             {i % 2 !== 0 && (
-              <div className="h-8 w-8 rounded-full bg-gray-200 dark:bg-gray-700 mr-2"></div>
+              <div className="h-8 w-8 rounded-full bg-vynal-purple-secondary/30 mr-2"></div>
             )}
             <div 
-              className={`h-[60px] rounded-2xl ${i % 2 === 0 ? 'bg-indigo-100 dark:bg-indigo-900/30 w-[65%]' : 'bg-gray-100 dark:bg-gray-800 w-[70%]'}`}
+              className={`h-[60px] rounded-2xl ${i % 2 === 0 ? 'bg-vynal-purple-secondary/30 w-[65%]' : 'bg-vynal-purple-secondary/30 w-[70%]'}`}
             ></div>
           </div>
         ))}
@@ -79,17 +79,17 @@ const ChatWindowSkeleton = () => (
     <div className="p-3 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950">
       <div className="flex">
         <div className="flex space-x-2 mr-2">
-          <div className="h-10 w-10 rounded-full bg-gray-200 dark:bg-gray-700"></div>
-          <div className="h-10 w-10 rounded-full bg-gray-200 dark:bg-gray-700"></div>
+          <div className="h-10 w-10 rounded-full bg-vynal-purple-secondary/30"></div>
+          <div className="h-10 w-10 rounded-full bg-vynal-purple-secondary/30"></div>
         </div>
-        <div className="h-10 flex-1 bg-gray-200 dark:bg-gray-700 rounded-full"></div>
+        <div className="h-10 flex-1 bg-vynal-purple-secondary/30 rounded-full"></div>
       </div>
     </div>
   </div>
 );
 
 // Ajouter une nouvelle classe de transition en haut du fichier
-const slideIn = "animate-in fade-in duration-500 ease-in-out";
+const slideIn = "animate-in fade-in slide-in-from-bottom-4 duration-300 ease-out";
 
 interface MessagingInterfaceProps {
   initialConversationId?: string;
@@ -433,7 +433,7 @@ const MessagingInterface: React.FC<MessagingInterfaceProps> = ({
     if (loadingOrderData && !orderDetails) {
       return (
         <div className={`h-[calc(100vh-200px)] grid grid-cols-1 gap-0 bg-white dark:bg-gray-950 overflow-hidden rounded-lg border border-gray-200 dark:border-gray-800 ${slideIn}`}>
-          <div className="h-full">
+          <div className="h-full animate-in fade-in duration-500">
             <ChatWindowSkeleton />
           </div>
         </div>

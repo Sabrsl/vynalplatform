@@ -6,13 +6,14 @@ import dynamic from 'next/dynamic';
 import MessagingInterface from '@/components/messaging/MessagingInterface';
 import { useAuth } from '@/hooks/useAuth';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
+import { MessagesPageSkeleton } from "@/components/skeletons/MessagesPageSkeleton";
 
 // Chargement dynamique du composant de nouvelle conversation
 const NewConversationDialog = dynamic(
   () => import('@/components/messaging/NewConversationDialog'), 
   { 
     loading: () => (
-      <div className="h-10 w-[150px] rounded-md bg-indigo-100 dark:bg-indigo-900/40 animate-pulse"></div>
+      <div className="h-10 w-[150px] rounded-md bg-vynal-purple-secondary/30 animate-pulse"></div>
     ),
     ssr: false 
   }
@@ -73,16 +74,7 @@ export default function MessagesPage() {
   
   // Afficher un état de chargement amélioré
   if (authLoading || !isComponentLoaded) {
-    return (
-      <div className={`p-4 sm:p-6 ${fadeIn}`}>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-          <div className="h-8 w-48 bg-gray-200 dark:bg-gray-800 rounded"></div>
-          <div className="h-10 w-[150px] bg-gray-200 dark:bg-gray-800 rounded"></div>
-        </div>
-        
-        <div className="h-[calc(100vh-200px)] rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-100 dark:bg-gray-900 overflow-hidden"></div>
-      </div>
-    );
+    return <MessagesPageSkeleton />;
   }
   
   // Afficher un message si l'utilisateur n'est pas connecté

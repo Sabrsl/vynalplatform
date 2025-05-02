@@ -98,10 +98,10 @@ export default function AdminDashboard() {
       <div className="p-4">
         <h1 className="text-sm font-bold mb-4 text-gray-800 dark:text-vynal-text-primary">Tableau de bord Admin</h1>
         <div className="grid grid-cols-2 gap-3 animate-pulse">
-          <div className="h-24 bg-gray-200 dark:bg-vynal-purple-secondary/20 rounded-lg"></div>
-          <div className="h-24 bg-gray-200 dark:bg-vynal-purple-secondary/20 rounded-lg"></div>
-          <div className="h-24 bg-gray-200 dark:bg-vynal-purple-secondary/20 rounded-lg"></div>
-          <div className="h-24 bg-gray-200 dark:bg-vynal-purple-secondary/20 rounded-lg"></div>
+          <div className="h-24 bg-vynal-purple-secondary/30 rounded-lg"></div>
+          <div className="h-24 bg-vynal-purple-secondary/30 rounded-lg"></div>
+          <div className="h-24 bg-vynal-purple-secondary/30 rounded-lg"></div>
+          <div className="h-24 bg-vynal-purple-secondary/30 rounded-lg"></div>
         </div>
       </div>
     );

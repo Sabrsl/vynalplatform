@@ -256,7 +256,7 @@ export default function DisputeDetailPage() {
                     <span>Client</span>
                   </h3>
                   <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-full bg-slate-200 dark:bg-vynal-purple-secondary/20 overflow-hidden">
+                    <div className="h-10 w-10 rounded-full bg-vynal-purple-secondary/30 overflow-hidden">
                       {dispute.client.avatar_url ? (
                         <Image 
                           src={dispute.client.avatar_url} 
@@ -289,7 +289,7 @@ export default function DisputeDetailPage() {
                     <span>Prestataire</span>
                   </h3>
                   <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-full bg-slate-200 dark:bg-vynal-purple-secondary/20 overflow-hidden">
+                    <div className="h-10 w-10 rounded-full bg-vynal-purple-secondary/30 overflow-hidden">
                       {dispute.freelance.avatar_url ? (
                         <Image 
                           src={dispute.freelance.avatar_url} 

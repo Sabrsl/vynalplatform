@@ -4,6 +4,7 @@ import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
+import usePageTransition from "@/hooks/usePageTransition"
 
 const buttonVariants = cva(
   "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
@@ -40,15 +41,40 @@ export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
   asChild?: boolean
+  /** 
+   * Chemin vers lequel naviguer lors du clic, affichera un loader squelette pendant la navigation
+   * Path to navigate to when clicked, will show skeleton loader during navigation 
+   */
+  navigate?: string
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
+  ({ className, variant, size, asChild = false, navigate, onClick, ...props }, ref) => {
+    const { navigateTo } = usePageTransition();
+    
+    // Gère la navigation avec chargement squelette
+    // Handle navigation with skeleton loading
+    const handleClick = React.useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
+      // Appelle le onClick original s'il est fourni
+      // Call the original onClick if provided
+      if (onClick) {
+        onClick(e);
+      }
+      
+      // Si la prop navigate est fournie, gère la navigation
+      // If navigate prop is provided, handle navigation
+      if (navigate && !e.defaultPrevented) {
+        navigateTo(navigate);
+      }
+    }, [onClick, navigate, navigateTo]);
+    
     const Comp = asChild ? Slot : "button"
     return (
       <Comp
         className={cn(buttonVariants({ variant, size, className }))}
         ref={ref}
+        onClick={navigate ? handleClick : onClick}
+        data-nav={navigate ? "true" : undefined}
         {...props}
       />
     )

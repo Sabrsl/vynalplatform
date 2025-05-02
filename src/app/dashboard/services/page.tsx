@@ -36,6 +36,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { ServicesPageSkeleton } from "@/components/skeletons/ServicesPageSkeleton";
 
 // Performance optimizations - Dynamic imports
 import dynamic from 'next/dynamic';
@@ -78,9 +79,9 @@ const ServicesLoadingPlaceholder = memo(function ServicesLoadingPlaceholder() {
   return (
     <div className="flex flex-col items-center justify-center py-8 px-4 rounded-md border border-dashed border-gray-200 bg-gray-50 h-[300px]">
       <div className="animate-pulse space-y-3 w-full max-w-md">
-        <div className="h-6 bg-gray-200 rounded w-3/4 mx-auto"></div>
-        <div className="h-4 bg-gray-200 rounded w-1/2 mx-auto"></div>
-        <div className="h-24 bg-gray-200 rounded w-full mx-auto mt-6"></div>
+        <div className="h-6 bg-vynal-purple-secondary/30 rounded w-3/4 mx-auto animate-pulse"></div>
+        <div className="h-4 bg-vynal-purple-secondary/30 rounded w-1/2 mx-auto animate-pulse"></div>
+        <div className="h-24 bg-vynal-purple-secondary/30 rounded w-full mx-auto mt-6 animate-pulse"></div>
       </div>
     </div>
   );
@@ -1001,6 +1002,11 @@ export default function ServicesPage() {
       router.push(`/dashboard/services/${service.id}`);
     }
   }, [router]);
+
+  // Display skeleton during initial loading
+  if (loading && !isRefreshing) {
+    return <ServicesPageSkeleton />;
+  }
 
   // Rendu principal avec composants mémoïsés
   return (

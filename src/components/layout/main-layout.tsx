@@ -7,6 +7,7 @@ import { Loader2 } from "lucide-react";
 import usePreventScrollReset from "@/hooks/usePreventScrollReset";
 import { useTheme } from "next-themes";
 import { AnimatePresence, motion } from "framer-motion";
+import PageTransition from "@/components/ui/page-transition";
 
 // Chargement dynamique des composants Header et Footer pour améliorer les performances
 const Header = dynamic(() => import("./header"), {
@@ -97,6 +98,7 @@ const StandardLayout = memo(({
       {children}
     </main>
     {!shouldHideFooter && <Footer />}
+    <PageTransition />
   </div>
 ));
 
@@ -179,7 +181,12 @@ function MainLayout({ children }: MainLayoutProps) {
   
   // Mise en page pour les pages d'authentification
   if (layoutConfig.isAuthPage) {
-    return <AuthLayout pathname={pathname}>{children}</AuthLayout>;
+    return (
+      <AuthLayout pathname={pathname}>
+        {children}
+        <PageTransition />
+      </AuthLayout>
+    );
   }
   
   // Mise en page standard avec options configurables

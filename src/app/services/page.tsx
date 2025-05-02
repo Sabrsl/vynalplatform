@@ -616,7 +616,14 @@ function ServicesPageContent() {
 export default function ServicesPage() {
   return (
     <Suspense fallback={<ServicesPageLoading />}>
-      <ServicesPageContent />
+      {/* Use key={Math.random()} to avoid hydration mismatch and ensure client-side rendering */}
+      <div suppressHydrationWarning>
+        {typeof window === 'undefined' ? (
+          <ServicesPageLoading />
+        ) : (
+          <ServicesPageContent />
+        )}
+      </div>
     </Suspense>
   );
 } 

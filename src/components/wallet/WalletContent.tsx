@@ -120,7 +120,7 @@ export default function WalletContent() {
             <CardTitle className="text-2xl font-bold flex items-center">
               {isRefreshing || !wallet ? (
                 <div className="flex items-center gap-2">
-                  <div className="h-6 w-28 bg-slate-200 dark:bg-vynal-purple-secondary/40 rounded-md animate-pulse"></div>
+                  <div className="h-6 w-28 bg-vynal-purple-secondary/30 rounded-md animate-pulse"></div>
                 </div>
               ) : (
                 <>{formatCurrency(wallet.balance)}</>
@@ -151,7 +151,7 @@ export default function WalletContent() {
             <CardTitle className="text-2xl font-bold flex items-center">
               {isRefreshing || !wallet ? (
                 <div className="flex items-center gap-2">
-                  <div className="h-6 w-28 bg-slate-200 dark:bg-vynal-purple-secondary/40 rounded-md animate-pulse"></div>
+                  <div className="h-6 w-28 bg-vynal-purple-secondary/30 rounded-md animate-pulse"></div>
                 </div>
               ) : (
                 <>{formatCurrency(wallet.pending_balance)}</>
@@ -173,7 +173,7 @@ export default function WalletContent() {
             <CardTitle className="text-2xl font-bold flex items-center text-emerald-600 dark:text-emerald-500">
               {isRefreshing || !wallet ? (
                 <div className="flex items-center gap-2">
-                  <div className="h-6 w-28 bg-slate-200 dark:bg-vynal-purple-secondary/40 rounded-md animate-pulse"></div>
+                  <div className="h-6 w-28 bg-vynal-purple-secondary/30 rounded-md animate-pulse"></div>
                 </div>
               ) : (
                 <>{formatCurrency(wallet.total_earnings)}</>
@@ -195,7 +195,7 @@ export default function WalletContent() {
             <CardTitle className="text-2xl font-bold flex items-center text-amber-600 dark:text-amber-500">
               {isRefreshing || !wallet ? (
                 <div className="flex items-center gap-2">
-                  <div className="h-6 w-28 bg-slate-200 dark:bg-vynal-purple-secondary/40 rounded-md animate-pulse"></div>
+                  <div className="h-6 w-28 bg-vynal-purple-secondary/30 rounded-md animate-pulse"></div>
                 </div>
               ) : (
                 <>{formatCurrency(wallet.total_withdrawals)}</>

@@ -1,6 +1,5 @@
 import React, { useMemo } from 'react';
 import { cn } from '@/lib/utils';
-import { useTheme } from 'next-themes';
 
 interface ServiceSkeletonLoaderProps {
   count?: number;
@@ -41,10 +40,6 @@ const ServiceSkeletonLoader: React.FC<ServiceSkeletonLoaderProps> = ({
   density = 'normal',
   preserveAspectRatio = true
 }) => {
-  // Détection du thème
-  const { resolvedTheme } = useTheme();
-  const isDarkMode = resolvedTheme === 'dark';
-  
   // Optimisation des colonnes avec mémoïsation
   const gridCols = useMemo(() => {
     const sm = columns.sm || 2;
@@ -91,9 +86,7 @@ const ServiceSkeletonLoader: React.FC<ServiceSkeletonLoaderProps> = ({
           "relative rounded-xl shadow-md border overflow-hidden",
           showShimmer ? "animate-pulse" : "",
           preserveAspectRatio ? "flex flex-col" : "",
-          isDarkMode 
-            ? "bg-vynal-purple-dark/90 border-vynal-purple-secondary/30" 
-            : "bg-white border-gray-200"
+          "bg-white dark:bg-vynal-purple-dark/90 border-vynal-purple-secondary/10 dark:border-vynal-purple-secondary/30"
         )}
         style={{
           // Optimisation des performances de rendu avec will-change
@@ -106,78 +99,46 @@ const ServiceSkeletonLoader: React.FC<ServiceSkeletonLoaderProps> = ({
         <div className={cn(
           "w-full", 
           densityStyles.imageHeight,
-          isDarkMode 
-            ? "bg-gradient-to-r from-vynal-purple-secondary/20 to-vynal-purple-secondary/30" 
-            : "bg-gradient-to-r from-gray-200 to-gray-300"
+          "bg-vynal-purple-secondary/30"
         )}></div>
         
         {/* Content placeholder */}
         <div className={cn(densityStyles.padding, densityStyles.contentSpacing, "flex-grow")}>
           {/* Catégorie */}
-          <div className={cn(
-            "h-4 w-1/3 rounded-md",
-            isDarkMode ? "bg-vynal-purple-secondary/30" : "bg-gray-200"
-          )}></div>
+          <div className="h-4 w-1/3 rounded-md bg-vynal-purple-secondary/30"></div>
           
           {/* Titre */}
-          <div className={cn(
-            "h-6 w-5/6 rounded-md",
-            isDarkMode ? "bg-vynal-purple-secondary/40" : "bg-gray-300"
-          )}></div>
+          <div className="h-6 w-5/6 rounded-md bg-vynal-purple-secondary/30"></div>
           
           {/* Description */}
           <div className="space-y-1.5">
-            <div className={cn(
-              "h-3 w-full rounded-md",
-              isDarkMode ? "bg-vynal-purple-secondary/30" : "bg-gray-200"
-            )}></div>
-            <div className={cn(
-              "h-3 w-4/5 rounded-md",
-              isDarkMode ? "bg-vynal-purple-secondary/30" : "bg-gray-200"
-            )}></div>
+            <div className="h-3 w-full rounded-md bg-vynal-purple-secondary/30"></div>
+            <div className="h-3 w-4/5 rounded-md bg-vynal-purple-secondary/30"></div>
           </div>
           
           {/* Séparateur */}
           <div className="pt-2">
-            <div className={cn(
-              "h-px w-full",
-              isDarkMode ? "bg-vynal-purple-secondary/20" : "bg-gray-200"
-            )}></div>
+            <div className="h-px w-full bg-vynal-purple-secondary/30"></div>
           </div>
           
           {/* Auteur */}
           <div className="flex items-center space-x-2 pt-1">
-            <div className={cn(
-              "h-8 w-8 rounded-full",
-              isDarkMode ? "bg-vynal-purple-secondary/40" : "bg-gray-300"
-            )}></div>
+            <div className="h-8 w-8 rounded-full bg-vynal-purple-secondary/30"></div>
             <div className="space-y-1">
-              <div className={cn(
-                "h-3 w-24 rounded-md",
-                isDarkMode ? "bg-vynal-purple-secondary/30" : "bg-gray-200"
-              )}></div>
-              <div className={cn(
-                "h-2 w-16 rounded-md",
-                isDarkMode ? "bg-vynal-purple-secondary/30" : "bg-gray-200"
-              )}></div>
+              <div className="h-3 w-24 rounded-md bg-vynal-purple-secondary/30"></div>
+              <div className="h-2 w-16 rounded-md bg-vynal-purple-secondary/30"></div>
             </div>
           </div>
           
           {/* Prix */}
           <div className="flex justify-between items-center pt-2">
-            <div className={cn(
-              "h-5 w-1/4 rounded-md",
-              isDarkMode ? "bg-vynal-purple-secondary/40" : "bg-gray-300"
-            )}></div>
-            <div className={cn(
-              "h-8 w-20 rounded-full",
-              isDarkMode ? "bg-vynal-accent-primary/30" : "bg-indigo-200"
-            )}></div>
+            <div className="h-5 w-1/4 rounded-md bg-vynal-purple-secondary/30"></div>
+            <div className="h-8 w-20 rounded-full bg-vynal-accent-primary/30"></div>
           </div>
         </div>
       </div>
     ));
-  }, [count, isDarkMode, densityStyles, showShimmer, preserveAspectRatio]);
+  }, [count, densityStyles, showShimmer, preserveAspectRatio]);
 
   return (
     <>

@@ -392,6 +392,12 @@ const ServiceCard = memo<ServiceCardProps>(
     const searchQuery = searchParams.get('search') || '';
     const { theme } = useTheme();
     
+    // Check if we're on the client side to prevent hydration mismatches
+    const [isClient, setIsClient] = useState(false);
+    useEffect(() => {
+      setIsClient(true);
+    }, []);
+    
     // Store local state in a reducer for better management
     const [state, dispatch] = useReducer(
       (state: any, action: { type: string; payload?: any }) => {
@@ -603,6 +609,10 @@ const ServiceCard = memo<ServiceCardProps>(
         handleCardClick(e as unknown as React.MouseEvent);
       }
     }, [handleCardClick]);
+  
+    // Apply theme detection only on client side
+    const { resolvedTheme } = useTheme();
+    const isDarkMode = isClient ? resolvedTheme === 'dark' : false;
   
     // Simplified JSX structure - grouped by logical sections
     return (

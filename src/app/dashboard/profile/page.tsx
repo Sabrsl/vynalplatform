@@ -27,6 +27,7 @@ import {
 import { useToast } from "@/components/ui/use-toast";
 import { ProfileQRShare } from "@/components/profile/ProfileQRShare";
 import Image from "next/image";
+import { ProfilePageSkeleton } from "@/components/skeletons/ProfilePageSkeleton";
 
 export default function ProfilePage() {
   const { user } = useAuth();
@@ -224,11 +225,7 @@ export default function ProfilePage() {
   };
 
   if (profileLoading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <Loader2 className="animate-spin h-8 w-8 text-indigo-600" />
-      </div>
-    );
+    return <ProfilePageSkeleton />;
   }
 
   const formatDate = (dateString: string | null) => {

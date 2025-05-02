@@ -1,5 +1,7 @@
+import { Suspense } from 'react';
 import { Metadata } from "next";
-import { FinancesPageClient } from ".";
+import { FinancesPageClient } from './FinancesPageClient';
+import { FinancesPageSkeleton } from '@/components/skeletons/FinancesPageSkeleton';
 
 export const metadata: Metadata = {
   title: "Mes finances | Vynal",
@@ -10,5 +12,9 @@ export const metadata: Metadata = {
 export const dynamic = 'force-dynamic';
 
 export default function FinancesPage() {
-  return <FinancesPageClient />;
+  return (
+    <Suspense fallback={<FinancesPageSkeleton />}>
+      <FinancesPageClient />
+    </Suspense>
+  );
 } 

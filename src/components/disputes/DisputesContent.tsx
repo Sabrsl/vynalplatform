@@ -127,7 +127,7 @@ export function DisputesContent() {
                     <p className="text-xs sm:text-sm font-medium text-slate-500 dark:text-vynal-text-secondary">{card.title}</p>
                     <h2 className="text-base sm:text-lg font-bold text-slate-800 dark:text-vynal-text-primary mt-1">
                       {loading ? (
-                        <div className="animate-pulse w-8 h-6 bg-slate-200 dark:bg-vynal-purple-secondary/30 rounded"></div>
+                        <div className="animate-pulse w-8 h-6 bg-vynal-purple-secondary/30 rounded"></div>
                       ) : (
                         card.value
                       )}

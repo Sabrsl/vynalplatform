@@ -11,6 +11,7 @@ import Link from "next/link";
 import { formatPrice } from "@/lib/utils";
 import { useUser } from "@/hooks/useUser";
 import { useOrders } from "@/hooks/useOrders";
+import { OrdersPageSkeleton } from "@/components/skeletons/OrdersPageSkeleton";
 
 export default function OrdersPage() {
   const { isFreelance } = useUser();
@@ -39,6 +40,11 @@ export default function OrdersPage() {
     itemsPerPage: 9,
     useCache: true
   });
+
+  // Display the skeleton loading state
+  if (loading && !isRefreshing) {
+    return <OrdersPageSkeleton />;
+  }
 
   // Calculer le nombre total de pages
   const totalPages = Math.ceil(totalCount / itemsPerPage);

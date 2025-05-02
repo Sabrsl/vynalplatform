@@ -18,9 +18,9 @@ export function TransactionsList({ transactions, isLoading }: TransactionsListPr
         <CardContent className="p-4">
           <div className="flex justify-center items-center min-h-[200px]">
             <div className="animate-pulse space-y-2">
-              <div className="h-4 w-48 bg-gray-200 rounded"></div>
-              <div className="h-4 w-36 bg-gray-200 rounded"></div>
-              <div className="h-4 w-40 bg-gray-200 rounded"></div>
+              <div className="h-4 w-48 bg-vynal-purple-secondary/30 rounded"></div>
+              <div className="h-4 w-36 bg-vynal-purple-secondary/30 rounded"></div>
+              <div className="h-4 w-40 bg-vynal-purple-secondary/30 rounded"></div>
             </div>
           </div>
         </CardContent>
