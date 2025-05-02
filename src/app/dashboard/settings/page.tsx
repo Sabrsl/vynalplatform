@@ -72,6 +72,7 @@ import {
 import { QRCode } from "@/components/ui/qrcode";
 import { signDocument } from "@/utils/document-signing";
 import { Loader } from "@/components/ui/loader";
+import { SettingsPageSkeleton } from "@/components/skeletons/SettingsPageSkeleton";
 
 // Définir une interface pour le profil utilisateur
 interface UserProfile {
@@ -116,6 +117,88 @@ export default function SettingsPage() {
   const deleteInputRef = useRef<HTMLInputElement>(null);
   // Référence au conteneur de profil pour le PDF
   const profilePdfRef = useRef<HTMLDivElement>(null);
+
+  // Chargement du profil utilisateur et vérification du blocage de téléchargement
+  useEffect(() => {
+    let isMounted = true;
+    
+    const fetchProfile = async () => {
+      if (!authUser) {
+        setIsLoading(false);
+        return;
+      }
+      
+      try {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", authUser.id)
+          .single();
+        
+        if (error) throw error;
+        
+        if (isMounted) {
+          setUserProfile(data);
+          if (data.phone_number) {
+            setPhoneNumber(data.phone_number);
+          }
+          
+          // Récupérer les paramètres expérimentaux
+          setBetaAccess(data.beta_access || false);
+          setNewDesigns(data.new_designs || false);
+          setAiSuggestions(data.ai_suggestions || false);
+          
+          // Vérification du blocage pour les données
+          if (data.last_data_download) {
+            const lastDownload = new Date(data.last_data_download);
+            const now = new Date();
+            const diffDays = Math.floor((now.getTime() - lastDownload.getTime()) / (1000 * 60 * 60 * 24));
+            
+            if (diffDays < 30) {
+              setBlockRemainingDays(30 - diffDays);
+            } else {
+              setBlockRemainingDays(0);
+            }
+          }
+          
+          // Vérification du blocage pour le PDF du profil
+          if (data.last_profile_pdf_download) {
+            const lastPdfDownload = new Date(data.last_profile_pdf_download);
+            const now = new Date();
+            const diffDays = Math.floor((now.getTime() - lastPdfDownload.getTime()) / (1000 * 60 * 60 * 24));
+            
+            if (diffDays < 30) {
+              setPdfBlockRemainingDays(30 - diffDays);
+            } else {
+              setPdfBlockRemainingDays(0);
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching user profile:", error);
+        toast({
+          title: "Erreur",
+          description: "Impossible de charger votre profil. Veuillez réessayer.",
+          variant: "destructive",
+        });
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+    
+    fetchProfile();
+    
+    return () => {
+      isMounted = false;
+    };
+  }, [authUser, supabase, toast]);
+
+  // Display skeleton while loading
+  if (isLoading || isUserLoading) {
+    return <SettingsPageSkeleton />;
+  }
 
   // Fonction pour convertir un objet en CSV
   const convertToCSV = (data: any[], fields: string[]) => {
@@ -201,37 +284,6 @@ export default function SettingsPage() {
     }
   };
   
-  // Vérification du blocage de téléchargement
-  useEffect(() => {
-    if (!authUser || !userProfile) return;
-    
-    // Vérification du blocage pour les données
-    if (userProfile.last_data_download) {
-      const lastDownload = new Date(userProfile.last_data_download);
-      const now = new Date();
-      const diffDays = Math.floor((now.getTime() - lastDownload.getTime()) / (1000 * 60 * 60 * 24));
-      
-      if (diffDays < 30) {
-        setBlockRemainingDays(30 - diffDays);
-      } else {
-        setBlockRemainingDays(0);
-      }
-    }
-    
-    // Vérification du blocage pour le PDF du profil
-    if (userProfile.last_profile_pdf_download) {
-      const lastPdfDownload = new Date(userProfile.last_profile_pdf_download);
-      const now = new Date();
-      const diffDays = Math.floor((now.getTime() - lastPdfDownload.getTime()) / (1000 * 60 * 60 * 24));
-      
-      if (diffDays < 30) {
-        setPdfBlockRemainingDays(30 - diffDays);
-      } else {
-        setPdfBlockRemainingDays(0);
-      }
-    }
-  }, [authUser, userProfile]);
-
   // Gestion du téléchargement des données
   const handleDataDownload = async () => {
     // Vérification du blocage
@@ -944,47 +996,6 @@ export default function SettingsPage() {
     }
   };
 
-  // Chargement du profil utilisateur
-  useEffect(() => {
-    const fetchUserProfile = async () => {
-      if (!authUser) {
-        setIsLoading(false);
-          return;
-        }
-        
-      try {
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", authUser.id)
-          .single();
-        
-        if (error) throw error;
-
-        setUserProfile(data);
-        if (data.phone_number) {
-          setPhoneNumber(data.phone_number);
-        }
-        
-        // Récupérer les paramètres expérimentaux
-        setBetaAccess(data.beta_access || false);
-        setNewDesigns(data.new_designs || false);
-        setAiSuggestions(data.ai_suggestions || false);
-      } catch (error) {
-        console.error("Error fetching user profile:", error);
-        toast({
-          title: "Erreur",
-          description: "Impossible de charger votre profil. Veuillez réessayer.",
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchUserProfile();
-  }, [authUser, supabase, toast]);
-
   // Demande d'un code de vérification
   const requestVerificationCode = async () => {
     try {
@@ -1085,15 +1096,6 @@ export default function SettingsPage() {
       setIsDisabling2FA(false);
     }
   };
-
-  // Si les données sont en cours de chargement
-  if (isLoading || isUserLoading) {
-    return (
-      <div className="flex h-full w-full items-center justify-center">
-        <Loader size="lg" variant="primary" showText={true} />
-      </div>
-    );
-  }
 
   return (
     <div className="w-full h-full overflow-x-hidden overflow-y-auto scrollbar-hide bg-gray-50/50 dark:bg-transparent">
