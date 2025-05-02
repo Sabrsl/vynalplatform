@@ -20,6 +20,7 @@ import { testConnection } from '@/lib/supabase/client';
 import { PaginationControls } from '@/components/ui/pagination';
 import ServiceSkeletonLoader from '@/components/services/ServiceSkeletonLoader';
 import { filterServicesBySearchTerm } from '@/lib/search/smartSearch';
+import { PublicServicesPageSkeleton } from '@/components/skeletons/PublicServicesPageSkeleton';
 
 // Ordre exact des catégories comme défini dans le seed.sql
 const CATEGORY_ORDER = [
@@ -38,26 +39,6 @@ const CATEGORY_ORDER = [
   'religion-spiritualite',
   'sante-bien-etre'
 ];
-
-// Composant de chargement simplifié
-function ServicesPageLoading() {
-  return (
-    <div className="min-h-screen bg-vynal-purple-dark">
-      <section className="bg-gradient-to-b from-vynal-purple-dark to-vynal-purple-darkest py-8 lg:py-14 relative">
-        <div className="container mx-auto px-4 relative z-10">
-          <div className="text-center max-w-3xl mx-auto pt-4">
-            <div className="w-32 h-6 bg-vynal-purple-secondary/30 rounded-full mx-auto mb-4"></div>
-            <div className="w-64 h-10 bg-vynal-purple-secondary/30 rounded-lg mx-auto mb-4"></div>
-            <div className="w-48 h-4 bg-vynal-purple-secondary/30 rounded mx-auto"></div>
-          </div>
-        </div>
-      </section>
-      <div className="container mx-auto px-4 py-12">
-        <ServiceSkeletonLoader count={12} />
-      </div>
-    </div>
-  );
-}
 
 // Statistiques pour la page
 const STATS_DATA = {
@@ -550,7 +531,11 @@ function ServicesPageContent() {
               exit={{ opacity: 0 }}
               key="loading"
             >
-              <ServiceSkeletonLoader count={12} />
+              <ServiceSkeletonLoader 
+                count={12}
+                showShimmer={true}
+                className="mb-4"
+              />
             </motion.div>
           ) : (
             <motion.div
@@ -615,11 +600,11 @@ function ServicesPageContent() {
 // Component principal avec Suspense
 export default function ServicesPage() {
   return (
-    <Suspense fallback={<ServicesPageLoading />}>
+    <Suspense fallback={<PublicServicesPageSkeleton />}>
       {/* Use key={Math.random()} to avoid hydration mismatch and ensure client-side rendering */}
       <div suppressHydrationWarning>
         {typeof window === 'undefined' ? (
-          <ServicesPageLoading />
+          <PublicServicesPageSkeleton />
         ) : (
           <ServicesPageContent />
         )}
