@@ -18,6 +18,7 @@ const templateArg = args.find(arg => !arg.includes('@'));
 
 // Charger les variables d'environnement
 const path = require('path');
+const sanitizeHtml = require('sanitize-html');
 const fs = require('fs');
 const readline = require('readline');
 
@@ -218,9 +219,10 @@ async function sendTemplateEmail(to, templateName) {
     
     // Créer un texte simple alternatif (version sans HTML)
     // Méthode sécurisée pour convertir HTML en texte
+    const sanitizeHtml = require('sanitize-html');
     const text = (() => {
-      // 1. Supprimer les balises HTML
-      let plainText = html.replace(/<[^>]*>/g, '');
+      // 1. Supprimer les balises HTML de manière sécurisée
+      let plainText = sanitizeHtml(html, { allowedTags: [], allowedAttributes: {} });
       
       // 2. Décoder les entités HTML communes (dans un ordre précis)
       plainText = plainText
