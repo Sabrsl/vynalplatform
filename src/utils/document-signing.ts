@@ -1,11 +1,7 @@
 import CryptoJS from 'crypto-js';
 
-// Clé secrète pour la signature HMAC - doit être définie dans les variables d'environnement
-const SECRET_KEY = process.env.NEXT_PUBLIC_HMAC_SECRET_KEY;
-
-if (!SECRET_KEY) {
-  throw new Error('HMAC_SECRET_KEY environment variable is not defined');
-}
+// Clé secrète pour la signature HMAC
+const SECRET_KEY = process.env.NEXT_PUBLIC_HMAC_SECRET_KEY || 'vynal-platform-document-verification-key';
 
 /**
  * Génère une signature HMAC-SHA256 pour un document
