@@ -224,12 +224,12 @@ async function sendTemplateEmail(to, templateName) {
       
       // 2. Décoder les entités HTML communes (dans un ordre précis)
       plainText = plainText
-        .replace(/&amp;/g, '&')  // Décoder &amp; en premier pour éviter les doubles décodages
         .replace(/&lt;/g, '<')
         .replace(/&gt;/g, '>')
         .replace(/&quot;/g, '"')
         .replace(/&#39;/g, "'")
-        .replace(/&nbsp;/g, ' ');
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&amp;/g, '&');  // Décoder &amp; en dernier pour éviter les doubles décodages
       
       // 3. Normaliser les espaces
       plainText = plainText.replace(/\s+/g, ' ').trim();
