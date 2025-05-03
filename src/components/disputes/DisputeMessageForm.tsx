@@ -27,11 +27,32 @@ export function DisputeMessageForm({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   
-  // Gérer les raccourcis clavier
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (disabled || isSending || !message.trim()) return;
+
+    setIsSending(true);
+    try {
+      await onSendMessage(message, file ? file.name : undefined);
+      setMessage('');
+      setFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      
+      toast({
+        title: "Message envoyé",
+        description: "Votre message a été envoyé avec succès."
+      });
+    } catch (error) {
+      console.error('Error sending message:', error);
+      setError("Une erreur est survenue lors de l'envoi du message.");
+    } finally {
+      setIsSending(false);
+    }
+  }, [message, disabled, isSending, onSendMessage, file, toast]);
+  
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ctrl/Cmd + Enter pour envoyer le message
-      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !disabled && !isSending && message.trim()) {
+      if (e.key === 'Enter' && !e.shiftKey && !disabled && !isSending) {
         e.preventDefault();
         handleSubmit(new Event('submit') as any);
       }
@@ -39,7 +60,7 @@ export function DisputeMessageForm({
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [message, disabled, isSending]);
+  }, [message, disabled, isSending, handleSubmit]);
   
   // Focus automatique sur le textarea
   useEffect(() => {
@@ -57,9 +78,17 @@ export function DisputeMessageForm({
   const getFileIcon = useCallback((fileName: string) => {
     const extension = fileName.split('.').pop()?.toLowerCase();
     if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(extension || '')) {
-      return <Image className="h-3 w-3 sm:h-4 sm:w-4 text-indigo-500" strokeWidth={2.5} />;
+      return (
+        <span aria-label="Image">
+          <Image className="h-3 w-3 sm:h-4 sm:w-4 text-indigo-500" strokeWidth={2.5} />
+        </span>
+      );
     }
-    return <FileText className="h-3 w-3 sm:h-4 sm:w-4 text-indigo-500" strokeWidth={2.5} />;
+    return (
+      <span aria-label="Document">
+        <FileText className="h-3 w-3 sm:h-4 sm:w-4 text-indigo-500" strokeWidth={2.5} />
+      </span>
+    );
   }, []);
   
   // Optimisé le gestionnaire de changement de fichier
@@ -94,75 +123,6 @@ export function DisputeMessageForm({
       textareaRef.current.focus();
     }
   }, []);
-  
-  // Mémoriser le gestionnaire de soumission
-  const handleSubmit = useCallback(async (e: FormEvent) => {
-    e.preventDefault();
-    
-    if (!message.trim()) {
-      return;
-    }
-    
-    if (disabled || isSending) {
-      return;
-    }
-    
-    try {
-      setIsSending(true);
-      setError(null);
-      
-      let attachmentUrl: string | undefined = undefined;
-      
-      // Upload du fichier si présent
-      if (file) {
-        try {
-          const formData = new FormData();
-          formData.append('file', file);
-          
-          const response = await fetch(`/api/disputes/${disputeId}/upload`, {
-            method: 'POST',
-            body: formData
-          });
-          
-          if (!response.ok) {
-            throw new Error("Échec de l'upload du fichier");
-          }
-          
-          const data = await response.json();
-          attachmentUrl = data.url;
-        } catch (uploadError) {
-          toast({
-            title: "Erreur",
-            description: "L'upload du fichier a échoué.",
-            variant: "destructive"
-          });
-          setIsSending(false);
-          return;
-        }
-      }
-      
-      const success = await onSendMessage(message, attachmentUrl);
-      
-      if (success) {
-        setMessage('');
-        setFile(null);
-        // Réinitialiser l'input file
-        if (fileInputRef.current) fileInputRef.current.value = '';
-        
-        toast({
-          title: "Message envoyé",
-          description: "Votre message a été envoyé avec succès."
-        });
-      } else {
-        setError("Échec de l'envoi du message. Veuillez réessayer.");
-      }
-    } catch (err) {
-      console.error('Error sending message:', err);
-      setError("Une erreur est survenue lors de l'envoi du message.");
-    } finally {
-      setIsSending(false);
-    }
-  }, [message, disabled, isSending, file, disputeId, onSendMessage, toast]);
   
   return (
     <motion.form 

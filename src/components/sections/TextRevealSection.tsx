@@ -23,7 +23,7 @@ export const TextRevealSection = memo(({
   buttonLink = "/contact"
 }: TextRevealSectionProps & { revealText?: string }) => {
   return (
-    <section className="py-24">
+    <section className="py-16 md:py-24">
       <div className="container mx-auto px-4">
         <div className="flex flex-col items-center justify-center">
           {eyebrow && (

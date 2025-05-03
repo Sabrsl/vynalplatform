@@ -13,6 +13,7 @@ import {
 
 export type Message = Database['public']['Tables']['messages']['Row'] & {
   sender?: UserProfile;
+  order_id?: string;
 };
 
 export type ConversationParticipant = UserProfile & {
@@ -28,6 +29,19 @@ export type Conversation = Database['public']['Tables']['conversations']['Row'] 
     created_at: string;
     sender_id: string;
   };
+  // Champs optionnels pour les conversations de commandes
+  order_id?: string;
+  service_title?: string;
+};
+
+type OrderResponse = {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  client_id: string;
+  freelance_id: string;
+  services: { title: string }[];
+  profiles: UserProfile;
 };
 
 type MessagingState = {
@@ -46,6 +60,7 @@ type MessagingState = {
   setupRealtimeSubscriptions: (userId: string) => () => void;
   clearError: () => void;
   markSpecificMessagesAsRead: (conversationId: string, userId: string, messageIds: string[]) => Promise<void>;
+  setMessages: (messages: Message[]) => void;
 };
 
 export const useMessagingStore = create<MessagingState>(
@@ -110,6 +125,123 @@ export const useMessagingStore = create<MessagingState>(
               return;
             }
             
+            // Récupérer le rôle de l'utilisateur courant
+            const { data: userData, error: userError } = await supabase
+              .from('profiles')
+              .select('role')
+              .eq('id', userId)
+              .single();
+            
+            if (userError) {
+              console.error("Erreur lors de la récupération du rôle de l'utilisateur:", userError);
+            }
+            
+            const userRole = userData?.role;
+            console.log(`Rôle de l'utilisateur actuel: ${userRole}`);
+            
+            const isFreelance = userRole === 'freelance';
+            
+            // Récupérer les messages de commandes si utilisateur est un freelance
+            let orderConversations: Conversation[] = [];
+            
+            if (isFreelance) {
+              console.log("Recherche de messages de commandes pour le freelance...");
+              try {
+                // Récupérer les commandes où l'utilisateur est le freelance
+                const { data: ordersData, error: ordersError } = await supabase
+                  .from('orders')
+                  .select(`
+                    id,
+                    created_at,
+                    updated_at,
+                    client_id,
+                    freelance_id,
+                    services(title),
+                    profiles!orders_client_id_fkey(id, username, full_name, avatar_url, role)
+                  `)
+                  .eq('freelance_id', userId) as { data: OrderResponse[] | null, error: any };
+                
+                if (ordersError) {
+                  console.error("Erreur lors de la récupération des commandes:", ordersError);
+                } else if (ordersData && ordersData.length > 0) {
+                  console.log(`${ordersData.length} commandes trouvées pour le freelance`);
+                  
+                  // Pour chaque commande, récupérer le dernier message
+                  for (const order of ordersData) {
+                    // Vérifier s'il y a des messages pour cette commande
+                    const { data: orderMessages, error: messagesError } = await supabase
+                      .from('messages')
+                      .select('id, content, created_at, sender_id, read')
+                      .eq('order_id', order.id)
+                      .order('created_at', { ascending: false })
+                      .limit(1);
+                      
+                    if (messagesError) {
+                      console.error(`Erreur lors de la récupération des messages pour la commande ${order.id}:`, messagesError);
+                      continue;
+                    }
+                    
+                    if (orderMessages && orderMessages.length > 0) {
+                      const lastMessage = orderMessages[0];
+                      
+                      // Compter les messages non lus
+                      const { count: unreadCount, error: countError } = await supabase
+                        .from('messages')
+                        .select('id', { count: 'exact' })
+                        .eq('order_id', order.id)
+                        .eq('read', false)
+                        .neq('sender_id', userId);
+                        
+                      if (countError) {
+                        console.error(`Erreur lors du comptage des messages non lus pour la commande ${order.id}:`, countError);
+                      }
+                      
+                      // Créer une "pseudo-conversation" pour cette commande
+                      // Préparer un participant qui correspond à la définition de ConversationParticipant
+                      const clientProfile: ConversationParticipant = {
+                        id: (order.profiles as any)?.id || '',
+                        username: (order.profiles as any)?.username || '',
+                        full_name: (order.profiles as any)?.full_name || '',
+                        avatar_url: (order.profiles as any)?.avatar_url || '',
+                        role: ((order.profiles as any)?.role) || 'client',
+                        email: '',
+                        bio: '',
+                        created_at: order.created_at || new Date().toISOString(),
+                        updated_at: order.updated_at || new Date().toISOString(),
+                        last_seen: null,
+                        unread_count: unreadCount || 0,
+                        online: false,
+                        verification_level: 0,
+                        phone: null
+                      };
+                      
+                      const orderConversation: Conversation = {
+                        id: `order-${order.id}`, // ID unique pour cette "conversation de commande"
+                        created_at: order.created_at,
+                        updated_at: order.updated_at,
+                        last_message_id: lastMessage.id,
+                        last_message_time: lastMessage.created_at,
+                        participants: [clientProfile],
+                        last_message: {
+                          content: lastMessage.content,
+                          created_at: lastMessage.created_at,
+                          sender_id: lastMessage.sender_id
+                        },
+                        order_id: order.id, // Ajout d'un champ pour identifier que c'est une commande
+                        service_title: Array.isArray(order.services) && order.services[0] ? order.services[0].title : 'Commande' // Titre du service pour l'affichage
+                      };
+                      
+                      orderConversations.push(orderConversation);
+                    }
+                  }
+                  
+                  console.log(`${orderConversations.length} conversations de commandes créées`);
+                }
+              } catch (orderError) {
+                console.error("Erreur lors de la récupération des commandes:", orderError);
+              }
+            }
+            
             // Approche simplifiée: récupérer les conversations à partir des participants avec jointure
             const { data, error } = await supabase
               .from('conversation_participants')
@@ -134,6 +266,14 @@ export const useMessagingStore = create<MessagingState>(
             
             if (!data || data.length === 0) {
               console.log("Aucune conversation trouvée pour l'utilisateur");
+              
+              // Si on a des conversations de commandes mais pas de conversations normales
+              if (orderConversations.length > 0) {
+                console.log("Retour des conversations de commandes uniquement");
+                set({ conversations: orderConversations, isLoading: false });
+                return orderConversations;
+              }
+              
               set({ conversations: [], isLoading: false });
               return;
             }
@@ -146,6 +286,14 @@ export const useMessagingStore = create<MessagingState>(
             
             if (conversationIds.length === 0) {
               console.log("Aucune conversation valide trouvée");
+              
+              // Si on a des conversations de commandes mais pas de conversations normales
+              if (orderConversations.length > 0) {
+                console.log("Retour des conversations de commandes uniquement");
+                set({ conversations: orderConversations, isLoading: false });
+                return orderConversations;
+              }
+              
               set({ conversations: [], isLoading: false });
               return;
             }
@@ -256,47 +404,56 @@ export const useMessagingStore = create<MessagingState>(
               } as Conversation;
             });
             
-            // Récupérer le rôle de l'utilisateur courant
-            const { data: userData, error: userError } = await supabase
-              .from('profiles')
-              .select('role')
-              .eq('id', userId)
-              .single();
-
-            if (userError) {
-              console.error("Erreur lors de la récupération du rôle de l'utilisateur:", userError);
-            } else {
-              const userRole = userData?.role;
-              console.log(`Rôle de l'utilisateur actuel: ${userRole}`);
-
-              // Filtrer les conversations pour ne montrer que celles avec des utilisateurs du rôle complémentaire
-              if (userRole) {
-                const compatibleRole = userRole === 'freelance' ? 'client' : 'freelance';
+            // Combiner les conversations régulières avec les conversations de commandes
+            let combinedConversations = [...processedConversations, ...orderConversations];
+            
+            // Ne pas filtrer par rôle pour les freelances pour s'assurer qu'ils voient tous leurs messages
+            // Pour les clients, on peut toujours filtrer pour ne montrer que les conversations avec des freelances
+            if (userRole) {
+              if (userRole === 'freelance') {
+                // Les freelances doivent voir toutes leurs conversations
+                console.log(`Utilisateur freelance: affichage de toutes les ${combinedConversations.length} conversations`);
                 
-                const filteredConversations = processedConversations.filter(conversation => {
+                // Trier par date du dernier message
+                combinedConversations.sort((a, b) => {
+                  const aTime = a.last_message_time || a.updated_at || a.created_at;
+                  const bTime = b.last_message_time || b.updated_at || b.created_at;
+                  return new Date(bTime).getTime() - new Date(aTime).getTime();
+                });
+                
+                set({ conversations: combinedConversations, isLoading: false });
+                return combinedConversations;
+              } else {
+                // Pour les clients, on filtre comme avant
+                const compatibleRole = 'freelance'; // Les clients ne voient que les conversations avec des freelances
+                
+                const filteredConversations = combinedConversations.filter(conversation => {
+                  // Si c'est une conversation de commande, l'inclure automatiquement
+                  if ('order_id' in conversation) return true;
+                  
                   // Trouver l'autre participant (autre que l'utilisateur actuel)
                   const otherParticipant = conversation.participants.find(p => p.id !== userId);
                   // Vérifier si l'autre participant a le rôle compatible
                   return otherParticipant?.role === compatibleRole;
                 });
                 
-                console.log(`${filteredConversations.length}/${processedConversations.length} conversations filtrées par rôle`);
+                console.log(`${filteredConversations.length}/${combinedConversations.length} conversations filtrées par rôle pour client`);
                 set({ conversations: filteredConversations, isLoading: false });
-                return;
+                return filteredConversations;
               }
             }
 
             // Si pas de filtrage par rôle (erreur ou rôle non défini), on garde toutes les conversations
-            console.log(`${processedConversations.length} conversations traitées avec succès`);
-            set({ conversations: processedConversations, isLoading: false });
+            console.log(`${combinedConversations.length} conversations traitées avec succès`);
+            set({ conversations: combinedConversations, isLoading: false });
 
-            if (processedConversations.length > 10) {
+            if (combinedConversations.length > 10) {
               // Compresser les données si trop nombreuses
-              const compressedData = compressConversationData(processedConversations);
+              const compressedData = compressConversationData(combinedConversations);
               set({ conversations: compressedData as Conversation[], isLoading: false });
             }
             
-            return processedConversations;
+            return combinedConversations;
           } catch (err: any) {
             console.error('Erreur détaillée lors de la récupération des conversations:', err);
             set({ 
@@ -335,25 +492,68 @@ export const useMessagingStore = create<MessagingState>(
             
             console.log(`Vérification des permissions pour l'utilisateur ${userId}...`);
             
-            const { data: participantCheck, error: participantError } = await supabase
-              .from('conversation_participants')
-              .select('conversation_id')
-              .eq('conversation_id', conversationId)
-              .eq('participant_id', userId)
-              .maybeSingle();
-            
-            if (participantError) {
-              console.error("Erreur lors de la vérification des permissions:", participantError);
-              throw new Error(`Permission refusée: ${participantError.message}`);
-            }
-            
-            if (!participantCheck) {
-              console.error("L'utilisateur n'a pas accès à cette conversation");
-              throw new Error("Vous n'avez pas accès à cette conversation");
+            // Si c'est une conversation de commande, vérifier directement l'accès à la commande
+            if (conversationId.startsWith('order-')) {
+              const orderId = conversationId.replace('order-', '');
+              const { data: orderData, error: orderError } = await supabase
+                .from('orders')
+                .select(`
+                  id,
+                  created_at,
+                  updated_at,
+                  client_id,
+                  freelance_id,
+                  services(title),
+                  profiles!orders_client_id_fkey(
+                    id,
+                    username,
+                    full_name,
+                    avatar_url,
+                    bio,
+                    role,
+                    email,
+                    created_at,
+                    updated_at,
+                    verification_level,
+                    last_seen,
+                    phone
+                  )
+                `)
+                .eq('id', orderId)
+                .single();
+                
+              if (orderError) {
+                console.error("Erreur lors de la vérification de l'accès à la commande:", orderError);
+                throw new Error(`Permission refusée: ${orderError.message}`);
+              }
+              
+              if (!orderData || (orderData.freelance_id !== userId && orderData.client_id !== userId)) {
+                console.error("L'utilisateur n'a pas accès à cette commande");
+                throw new Error("Vous n'avez pas accès à cette commande");
+              }
+            } else {
+              // Pour les conversations normales, vérifier via conversation_participants
+              const { data: participantCheck, error: participantError } = await supabase
+                .from('conversation_participants')
+                .select('conversation_id')
+                .eq('conversation_id', conversationId)
+                .eq('participant_id', userId)
+                .maybeSingle();
+              
+              if (participantError) {
+                console.error("Erreur lors de la vérification des permissions:", participantError);
+                throw new Error(`Permission refusée: ${participantError.message}`);
+              }
+              
+              if (!participantCheck) {
+                console.error("L'utilisateur n'a pas accès à cette conversation");
+                throw new Error("Vous n'avez pas accès à cette conversation");
+              }
             }
             
             console.log("Accès vérifié, récupération des messages...");
             
+            // Récupérer les messages avec les informations de l'expéditeur
             const { data, error } = await supabase
               .from('messages')
               .select(`
@@ -367,10 +567,14 @@ export const useMessagingStore = create<MessagingState>(
                   role,
                   email,
                   created_at,
-                  updated_at
+                  updated_at,
+                  verification_level,
+                  last_seen,
+                  phone
                 )
               `)
-              .eq('conversation_id', conversationId)
+              .eq(conversationId.startsWith('order-') ? 'order_id' : 'conversation_id', 
+                  conversationId.startsWith('order-') ? conversationId.replace('order-', '') : conversationId)
               .order('created_at', { ascending: true });
 
             if (error) {
@@ -380,28 +584,119 @@ export const useMessagingStore = create<MessagingState>(
             
             console.log(`${data?.length || 0} messages récupérés avec succès`);
 
-            const messages = data.map((msg: any) => ({
-              ...msg,
-              sender: msg.profiles
-            }));
+            // Transformer les messages pour inclure les informations de l'expéditeur
+            const messages = data.map((msg: any) => {
+              // Créer un objet message avec les informations de base
+              const message: Message = {
+                id: msg.id,
+                sender_id: msg.sender_id,
+                content: msg.content,
+                created_at: msg.created_at,
+                read: msg.read,
+                attachment_url: msg.attachment_url,
+                attachment_type: msg.attachment_type,
+                attachment_name: msg.attachment_name,
+                conversation_id: msg.conversation_id,
+                order_id: msg.order_id,
+                is_typing: false,
+                sender: msg.profiles ? {
+                  id: msg.profiles.id,
+                  username: msg.profiles.username,
+                  full_name: msg.profiles.full_name,
+                  avatar_url: msg.profiles.avatar_url,
+                  bio: msg.profiles.bio,
+                  role: msg.profiles.role,
+                  email: msg.profiles.email,
+                  created_at: msg.profiles.created_at,
+                  updated_at: msg.profiles.updated_at,
+                  verification_level: msg.profiles.verification_level,
+                  last_seen: msg.profiles.last_seen,
+                  phone: msg.profiles.phone
+                } : undefined
+              };
 
+              return message;
+            });
+
+            // Mettre à jour la conversation active avant de mettre à jour les messages
+            const { conversations } = get();
+            let activeConversation = conversations.find((c: Conversation) => c.id === conversationId);
+            
+            if (!activeConversation) {
+              console.log("Conversation non trouvée dans la liste, création d'une nouvelle conversation...");
+              if (conversationId.startsWith('order-')) {
+                const orderId = conversationId.replace('order-', '');
+                const { data: orderData } = await supabase
+                  .from('orders')
+                  .select(`
+                    id,
+                    created_at,
+                    updated_at,
+                    client_id,
+                    freelance_id,
+                    services(title),
+                    profiles!orders_client_id_fkey(
+                      id,
+                      username,
+                      full_name,
+                      avatar_url,
+                      bio,
+                      role,
+                      email,
+                      created_at,
+                      updated_at,
+                      verification_level,
+                      last_seen,
+                      phone
+                    )
+                  `)
+                  .eq('id', orderId)
+                  .single();
+                  
+                if (orderData) {
+                  const clientProfile = orderData.profiles as unknown as UserProfile;
+                  activeConversation = {
+                    id: conversationId,
+                    created_at: orderData.created_at,
+                    updated_at: orderData.updated_at,
+                    last_message_id: null,
+                    last_message_time: null,
+                    participants: [
+                      {
+                        ...clientProfile,
+                        unread_count: 0,
+                        online: false,
+                        last_seen: null
+                      }
+                    ],
+                    order_id: orderId,
+                    service_title: orderData.services?.[0]?.title || 'Commande'
+                  } as Conversation;
+                }
+              }
+            }
+
+            if (activeConversation) {
+              // Mettre à jour le dernier message de la conversation
+              const lastMessage = messages[messages.length - 1];
+              if (lastMessage) {
+                activeConversation.last_message = {
+                  content: lastMessage.content,
+                  created_at: lastMessage.created_at,
+                  sender_id: lastMessage.sender_id
+                };
+              }
+              
+              set({ activeConversation });
+            }
+
+            // Mettre à jour les messages
             if (shouldCompressMessages(messages, 30)) {
-              // Compresser si plus de 30 messages
               const compressedMessages = compressMessageData(messages);
               set({ messages: compressedMessages as Message[], isLoading: false });
             } else {
               set({ messages, isLoading: false });
             }
-            
-            // Mettre à jour la conversation active
-            const { conversations } = get();
-            const activeConversation = conversations.find((c: Conversation) => c.id === conversationId) || null;
-            
-            if (!activeConversation) {
-              console.warn(`Conversation active non trouvée dans les conversations chargées (ID: ${conversationId})`);
-            }
-            
-            set({ activeConversation });
 
             return messages;
           } catch (err: any) {
@@ -432,21 +727,60 @@ export const useMessagingStore = create<MessagingState>(
           try {
             console.log(`Envoi d'un message dans la conversation ${conversationId} par ${senderId}`);
             
+            // Déterminer si c'est une conversation de commande
+            const isOrderConversation = conversationId.startsWith('order-');
+            const actualConversationId = isOrderConversation ? conversationId.replace('order-', '') : conversationId;
+            
             // Créer un nouveau message
             console.log("Insertion du message dans la base de données...");
+            const messageData: {
+              sender_id: string;
+              content: string;
+              read: boolean;
+              attachment_url: string | null;
+              attachment_type: string | null;
+              attachment_name: string | null;
+              is_typing: boolean;
+              conversation_id?: string;
+              order_id?: string;
+            } = {
+              sender_id: senderId,
+              content,
+              read: false,
+              attachment_url: attachmentUrl || null,
+              attachment_type: attachmentType || null,
+              attachment_name: attachmentName || null,
+              is_typing: false
+            };
+
+            // Ajouter le bon champ d'ID selon le type de conversation
+            if (isOrderConversation) {
+              messageData.order_id = actualConversationId;
+            } else {
+              messageData.conversation_id = actualConversationId;
+            }
+
+            // Insérer le message et récupérer les détails complets
             const { data, error } = await supabase
               .from('messages')
-              .insert({
-                conversation_id: conversationId,
-                sender_id: senderId,
-                content,
-                read: false,
-                attachment_url: attachmentUrl || null,
-                attachment_type: attachmentType || null,
-                attachment_name: attachmentName || null,
-                is_typing: false
-              })
-              .select()
+              .insert(messageData)
+              .select(`
+                *,
+                profiles:sender_id (
+                  id,
+                  username,
+                  full_name,
+                  avatar_url,
+                  bio,
+                  role,
+                  email,
+                  created_at,
+                  updated_at,
+                  verification_level,
+                  last_seen,
+                  phone
+                )
+              `)
               .single();
 
             if (error) {
@@ -457,65 +791,67 @@ export const useMessagingStore = create<MessagingState>(
             console.log("Message inséré avec succès:", data);
 
             // Mettre à jour le dernier message de la conversation
-            console.log("Mise à jour du dernier message de la conversation...");
-            const { error: updateError } = await supabase
-              .from('conversations')
-              .update({
-                last_message_id: data.id,
-                last_message_time: data.created_at,
-                updated_at: new Date().toISOString()
-              })
-              .eq('id', conversationId);
-              
-            if (updateError) {
-              console.error("Erreur lors de la mise à jour du dernier message:", updateError);
-            } else {
-              console.log("Dernier message mis à jour avec succès");
+            if (!isOrderConversation) {
+              console.log("Mise à jour du dernier message de la conversation...");
+              const { error: updateError } = await supabase
+                .from('conversations')
+                .update({
+                  last_message_id: data.id,
+                  last_message_time: data.created_at,
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', conversationId);
+                
+              if (updateError) {
+                console.error("Erreur lors de la mise à jour du dernier message:", updateError);
+              } else {
+                console.log("Dernier message mis à jour avec succès");
+              }
             }
 
-            // Mettre à jour les compteurs de messages non lus pour tous les participants sauf l'expéditeur
+            // Mettre à jour les compteurs de messages non lus
             console.log("Mise à jour des compteurs de messages non lus...");
             try {
-              await supabase.rpc('increment_unread_count', {
-                p_conversation_id: conversationId,
-                p_sender_id: senderId
-              });
+              if (isOrderConversation) {
+                // Pour les commandes, on met à jour directement le compteur
+                const { error: updateError } = await supabase
+                  .from('messages')
+                  .update({ read: false })
+                  .eq('order_id', actualConversationId)
+                  .neq('sender_id', senderId);
+                  
+                if (updateError) {
+                  console.error("Erreur lors de la mise à jour des compteurs de commande:", updateError);
+                }
+              } else {
+                await supabase.rpc('increment_unread_count', {
+                  p_conversation_id: conversationId,
+                  p_sender_id: senderId
+                });
+              }
               console.log("Compteurs de messages non lus mis à jour");
             } catch (incrementError) {
               console.error("Erreur lors de la mise à jour des compteurs:", incrementError);
             }
 
-            // Ajouter le message à la liste des messages
-            console.log("Récupération des informations de l'expéditeur...");
-            const { data: senderData, error: senderError } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', senderId)
-              .single();
-              
-            if (senderError) {
-              console.error("Erreur lors de la récupération des informations de l'expéditeur:", senderError);
-            } else {
-              console.log("Informations de l'expéditeur récupérées avec succès");
-            }
-
+            // Créer le nouveau message avec les informations de l'expéditeur
             const newMessage: Message = {
               ...data,
-              sender: senderData || undefined
+              sender: data.profiles
             };
 
+            // Mettre à jour l'état local avec le nouveau message
             set((state: MessagingState) => ({
               messages: [...state.messages, newMessage],
               isLoading: false
             }));
             
-            console.log("Message envoyé avec succès");
-
-            // Ajouter ces métriques avec les données de performances
-            const messageSize = content.length;
-            const hasAttachment = !!attachmentUrl;
+            // Rafraîchir la liste des conversations pour mettre à jour les compteurs
+            await get().fetchConversations(senderId);
             
-            return data;
+            console.log("Message envoyé avec succès");
+            
+            return newMessage;
           } catch (err) {
             console.error('Erreur détaillée lors de l\'envoi du message:', err);
             set({ error: 'Impossible d\'envoyer le message', isLoading: false });
@@ -685,12 +1021,17 @@ export const useMessagingStore = create<MessagingState>(
       try {
         console.log(`Marquage de ${messageIds.length} messages spécifiques comme lus`);
         
+        // Extraire l'ID de commande si c'est une conversation de commande
+        const actualConversationId = conversationId.startsWith('order-') 
+          ? conversationId.replace('order-', '') 
+          : conversationId;
+        
         // Mise à jour en base de données
         const { error } = await supabase
           .from('messages')
           .update({ read: true })
           .in('id', messageIds)
-          .eq('conversation_id', conversationId)
+          .eq(conversationId.startsWith('order-') ? 'order_id' : 'conversation_id', actualConversationId)
           .neq('sender_id', userId);  // Ne pas marquer les messages envoyés par l'utilisateur
           
         if (error) {
@@ -706,7 +1047,7 @@ export const useMessagingStore = create<MessagingState>(
           
           // Recalculer le nombre de messages non lus pour cette conversation
           const unreadMessages = updatedMessages.filter(
-            msg => msg.conversation_id === conversationId && 
+            msg => (msg.conversation_id === conversationId || msg.order_id === actualConversationId) && 
                   msg.sender_id !== userId && 
                   !msg.read
           ).length;
@@ -776,62 +1117,45 @@ export const useMessagingStore = create<MessagingState>(
         .on(
           'postgres_changes',
           {
-            event: 'INSERT',
+            event: '*',
             schema: 'public',
             table: 'messages'
           },
           async (payload: any) => {
             const { new: newMessage } = payload;
-            
-            // Ignorer les messages de type "is_typing"
-            if (newMessage.is_typing) {
-              return;
-            }
-            
-            // Skip empty messages
-            if (!newMessage.content || newMessage.content.trim() === '') {
-              return;
-            }
-            
-            // Récupérer les détails du message
-            const { data: messageData } = await supabase
-              .from('messages')
-              .select(`
-                *,
-                profiles:sender_id (
-                  id,
-                  username,
-                  full_name,
-                  avatar_url,
-                  bio,
-                  role,
-                  email,
-                  created_at,
-                  updated_at
-                )
-              `)
-              .eq('id', newMessage.id)
-              .single();
-              
-            if (!messageData) return;
-            
             const { activeConversation, messages } = get();
+
+            // Créer un objet message complet avec les informations de l'expéditeur
+            const messageData = {
+              ...newMessage,
+              sender: newMessage.profiles
+            };
+
+            // Vérifier si le message est pour la conversation active
+            const isForActiveConversation = 
+              (activeConversation?.id === newMessage.conversation_id) || 
+              (activeConversation?.id === `order-${newMessage.order_id}`);
             
-            // Si c'est un message pour la conversation active, l'ajouter
-            if (activeConversation?.id === newMessage.conversation_id) {
+            if (isForActiveConversation) {
               // Éviter les doublons
               if (!messages.some((m: Message) => m.id === newMessage.id)) {
+                console.log("Ajout du nouveau message à la conversation active:", messageData.id);
                 set((state: MessagingState) => ({
                   messages: [...state.messages, { ...messageData, sender: messageData.profiles }]
                 }));
-                
-                // IMPORTANT: Ne pas marquer automatiquement comme lu les nouveaux messages
-                // C'est maintenant géré par la détection de visibilité dans le composant ChatWindow
               }
             }
+
+            // Mettre à jour la liste des conversations immédiatement
+            console.log("Mise à jour de la liste des conversations suite à un nouveau message");
+            const updatedConversations = await get().fetchConversations(userId);
             
-            // Mettre à jour la liste des conversations pour refléter le nouveau message
-            get().fetchConversations(userId);
+            // S'assurer que les conversations sont bien mises à jour dans le store
+            if (updatedConversations) {
+              set((state: MessagingState) => ({
+                conversations: updatedConversations
+              }));
+            }
           }
         )
         .subscribe();
@@ -889,6 +1213,8 @@ export const useMessagingStore = create<MessagingState>(
 
     clearError: () => {
       set({ error: null });
-    }
+    },
+
+    setMessages: (messages: Message[]) => set({ messages }),
   })) as StateCreator<MessagingState>
 ); 

@@ -89,6 +89,9 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   // Traiter les valeurs potentiellement nulles avant de les passer aux composants
   const attachmentUrl = message.attachment_url || '';
   const attachmentName = message.attachment_name || 'Fichier';
+
+  // Utiliser les informations de l'expéditeur du message si disponibles
+  const senderInfo = message.sender || otherParticipant;
   
   return (
     <>
@@ -108,11 +111,11 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           <div className="flex-shrink-0 mr-2 self-end">
             <Avatar className="h-8 w-8">
               <AvatarImage 
-                src={otherParticipant?.avatar_url || ''} 
-                alt={otherParticipant?.full_name || 'Contact'} 
+                src={senderInfo?.avatar_url || ''} 
+                alt={senderInfo?.full_name || 'Contact'} 
               />
               <AvatarFallback className="bg-indigo-100 text-indigo-700">
-                {getInitials(otherParticipant?.full_name || otherParticipant?.username || 'User')}
+                {getInitials(senderInfo?.full_name || senderInfo?.username || 'User')}
               </AvatarFallback>
             </Avatar>
           </div>

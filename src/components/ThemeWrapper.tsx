@@ -37,10 +37,10 @@ const ThemeWrapper = memo(function ThemeWrapper({
     const bgClass = fullGradient 
       ? isDark 
         ? "bg-gradient-vynal" 
-        : "bg-gradient-to-b from-vynal-purple-100 to-white"
+        : "bg-gradient-to-b from-white to-gray-50"
       : isDark 
         ? "bg-vynal-purple-dark"
-        : "bg-vynal-purple-50/80";
+        : "bg-white";
     
     return cn(
       "min-h-screen",
@@ -53,19 +53,19 @@ const ThemeWrapper = memo(function ThemeWrapper({
   // Mémoriser les classes pour les éléments décoratifs
   const topCircleClasses = useMemo(() => cn(
     "absolute -top-64 -right-64 w-[600px] h-[600px]",
-    isDark ? "bg-vynal-accent-primary opacity-5" : "bg-vynal-purple-300 opacity-20",
+    isDark ? "bg-vynal-accent-primary opacity-5" : "bg-indigo-100 opacity-40",
     "rounded-full blur-3xl"
   ), [isDark]);
   
   const bottomCircleClasses = useMemo(() => cn(
     "absolute -bottom-64 -left-64 w-[600px] h-[600px]",
-    isDark ? "bg-vynal-accent-secondary opacity-5" : "bg-vynal-purple-400 opacity-15",
+    isDark ? "bg-vynal-accent-secondary opacity-5" : "bg-indigo-50 opacity-50",
     "rounded-full blur-3xl"
   ), [isDark]);
   
   const gridClasses = useMemo(() => cn(
     "absolute inset-0 bg-[url('/img/grid-pattern.svg')] bg-center",
-    isDark ? "opacity-5" : "opacity-10"
+    isDark ? "opacity-5" : "opacity-0"
   ), [isDark]);
   
   // Optimisation : ne pas rendre les éléments décoratifs si fullGradient est false

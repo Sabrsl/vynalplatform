@@ -8,8 +8,8 @@ export function DashboardPageSkeleton() {
         <div className="space-y-6">
           {/* En-tête du Dashboard */}
           <div className="flex justify-between items-center">
-            <Skeleton className="h-8 w-64 bg-vynal-purple-secondary/30" />
-            <Skeleton className="h-8 w-32 bg-vynal-purple-secondary/30" />
+            <Skeleton className="h-8 w-64 bg-gray-100 dark:bg-vynal-purple-secondary/30" />
+            <Skeleton className="h-8 w-32 bg-gray-100 dark:bg-vynal-purple-secondary/30" />
           </div>
           
           {/* Statistiques */}
@@ -18,13 +18,13 @@ export function DashboardPageSkeleton() {
               <Card key={i} className="dark:border-vynal-purple-secondary/40">
                 <CardHeader className="pb-2">
                   <div className="flex items-center">
-                    <Skeleton className="h-8 w-8 rounded-full bg-vynal-purple-secondary/30 mr-2" />
-                    <Skeleton className="h-5 w-24 bg-vynal-purple-secondary/30" />
+                    <Skeleton className="h-8 w-8 rounded-full bg-gray-100 dark:bg-vynal-purple-secondary/30 mr-2" />
+                    <Skeleton className="h-5 w-24 bg-gray-100 dark:bg-vynal-purple-secondary/30" />
                   </div>
                 </CardHeader>
                 <CardContent className="pb-4">
-                  <Skeleton className="h-7 w-16 mb-2 bg-vynal-purple-secondary/30" />
-                  <Skeleton className="h-4 w-24 rounded-md bg-vynal-purple-secondary/30" />
+                  <Skeleton className="h-7 w-16 mb-2 bg-gray-100 dark:bg-vynal-purple-secondary/30" />
+                  <Skeleton className="h-4 w-24 rounded-md bg-gray-100 dark:bg-vynal-purple-secondary/30" />
                 </CardContent>
               </Card>
             ))}
@@ -38,19 +38,19 @@ export function DashboardPageSkeleton() {
                 <CardHeader>
                   <div className="flex justify-between">
                     <div>
-                      <Skeleton className="h-6 w-36 mb-2 bg-vynal-purple-secondary/30" />
-                      <Skeleton className="h-4 w-48 bg-vynal-purple-secondary/30" />
+                      <Skeleton className="h-6 w-36 mb-2 bg-gray-100 dark:bg-vynal-purple-secondary/30" />
+                      <Skeleton className="h-4 w-48 bg-gray-100 dark:bg-vynal-purple-secondary/30" />
                     </div>
-                    <Skeleton className="h-8 w-8 rounded-full bg-vynal-purple-secondary/30" />
+                    <Skeleton className="h-8 w-8 rounded-full bg-gray-100 dark:bg-vynal-purple-secondary/30" />
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {[...Array(5)].map((_, i) => (
                     <div key={i} className="flex items-start">
-                      <Skeleton className="h-8 w-8 rounded-full bg-vynal-purple-secondary/30 mr-3" />
+                      <Skeleton className="h-8 w-8 rounded-full bg-gray-100 dark:bg-vynal-purple-secondary/30 mr-3" />
                       <div className="space-y-2 flex-grow">
-                        <Skeleton className="h-4 w-full bg-vynal-purple-secondary/30" />
-                        <Skeleton className="h-3 w-24 bg-vynal-purple-secondary/30" />
+                        <Skeleton className="h-4 w-full bg-gray-100 dark:bg-vynal-purple-secondary/30" />
+                        <Skeleton className="h-3 w-24 bg-gray-100 dark:bg-vynal-purple-secondary/30" />
                       </div>
                     </div>
                   ))}
@@ -62,13 +62,13 @@ export function DashboardPageSkeleton() {
             <div className="md:col-span-5 space-y-4">
               <Card className="dark:border-vynal-purple-secondary/40">
                 <CardHeader>
-                  <Skeleton className="h-6 w-36 mb-1 bg-vynal-purple-secondary/30" />
-                  <Skeleton className="h-4 w-48 bg-vynal-purple-secondary/30" />
+                  <Skeleton className="h-6 w-36 mb-1 bg-gray-100 dark:bg-vynal-purple-secondary/30" />
+                  <Skeleton className="h-4 w-48 bg-gray-100 dark:bg-vynal-purple-secondary/30" />
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 gap-3">
                     {[...Array(4)].map((_, i) => (
-                      <Skeleton key={i} className="h-24 w-full rounded-lg bg-vynal-purple-secondary/30" />
+                      <Skeleton key={i} className="h-24 w-full rounded-lg bg-gray-100 dark:bg-vynal-purple-secondary/30" />
                     ))}
                   </div>
                 </CardContent>
@@ -76,20 +76,20 @@ export function DashboardPageSkeleton() {
               
               <Card className="dark:border-vynal-purple-secondary/40">
                 <CardHeader>
-                  <Skeleton className="h-6 w-36 mb-1 bg-vynal-purple-secondary/30" />
-                  <Skeleton className="h-4 w-48 bg-vynal-purple-secondary/30" />
+                  <Skeleton className="h-6 w-36 mb-1 bg-gray-100 dark:bg-vynal-purple-secondary/30" />
+                  <Skeleton className="h-4 w-48 bg-gray-100 dark:bg-vynal-purple-secondary/30" />
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {[...Array(3)].map((_, i) => (
                     <div key={i} className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <Skeleton className="h-10 w-10 rounded-full bg-vynal-purple-secondary/30" />
+                        <Skeleton className="h-10 w-10 rounded-full bg-gray-100 dark:bg-vynal-purple-secondary/30" />
                         <div>
-                          <Skeleton className="h-4 w-32 mb-1 bg-vynal-purple-secondary/30" />
-                          <Skeleton className="h-3 w-24 bg-vynal-purple-secondary/30" />
+                          <Skeleton className="h-4 w-32 mb-1 bg-gray-100 dark:bg-vynal-purple-secondary/30" />
+                          <Skeleton className="h-3 w-24 bg-gray-100 dark:bg-vynal-purple-secondary/30" />
                         </div>
                       </div>
-                      <Skeleton className="h-6 w-16 bg-vynal-purple-secondary/30" />
+                      <Skeleton className="h-6 w-16 bg-gray-100 dark:bg-vynal-purple-secondary/30" />
                     </div>
                   ))}
                 </CardContent>

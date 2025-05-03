@@ -28,7 +28,7 @@ export const TextRevealCard = memo(({
   return (
     <div
       className={cn(
-        "bg-vynal-purple-dark/80 border border-vynal-purple-secondary/30 shadow-lg shadow-vynal-accent-secondary/10 p-8 md:p-12 rounded-xl w-full max-w-3xl mx-auto",
+        "bg-vynal-purple-dark border border-vynal-purple-secondary/30 shadow-lg shadow-vynal-accent-secondary/10 p-8 md:p-12 rounded-xl w-full max-w-3xl mx-auto",
         className
       )}
       onMouseEnter={handleMouseEnter}

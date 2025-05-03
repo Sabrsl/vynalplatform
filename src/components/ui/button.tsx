@@ -5,22 +5,23 @@ import { Slot } from "@radix-ui/react-slot"
 import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 import usePageTransition from "@/hooks/usePageTransition"
+import { useTheme } from "next-themes"
 
 const buttonVariants = cva(
   "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
   {
     variants: {
       variant: {
-        default: "bg-vynal-accent-primary text-vynal-text-primary hover:bg-vynal-accent-secondary",
+        default: "bg-vynal-accent-primary text-white dark:text-vynal-purple-dark hover:bg-vynal-accent-secondary",
         destructive:
-          "bg-vynal-status-error text-vynal-text-primary hover:bg-vynal-status-error/90",
+          "bg-vynal-status-error text-white dark:text-vynal-text-primary hover:bg-vynal-status-error/90",
         outline:
-          "border border-vynal-purple-secondary/50 bg-vynal-purple-dark/30 text-vynal-text-primary hover:bg-vynal-purple-secondary/30",
+          "border bg-white dark:bg-vynal-purple-dark/30 text-vynal-title border-gray-200 dark:border-vynal-purple-secondary/50 hover:bg-gray-100 dark:hover:bg-vynal-purple-secondary/30",
         secondary:
           "bg-vynal-purple-secondary/70 text-vynal-text-primary hover:bg-vynal-purple-secondary",
-        ghost: "text-vynal-text-primary hover:bg-vynal-purple-dark hover:text-vynal-text-primary",
-        link: "text-vynal-text-primary underline-offset-4 hover:underline hover:text-vynal-accent-primary",
-        success: "bg-vynal-status-success text-vynal-text-primary hover:bg-vynal-status-success/90",
+        ghost: "text-vynal-title hover:bg-gray-100 dark:hover:bg-vynal-purple-dark hover:text-vynal-title",
+        link: "text-vynal-title underline-offset-4 hover:underline hover:text-vynal-accent-primary",
+        success: "bg-vynal-status-success text-white dark:text-vynal-text-primary hover:bg-vynal-status-success/90",
         warning: "bg-vynal-status-warning text-vynal-purple-dark hover:bg-vynal-status-warning/90",
       },
       size: {
@@ -51,6 +52,8 @@ export interface ButtonProps
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, asChild = false, navigate, onClick, ...props }, ref) => {
     const { navigateTo } = usePageTransition();
+    const { resolvedTheme } = useTheme();
+    const isDarkMode = resolvedTheme === 'dark';
     
     // Gère la navigation avec chargement squelette
     // Handle navigation with skeleton loading
@@ -68,13 +71,19 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       }
     }, [onClick, navigate, navigateTo]);
     
+    // Ajouter des classes spécifiques pour les boutons customisés
+    const customClasses = className?.includes('btn-vynal-primary') || className?.includes('btn-vynal-outline')
+      ? className
+      : cn(buttonVariants({ variant, size, className }));
+    
     const Comp = asChild ? Slot : "button"
     return (
       <Comp
-        className={cn(buttonVariants({ variant, size, className }))}
+        className={customClasses}
         ref={ref}
         onClick={navigate ? handleClick : onClick}
         data-nav={navigate ? "true" : undefined}
+        data-theme={isDarkMode ? "dark" : "light"}
         {...props}
       />
     )

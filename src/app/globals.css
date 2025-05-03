@@ -724,4 +724,9 @@ mark:hover {
   .dark .icon-vynal {
     color: var(--vynal-accent-primary);
   }
+}
+
+/* Classe pour forcer la couleur du texte des boutons en mode light */
+.force-white-text, .force-white-text span {
+  color: white !important;
 } 

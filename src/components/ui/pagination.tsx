@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useTheme } from 'next-themes';
 
 export interface PaginationProps {
   currentPage: number;
@@ -44,6 +45,9 @@ export function PaginationControls({
   onLoadMore,
   isLoading = false
 }: PaginationProps) {
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
+  
   // Si aucune page, ne rien afficher
   if (totalPages <= 0) return null;
   
@@ -60,6 +64,11 @@ export function PaginationControls({
           size="lg"
           onClick={onLoadMore}
           disabled={isLoading || !hasMorePages}
+          className={cn(
+            "btn-vynal-outline",
+            isDark ? "dark" : "light",
+            "text-vynal-title"
+          )}
         >
           {isLoading ? (
             <span className="flex items-center gap-2">
@@ -132,6 +141,19 @@ export function PaginationControls({
   };
   
   const pages = createPaginationRange();
+
+  // Classes communes pour les boutons de navigation
+  const navButtonClasses = cn(
+    "h-8 w-8 border bg-white dark:bg-vynal-purple-secondary/10",
+    "text-vynal-title hover:bg-gray-100 dark:hover:bg-vynal-purple-secondary/30",
+    "border-gray-200 dark:border-vynal-purple-secondary/30"
+  );
+  
+  // Classes pour le bouton de page active
+  const activePageClasses = cn(
+    "h-8 w-8 bg-vynal-accent-primary text-white dark:text-vynal-purple-dark",
+    "border-vynal-accent-primary dark:border-vynal-accent-primary hover:bg-vynal-accent-secondary"
+  );
   
   // Rendu des boutons de pagination
   return (
@@ -141,7 +163,7 @@ export function PaginationControls({
         variant="outline"
         size="icon"
         className={cn(
-          "h-8 w-8",
+          navButtonClasses,
           currentPage === 1 ? "opacity-50 cursor-not-allowed" : ""
         )}
         disabled={currentPage === 1}
@@ -156,7 +178,7 @@ export function PaginationControls({
         variant="outline"
         size="icon"
         className={cn(
-          "h-8 w-8",
+          navButtonClasses,
           currentPage === 1 ? "opacity-50 cursor-not-allowed" : ""
         )}
         disabled={currentPage === 1}
@@ -173,7 +195,7 @@ export function PaginationControls({
           return (
             <span
               key={index}
-              className="flex items-center justify-center h-8 w-8 text-muted-foreground dark:text-vynal-text-secondary"
+              className="flex items-center justify-center h-8 w-8 text-vynal-body"
             >
               <MoreHorizontal className="h-5 w-5" />
             </span>
@@ -186,7 +208,7 @@ export function PaginationControls({
             key={index}
             variant={pageNumber === currentPage ? "default" : "outline"}
             size="icon"
-            className="h-8 w-8"
+            className={pageNumber === currentPage ? activePageClasses : navButtonClasses}
             onClick={() => onPageChange(pageNumber)}
             aria-label={`Page ${pageNumber}`}
             aria-current={pageNumber === currentPage ? "page" : undefined}
@@ -201,7 +223,7 @@ export function PaginationControls({
         variant="outline"
         size="icon"
         className={cn(
-          "h-8 w-8",
+          navButtonClasses,
           currentPage === totalPages ? "opacity-50 cursor-not-allowed" : ""
         )}
         disabled={currentPage === totalPages}
@@ -216,7 +238,7 @@ export function PaginationControls({
         variant="outline"
         size="icon"
         className={cn(
-          "h-8 w-8",
+          navButtonClasses,
           currentPage === totalPages ? "opacity-50 cursor-not-allowed" : ""
         )}
         disabled={currentPage === totalPages}

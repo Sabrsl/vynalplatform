@@ -83,10 +83,10 @@ const ServiceSkeletonLoader: React.FC<ServiceSkeletonLoaderProps> = ({
       <div 
         key={index} 
         className={cn(
-          "relative rounded-xl shadow-md border overflow-hidden",
+          "relative rounded-xl shadow-sm hover:shadow-md dark:shadow-none dark:hover:shadow-none border overflow-hidden",
           showShimmer ? "animate-pulse" : "",
           preserveAspectRatio ? "flex flex-col" : "",
-          "bg-white dark:bg-vynal-purple-dark/90 border-vynal-purple-secondary/40 dark:border-vynal-purple-secondary/40"
+          "bg-white dark:bg-vynal-purple-dark/90 border-gray-200 dark:border-vynal-purple-secondary/40"
         )}
         style={{
           // Optimisation des performances de rendu avec will-change
@@ -99,41 +99,41 @@ const ServiceSkeletonLoader: React.FC<ServiceSkeletonLoaderProps> = ({
         <div className={cn(
           "w-full", 
           densityStyles.imageHeight,
-          "bg-vynal-purple-secondary/30"
+          "bg-gray-100 dark:bg-vynal-purple-secondary/30"
         )}></div>
         
         {/* Content placeholder */}
         <div className={cn(densityStyles.padding, densityStyles.contentSpacing, "flex-grow")}>
           {/* Catégorie */}
-          <div className="h-4 w-1/3 rounded-md bg-vynal-purple-secondary/30"></div>
+          <div className="h-4 w-1/3 rounded-md bg-gray-100 dark:bg-vynal-purple-secondary/30"></div>
           
           {/* Titre */}
-          <div className="h-6 w-5/6 rounded-md bg-vynal-purple-secondary/30"></div>
+          <div className="h-6 w-5/6 rounded-md bg-gray-100 dark:bg-vynal-purple-secondary/30"></div>
           
           {/* Description */}
           <div className="space-y-1.5">
-            <div className="h-3 w-full rounded-md bg-vynal-purple-secondary/30"></div>
-            <div className="h-3 w-4/5 rounded-md bg-vynal-purple-secondary/30"></div>
+            <div className="h-3 w-full rounded-md bg-gray-100 dark:bg-vynal-purple-secondary/30"></div>
+            <div className="h-3 w-4/5 rounded-md bg-gray-100 dark:bg-vynal-purple-secondary/30"></div>
           </div>
           
           {/* Séparateur */}
           <div className="pt-2">
-            <div className="h-px w-full bg-vynal-purple-secondary/30"></div>
+            <div className="h-px w-full bg-gray-100 dark:bg-vynal-purple-secondary/30"></div>
           </div>
           
           {/* Auteur */}
           <div className="flex items-center space-x-2 pt-1">
-            <div className="h-8 w-8 rounded-full bg-vynal-purple-secondary/30"></div>
+            <div className="h-8 w-8 rounded-full bg-gray-100 dark:bg-vynal-purple-secondary/30"></div>
             <div className="space-y-1">
-              <div className="h-3 w-24 rounded-md bg-vynal-purple-secondary/30"></div>
-              <div className="h-2 w-16 rounded-md bg-vynal-purple-secondary/30"></div>
+              <div className="h-3 w-24 rounded-md bg-gray-100 dark:bg-vynal-purple-secondary/30"></div>
+              <div className="h-2 w-16 rounded-md bg-gray-100 dark:bg-vynal-purple-secondary/30"></div>
             </div>
           </div>
           
           {/* Prix */}
           <div className="flex justify-between items-center pt-2">
-            <div className="h-5 w-1/4 rounded-md bg-vynal-purple-secondary/30"></div>
-            <div className="h-8 w-20 rounded-full bg-vynal-accent-primary/30"></div>
+            <div className="h-5 w-1/4 rounded-md bg-gray-100 dark:bg-vynal-purple-secondary/30"></div>
+            <div className="h-8 w-20 rounded-full bg-gray-100 dark:bg-vynal-accent-primary/30"></div>
           </div>
         </div>
       </div>

@@ -384,6 +384,8 @@ export interface Database {
           read: boolean
           emailed: boolean | null
           emailed_at: string | null
+          metadata: Json | null
+          link: string | null
         }
         Insert: {
           id?: string
@@ -395,6 +397,8 @@ export interface Database {
           read?: boolean
           emailed?: boolean | null
           emailed_at?: string | null
+          metadata?: Json | null
+          link?: string | null
         }
         Update: {
           id?: string
@@ -406,6 +410,8 @@ export interface Database {
           read?: boolean
           emailed?: boolean | null
           emailed_at?: string | null
+          metadata?: Json | null
+          link?: string | null
         }
       }
       conversation_participants: {

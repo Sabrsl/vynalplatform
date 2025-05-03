@@ -6,6 +6,8 @@ import { Star, MessageSquare } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ReviewReplyComponent from './ReviewReply';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useTheme } from 'next-themes';
+import { cn } from '@/lib/utils';
 
 type Review = {
   id: string;
@@ -32,6 +34,8 @@ const ServiceReviews = ({ serviceId, initialReviews }: ServiceReviewsProps) => {
   const [loading, setLoading] = useState(!initialReviews);
   const [error, setError] = useState<string | null>(null);
   const [averageRating, setAverageRating] = useState(0);
+  const { resolvedTheme } = useTheme();
+  const isDarkMode = resolvedTheme === 'dark';
 
   useEffect(() => {
     // Si des reviews initiales sont fournies, on calcule la note moyenne et on ne fait pas de requête Supabase
@@ -155,12 +159,20 @@ const ServiceReviews = ({ serviceId, initialReviews }: ServiceReviewsProps) => {
   if (reviews.length === 0) {
     return (
       <div className="py-4">
-        <h2 className="text-base font-medium text-vynal-text-primary mb-3 flex items-center">
+        <h2 className="text-base font-medium text-vynal-title mb-3 flex items-center">
           <MessageSquare className="h-4 w-4 mr-1.5 text-vynal-accent-primary" />
           Avis clients
         </h2>
-        <Card className="backdrop-blur-md bg-vynal-purple-dark/90 border-vynal-purple-secondary/40 rounded-xl">
-          <CardContent className="p-5 lg:p-4 text-center text-vynal-text-secondary text-sm">
+        <Card className={cn(
+          "rounded-xl",
+          isDarkMode 
+            ? "backdrop-blur-md bg-vynal-purple-dark/90 border-vynal-purple-secondary/40"
+            : "bg-white border-gray-200"
+        )}>
+          <CardContent className={cn(
+            "p-5 lg:p-4 text-center text-xs",
+            isDarkMode ? "text-vynal-text-secondary" : "text-gray-500"
+          )}>
             Ce service n'a pas encore d'avis.
           </CardContent>
         </Card>

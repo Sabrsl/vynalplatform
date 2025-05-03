@@ -138,10 +138,25 @@ const MessagingInterface: React.FC<MessagingInterfaceProps> = ({
   } = useMessagingStore();
 
   // Déterminer si l'utilisateur est un freelance ou un client (mémorisé)
+  // Modification pour une détection plus robuste du rôle de freelance
   const isFreelance = useMemo(() => {
     if (propIsFreelance !== undefined) return propIsFreelance;
-    return user?.user_metadata?.role === 'freelance';
-  }, [propIsFreelance, user?.user_metadata?.role]);
+    
+    // Vérifier plusieurs sources possibles pour le rôle
+    const result = user?.user_metadata?.role === 'freelance' || 
+           user?.role === 'freelance' || 
+           user?.user_metadata?.userRole === 'freelance';
+    
+    console.log('DEBUG - MessagingInterface role detection:', {
+      prop_isFreelance: propIsFreelance,
+      user_metadata_role: user?.user_metadata?.role,
+      user_metadata_userRole: user?.user_metadata?.userRole,
+      user_role: user?.role,
+      resolved_isFreelance: result
+    });
+    
+    return result;
+  }, [propIsFreelance, user]);
 
   // Mémoriser le tri des conversations
   const sortedConversations = useMemo(() => {
@@ -409,9 +424,50 @@ const MessagingInterface: React.FC<MessagingInterfaceProps> = ({
     };
     
     initializeMessaging();
-  }, [user?.id, initialConversationId, receiverId, conversations.length, setupRealtimeSubscriptions, fetchConversations, fetchMessages, createConversation, getCachedConversations, isInitialLoad]);
+  }, [user?.id, initialConversationId, receiverId, conversations.length, setupRealtimeSubscriptions, fetchConversations, fetchMessages, createConversation, getCachedConversations, isInitialLoad, orderId]);
 
   // Rechargement lorsque l'interface devient visible 
+  // Ajout d'une fonction pour vérifier les nouveaux messages de commandes pour les freelances
+  const checkOrderMessages = useCallback(async () => {
+    if (!user?.id || !isFreelance) return;
+    
+    console.log("Vérification des messages de commandes pour le freelance");
+    try {
+      const supabase = createClientComponentClient();
+      
+      // Récupérer toutes les commandes du freelance qui ont des messages non lus
+      const { data: ordersWithUnreadMessages, error } = await supabase
+        .from('messages')
+        .select(`
+          id,
+          order_id,
+          orders!inner(
+            id,
+            status,
+            client_id
+          )
+        `)
+        .eq('read', false)
+        .neq('sender_id', user.id)
+        .is('conversation_id', null)
+        .not('order_id', 'is', null)
+        .filter('orders.freelance_id', 'eq', user.id);
+      
+      if (error) {
+        console.error("Erreur lors de la vérification des messages de commandes:", error);
+        return;
+      }
+      
+      if (ordersWithUnreadMessages && ordersWithUnreadMessages.length > 0) {
+        console.log(`${ordersWithUnreadMessages.length} messages non lus trouvés dans les commandes`);
+        // Utiliser fetchConversations qui inclut maintenant les conversations de commandes
+        await fetchConversations(user.id);
+      }
+    } catch (err) {
+      console.error("Erreur lors de la vérification des messages de commandes:", err);
+    }
+  }, [user?.id, isFreelance, fetchConversations]);
+  
   useEffect(() => {
     if (inView && mounted && user?.id && !isInitialLoad && !isLoading && !orderId) {
       console.log("Interface visible, vérification des mises à jour");
@@ -422,10 +478,16 @@ const MessagingInterface: React.FC<MessagingInterfaceProps> = ({
       if (!lastUpdate || now - parseInt(lastUpdate) > 60000) { // 1 minute
         // Rafraîchir subtilement, sans état de chargement
         fetchConversations(user.id);
+        
+        // Si c'est un freelance, vérifier aussi les messages de commandes
+        if (isFreelance) {
+          checkOrderMessages();
+        }
+        
         localStorage.setItem('last_messaging_update', now.toString());
       }
     }
-  }, [inView, mounted, user?.id, isInitialLoad, isLoading, fetchConversations, orderId]);
+  }, [inView, mounted, user?.id, isInitialLoad, isLoading, fetchConversations, orderId, isFreelance, checkOrderMessages]);
   
   // Si nous avons un orderId, afficher les messages de commande
   if (orderId) {
@@ -618,12 +680,29 @@ const MessagingInterface: React.FC<MessagingInterfaceProps> = ({
     );
   }
   
+  // Composant de débogage pour aider à diagnostiquer les problèmes de message
+  const DebugInfo = () => {
+    if (process.env.NODE_ENV !== 'development') return null;
+    
+    return (
+      <div className="fixed bottom-2 right-2 bg-black/80 text-white text-xs p-2 rounded-md z-50 max-w-xs">
+        <div>Role: {isFreelance ? 'Freelance' : 'Client'}</div>
+        <div>UserID: {user?.id?.substring(0, 8)}...</div>
+        <div>Conversations: {conversations.length}</div>
+        <div>Active: {activeConversation?.id?.substring(0, 8) || 'None'}</div>
+        <div>Order Messages: {orderMessages.length}</div>
+      </div>
+    );
+  };
+  
   // Afficher l'interface de messagerie standard
   return (
-    <div 
-      ref={interfaceRef}
-      className={`flex flex-col md:flex-row w-full h-[calc(100vh-8rem)] bg-black/5 dark:bg-gray-950 rounded-lg shadow-sm border border-purple-800/20 overflow-hidden overflow-x-hidden ${showContent ? slideIn : 'opacity-0'} ${className}`}
-    >
+    <>
+      <DebugInfo />
+      <div 
+        ref={interfaceRef}
+        className={`flex flex-col md:flex-row w-full h-[calc(100vh-8rem)] bg-black/5 dark:bg-gray-950 rounded-lg shadow-sm border border-purple-800/20 overflow-hidden overflow-x-hidden ${showContent ? slideIn : 'opacity-0'} ${className}`}
+      >
       {/* Sidebar des conversations - caché sur mobile si une conversation est active */}
       <div className={`${showMobileMenu || !activeConversation ? 'flex' : 'hidden'} md:flex md:w-80 lg:w-96 border-r border-purple-800/10 flex-col h-full`}>
         <ConversationList 
@@ -653,8 +732,9 @@ const MessagingInterface: React.FC<MessagingInterfaceProps> = ({
         )}
       </div>
     </div>
+    </>
   );
 };
 
 // Mémoiser le composant pour éviter les rendus inutiles
-export default React.memo(MessagingInterface); 
+export default React.memo(MessagingInterface);

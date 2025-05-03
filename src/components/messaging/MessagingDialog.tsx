@@ -1,40 +1,35 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { MessageSquare, Send } from 'lucide-react';
+import { MessageSquare, Send, X } from 'lucide-react';
 import { useMessagingStore } from '@/lib/stores/useMessagingStore';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/components/ui/use-toast';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ShieldAlert } from 'lucide-react';
-import { supabase } from '@/lib/supabase/client';
 import { validateMessage } from '@/lib/message-validation';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Loader } from '@/components/ui/loader';
 
 interface MessagingDialogProps {
   freelanceId: string;
   freelanceName: string;
-  trigger?: React.ReactNode;
   buttonVariant?: 'default' | 'outline' | 'secondary' | 'ghost';
   className?: string;
   size?: 'default' | 'sm' | 'lg' | 'icon';
 }
 
-const MessagingDialog: React.FC<MessagingDialogProps> = ({
+const MessagingDialog = ({
   freelanceId,
   freelanceName,
-  trigger,
   buttonVariant = 'default',
   className = '',
   size
-}) => {
+}: MessagingDialogProps) => {
+  const [showModal, setShowModal] = useState(false);
   const [message, setMessage] = useState('');
-  const [isOpen, setIsOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
@@ -46,53 +41,68 @@ const MessagingDialog: React.FC<MessagingDialogProps> = ({
   useEffect(() => {
     if (storeError) {
       setError(storeError);
-      console.error("Erreur du store:", storeError);
     }
   }, [storeError]);
+
+  // Gérer l'échappement avec la touche Escape
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowModal(false);
+      }
+    };
+    
+    if (showModal) {
+      document.addEventListener('keydown', handleEscape);
+    }
+    
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [showModal]);
+  
+  const handleOpenModal = () => {
+    // Réinitialiser
+    setMessage('');
+    setError(null);
+    
+    // Vérifications de base
+    if (!user?.id) {
+      toast({
+        title: "Connexion requise",
+        description: "Vous devez vous connecter pour contacter un vendeur",
+      });
+      
+      const currentPath = window.location.pathname + window.location.search;
+      router.push(`/auth/login?redirect=${encodeURIComponent(currentPath)}`);
+      return;
+    }
+    
+    if (user.id === freelanceId) {
+      toast({
+        title: "Action impossible",
+        description: "Vous ne pouvez pas vous envoyer de message à vous-même.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Ouvrir modal
+    setShowModal(true);
+  };
   
   const handleSendMessage = async () => {
+    if (!message.trim()) return;
+    
     try {
-      console.log("🔍 Début du processus d'envoi de message via MessagingDialog");
       setError(null);
       
       if (!user?.id) {
-        const errMsg = "Vous devez être connecté pour envoyer un message.";
-        setError(errMsg);
-        console.error(errMsg);
+        setError("Vous devez être connecté pour envoyer un message.");
         return;
       }
       
-      if (message.trim() === '') {
-        const errMsg = "Le message ne peut pas être vide.";
-        setError(errMsg);
-        console.error(errMsg);
-        return;
-      }
-      
-      console.log("Préparation de l'envoi du message");
-      console.log("De:", user.id);
-      console.log("À:", freelanceId);
-      console.log("Message:", message.trim());
-      
-      // Vérifier que les IDs sont valides
-      if (!user.id.match(/^[0-9a-fA-F-]{36}$/) || !freelanceId.match(/^[0-9a-fA-F-]{36}$/)) {
-        const errMsg = "Format d'identifiant utilisateur invalide.";
-        setError(errMsg);
-        console.error(errMsg, { user: user.id, freelance: freelanceId });
-        return;
-      }
-      
-      // Vérification supplémentaire de l'authentification
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (sessionData?.session?.user?.id !== user.id) {
-        const errMsg = "Session utilisateur invalide. Veuillez vous reconnecter.";
-        setError(errMsg);
-        console.error(errMsg);
-        return;
-      }
-
-      console.log("🔍 Validation du message avec validateMessage...");
-      // Valider le contenu du message (mots interdits, etc.)
+      // Valider message
       const validationResult = validateMessage(message.trim(), {
         maxLength: 5000,
         minLength: 1,
@@ -102,176 +112,42 @@ const MessagingDialog: React.FC<MessagingDialogProps> = ({
         respectRecommendedActions: true
       });
       
-      console.log("🔍 Résultat de validation:", validationResult);
-      
       if (!validationResult.isValid) {
-        const errMsg = validationResult.errors.join(', ');
-        setError(errMsg);
-        console.error("Validation du message échouée:", errMsg);
+        setError(validationResult.errors.join(', '));
         return;
       }
       
-      // Utiliser le message potentiellement censuré
-      let finalMessageText = validationResult.message;
-      
-      // Si le message a été censuré, ajouter un marqueur spécial
-      if (validationResult.censored) {
-        finalMessageText += " [Ce message a été modéré automatiquement]";
-        console.log("Message censuré:", finalMessageText);
-      }
-      
-      // Créer une conversation avec un message initial
-      console.log("Appel à createConversation avec les participants:", [user.id, freelanceId]);
-      console.log("Message final à envoyer:", finalMessageText.trim());
-      
+      // Envoyer message
       const conversationId = await createConversation(
         [user.id, freelanceId],
-        finalMessageText.trim()
+        validationResult.message
       );
       
-      if (!conversationId) {
-        throw new Error("La création de conversation a échoué: pas d'ID de conversation retourné");
-      }
-      
-      console.log("✅ Conversation créée avec succès, ID:", conversationId);
-      
-      // Fermer le dialogue et réinitialiser l'état
-      setIsOpen(false);
+      // Succès
+      setShowModal(false);
       setMessage('');
-      setError(null);
       
-      // Notification de succès
       toast({
         title: "Message envoyé",
         description: `Votre message à ${freelanceName} a été envoyé.`,
       });
       
-      // Si certains mots ont été censurés, afficher une notification
-      if (validationResult.censored) {
-        toast({
-          title: "Message modéré",
-          description: "Certains mots de votre message ont été censurés automatiquement.",
-        });
-      }
-      
-      // Si une notification de modérateur est nécessaire
-      if (validationResult.shouldNotifyModerator) {
-        // Ici, vous pourriez implémenter une notification à un modérateur
-        console.log("Ce message nécessiterait une vérification par un modérateur:", message);
-      }
-      
-      // Rediriger vers la conversation
-      console.log("Redirection vers la conversation dans 500ms");
+      // Redirection
       setTimeout(() => {
-        const url = `/dashboard/messages?conversation=${conversationId}`;
-        console.log("Redirection vers:", url);
-        router.push(url);
+        router.push(`/dashboard/messages?conversation=${conversationId}`);
       }, 500);
+      
     } catch (err: any) {
-      console.error("❌ Erreur lors de l'envoi du message:", err);
-      const errorMessage = err?.message || "Une erreur s'est produite. Veuillez réessayer.";
-      setError(errorMessage);
-      
-      toast({
-        title: "Échec de l'envoi",
-        description: errorMessage,
-        variant: "destructive"
-      });
+      setError(err?.message || "Une erreur s'est produite");
     }
-  };
-  
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
-    }
-  };
-  
-  const handleOpen = () => {
-    console.log("➡️ Ouverture de la boîte de dialogue demandée");
-    
-    // Réinitialiser les états
-    setError(null);
-    setMessage('');
-    
-    // Vérifier les paramètres d'entrée
-    console.log("Vérification des paramètres - freelanceId:", freelanceId);
-    
-    if (!freelanceId || typeof freelanceId !== 'string') {
-      console.error("❌ freelanceId invalide:", freelanceId);
-      toast({
-        title: "Erreur",
-        description: "Impossible de contacter ce vendeur. Données invalides.",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    // Vérifier si l'utilisateur est connecté
-    if (authLoading) {
-      console.log("Vérification de l'authentification en cours...");
-      toast({
-        title: "Chargement",
-        description: "Vérification de votre session...",
-      });
-      return;
-    }
-    
-    if (!user || !user.id) {
-      console.log("❌ Utilisateur non connecté, redirection vers login");
-      
-      toast({
-        title: "Connexion requise",
-        description: "Vous devez vous connecter pour contacter un freelance",
-      });
-      
-      // Stocker l'URL pour redirection après connexion
-      const currentPath = window.location.pathname + window.location.search;
-      const loginUrl = `/auth/login?redirect=${encodeURIComponent(currentPath)}`;
-      console.log("URL de redirection:", loginUrl);
-      
-      router.push(loginUrl);
-      return;
-    }
-    
-    console.log("✅ Utilisateur connecté:", user.id);
-    
-    // Vérifier que l'utilisateur ne contacte pas lui-même
-    if (user.id === freelanceId) {
-      console.log("⚠️ L'utilisateur essaie de se contacter lui-même");
-      
-      toast({
-        title: "Action impossible",
-        description: "Vous ne pouvez pas vous envoyer de message à vous-même.",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    // Vérification supplémentaire du format UUID
-    const uuidRegex = /^[0-9a-fA-F-]{36}$/;
-    if (!uuidRegex.test(user.id) || !uuidRegex.test(freelanceId)) {
-      console.error("❌ Format d'ID invalide - userId:", user.id, "freelanceId:", freelanceId);
-      
-      toast({
-        title: "Erreur technique",
-        description: "Impossible de contacter ce vendeur pour le moment.",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    console.log("✅ Ouverture du dialogue pour contacter", freelanceName, "(ID:", freelanceId, ")");
-    setIsOpen(true);
   };
   
   return (
     <>
-      {/* Bouton déclencheur */}
       <Button 
         variant={buttonVariant} 
         className={className} 
-        onClick={handleOpen}
+        onClick={handleOpenModal}
         disabled={authLoading}
         size={size}
       >
@@ -279,42 +155,60 @@ const MessagingDialog: React.FC<MessagingDialogProps> = ({
         Contacter
       </Button>
       
-      {/* Contenu du dialogue */}
-      {isOpen && (
-        <Dialog open={isOpen} onOpenChange={(open) => !open && setIsOpen(false)}>
-          <DialogContent className="sm:max-w-[425px]" aria-labelledby="messaging-dialog-title" aria-describedby="messaging-dialog-description">
-            <DialogHeader>
-              <DialogTitle id="messaging-dialog-title">Envoyer un message à {freelanceName}</DialogTitle>
-              <DialogDescription id="messaging-dialog-description">
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+          {/* Overlay */}
+          <div 
+            className="fixed inset-0 bg-black/70 dark:bg-black/80 backdrop-blur-sm transition-opacity" 
+            onClick={() => setShowModal(false)}
+          />
+          
+          {/* Modal content */}
+          <div className="relative bg-white dark:bg-vynal-purple-dark/90 border border-gray-200 dark:border-vynal-purple-secondary/30 rounded-xl shadow-lg p-6 w-full max-w-[425px] z-50 transition-all transform scale-100">
+            {/* Close button */}
+            <button 
+              onClick={() => setShowModal(false)}
+              className="absolute right-4 top-4 text-gray-500 hover:text-gray-700 dark:text-vynal-text-secondary dark:hover:text-vynal-text-primary transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-vynal-purple-light rounded-full"
+              aria-label="Fermer"
+            >
+              <X className="h-5 w-5" />
+              <span className="sr-only">Fermer</span>
+            </button>
+            
+            {/* Header */}
+            <div className="mb-5">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-vynal-text-primary">
+                Envoyer un message à {freelanceName}
+              </h2>
+              <p className="text-sm text-gray-600 dark:text-vynal-text-secondary mt-1.5">
                 Utilisez ce formulaire pour envoyer un message direct au freelance.
-              </DialogDescription>
-            </DialogHeader>
+              </p>
+            </div>
             
             {error && (
-              <Alert variant="destructive" className="mt-2">
+              <Alert variant="destructive" className="mt-2 mb-4">
                 <ShieldAlert className="h-4 w-4" />
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
             
-            <div className="pt-4 pb-2">
+            <div className="pt-2 pb-5">
               <Textarea
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
-                onKeyDown={handleKeyDown}
                 placeholder="Écrivez votre message ici..."
-                className="min-h-[120px] resize-none bg-vynal-purple-darkest/50 focus:border-vynal-purple-light border-vynal-purple-mid/30"
+                className="min-h-[120px] resize-none bg-gray-50 dark:bg-vynal-purple-darkest/50 border-gray-300 dark:border-vynal-purple-mid/30 focus:border-vynal-purple-light focus:ring-vynal-purple-light/20 transition-colors"
                 disabled={isLoading}
                 autoFocus
               />
             </div>
             
-            <div className="flex justify-end space-x-2">
+            <div className="flex justify-end space-x-3">
               <Button 
-                variant="outline" 
-                onClick={() => setIsOpen(false)}
+                variant="outline"
+                onClick={() => setShowModal(false)}
                 disabled={isLoading}
-                className="border-vynal-purple-light/50 text-vynal-purple-light hover:bg-vynal-purple-dark/20"
+                className="border-gray-300 text-gray-700 hover:bg-gray-100 dark:border-vynal-purple-light/50 dark:text-white dark:hover:bg-vynal-purple-dark/20 transition-colors"
               >
                 Annuler
               </Button>
@@ -322,7 +216,7 @@ const MessagingDialog: React.FC<MessagingDialogProps> = ({
               <Button 
                 onClick={handleSendMessage} 
                 disabled={isLoading || message.trim() === ''}
-                className="bg-gradient-to-r from-vynal-purple-light to-vynal-purple-mid hover:from-vynal-purple-mid hover:to-vynal-purple-dark"
+                className="bg-gradient-to-r from-vynal-purple-light to-vynal-purple-mid hover:from-vynal-purple-mid hover:to-vynal-purple-dark text-white shadow-md transition-all dark:from-pink-400 dark:to-pink-600 dark:hover:from-pink-500 dark:hover:to-pink-700"
               >
                 {isLoading ? (
                   <Loader size="xs" variant="primary" className="mr-2" />
@@ -332,8 +226,8 @@ const MessagingDialog: React.FC<MessagingDialogProps> = ({
                 Envoyer
               </Button>
             </div>
-          </DialogContent>
-        </Dialog>
+          </div>
+        </div>
       )}
     </>
   );

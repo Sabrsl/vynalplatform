@@ -72,8 +72,8 @@ const SubcategoriesGrid: React.FC<SubcategoriesGridProps> = ({
     return `flex items-center justify-center rounded-full backdrop-blur-md 
       transition-all duration-300 px-3 py-1.5 h-full
       border ${isSelected
-        ? 'bg-indigo-500/10 dark:bg-indigo-900/30 border-indigo-400/30 dark:border-indigo-600/40 shadow-md shadow-indigo-500/5 dark:shadow-indigo-800/5' 
-        : 'bg-white/5 dark:bg-white/5 border-gray-200/10 dark:border-white/5 hover:bg-indigo-500/5 dark:hover:bg-indigo-900/20 hover:border-indigo-300/20 dark:hover:border-indigo-700/30'
+        ? 'bg-indigo-500/10 dark:bg-indigo-900/30 border-indigo-400/50 dark:border-indigo-600/40 shadow-md shadow-indigo-500/5 dark:shadow-indigo-800/5' 
+        : 'bg-white hover:bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/5 hover:border-indigo-300/40 dark:hover:border-indigo-700/30'
       }`;
   }, []);
 

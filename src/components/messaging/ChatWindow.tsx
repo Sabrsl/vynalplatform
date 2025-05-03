@@ -17,9 +17,10 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { FileIcon } from '@/components/ui/icons/FileIcon';
 import { SendHorizontal } from 'lucide-react';
-import { Virtuoso } from 'react-virtuoso';
+import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
+import { UserProfile } from '@/hooks/useUser';
 
-// Extension du type Conversation pour inclure other_user
+// Extension du type Conversation pour inclure other_user et order_id
 interface Conversation extends BaseConversation {
   other_user?: {
     id: string;
@@ -28,6 +29,8 @@ interface Conversation extends BaseConversation {
     email?: string;
     unread_count?: number;
   };
+  order_id?: string; // ID de commande pour les conversations de commande
+  service_title?: string; // Titre du service pour les conversations de commande
 }
 
 interface ChatWindowProps {
@@ -72,7 +75,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const MESSAGES_PER_PAGE = 20;
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<VirtuosoHandle>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const visibleMessageIdsRef = useRef<Set<string>>(new Set());
@@ -86,7 +89,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     sendMessage,
     markAsRead,
     markSpecificMessagesAsRead,
-    setIsTyping: updateTypingStatus
+    setIsTyping: updateTypingStatus,
+    setMessages
   } = useMessagingStore();
 
   // Trouver l'autre participant (dans une conversation à 2 personnes)
@@ -116,32 +120,14 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
   // Fonction pour vérifier quels messages sont actuellement visibles à l'écran
   const checkVisibleMessages = useCallback(() => {
-    if (!messagesContainerRef.current || !user) return;
+    if (!user) return;
     
-    const messageElements = messagesContainerRef.current.querySelectorAll('[data-message-id]');
-    const containerRect = messagesContainerRef.current.getBoundingClientRect();
-    const newVisibleMessageIds = new Set<string>();
-    const unreadVisibleMessageIds: string[] = [];
-    
-    messageElements.forEach((element) => {
-      const rect = element.getBoundingClientRect();
-      // Un message est considéré comme visible s'il est au moins partiellement visible dans le conteneur
-      if (rect.top < containerRect.bottom && rect.bottom > containerRect.top) {
-        const messageId = element.getAttribute('data-message-id');
-        if (messageId) {
-          newVisibleMessageIds.add(messageId);
-          
-          // Vérifier si c'est un message non lu reçu (pas envoyé par l'utilisateur actuel)
-          const message = messages.find(msg => msg.id === messageId);
-          if (message && !message.read && message.sender_id !== user.id) {
-            unreadVisibleMessageIds.push(messageId);
-          }
-        }
-      }
-    });
+    const unreadVisibleMessageIds = visibleMessages
+      .filter((msg: Message) => !msg.read && msg.sender_id !== user.id)
+      .map((msg: Message) => msg.id);
     
     // Mettre à jour la référence des messages visibles
-    visibleMessageIdsRef.current = newVisibleMessageIds;
+    visibleMessageIdsRef.current = new Set(visibleMessages.map((msg: Message) => msg.id));
     
     // Marquer les messages visibles non lus comme lus après un court délai
     if (markAsReadTimeoutRef.current) {
@@ -152,9 +138,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     if (unreadVisibleMessageIds.length > 0 && user.id) {
       markAsReadTimeoutRef.current = setTimeout(() => {
         markSpecificMessagesAsRead(conversation.id, user.id, unreadVisibleMessageIds);
-      }, 1000); // Attendre 1 seconde pour éviter trop d'appels API
+      }, 1000);
     }
-  }, [conversation.id, user, messages, markSpecificMessagesAsRead]);
+  }, [conversation.id, user, visibleMessages, markSpecificMessagesAsRead]);
 
   // Fonction pour charger plus de messages (scroll vers le haut)
   const loadMoreMessages = useCallback(() => {
@@ -166,21 +152,17 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     const endIdx = messages.length - ((nextPage - 1) * MESSAGES_PER_PAGE);
     const moreMessages = messages.slice(startIdx, endIdx);
     
-    // Prévenir le scroll automatique lors du chargement des anciens messages
-    const scrollHeight = messagesContainerRef.current?.scrollHeight || 0;
-    const scrollTop = messagesContainerRef.current?.scrollTop || 0;
-    
     setVisibleMessages(prev => [...moreMessages, ...prev]);
     setPage(nextPage);
     setHasMoreMessages(startIdx > 0);
     
-    // Après avoir ajouté les nouveaux messages, restaurer la position de défilement
-    // et empêcher le défilement vers le bas
+    // Utiliser scrollToIndex pour maintenir la position de défilement
     setTimeout(() => {
       if (messagesContainerRef.current) {
-        const newScrollHeight = messagesContainerRef.current.scrollHeight;
-        // Maintient de la position relative de défilement
-        messagesContainerRef.current.scrollTop = newScrollHeight - scrollHeight + scrollTop;
+        messagesContainerRef.current.scrollToIndex({
+          index: moreMessages.length,
+          align: 'start'
+        });
       }
       setIsLoadingMore(false);
     }, 10);
@@ -188,15 +170,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
   // Gérer le scroll vers le haut pour charger plus de messages
   const handleScroll = useCallback(() => {
-    if (!messagesContainerRef.current) return;
-    
-    const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
-    
-    // Détecter si l'utilisateur a scrollé vers le haut
-    userScrolledUpRef.current = scrollTop < scrollHeight - clientHeight - 10;
-    
     // Charger plus de messages si on approche du haut
-    if (scrollTop < 50 && hasMoreMessages && !isLoadingMore) {
+    if (hasMoreMessages && !isLoadingMore) {
       loadMoreMessages();
     }
     
@@ -204,14 +179,13 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     checkVisibleMessages();
   }, [loadMoreMessages, hasMoreMessages, isLoadingMore, checkVisibleMessages]);
 
-  // Ajouter un écouteur d'événement de défilement
-  useEffect(() => {
-    const messagesContainer = messagesContainerRef.current;
-    if (messagesContainer) {
-      messagesContainer.addEventListener('scroll', handleScroll);
-      return () => messagesContainer.removeEventListener('scroll', handleScroll);
+  // Utiliser Virtuoso pour gérer le scroll
+  const handleVirtuosoScroll = useCallback((e: any) => {
+    if (e.scrollTop < 50 && hasMoreMessages && !isLoadingMore) {
+      loadMoreMessages();
     }
-  }, [handleScroll]);
+    checkVisibleMessages();
+  }, [loadMoreMessages, hasMoreMessages, isLoadingMore, checkVisibleMessages]);
 
   // Utiliser le hook simplement - il ignore automatiquement les pages de messagerie
   usePreventScrollReset();
@@ -454,23 +428,89 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           showNotification("Votre message contient des éléments qui nécessitent une vérification et pourrait être examiné par un modérateur.", 'info');
         }
         
-        if (attachments.length > 0) {
-          // Envoyer des messages avec pièces jointes
-          for (const attachment of attachments) {
-            await sendMessage(
-              conversation.id, 
-              user.id, 
-              finalMessageText || 'Pièce jointe',
-              attachment.url,
-              attachment.type,
-              attachment.name
-            );
+        // Vérifier si c'est une conversation liée à une commande
+        const isOrderConversation = conversation.id.startsWith('order-') || conversation.order_id;
+        const orderId = conversation.order_id || (isOrderConversation ? conversation.id.replace('order-', '') : null);
+
+        if (isOrderConversation && orderId) {
+          console.log("Envoi d'un message pour la commande:", orderId);
+          
+          // Pour les messages de commande, utiliser directement l'API Supabase
+          if (attachments.length > 0) {
+            // Message avec pièce jointe
+            const attachment = attachments[0]; // On prend la première pièce jointe
+            const { error } = await supabase
+              .from('messages')
+              .insert({
+                order_id: orderId,
+                sender_id: user.id,
+                content: finalMessageText || 'Pièce jointe',
+                read: false,
+                attachment_url: attachment.url,
+                attachment_type: attachment.type,
+                attachment_name: attachment.name
+              });
+              
+            if (error) {
+              console.error("Erreur lors de l'envoi du message pour la commande:", error);
+              throw error;
+            }
+          } else {
+            // Message texte simple
+            const { error } = await supabase
+              .from('messages')
+              .insert({
+                order_id: orderId,
+                sender_id: user.id,
+                content: finalMessageText.trim(),
+                read: false
+              });
+              
+            if (error) {
+              console.error("Erreur lors de l'envoi du message pour la commande:", error);
+              throw error;
+            }
           }
-          setAttachments([]);
+          
+          // Récupérer les messages mis à jour après l'envoi
+          const { data: updatedMessages, error: fetchError } = await supabase
+            .from('messages')
+            .select('*')
+            .eq('order_id', orderId)
+            .order('created_at', { ascending: true });
+            
+          if (fetchError) {
+            console.error("Erreur lors de la récupération des messages:", fetchError);
+            throw fetchError;
+          }
+          
+          // Mettre à jour les messages dans le store
+          if (updatedMessages) {
+            setMessages(updatedMessages);
+            setVisibleMessages(updatedMessages);
+          }
+          
         } else {
-          // Envoyer un message texte simple
-          await sendMessage(conversation.id, user.id, finalMessageText.trim());
+          // Pour les conversations normales, utiliser le store
+          if (attachments.length > 0) {
+            // Envoyer des messages avec pièces jointes
+            for (const attachment of attachments) {
+              await sendMessage(
+                conversation.id, 
+                user.id, 
+                finalMessageText || 'Pièce jointe',
+                attachment.url,
+                attachment.type,
+                attachment.name
+              );
+            }
+          } else {
+            // Envoyer un message texte simple
+            await sendMessage(conversation.id, user.id, finalMessageText.trim());
+          }
         }
+        
+        setAttachments([]);
         
         setMessageText('');
         
@@ -650,20 +690,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       
       {/* Zone des messages avec virtualisation pour optimiser les performances */}
       <Virtuoso
-        ref={messagesContainerRef as any}
-        className="flex-1 p-4 bg-gradient-to-r from-gray-50 to-white dark:from-gray-900 dark:to-gray-950 bg-opacity-90 overflow-x-hidden no-scrollbar"
-        style={{
-          backgroundImage: "url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48cGF0dGVybiBpZD0iZ3JpZCIgd2lkdGg9IjIwIiBoZWlnaHQ9IjIwIiBwYXR0ZXJuVW5pdHM9InVzZXJTcGFjZU9uVXNlIj48cGF0aCBkPSJNIDIwIDAgTCAwIDAgMCAyMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjY2NjY2NjIiBzdHJva2Utb3BhY2l0eT0iMC4xIiBzdHJva2Utd2lkdGg9IjEiLz48L3BhdHRlcm4+PC9kZWZzPjxyZWN0IGZpbGw9InVybCgjZ3JpZCkiIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiLz48L3N2Zz4=')",
-          backgroundSize: "20px 20px",
-          backgroundRepeat: "repeat"
-        }}
-        overscan={200}
+        ref={messagesContainerRef}
+        style={{ height: 'calc(100vh - 200px)' }}
         totalCount={visibleMessages.length}
         data={visibleMessages}
         followOutput={"auto"}
-        atBottomStateChange={(isAtBottom) => {
-          userScrolledUpRef.current = !isAtBottom;
-        }}
+        onScroll={handleVirtuosoScroll}
         components={{
           Header: () => (
             <>
@@ -757,14 +789,49 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           )
         }}
         itemContent={(index, message) => {
+          // Vérifier si le message a toutes les informations nécessaires
+          if (!message || !message.sender_id) {
+            console.error("Message invalide:", message);
+            return null;
+          }
+
+          // Déterminer si le message est de l'utilisateur actuel
           const isCurrentUser = message.sender_id === user?.id;
+          
           // Créer une clé de données unique pour ce message
           const messageKey = `msg-${message.id}`;
+          
           // Déterminer si nous devons afficher l'avatar (pour les messages groupés)
           const showAvatar = !isCurrentUser && 
             (index === 0 || 
               visibleMessages[index - 1].sender_id !== message.sender_id);
-            
+          
+          // Obtenir les messages précédent et suivant pour le groupement
+          const previousMessage = index > 0 ? visibleMessages[index - 1] : undefined;
+          const nextMessage = index < visibleMessages.length - 1 ? visibleMessages[index + 1] : undefined;
+          
+          // Obtenir les informations de l'expéditeur
+          const sender = message.sender || (isCurrentUser ? {
+            id: user?.id || '',
+            username: user?.user_metadata?.username || null,
+            full_name: user?.user_metadata?.full_name || null,
+            avatar_url: user?.user_metadata?.avatar_url || null,
+            email: user?.email || null,
+            role: user?.user_metadata?.role || null,
+            created_at: user?.created_at || '',
+            updated_at: user?.updated_at || '',
+            bio: null,
+            verification_level: null,
+            last_seen: null,
+            phone: null
+          } as UserProfile : otherParticipant);
+          
+          // Vérifier si le message est valide avant de le rendre
+          if (!sender) {
+            console.error("Informations de l'expéditeur manquantes:", message);
+            return null;
+          }
+          
           return (
             <div 
               data-message-id={message.id}
@@ -773,18 +840,20 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             >
               <MessageBubble 
                 key={messageKey}
-                message={message}
+                message={{
+                  ...message,
+                  sender: sender
+                }}
                 isCurrentUser={isCurrentUser}
                 showAvatar={showAvatar}
-                otherParticipant={otherParticipant}
+                otherParticipant={sender}
                 isFreelance={isFreelance}
-                previousMessage={index > 0 ? visibleMessages[index - 1] : undefined}
-                nextMessage={index < visibleMessages.length - 1 ? visibleMessages[index + 1] : undefined}
+                previousMessage={previousMessage}
+                nextMessage={nextMessage}
               />
             </div>
           );
         }}
-        onScroll={handleScroll}
       />
       
       {/* Zone de saisie du message */}

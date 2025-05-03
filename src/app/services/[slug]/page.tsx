@@ -168,24 +168,24 @@ function ServiceDetailContent() {
   // Rendu pour l'état de chargement
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-vynal-purple-dark animate-in fade-in">
+      <div className="min-h-screen bg-white dark:bg-vynal-purple-dark animate-in fade-in">
         <div className="container mx-auto px-4 w-full max-w-5xl py-8">
           <div className="flex flex-col md:flex-row gap-8">
             <div className="w-full md:w-2/3">
-              <Skeleton className="h-[400px] w-full mb-4 bg-vynal-purple-secondary/30" />
+              <Skeleton className="h-[400px] w-full mb-4 bg-gray-100 dark:bg-vynal-purple-secondary/30" />
               <div className="grid grid-cols-4 gap-2">
                 {[1, 2, 3, 4].map((i) => (
-                  <Skeleton key={i} className="h-24 w-full bg-vynal-purple-secondary/30" />
+                  <Skeleton key={i} className="h-24 w-full bg-gray-100 dark:bg-vynal-purple-secondary/30" />
                 ))}
               </div>
             </div>
             
             <div className="w-full md:w-1/3">
-              <Skeleton className="h-8 w-3/4 mb-4 bg-vynal-purple-secondary/30" />
-              <Skeleton className="h-6 w-1/2 mb-2 bg-vynal-purple-secondary/30" />
-              <Skeleton className="h-32 w-full mb-6 bg-vynal-purple-secondary/30" />
-              <Skeleton className="h-10 w-full mb-2 bg-vynal-purple-secondary/30" />
-              <Skeleton className="h-10 w-full bg-vynal-purple-secondary/30" />
+              <Skeleton className="h-8 w-3/4 mb-4 bg-gray-100 dark:bg-vynal-purple-secondary/30" />
+              <Skeleton className="h-6 w-1/2 mb-2 bg-gray-100 dark:bg-vynal-purple-secondary/30" />
+              <Skeleton className="h-32 w-full mb-6 bg-gray-100 dark:bg-vynal-purple-secondary/30" />
+              <Skeleton className="h-10 w-full mb-2 bg-gray-100 dark:bg-vynal-purple-secondary/30" />
+              <Skeleton className="h-10 w-full bg-gray-100 dark:bg-vynal-purple-secondary/30" />
             </div>
           </div>
         </div>
@@ -196,18 +196,18 @@ function ServiceDetailContent() {
   // Rendu pour l'état d'erreur
   if (error) {
     return (
-      <div className="container mx-auto py-8 px-4 bg-vynal-purple-dark/90 text-vynal-text-primary rounded-xl shadow-lg shadow-vynal-accent-secondary/20 border border-vynal-purple-secondary/30">
+      <div className="container mx-auto py-8 px-4 bg-white dark:bg-vynal-purple-dark/90 text-vynal-title dark:text-vynal-text-primary rounded-xl shadow-lg shadow-gray-200 dark:shadow-vynal-accent-secondary/20 border border-gray-200 dark:border-vynal-purple-secondary/30">
         <div className="mb-6">
-          <Link href="/services" className="inline-flex items-center text-vynal-text-primary hover:text-vynal-accent-primary transition-colors">
-            <ArrowLeft className="h-4 w-4 mr-2" />
+          <Link href="/services" className="inline-flex items-center text-vynal-title dark:text-vynal-text-primary hover:text-vynal-accent-primary transition-colors text-[11px]">
+            <ArrowLeft className="h-3 w-3 mr-1" />
             Retour aux services
           </Link>
         </div>
         
-        <div className="bg-vynal-purple-dark/50 border border-vynal-purple-secondary/30 rounded-lg p-6 my-8 flex flex-col items-center justify-center">
-          <AlertTriangle className="text-vynal-status-error h-12 w-12 mb-4" />
-          <h2 className="text-xl font-bold text-vynal-text-primary mb-2">Service introuvable</h2>
-          <p className="text-vynal-text-secondary text-center mb-4">{error}</p>
+        <div className="bg-gray-50 dark:bg-vynal-purple-dark/50 border border-gray-200 dark:border-vynal-purple-secondary/30 rounded-lg p-6 my-8 flex flex-col items-center justify-center">
+          <AlertTriangle className="text-red-500 dark:text-vynal-status-error h-12 w-12 mb-4" />
+          <h2 className="text-xl font-bold text-vynal-title dark:text-vynal-text-primary mb-2">Service introuvable</h2>
+          <p className="text-vynal-body dark:text-vynal-text-secondary text-center mb-4">{error}</p>
           <Button asChild variant="default" className="bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-vynal-purple-dark">
             <Link href="/services">Parcourir tous les services</Link>
           </Button>
@@ -218,11 +218,11 @@ function ServiceDetailContent() {
 
   // Rendu pour afficher les détails du service
   return (
-    <div className="min-h-screen bg-vynal-purple-dark">
+    <div className="min-h-screen bg-white dark:bg-vynal-purple-dark">
       <div className="container mx-auto py-8 px-4 animate-in fade-in duration-300">
         <div className="mb-6">
-          <Link href="/services" className="inline-flex items-center text-vynal-text-primary hover:text-vynal-accent-primary transition-colors">
-            <ArrowLeft className="h-4 w-4 mr-2" />
+          <Link href="/services" className="inline-flex items-center text-vynal-title hover:text-vynal-accent-primary transition-colors text-[11px]">
+            <ArrowLeft className="h-3 w-3 mr-1" />
             Retour aux services
           </Link>
         </div>
@@ -246,24 +246,24 @@ function ServiceDetailContent() {
 // Conteneur de chargement pour le Suspense
 function ServiceDetailLoading() {
   return (
-    <div className="min-h-screen bg-vynal-purple-dark animate-in fade-in">
+    <div className="min-h-screen bg-white dark:bg-vynal-purple-dark animate-in fade-in">
       <div className="container mx-auto px-4 w-full max-w-5xl py-8">
         <div className="flex flex-col md:flex-row gap-8">
           <div className="w-full md:w-2/3">
-            <Skeleton className="h-[400px] w-full mb-4 bg-vynal-purple-secondary/30" />
+            <Skeleton className="h-[400px] w-full mb-4 bg-gray-100 dark:bg-vynal-purple-secondary/30" />
             <div className="grid grid-cols-4 gap-2">
               {[1, 2, 3, 4].map((i) => (
-                <Skeleton key={i} className="h-24 w-full bg-vynal-purple-secondary/30" />
+                <Skeleton key={i} className="h-24 w-full bg-gray-100 dark:bg-vynal-purple-secondary/30" />
               ))}
             </div>
           </div>
           
           <div className="w-full md:w-1/3">
-            <Skeleton className="h-8 w-3/4 mb-4 bg-vynal-purple-secondary/30" />
-            <Skeleton className="h-6 w-1/2 mb-2 bg-vynal-purple-secondary/30" />
-            <Skeleton className="h-32 w-full mb-6 bg-vynal-purple-secondary/30" />
-            <Skeleton className="h-10 w-full mb-2 bg-vynal-purple-secondary/30" />
-            <Skeleton className="h-10 w-full bg-vynal-purple-secondary/30" />
+            <Skeleton className="h-8 w-3/4 mb-4 bg-gray-100 dark:bg-vynal-purple-secondary/30" />
+            <Skeleton className="h-6 w-1/2 mb-2 bg-gray-100 dark:bg-vynal-purple-secondary/30" />
+            <Skeleton className="h-32 w-full mb-6 bg-gray-100 dark:bg-vynal-purple-secondary/30" />
+            <Skeleton className="h-10 w-full mb-2 bg-gray-100 dark:bg-vynal-purple-secondary/30" />
+            <Skeleton className="h-10 w-full bg-gray-100 dark:bg-vynal-purple-secondary/30" />
           </div>
         </div>
       </div>

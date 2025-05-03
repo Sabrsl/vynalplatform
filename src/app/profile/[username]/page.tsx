@@ -471,7 +471,7 @@ export default function ProfilePage() {
         <div className="max-w-2xl mx-auto">
           <Card className="backdrop-blur-md bg-vynal-purple-dark/90 border-vynal-purple-secondary/30 rounded-xl">
             <CardContent className="p-6 flex flex-col items-center">
-              <div className="w-14 h-14 rounded-full bg-vynal-purple-secondary/30 flex items-center justify-center mb-5">
+              <div className="w-14 h-14 rounded-full bg-gray-100 dark:bg-vynal-purple-secondary/30 flex items-center justify-center mb-5">
                 <UserCircle className="h-7 w-7 text-vynal-accent-primary" />
               </div>
               <h2 className="text-xl font-medium text-vynal-text-primary mb-3">Profil non disponible</h2>
@@ -497,7 +497,7 @@ export default function ProfilePage() {
     <div className="min-h-screen bg-vynal-purple-dark">
       {/* Bannière du profil */}
       <div className="h-40 md:h-56 bg-gradient-to-b from-vynal-purple-dark to-vynal-purple-darkest relative overflow-hidden">
-        <div className="absolute inset-0 bg-[url('/img/grid-pattern.svg')] bg-center opacity-10"></div>
+        <div className="absolute inset-0 bg-[url('/img/grid-pattern.svg')] bg-center opacity-0 dark:opacity-10"></div>
         <div className="absolute -top-24 -right-24 w-96 h-96 bg-vynal-accent-secondary/20 rounded-full blur-3xl"></div>
         <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-vynal-accent-primary/20 rounded-full blur-3xl"></div>
       </div>
@@ -516,7 +516,7 @@ export default function ProfilePage() {
                 unoptimized
               />
             ) : (
-              <div className="w-28 h-28 rounded-full bg-vynal-purple-secondary/30 flex items-center justify-center border-4 border-vynal-purple-dark">
+              <div className="w-28 h-28 rounded-full bg-gray-100 dark:bg-vynal-purple-secondary/30 flex items-center justify-center border-4 border-vynal-purple-dark">
                 <UserCircle className="h-14 w-14 text-vynal-accent-primary" />
               </div>
             )}

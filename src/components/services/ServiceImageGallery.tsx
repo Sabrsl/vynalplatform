@@ -364,18 +364,20 @@ const ServiceImageGallery: React.FC<ServiceImageGalleryProps> = ({
       >
         <div className="relative w-full h-full flex items-center justify-center p-4">
           {/* Compteur d'images */}
-          <div className="absolute top-4 left-4 z-10 bg-black/60 text-white text-sm px-3 py-1.5 rounded-md">
+          <div className="absolute bottom-4 sm:top-4 sm:bottom-auto left-4 z-10 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded-sm sm:bg-black/75 sm:px-2 sm:py-1 sm:text-xs">
             {viewState.currentIndex + 1} / {validImages.length}
           </div>
           
-          {/* Bouton de fermeture */}
-          <button
-            onClick={toggleFullscreen}
-            className="absolute top-4 right-4 z-10 bg-black/60 text-white p-2 rounded-full hover:bg-black/80 transition-colors focus:outline-none focus:ring-2 focus:ring-white/50"
-            aria-label="Fermer le plein écran"
-          >
-            <X size={24} />
-          </button>
+          {/* Bouton de fermeture - fixe et très visible */}
+          <div className="absolute bottom-4 sm:top-4 sm:bottom-auto right-4 z-50">
+            <button
+              onClick={toggleFullscreen}
+              className="bg-transparent border border-white text-white rounded-full w-8 h-8 flex items-center justify-center shadow-lg hover:bg-white/10 transition-all sm:bg-black/40 sm:w-9 sm:h-9 sm:hover:bg-white/10"
+              aria-label="Fermer le plein écran"
+            >
+              <X size={18} strokeWidth={2.5} className="sm:size-[20px]" />
+            </button>
+          </div>
           
           {/* Image en cours */}
           <div className="relative max-w-full max-h-full flex items-center justify-center">
@@ -518,7 +520,7 @@ const ServiceImageGallery: React.FC<ServiceImageGalleryProps> = ({
         
         {/* Indicateur de position et bouton plein écran */}
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-3 flex items-center justify-between">
-          <div className="text-white text-xs sm:text-sm font-medium">
+          <div className="text-white text-[10px] sm:text-xs font-medium">
             {viewState.currentIndex + 1} / {validImages.length}
           </div>
           
@@ -527,8 +529,7 @@ const ServiceImageGallery: React.FC<ServiceImageGalleryProps> = ({
             className="text-white hover:text-indigo-200 transition-colors flex items-center gap-1 text-xs sm:text-sm focus:outline-none focus:underline"
             aria-label="Voir en plein écran"
           >
-            <ZoomIn size={16} className="mr-1" />
-            <span className="hidden sm:inline">Agrandir</span>
+            <ZoomIn size={16} />
           </button>
         </div>
         

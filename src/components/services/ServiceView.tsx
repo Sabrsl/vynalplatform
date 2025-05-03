@@ -3,6 +3,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useTheme } from "next-themes";
+import { useToast } from "@/components/ui/use-toast";
 
 // Composants UI - import seulement ceux nécessaires
 import { Button } from "@/components/ui/button";
@@ -42,15 +43,27 @@ import {
   Tag,
   Image as ImageIcon,
   MessageSquare,
-  X
+  X,
+  Facebook,
+  MessageCircle,
+  Mail,
+  Send,
+  Link as LinkIcon,
 } from "lucide-react";
+
+// Composants pour le Popover
+import { 
+  Popover, 
+  PopoverContent, 
+  PopoverTrigger 
+} from "@/components/ui/popover";
 
 // Chargement différé des composants lourds
 const ServiceReviews = dynamic(() => import('../reviews/ServiceReviews'), {
   loading: () => (
     <div className="animate-pulse space-y-4">
-      <div className="h-10 bg-vynal-purple-secondary/30 rounded w-1/3"></div>
-      <div className="h-40 bg-vynal-purple-secondary/30 rounded"></div>
+      <div className="h-10 bg-gray-100 dark:bg-vynal-purple-secondary/30 rounded w-1/3"></div>
+      <div className="h-40 bg-gray-100 dark:bg-vynal-purple-secondary/30 rounded"></div>
     </div>
   ),
   ssr: false
@@ -199,10 +212,11 @@ const ServiceErrorView = React.memo(({ error, onBack, isDarkMode }: {
           ) : (
             <Link href="/services" className="group">
               <Button variant="outline" className={cn(
-                "transition-colors btn-vynal-outline",
-                isDarkMode ? "dark" : "light"
+                "transition-colors btn-vynal-outline text-[10px]",
+                isDarkMode ? "dark" : "light",
+                "text-vynal-body/30"
               )}>
-                <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" />
+                <ArrowLeft className="h-3 w-3 mr-1 group-hover:-translate-x-1 transition-transform icon-vynal" aria-hidden="true" />
                 Retour aux services
               </Button>
             </Link>
@@ -222,7 +236,7 @@ const ServiceLoadingView = React.memo(({ isDarkMode }: { isDarkMode: boolean }) 
     <div className="container mx-auto px-4">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-4">
-          <Skeleton className="w-full aspect-video rounded-lg bg-vynal-purple-secondary/30" />
+          <Skeleton className="w-full aspect-video rounded-lg bg-gray-100 dark:bg-vynal-purple-secondary/30" />
           <Card className={cn(
             "rounded-xl",
             isDarkMode 
@@ -230,13 +244,13 @@ const ServiceLoadingView = React.memo(({ isDarkMode }: { isDarkMode: boolean }) 
               : "bg-white border-gray-200"
           )}>
             <CardContent className="p-6">
-              <Skeleton className="h-8 w-3/4 mb-4 bg-vynal-purple-secondary/30" />
+              <Skeleton className="h-8 w-3/4 mb-4 bg-gray-100 dark:bg-vynal-purple-secondary/30" />
               <div className="space-y-2 mb-6">
-                <Skeleton className="h-4 w-full bg-vynal-purple-secondary/30" />
-                <Skeleton className="h-4 w-full bg-vynal-purple-secondary/30" />
-                <Skeleton className="h-4 w-2/3 bg-vynal-purple-secondary/30" />
+                <Skeleton className="h-4 w-full bg-gray-100 dark:bg-vynal-purple-secondary/30" />
+                <Skeleton className="h-4 w-full bg-gray-100 dark:bg-vynal-purple-secondary/30" />
+                <Skeleton className="h-4 w-2/3 bg-gray-100 dark:bg-vynal-purple-secondary/30" />
               </div>
-              <Skeleton className="h-24 w-full bg-vynal-purple-secondary/30" />
+              <Skeleton className="h-24 w-full bg-gray-100 dark:bg-vynal-purple-secondary/30" />
             </CardContent>
           </Card>
         </div>
@@ -248,11 +262,11 @@ const ServiceLoadingView = React.memo(({ isDarkMode }: { isDarkMode: boolean }) 
               : "bg-white border-gray-200"
           )}>
             <CardContent className="p-6 space-y-4">
-              <Skeleton className="h-8 w-full bg-vynal-purple-secondary/30" />
-              <Skeleton className="h-10 w-full bg-vynal-purple-secondary/30" />
+              <Skeleton className="h-8 w-full bg-gray-100 dark:bg-vynal-purple-secondary/30" />
+              <Skeleton className="h-10 w-full bg-gray-100 dark:bg-vynal-purple-secondary/30" />
               <div className="flex space-x-2">
-                <Skeleton className="h-8 w-1/2 bg-vynal-purple-secondary/30" />
-                <Skeleton className="h-8 w-1/2 bg-vynal-purple-secondary/30" />
+                <Skeleton className="h-8 w-1/2 bg-gray-100 dark:bg-vynal-purple-secondary/30" />
+                <Skeleton className="h-8 w-1/2 bg-gray-100 dark:bg-vynal-purple-secondary/30" />
               </div>
             </CardContent>
           </Card>
@@ -264,10 +278,10 @@ const ServiceLoadingView = React.memo(({ isDarkMode }: { isDarkMode: boolean }) 
           )}>
             <CardContent className="p-6 space-y-4">
               <div className="flex items-center space-x-3">
-                <Skeleton className="h-12 w-12 rounded-full bg-vynal-purple-secondary/30" />
+                <Skeleton className="h-12 w-12 rounded-full bg-gray-100 dark:bg-vynal-purple-secondary/30" />
                 <div className="space-y-2">
-                  <Skeleton className="h-4 w-32 bg-vynal-purple-secondary/30" />
-                  <Skeleton className="h-3 w-20 bg-vynal-purple-secondary/30" />
+                  <Skeleton className="h-4 w-32 bg-gray-100 dark:bg-vynal-purple-secondary/30" />
+                  <Skeleton className="h-3 w-20 bg-gray-100 dark:bg-vynal-purple-secondary/30" />
                 </div>
               </div>
             </CardContent>
@@ -363,6 +377,19 @@ const ShareModal = React.memo(({
 });
 ShareModal.displayName = 'ShareModal';
 
+// Composant pour l'overlay flou
+const BlurOverlay = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
+  if (!isOpen) return null;
+  
+  return (
+    <div 
+      className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm transition-opacity duration-200"
+      onClick={onClose}
+      aria-hidden="true"
+    />
+  );
+};
+
 /**
  * Composant d'information de service
  */
@@ -371,20 +398,141 @@ const ServiceInfo = React.memo(({
   subcategory, 
   deliveryTime, 
   createdAt,
-  isDarkMode 
+  isDarkMode,
+  onShare,
+  shareUrl,
+  title,
+  onCopyLink
 }: { 
   category: any, 
   subcategory: any, 
   deliveryTime: number, 
   createdAt: string,
-  isDarkMode: boolean 
-}) => (
+  isDarkMode: boolean,
+  onShare?: () => void,
+  shareUrl?: string,
+  title?: string,
+  onCopyLink?: () => void
+}) => {
+  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
+  
+  return (
   <div className={cn(
-    "flex flex-wrap gap-3 mb-5 py-3 px-0 rounded-lg border text-xs",
+    "flex flex-wrap gap-3 mb-5 py-3 px-3 rounded-lg border text-xs relative",
     isDarkMode 
       ? "bg-vynal-purple-darkest/30 border-vynal-purple-mid/20" 
       : "bg-gray-50 border-gray-200"
   )}>
+    {/* Effet de flou d'arrière-plan quand le Popover est ouvert */}
+    <BlurOverlay isOpen={isPopoverOpen} onClose={() => setIsPopoverOpen(false)} />
+    
+    {/* Icône de partage élégante et moderne avec Popover */}
+    {onShare && (
+      <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
+        <PopoverTrigger asChild>
+          <button
+            className={cn(
+              "absolute top-3 right-3 p-1.5 rounded-full transition-colors z-10",
+              isDarkMode
+                ? "text-vynal-text-secondary hover:text-vynal-accent-primary hover:bg-vynal-purple-dark/60"
+                : "text-gray-500 hover:text-[#FF66B2] hover:bg-gray-100/80"
+            )}
+            aria-label="Partager ce service"
+          >
+            <Share2 className="h-3.5 w-3.5" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent 
+          className={cn(
+            "w-64 p-2 z-50 shadow-md border",
+            isDarkMode 
+              ? "bg-vynal-purple-dark border-vynal-purple-secondary/30 text-vynal-text-primary"
+              : "bg-white border-gray-200 text-gray-800"
+          )}
+          align="end" 
+          sideOffset={5}
+        >
+          <div className="space-y-2">
+            <div className={cn(
+              "text-sm font-medium pb-1 border-b mb-2",
+              isDarkMode
+                ? "border-vynal-purple-secondary/40 text-vynal-text-primary"
+                : "border-gray-200 text-[#2C1A4C]"
+            )}>
+              Partager ce service
+            </div>
+            
+            <div className="grid grid-cols-5 gap-2 mb-3">
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-9 w-9 rounded-full p-0 border-blue-500/30 hover:border-blue-500 hover:bg-blue-50 dark:border-blue-500/30 dark:hover:border-blue-500 dark:hover:bg-blue-900/20"
+                onClick={() => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl || window.location.href)}`, '_blank')}
+              >
+                <Facebook className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              </Button>
+              
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-9 w-9 rounded-full p-0 border-black/30 hover:border-black hover:bg-black/5 dark:border-white/30 dark:hover:border-white dark:hover:bg-white/10"
+                onClick={() => window.open(`https://x.com/intent/tweet?url=${encodeURIComponent(shareUrl || window.location.href)}&text=${encodeURIComponent(`Découvrez ce service: ${title || 'Service'} sur Vynal Platform`)}`, '_blank')}
+              >
+                <X className="h-4 w-4 text-black dark:text-white" />
+              </Button>
+              
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-9 w-9 rounded-full p-0 border-green-500/30 hover:border-green-500 hover:bg-green-50 dark:border-green-500/30 dark:hover:border-green-500 dark:hover:bg-green-900/20"
+                onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(`Découvrez ce service sur Vynal Platform: ${shareUrl || window.location.href}`)}`, '_blank')}
+              >
+                <MessageCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+              </Button>
+              
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-9 w-9 rounded-full p-0 border-blue-400/30 hover:border-blue-400 hover:bg-blue-50 dark:border-blue-400/30 dark:hover:border-blue-400 dark:hover:bg-blue-900/20"
+                onClick={() => window.open(`https://t.me/share/url?url=${encodeURIComponent(shareUrl || window.location.href)}&text=${encodeURIComponent(`Découvrez ce service: ${title || 'Service'} sur Vynal Platform`)}`, '_blank')}
+              >
+                <Send className="h-4 w-4 text-blue-400 dark:text-blue-300" />
+              </Button>
+              
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-9 w-9 rounded-full p-0 border-pink-500/30 hover:border-pink-500 hover:bg-pink-50 dark:border-pink-500/30 dark:hover:border-pink-500 dark:hover:bg-pink-900/20"
+                onClick={() => window.open(`mailto:?subject=${encodeURIComponent(`Découvrez ce service sur Vynal Platform`)}&body=${encodeURIComponent(`Hey, je voulais partager ce service avec toi: ${title || 'Service'}\n${shareUrl || window.location.href}`)}`, '_blank')}
+              >
+                <Mail className="h-4 w-4 text-pink-600 dark:text-pink-400" />
+              </Button>
+            </div>
+            
+            <div className="flex flex-col space-y-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className={cn(
+                  "justify-start text-xs h-8",
+                  isDarkMode
+                    ? "border-vynal-purple-secondary/40 text-vynal-text-primary hover:bg-vynal-purple-secondary/20"
+                    : "border-gray-200 text-[#2C1A4C] hover:bg-gray-100"
+                )}
+                onClick={onCopyLink}
+              >
+                <LinkIcon className={cn(
+                  "h-3.5 w-3.5 mr-2", 
+                  isDarkMode ? "text-vynal-accent-primary" : "text-[#FF66B2]"
+                )} />
+                Copier le lien
+              </Button>
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
+    )}
+    
     {/* Catégorie */}
     <div className="flex items-center">
       <div className="w-3 flex justify-center">
@@ -439,7 +587,7 @@ const ServiceInfo = React.memo(({
       </div>
     )}
   </div>
-));
+)});
 ServiceInfo.displayName = 'ServiceInfo';
 
 /**
@@ -504,6 +652,7 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
   const router = useRouter();
   const user = useUser();
   const { averageRating, reviewCount } = useFreelancerRating(service?.profiles?.id || '');
+  const { toast } = useToast();
   
   // === Gestion du thème ===
   // Vérification du rendu côté client
@@ -675,20 +824,12 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
   
   // Partage du service - optimisé avec moins de dépendances
   const handleShare = useCallback(() => {
-    const shareTitle = serviceMeta?.title || 'Service';
-    // Vérifier si l'API de partage est disponible
-    if (navigator.share) {
-      navigator.share({
-        title: shareTitle,
-        text: `Découvrez ce service : ${shareTitle}`,
-        url: window.location.href
-      }).catch(() => {
-        setIsShareModalOpen(true);
-      });
-    } else {
+    // L'API de partage Web est maintenant gérée via le Popover
+    // La fonction reste pour la compatibilité
+    if (!isClient) {
       setIsShareModalOpen(true);
     }
-  }, [serviceMeta?.title]);
+  }, [isClient]);
   
   // Copie du lien dans le presse-papier
   const copyToClipboard = useCallback(() => {
@@ -697,12 +838,28 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
     navigator.clipboard.writeText(window.location.href)
       .then(() => {
         setCopySuccess(true);
+        
+        // Afficher un toast pour informer l'utilisateur
+        toast({
+          title: "Lien copié",
+          description: "Le lien du service a été copié dans le presse-papiers.",
+          duration: 3000
+        });
+        
         setTimeout(() => setCopySuccess(false), 2000);
       })
       .catch(err => {
         console.error('Erreur lors de la copie: ', err);
+        
+        // Toast d'erreur
+        toast({
+          title: "Erreur",
+          description: "Impossible de copier le lien.",
+          variant: "destructive",
+          duration: 3000
+        });
       });
-  }, []);
+  }, [toast]);
   
   // Navigation optimisée
   const handleViewProfile = useCallback(() => {
@@ -751,7 +908,7 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
             ? "bg-gradient-to-b from-vynal-purple-dark to-vynal-purple-darkest" 
             : "bg-gradient-to-b from-indigo-100 to-white"
         )}>
-          <div className="absolute inset-0 opacity-20 bg-[url('/img/grid-pattern.svg')] bg-center"></div>
+          <div className={`absolute inset-0 bg-[url('/img/grid-pattern.svg')] bg-center ${isDarkMode ? 'opacity-20' : 'opacity-0'}`}></div>
           <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full blur-3xl opacity-20"
             style={{
               background: isDarkMode 
@@ -836,11 +993,11 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-6 lg:gap-8">
           {/* Partie gauche: informations principales du service */}
-          <div className="lg:col-span-2">
+          <div className="md:col-span-2">
             {/* Galerie d'images du service */}
-            <div className="mb-8 lg:mb-6">
+            <div className="mb-6 md:mb-7 lg:mb-8">
               {serviceMeta.hasImages ? (
                 <ServiceImageGallery
                   images={serviceMeta.images}
@@ -852,7 +1009,7 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                   "aspect-video rounded-lg flex items-center justify-center",
                   isDarkMode ? "bg-vynal-purple-secondary/10" : "bg-gray-50 border border-[#E0E0E0]"
                 )}>
-                  <ImageIcon className="h-12 w-12 text-vynal-body" aria-hidden="true" />
+                  <ImageIcon className="h-10 w-10 md:h-12 md:w-12 text-vynal-body" aria-hidden="true" />
                   <span className="ml-2 text-vynal-body">Aucune image disponible</span>
                 </div>
               )}
@@ -862,7 +1019,7 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
               "card-vynal",
               isDarkMode ? "dark" : "light"
             )}>
-              <CardContent className="p-5 sm:p-6">
+              <CardContent className="p-4 sm:p-5 lg:p-6">
                 {/* Statut du service - visible uniquement en mode admin */}
                 {isFreelanceView && serviceMeta.active !== undefined && (
                   <div className="mb-4 flex justify-between items-center">
@@ -881,7 +1038,7 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                 {/* Titre du service */}
                 <div className="mb-4 sm:mb-5">
                   <h1 
-                    className="text-lg sm:text-xl md:text-2xl font-bold break-words text-vynal-title"
+                    className="text-xl sm:text-2xl font-bold break-words text-vynal-title"
                     id="service-title"
                   >
                     {serviceMeta.title}
@@ -895,16 +1052,20 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                   deliveryTime={serviceMeta.delivery_time}
                   createdAt={serviceMeta.created_at}
                   isDarkMode={isDarkMode}
+                  onShare={handleShare}
+                  shareUrl={isClient ? window.location.href : ''}
+                  title={serviceMeta.title}
+                  onCopyLink={copyToClipboard}
                 />
                 
                 {/* Description du service */}
-                <div className="mb-2">
+                <div className="mb-3 md:mb-4">
                   <h2 className="text-base font-semibold mb-2 text-vynal-title">Description</h2>
                   <div className={cn(
-                    "rounded-lg py-2 px-0",
+                    "rounded-lg py-3 px-0",
                     isDarkMode ? "" : "bg-gray-50"
                   )}>
-                    <div className="prose prose-sm max-w-none overflow-hidden break-words text-sm text-vynal-title">
+                    <div className="prose prose-sm max-w-none overflow-hidden break-words text-xs md:text-sm text-vynal-title">
                       {formattedDescription}
                     </div>
                   </div>
@@ -914,11 +1075,11 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
           </div>
           
           {/* Partie droite: prix, actions, et info freelance */}
-          <div className="lg:block">
-            <div className="lg:sticky lg:top-4 space-y-6 lg:space-y-4">
+          <div className="md:col-span-1">
+            <div className="md:sticky md:top-4 space-y-5 md:space-y-6">
               {/* Carte de prix et actions */}
               <Card className={cn(
-                "card-vynal", 
+                "card-vynal mt-5 md:mt-0", 
                 isDarkMode ? "dark" : "light"
               )}>
                 <div className={cn(
@@ -927,7 +1088,10 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                     ? "bg-gradient-to-r from-vynal-purple-darkest to-vynal-purple-dark border-vynal-purple-mid/20" 
                     : "bg-gradient-to-r from-gray-50 to-white border-gray-200"
                 )}>
-                  <h2 className="text-2xl font-bold text-vynal-title">
+                  <h2 className={cn(
+                    "text-2xl font-bold",
+                    isDarkMode ? "text-vynal-accent-primary" : "text-vynal-title"
+                  )}>
                     {formattedPrice}
                   </h2>
                   <p className="text-xs text-vynal-body">Prix final, sans frais supplémentaires</p>
@@ -949,36 +1113,20 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                       customLabel="Commander ce service"
                     />
                     
-                    <div className="flex space-x-3 lg:space-x-2">
-                      <Button 
-                        variant="outline" 
+                    {/* Bouton de messagerie déplacé ici */}
+                    {serviceMeta.freelance && serviceMeta.freelance.id && (
+                      <MessagingDialog 
+                        freelanceId={serviceMeta.freelance.id}
+                        freelanceName={serviceMeta.freelance.full_name || serviceMeta.freelance.username || 'Freelance'}
+                        buttonVariant="outline"
                         className={cn(
-                          "flex-1 text-xs py-2.5 lg:py-2 btn-vynal-outline",
-                          isDarkMode ? "dark" : "light",
-                          isFavorite && "bg-[#FF66B2]/10"
-                        )} 
-                        size="sm"
-                        disabled={isFavorite ? false : true}
-                      >
-                        <Heart className={cn(
-                          "h-4 w-4 mr-1 icon-vynal",
-                          isFavorite && "fill-current"
-                        )} aria-hidden="true" />
-                        {isFavorite ? "Favori" : "Favoris"}
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        className={cn(
-                          "flex-1 text-xs py-2.5 lg:py-2 btn-vynal-outline",
-                          isDarkMode ? "dark" : "light"
-                        )} 
-                        size="sm"
-                        onClick={handleShare}
-                      >
-                        <Share2 className="h-4 w-4 mr-1 icon-vynal" aria-hidden="true" />
-                        Partager
-                      </Button>
-                    </div>
+                          "w-full text-xs inline-flex items-center justify-center rounded-md font-medium transition-colors h-10 px-4 py-2",
+                          isDarkMode 
+                            ? "border bg-vynal-purple-dark/30 text-vynal-accent-primary border-vynal-accent-primary/50 hover:bg-vynal-purple-secondary/30" 
+                            : "border bg-white text-[#FF66B2] border-[#FF66B2]/50 hover:bg-gray-100"
+                        )}
+                      />
+                    )}
                   </div>
                   
                   {/* Garanties du service */}
@@ -994,8 +1142,8 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                 <div className={cn(
                   "p-5 lg:p-4",
                   isDarkMode 
-                    ? "border-b border-vynal-purple-secondary/40" 
-                    : "bg-gradient-to-r from-gray-50 to-white border-b border-gray-200"
+                    ? "" 
+                    : "bg-gradient-to-r from-gray-50 to-white"
                 )}>
                   <h3 className="font-semibold mb-2 text-vynal-title">À propos du vendeur</h3>
                 </div>
@@ -1004,9 +1152,9 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                   {/* Vérifier la présence des données du freelance */}
                   {serviceMeta.freelance && (
                     <>
-                      <div className="flex items-center mb-2">
+                      <div className="flex items-center mb-3">
                         <Avatar className={cn(
-                          "h-14 w-14 lg:h-12 lg:w-12 mr-3 border",
+                          "h-12 w-12 sm:h-14 sm:w-14 lg:h-12 lg:w-12 mr-3 border",
                           isDarkMode 
                             ? "border-vynal-purple-secondary/40"
                             : "border-gray-200"
@@ -1024,7 +1172,7 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                           </AvatarFallback>
                         </Avatar>
                         <div className="overflow-hidden">
-                          <h3 className="text-sm truncate font-normal text-vynal-title">
+                          <h3 className="text-sm sm:text-base truncate font-normal text-vynal-title">
                             {serviceMeta.freelance.full_name || serviceMeta.freelance.username || 'Vendeur'}
                           </h3>
                           <div className="flex items-center">
@@ -1069,31 +1217,19 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                       )}
                       
                       <div className="space-y-3 lg:space-y-2">
-                        <div className="flex gap-3 lg:gap-2">
-                          {serviceMeta.freelance.id && (
-                            <MessagingDialog 
-                              freelanceId={serviceMeta.freelance.id}
-                              freelanceName={serviceMeta.freelance.full_name || serviceMeta.freelance.username || 'Freelance'}
-                              buttonVariant="default"
-                              className={cn(
-                                "w-full text-xs btn-vynal-primary",
-                                isDarkMode ? "dark" : "light"
-                              )}
-                              size="sm"
-                            />
-                          )}
-                          
+                        <div className="flex flex-col sm:flex-row gap-3 sm:gap-2">
                           <Button 
                             variant="outline" 
                             className={cn(
-                              "w-full text-xs flex items-center justify-center btn-vynal-outline",
-                              isDarkMode ? "dark" : "light"
+                              "w-full text-xs inline-flex items-center justify-center rounded-md font-medium transition-colors h-10 px-4 py-2",
+                              isDarkMode 
+                                ? "border bg-vynal-purple-dark/30 text-vynal-title border-vynal-purple-secondary/50 hover:bg-vynal-purple-secondary/30" 
+                                : "border bg-white text-vynal-title border-gray-200 hover:bg-gray-100"
                             )}
-                            size="sm"
                             onClick={handleViewProfile}
                           >
-                            <User className="h-3.5 w-3.5 mr-1 icon-vynal" aria-hidden="true" />
-                            {user?.profile?.id === serviceMeta.freelance.id ? "Mon profil" : "Voir profil"}
+                            <User className="h-3.5 w-3.5 mr-1.5 flex-shrink-0 icon-vynal" aria-hidden="true" />
+                            <span className="whitespace-nowrap">{user?.profile?.id === serviceMeta.freelance.id ? "Mon profil" : "Voir profil"}</span>
                           </Button>
                         </div>
                         
@@ -1146,8 +1282,8 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                         "animate-pulse space-y-4",
                         textStyles.secondary(isDarkMode)
                       )}>
-                        <div className="h-10 bg-vynal-purple-secondary/30 rounded w-1/3"></div>
-                        <div className="h-40 bg-vynal-purple-secondary/30 rounded"></div>
+                        <div className="h-10 bg-gray-100 dark:bg-vynal-purple-secondary/30 rounded w-1/3"></div>
+                        <div className="h-40 bg-gray-100 dark:bg-vynal-purple-secondary/30 rounded"></div>
                       </div>
                     }>
                       <ServiceReviews serviceId={serviceMeta.id} />
@@ -1163,21 +1299,21 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
         {!isFreelanceView && serviceMeta.freelance?.id && (
           <div
             ref={relatedRef}
-            className="mt-12 lg:mt-10"
+            className="mt-8 sm:mt-10 lg:mt-12"
           >
-            <div className="mb-5">
-              <h2 className="text-base sm:text-lg flex items-center text-vynal-title">
+            <div className="mb-4 sm:mb-5">
+              <h2 className="text-base sm:text-lg flex flex-wrap items-center text-vynal-title">
                 <Package2 className={cn(
                   "h-5 w-5 mr-2",
                   textStyles.accent(isDarkMode)
                 )} aria-hidden="true" />
-                Autres services de<span style={{ display: 'inline-block', width: '0.25em' }}></span>{serviceMeta.freelance.full_name || serviceMeta.freelance.username}
+                <span>Autres services de <span className="font-medium">{serviceMeta.freelance.full_name || serviceMeta.freelance.username}</span></span>
               </h2>
-              <p className="text-sm ml-7 text-vynal-body">Découvrez d'autres services proposés par ce vendeur</p>
+              <p className="text-xs sm:text-sm ml-7 text-vynal-body">Découvrez d'autres services proposés par ce vendeur</p>
             </div>
             
             {relatedInView && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8 lg:gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5 lg:gap-6">
                 {loadingRelated ? (
                   // Skeletons pour les services en chargement
                   Array(3).fill(0).map((_, i) => (
@@ -1187,11 +1323,11 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                         ? "border-vynal-purple-secondary/30 bg-vynal-purple-dark/60" 
                         : "border-[#E0E0E0] bg-white"
                     )}>
-                      <div className="h-32 animate-pulse bg-vynal-purple-secondary/30"></div>
+                      <div className="h-32 animate-pulse bg-gray-100 dark:bg-vynal-purple-secondary/30"></div>
                       <CardContent className="p-3">
-                        <Skeleton className="h-4 w-3/4 mb-2 bg-vynal-purple-secondary/30" />
-                        <Skeleton className="h-4 w-1/2 mb-2 bg-vynal-purple-secondary/30" />
-                        <Skeleton className="h-6 w-1/3 mt-4 bg-vynal-purple-secondary/30" />
+                        <Skeleton className="h-4 w-3/4 mb-2 bg-gray-100 dark:bg-vynal-purple-secondary/30" />
+                        <Skeleton className="h-4 w-1/2 mb-2 bg-gray-100 dark:bg-vynal-purple-secondary/30" />
+                        <Skeleton className="h-6 w-1/3 mt-4 bg-gray-100 dark:bg-vynal-purple-secondary/30" />
                       </CardContent>
                     </Card>
                   ))
@@ -1282,7 +1418,7 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
         )}
       </div>
       
-      {/* Modal de partage simplifié pour optimiser les performances */}
+      {/* Modal de partage simplifié pour optimiser les performances - Utilisé comme fallback */}
       {isShareModalOpen && (
         <ShareModal 
           isOpen={isShareModalOpen}

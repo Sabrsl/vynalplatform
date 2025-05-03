@@ -694,7 +694,7 @@ function Header() {
         } rounded-full blur-3xl opacity-50`}></div>
         
         <div className={`absolute inset-0 bg-[url('/img/grid-pattern.svg')] bg-center ${
-          isDark ? "opacity-5" : "opacity-10"
+          isDark ? "opacity-5" : "opacity-0"
         }`}></div>
       </div>
       

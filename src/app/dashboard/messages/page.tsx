@@ -103,6 +103,20 @@ export default function MessagesPage() {
     );
   }
   
+  // Déterminer si l'utilisateur est un freelance en vérifiant différentes sources possibles
+  // Important : vérifier si le rôle est stocké directement dans user ou dans user_metadata
+  const isFreelance = 
+    (user?.user_metadata?.role === 'freelance') || 
+    (user?.role === 'freelance') ||
+    (user?.user_metadata?.userRole === 'freelance');
+  
+  console.log('DEBUG - User role info:', {
+    user_metadata_role: user?.user_metadata?.role,
+    user_metadata_userRole: user?.user_metadata?.userRole,
+    user_role: user?.role,
+    resolved_isFreelance: isFreelance
+  });
+  
   return (
     <ErrorBoundary fallback={
       <div className="p-6 bg-red-50 rounded-lg">
@@ -116,17 +130,17 @@ export default function MessagesPage() {
           
           <NewConversationDialog 
             onConversationCreated={handleConversationCreated}
-            isFreelance={true}
+            isFreelance={isFreelance}
           />
         </div>
         
         <MessagingInterface 
           initialConversationId={conversationId || undefined} 
           orderId={orderId || undefined}
-          isFreelance={true}
+          isFreelance={isFreelance}
           key={`messaging-${conversationId || orderId || 'all'}`}
         />
       </div>
     </ErrorBoundary>
   );
-} 
+}

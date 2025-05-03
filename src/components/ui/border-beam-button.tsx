@@ -46,25 +46,25 @@ export const BorderBeamButton = memo(function BorderBeamButton({ href, children,
   const borderTopStyle = useMemo(() => ({
     background: 'linear-gradient(90deg, transparent 0%, #ff71d4 50%, transparent 100%)',
     animation: 'moveRightToLeft 3s infinite linear',
-    boxShadow: '0 0 10px rgba(255, 113, 212, 1)'
+    boxShadow: '0 0 15px rgba(255, 113, 212, 1)'
   }), []);
 
   const borderBottomStyle = useMemo(() => ({
     background: 'linear-gradient(90deg, transparent 0%, #ff52bf 50%, transparent 100%)',
     animation: 'moveLeftToRight 3s infinite linear',
-    boxShadow: '0 0 10px rgba(255, 82, 191, 1)'
+    boxShadow: '0 0 15px rgba(255, 82, 191, 1)'
   }), []);
 
   const borderLeftStyle = useMemo(() => ({
     background: 'linear-gradient(180deg, transparent 0%, #ff71d4 50%, transparent 100%)',
     animation: 'moveBottomToTop 3.5s infinite linear',
-    boxShadow: '0 0 10px rgba(255, 113, 212, 1)'
+    boxShadow: '0 0 15px rgba(255, 113, 212, 1)'
   }), []);
 
   const borderRightStyle = useMemo(() => ({
     background: 'linear-gradient(180deg, transparent 0%, #ff52bf 50%, transparent 100%)',
     animation: 'moveTopToBottom 3.5s infinite linear',
-    boxShadow: '0 0 10px rgba(255, 82, 191, 1)'
+    boxShadow: '0 0 15px rgba(255, 82, 191, 1)'
   }), []);
 
   const beamStyle = useMemo(() => ({
@@ -89,25 +89,25 @@ export const BorderBeamButton = memo(function BorderBeamButton({ href, children,
         <div className="absolute inset-0 rounded-md overflow-hidden z-0">
           {/* Première ligne horizontale (haut) */}
           <div
-            className="absolute top-0 left-0 w-full h-[2px]"
+            className="absolute top-0 left-0 w-full h-[3px]"
             style={borderTopStyle}
           />
           
           {/* Deuxième ligne horizontale (bas) */}
           <div
-            className="absolute bottom-0 right-0 w-full h-[2px]"
+            className="absolute bottom-0 right-0 w-full h-[3px]"
             style={borderBottomStyle}
           />
           
           {/* Première ligne verticale (gauche) */}
           <div
-            className="absolute top-0 left-0 h-full w-[2px]"
+            className="absolute top-0 left-0 h-full w-[3px]"
             style={borderLeftStyle}
           />
           
           {/* Deuxième ligne verticale (droite) */}
           <div
-            className="absolute top-0 right-0 h-full w-[2px]"
+            className="absolute top-0 right-0 h-full w-[3px]"
             style={borderRightStyle}
           />
         </div>
@@ -130,8 +130,7 @@ export const BorderBeamButton = memo(function BorderBeamButton({ href, children,
       </Link>
       
       {/* Global CSS pour les animations */}
-      <style jsx global>{`
-        @keyframes moveRightToLeft {
+      <style jsx global>{`        @keyframes moveRightToLeft {
           0% { transform: translateX(-100%); }
           100% { transform: translateX(100%); }
         }

@@ -19,6 +19,7 @@ type NotificationState = {
   markAllAsRead: (userId: string) => Promise<void>;
   setupRealtimeSubscriptions: (userId: string) => () => void;
   clearError: () => void;
+  createMessageNotification: (userId: string, senderId: string, conversationId: string, content: string) => Promise<void>;
 };
 
 export const useNotificationStore = create<NotificationState>(
@@ -117,6 +118,65 @@ export const useNotificationStore = create<NotificationState>(
         return data;
       } catch (err) {
         console.error('Erreur lors de la création de la notification:', err);
+      }
+    },
+    
+    // Nouvelle fonction spécifique pour les notifications de messages pour les freelances
+    createMessageNotification: async (userId: string, senderId: string, conversationId: string, content: string) => {
+      try {
+        // Ne pas créer de notification si l'expéditeur est le destinataire
+        if (userId === senderId) {
+          return;
+        }
+        
+        // Récupérer les informations sur l'expéditeur
+        const { data: senderData, error: senderError } = await supabase
+          .from('profiles')
+          .select('username, full_name, role')
+          .eq('id', senderId)
+          .single();
+          
+        if (senderError) {
+          console.error("Erreur lors de la récupération des infos de l'expéditeur:", senderError);
+          return;
+        }
+        
+        // Déterminer si le destinataire est un freelance
+        const { data: recipientData, error: recipientError } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', userId)
+          .single();
+          
+        if (recipientError) {
+          console.error("Erreur lors de la récupération du rôle du destinataire:", recipientError);
+          return;
+        }
+        
+        const isFreelance = recipientData?.role === 'freelance';
+        
+        // Si le destinataire est un freelance, toujours créer une notification
+        // Pour les clients, utiliser la logique existante
+        if (isFreelance) {
+          console.log("Création de notification pour freelance");
+          
+          const senderName = senderData?.full_name || senderData?.username || "Quelqu'un";
+          const truncatedContent = content.length > 50 ? `${content.substring(0, 47)}...` : content;
+          
+          await get().createNotification({
+            user_id: userId,
+            type: 'message',
+            content: `${senderName}: ${truncatedContent}`,
+            link: `/dashboard/messages?conversation=${conversationId}`,
+            metadata: JSON.stringify({
+              conversation_id: conversationId,
+              sender_id: senderId,
+              sender_name: senderName
+            })
+          });
+        }
+      } catch (err) {
+        console.error('Erreur lors de la création de la notification de message:', err);
       }
     },
     
@@ -244,10 +304,113 @@ export const useNotificationStore = create<NotificationState>(
         )
         .subscribe();
       
+      // Abonnement aux nouveaux messages pour créer des notifications
+      const messagesSubscription = supabase
+        .channel('messages-for-notifications-channel')
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'messages'
+          },
+          async (payload: any) => {
+            const { new: newMessage } = payload;
+            
+            // Ignorer les messages de typing ou vides
+            if (newMessage.is_typing || !newMessage.content) {
+              return;
+            }
+            
+            // Vérifier si l'utilisateur est participant à cette conversation
+            if (newMessage.conversation_id) {
+              // Récupérer le rôle de l'utilisateur actuel
+              const { data: userRole } = await supabase
+                .from('profiles')
+                .select('role')
+                .eq('id', userId)
+                .single();
+                
+              // Pour les freelances, créer des notifications pour tous les messages
+              // sauf ceux qu'ils ont envoyés eux-mêmes
+              if (userRole?.role === 'freelance' && newMessage.sender_id !== userId) {
+                console.log(`[Notification] Nouveau message dans la conversation ${newMessage.conversation_id}`);
+                
+                // Vérifier si l'utilisateur est déjà participant à cette conversation
+                const { data: participantCheck } = await supabase
+                  .from('conversation_participants')
+                  .select('id')
+                  .eq('conversation_id', newMessage.conversation_id)
+                  .eq('participant_id', userId)
+                  .maybeSingle();
+                
+                if (participantCheck) {
+                  // Créer une notification pour le freelance
+                  get().createMessageNotification(
+                    userId,
+                    newMessage.sender_id,
+                    newMessage.conversation_id,
+                    newMessage.content
+                  );
+                } else {
+                  // Si le freelance n'est pas encore participant à cette conversation
+                  // mais qu'il devrait recevoir des messages (par exemple, s'il est mentionné)
+                  // on peut ajouter une logique spécifique ici
+                  console.log(`Le freelance n'est pas encore participant à la conversation ${newMessage.conversation_id}`);
+                  
+                  // Vérifier si ce message concerne le freelance
+                  // Par exemple, vérifier si le message mentionne un de ses services
+                  const { data: servicesData } = await supabase
+                    .from('services')
+                    .select('id')
+                    .eq('freelance_id', userId);
+                    
+                  if (servicesData && servicesData.length > 0) {
+                    // Si le message concerne un des services du freelance
+                    // ou si c'est une demande initiale, ajouter le freelance à la conversation
+                    
+                    // Exemple de logique pour déterminer si le message est pertinent
+                    const serviceIds = servicesData.map(s => s.id);
+                    
+                    // Si c'est le premier message de la conversation
+                    const { data: messageCount } = await supabase
+                      .from('messages')
+                      .select('count', { count: 'exact', head: true })
+                      .eq('conversation_id', newMessage.conversation_id);
+                      
+                    if (messageCount && messageCount[0]?.count === 1) {
+                      // C'est le premier message, ajouter le freelance comme participant
+                      const { error: insertError } = await supabase
+                        .from('conversation_participants')
+                        .insert({
+                          conversation_id: newMessage.conversation_id,
+                          participant_id: userId,
+                          unread_count: 1
+                        });
+                        
+                      if (!insertError) {
+                        // Créer une notification
+                        get().createMessageNotification(
+                          userId,
+                          newMessage.sender_id,
+                          newMessage.conversation_id,
+                          newMessage.content
+                        );
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        )
+        .subscribe();
+      
       // Retourner une fonction de nettoyage pour les abonnements
       return () => {
         supabase.removeChannel(notificationsSubscription);
         supabase.removeChannel(notificationUpdatesSubscription);
+        supabase.removeChannel(messagesSubscription);
       };
     },
     
@@ -255,4 +418,4 @@ export const useNotificationStore = create<NotificationState>(
       set({ error: null });
     }
   })) as StateCreator<NotificationState>
-); 
+);

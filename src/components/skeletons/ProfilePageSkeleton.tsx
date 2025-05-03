@@ -8,8 +8,8 @@ export function ProfilePageSkeleton() {
         <div className="space-y-6">
           {/* Header */}
           <div className="flex justify-between items-center">
-            <Skeleton className="h-8 w-48 bg-vynal-purple-secondary/30" />
-            <Skeleton className="h-8 w-32 bg-vynal-purple-secondary/30" />
+            <Skeleton className="h-8 w-48 bg-gray-100 dark:bg-vynal-purple-secondary/30" />
+            <Skeleton className="h-8 w-32 bg-gray-100 dark:bg-vynal-purple-secondary/30" />
           </div>
           
           {/* Profil principal */}
@@ -19,10 +19,10 @@ export function ProfilePageSkeleton() {
               <Card className="dark:border-vynal-purple-secondary/40">
                 <CardHeader>
                   <div className="flex items-center gap-4">
-                    <Skeleton className="h-20 w-20 rounded-full bg-vynal-purple-secondary/30" />
+                    <Skeleton className="h-20 w-20 rounded-full bg-gray-100 dark:bg-vynal-purple-secondary/30" />
                     <div className="space-y-2">
-                      <Skeleton className="h-6 w-48 bg-vynal-purple-secondary/30" />
-                      <Skeleton className="h-4 w-32 bg-vynal-purple-secondary/30" />
+                      <Skeleton className="h-6 w-48 bg-gray-100 dark:bg-vynal-purple-secondary/30" />
+                      <Skeleton className="h-4 w-32 bg-gray-100 dark:bg-vynal-purple-secondary/30" />
                     </div>
                   </div>
                 </CardHeader>
@@ -30,19 +30,19 @@ export function ProfilePageSkeleton() {
                   {/* Champs du formulaire */}
                   {[...Array(5)].map((_, i) => (
                     <div key={i} className="space-y-2">
-                      <Skeleton className="h-4 w-32 bg-vynal-purple-secondary/30" />
-                      <Skeleton className="h-10 w-full bg-vynal-purple-secondary/30 rounded-md" />
+                      <Skeleton className="h-4 w-32 bg-gray-100 dark:bg-vynal-purple-secondary/30" />
+                      <Skeleton className="h-10 w-full bg-gray-100 dark:bg-vynal-purple-secondary/30 rounded-md" />
                     </div>
                   ))}
                   
                   {/* Bio */}
                   <div className="space-y-2">
-                    <Skeleton className="h-4 w-32 bg-vynal-purple-secondary/30" />
-                    <Skeleton className="h-28 w-full bg-vynal-purple-secondary/30 rounded-md" />
+                    <Skeleton className="h-4 w-32 bg-gray-100 dark:bg-vynal-purple-secondary/30" />
+                    <Skeleton className="h-28 w-full bg-gray-100 dark:bg-vynal-purple-secondary/30 rounded-md" />
                   </div>
                   
                   {/* Bouton de sauvegarde */}
-                  <Skeleton className="h-10 w-32 bg-vynal-purple-secondary/30 rounded-md mt-4" />
+                  <Skeleton className="h-10 w-32 bg-gray-100 dark:bg-vynal-purple-secondary/30 rounded-md mt-4" />
                 </CardContent>
               </Card>
             </div>
@@ -52,15 +52,15 @@ export function ProfilePageSkeleton() {
               {/* Card d'informations */}
               <Card className="dark:border-vynal-purple-secondary/40">
                 <CardHeader>
-                  <Skeleton className="h-6 w-36 bg-vynal-purple-secondary/30" />
+                  <Skeleton className="h-6 w-36 bg-gray-100 dark:bg-vynal-purple-secondary/30" />
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {[...Array(4)].map((_, i) => (
                     <div key={i} className="flex items-center gap-3">
-                      <Skeleton className="h-8 w-8 rounded-full bg-vynal-purple-secondary/30" />
+                      <Skeleton className="h-8 w-8 rounded-full bg-gray-100 dark:bg-vynal-purple-secondary/30" />
                       <div className="space-y-1 flex-1">
-                        <Skeleton className="h-4 w-3/4 bg-vynal-purple-secondary/30" />
-                        <Skeleton className="h-3 w-1/2 bg-vynal-purple-secondary/30" />
+                        <Skeleton className="h-4 w-3/4 bg-gray-100 dark:bg-vynal-purple-secondary/30" />
+                        <Skeleton className="h-3 w-1/2 bg-gray-100 dark:bg-vynal-purple-secondary/30" />
                       </div>
                     </div>
                   ))}
@@ -70,11 +70,11 @@ export function ProfilePageSkeleton() {
               {/* QR Code */}
               <Card className="dark:border-vynal-purple-secondary/40">
                 <CardHeader>
-                  <Skeleton className="h-6 w-36 bg-vynal-purple-secondary/30" />
+                  <Skeleton className="h-6 w-36 bg-gray-100 dark:bg-vynal-purple-secondary/30" />
                 </CardHeader>
                 <CardContent className="flex flex-col items-center">
-                  <Skeleton className="h-40 w-40 bg-vynal-purple-secondary/30 mb-4" />
-                  <Skeleton className="h-10 w-40 bg-vynal-purple-secondary/30 rounded-md" />
+                  <Skeleton className="h-40 w-40 bg-gray-100 dark:bg-vynal-purple-secondary/30 mb-4" />
+                  <Skeleton className="h-10 w-40 bg-gray-100 dark:bg-vynal-purple-secondary/30 rounded-md" />
                 </CardContent>
               </Card>
             </div>

@@ -6,7 +6,19 @@ import Link from 'next/link';
 import { useCategories } from '@/hooks/useCategories';
 import { usePaginatedServices } from '@/hooks/usePaginatedServices';
 import { formatPrice } from '@/lib/utils';
-import { ChevronRight, Filter, Search, RefreshCw, Grid, List, ArrowRight, AlertCircle } from 'lucide-react';
+import { 
+  ChevronRight, 
+  Filter, 
+  Search, 
+  RefreshCw, 
+  Grid, 
+  List, 
+  ArrowRight, 
+  AlertCircle,
+  Users,
+  User,
+  CreditCard
+} from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import ServiceCard from '@/components/services/ServiceCard';
 import CategoriesGrid from '@/components/categories/CategoriesGrid';
@@ -50,26 +62,72 @@ const STATS_DATA = {
 
 // Sous-composants extraits avec React.memo pour éviter les re-rendus inutiles
 const StatsSection = React.memo(({ statsData }: { statsData: typeof STATS_DATA }) => (
-  <section className="py-16 bg-vynal-purple-dark/90 border-t border-vynal-purple-secondary/30">
+  <section className="py-10 bg-gradient-to-r from-gray-50 to-white dark:from-vynal-purple-dark/80 dark:to-vynal-purple-dark/95 border-t border-gray-100 dark:border-vynal-purple-secondary/30">
     <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-8">
-        <div className="text-center">
-          <h3 className="text-2xl text-vynal-text-primary mb-2">
-            {statsData.freelancersCount}
-          </h3>
-          <p className="text-sm text-vynal-text-secondary">Freelances</p>
-        </div>
-        <div className="text-center">
-          <h3 className="text-2xl text-vynal-text-primary mb-2">
-            {statsData.clientsCount}
-          </h3>
-          <p className="text-sm text-vynal-text-secondary">Clients</p>
-        </div>
-        <div className="text-center">
-          <h3 className="text-2xl text-vynal-text-primary mb-2">
-            {statsData.totalPayments}
-          </h3>
-          <p className="text-sm text-vynal-text-secondary">Total des paiements</p>
+      <div className="max-w-3xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+          {/* Freelances */}
+          <div className="relative flex flex-col items-center px-3 py-5">
+            {/* Cercle décoratif */}
+            <div className="absolute -z-10 w-16 h-16 bg-gradient-to-br from-pink-50 to-purple-50 dark:from-vynal-accent-primary/5 dark:to-vynal-accent-secondary/5 rounded-full top-0 left-1/2 -translate-x-1/2 -translate-y-1/4 blur-md opacity-80"></div>
+            
+            {/* Icône avec cercle */}
+            <div className="flex items-center justify-center w-10 h-10 mb-3 rounded-full bg-white dark:bg-vynal-purple-secondary/10 shadow-sm">
+              <Users className="h-4 w-4 text-vynal-accent-primary" />
+            </div>
+            
+            {/* Nombre avec gradient */}
+            <h3 className="text-2xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-vynal-accent-primary to-purple-600 dark:from-vynal-accent-primary dark:to-vynal-accent-secondary">
+              {statsData.freelancersCount}
+            </h3>
+            
+            {/* Texte */}
+            <p className="text-xs text-vynal-body mt-1 text-center">
+              Freelances
+            </p>
+          </div>
+          
+          {/* Clients */}
+          <div className="relative flex flex-col items-center px-3 py-5">
+            {/* Cercle décoratif */}
+            <div className="absolute -z-10 w-16 h-16 bg-gradient-to-br from-pink-50 to-purple-50 dark:from-vynal-accent-primary/5 dark:to-vynal-accent-secondary/5 rounded-full top-0 left-1/2 -translate-x-1/2 -translate-y-1/4 blur-md opacity-80"></div>
+            
+            {/* Icône avec cercle */}
+            <div className="flex items-center justify-center w-10 h-10 mb-3 rounded-full bg-white dark:bg-vynal-purple-secondary/10 shadow-sm">
+              <User className="h-4 w-4 text-vynal-accent-primary" />
+            </div>
+            
+            {/* Nombre avec gradient */}
+            <h3 className="text-2xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-vynal-accent-primary to-purple-600 dark:from-vynal-accent-primary dark:to-vynal-accent-secondary">
+              {statsData.clientsCount}
+            </h3>
+            
+            {/* Texte */}
+            <p className="text-xs text-vynal-body mt-1 text-center">
+              Clients satisfaits
+            </p>
+          </div>
+          
+          {/* Paiements */}
+          <div className="relative flex flex-col items-center px-3 py-5">
+            {/* Cercle décoratif */}
+            <div className="absolute -z-10 w-16 h-16 bg-gradient-to-br from-pink-50 to-purple-50 dark:from-vynal-accent-primary/5 dark:to-vynal-accent-secondary/5 rounded-full top-0 left-1/2 -translate-x-1/2 -translate-y-1/4 blur-md opacity-80"></div>
+            
+            {/* Icône avec cercle */}
+            <div className="flex items-center justify-center w-10 h-10 mb-3 rounded-full bg-white dark:bg-vynal-purple-secondary/10 shadow-sm">
+              <CreditCard className="h-4 w-4 text-vynal-accent-primary" />
+            </div>
+            
+            {/* Nombre avec gradient */}
+            <h3 className="text-2xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-vynal-accent-primary to-purple-600 dark:from-vynal-accent-primary dark:to-vynal-accent-secondary">
+              {statsData.totalPayments}
+            </h3>
+            
+            {/* Texte */}
+            <p className="text-xs text-vynal-body mt-1 text-center">
+              Total des transactions
+            </p>
+          </div>
         </div>
       </div>
     </div>
@@ -83,13 +141,13 @@ const HeroSection = React.memo(({ totalCount, categories, selectedCategory, getS
   selectedCategory: string | null,
   getSubcategoriesCount: (categoryId: string) => number
 }) => (
-  <section className="bg-gradient-to-b from-vynal-purple-dark to-vynal-purple-darkest text-vynal-text-primary py-8 lg:py-14 relative overflow-hidden">
+  <section className="bg-gradient-to-b from-indigo-50 to-white dark:from-vynal-purple-dark dark:to-vynal-purple-darkest text-gray-900 dark:text-vynal-text-primary py-8 lg:py-14 relative overflow-hidden">
     {/* Background decorations */}
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-vynal-accent-primary/20 rounded-full blur-3xl"></div>
-      <div className="absolute -top-24 -right-24 w-96 h-96 bg-vynal-accent-secondary/20 rounded-full blur-3xl"></div>
-      <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-vynal-accent-primary/20 rounded-full blur-3xl"></div>
-      <div className="absolute inset-0 bg-[url('/img/grid-pattern.svg')] bg-center opacity-10"></div>
+      <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-indigo-200/20 dark:bg-vynal-accent-primary/20 rounded-full blur-3xl"></div>
+      <div className="absolute -top-24 -right-24 w-96 h-96 bg-indigo-100/20 dark:bg-vynal-accent-secondary/20 rounded-full blur-3xl"></div>
+      <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-indigo-200/20 dark:bg-vynal-accent-primary/20 rounded-full blur-3xl"></div>
+      <div className="absolute inset-0 bg-[url('/img/grid-pattern.svg')] bg-center opacity-0 dark:opacity-10"></div>
     </div>
 
     <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
@@ -100,13 +158,13 @@ const HeroSection = React.memo(({ totalCount, categories, selectedCategory, getS
         transition={{ duration: 0.5 }}
         className="text-center max-w-3xl mx-auto pt-4 md:pt-6"
       >
-        <span className="inline-block px-2 py-0.5 text-[10px] font-medium bg-vynal-purple-secondary/30 rounded-full backdrop-blur-sm mb-2 text-vynal-text-primary">
+        <span className="inline-block px-2 py-0.5 text-[10px] font-medium bg-indigo-100/70 dark:bg-vynal-purple-secondary/30 rounded-full backdrop-blur-sm mb-2 text-indigo-700 dark:text-vynal-text-primary">
           {totalCount > 0 ? `+${totalCount}` : "Des"} services disponibles
         </span>
-        <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-2 leading-tight text-vynal-text-primary">
+        <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-2 leading-tight text-vynal-title">
           Trouvez le service idéal
         </h1>
-        <p className="text-sm sm:text-base text-vynal-text-secondary mb-4 sm:mb-6 max-w-2xl mx-auto">
+        <p className="text-sm sm:text-base text-vynal-body mb-4 sm:mb-6 max-w-2xl mx-auto">
           Des milliers de freelances talentueux prêts à réaliser vos projets
         </p>
       </motion.div>
@@ -151,7 +209,7 @@ const NavigationBar = React.memo(({
   viewMode: 'grid' | 'list',
   setViewMode: (mode: 'grid' | 'list') => void
 }) => (
-  <section className="bg-vynal-purple-dark/90 border-y border-vynal-purple-secondary/30 sticky top-0 z-10">
+  <section className="bg-gray-50 dark:bg-vynal-purple-dark/90 border-y border-gray-200 dark:border-vynal-purple-secondary/30 sticky top-0 z-10">
     <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-3">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         {/* Breadcrumbs */}
@@ -165,34 +223,34 @@ const NavigationBar = React.memo(({
           <button
             onClick={refreshData}
             disabled={isRefreshing || servicesLoading}
-            className="p-1.5 text-vynal-text-secondary hover:text-vynal-accent-primary hover:bg-vynal-purple-secondary/30 rounded-full disabled:opacity-50 transition-colors"
+            className="p-1.5 text-vynal-body hover:text-vynal-accent-primary hover:bg-gray-100 dark:hover:bg-vynal-purple-secondary/30 rounded-full disabled:opacity-50 transition-colors"
             title="Actualiser"
           >
-            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''} icon-vynal`} />
           </button>
           
           <button
             onClick={togglePaginationMode}
-            className="text-xs px-2 py-1 border border-vynal-purple-secondary/50 rounded-md hover:bg-vynal-purple-secondary/30 bg-vynal-purple-secondary/10 text-vynal-text-secondary transition-colors"
+            className="text-xs px-2 py-1 border border-gray-200 dark:border-vynal-purple-secondary/50 rounded-md hover:bg-gray-100 dark:hover:bg-vynal-purple-secondary/30 bg-white dark:bg-vynal-purple-secondary/10 text-vynal-body transition-colors"
             title={isLoadMoreMode ? "Passer à la pagination classique" : "Passer au mode 'Charger plus'"}
           >
             {isLoadMoreMode ? "Pagination" : "Charger plus"}
           </button>
           
-          <div className="hidden sm:flex items-center space-x-1 bg-vynal-purple-secondary/30 rounded-lg p-1">
+          <div className="hidden sm:flex items-center space-x-1 bg-gray-100 dark:bg-vynal-purple-secondary/30 rounded-lg p-1">
             <button
               onClick={() => setViewMode('grid')}
-              className={`p-1.5 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-vynal-purple-secondary/50 text-vynal-accent-primary' : 'text-vynal-text-secondary hover:text-vynal-text-primary'}`}
+              className={`p-1.5 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-white dark:bg-vynal-purple-secondary/50 text-vynal-accent-primary' : 'text-vynal-body hover:text-vynal-title'}`}
               title="Vue en grille"
             >
-              <Grid className="h-4 w-4" />
+              <Grid className="h-4 w-4 icon-vynal" />
             </button>
             <button
               onClick={() => setViewMode('list')}
-              className={`p-1.5 rounded-md transition-colors ${viewMode === 'list' ? 'bg-vynal-purple-secondary/50 text-vynal-accent-primary' : 'text-vynal-text-secondary hover:text-vynal-text-primary'}`}
+              className={`p-1.5 rounded-md transition-colors ${viewMode === 'list' ? 'bg-white dark:bg-vynal-purple-secondary/50 text-vynal-accent-primary' : 'text-vynal-body hover:text-vynal-title'}`}
               title="Vue en liste"
             >
-              <List className="h-4 w-4" />
+              <List className="h-4 w-4 icon-vynal" />
             </button>
           </div>
         </div>
@@ -219,7 +277,7 @@ const ResultsHeader = React.memo(({
 }) => (
   <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-2">
     <div>
-      <h2 className="text-lg text-vynal-text-primary">
+      <h2 className="text-lg text-vynal-title">
         {searchQuery 
           ? `Résultats pour "${searchQuery}"`
           : activeSubcategory 
@@ -229,7 +287,7 @@ const ResultsHeader = React.memo(({
               : "Tous les services"
         }
       </h2>
-      <p className="text-sm text-vynal-text-secondary mt-0.5">
+      <p className="text-sm text-vynal-body mt-0.5">
         {totalCount} services disponibles
         {currentPage > 1 ? ` • Page ${currentPage} sur ${totalPages}` : ''}
       </p>
@@ -253,18 +311,18 @@ const ErrorDisplay = React.memo(({
     <motion.div 
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-vynal-status-error/20 p-4 rounded-xl border border-vynal-status-error/30 mb-6"
+      className="bg-red-50 dark:bg-vynal-status-error/20 p-4 rounded-xl border border-red-200 dark:border-vynal-status-error/30 mb-6"
     >
       <div className="flex items-start gap-3">
-        <AlertCircle className="h-5 w-5 text-vynal-status-error mt-0.5" />
+        <AlertCircle className="h-5 w-5 text-red-500 dark:text-vynal-status-error mt-0.5 icon-vynal" />
         <div>
-          <h3 className="text-vynal-text-primary">Un problème est survenu</h3>
-          <p className="text-sm text-vynal-text-secondary mt-0.5">
+          <h3 className="text-vynal-title">Un problème est survenu</h3>
+          <p className="text-sm text-vynal-body mt-0.5">
             {connectionError || (servicesError ? servicesError.toString() : '')}
           </p>
           <button
             onClick={refreshData}
-            className="mt-2 text-xs px-2 py-1 bg-vynal-purple-secondary/30 text-vynal-accent-primary border border-vynal-purple-secondary/50 rounded-md hover:bg-vynal-purple-secondary/50 transition-colors"
+            className="mt-2 text-xs px-2 py-1 bg-red-100 dark:bg-vynal-purple-secondary/30 text-red-600 dark:text-vynal-accent-primary border border-red-200 dark:border-vynal-purple-secondary/50 rounded-md hover:bg-red-200 dark:hover:bg-vynal-purple-secondary/50 transition-colors"
           >
             Réessayer
           </button>
@@ -643,7 +701,7 @@ function ServicesPageContent() {
   
   // JSX - Structure simplifiée
   return (
-    <div className="min-h-screen bg-vynal-purple-dark">
+    <div className="min-h-screen bg-white dark:bg-vynal-purple-dark">
       {/* Hero Section */}
       <HeroSection 
         totalCount={totalCount}
@@ -667,7 +725,7 @@ function ServicesPageContent() {
 
       {/* Subcategories section */}
       {activeCategory && activeSubcategories.length > 0 && (
-        <section className="bg-vynal-purple-dark/80 border-b border-vynal-purple-secondary/30">
+        <section className="bg-white dark:bg-vynal-purple-dark/80 border-y border-gray-200 dark:border-vynal-purple-secondary/30 shadow-sm">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <SubcategoriesGrid 
               subcategories={activeSubcategories}

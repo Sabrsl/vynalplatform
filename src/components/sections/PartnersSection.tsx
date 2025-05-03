@@ -123,23 +123,20 @@ const PartnersSection = memo(() => {
   
   // Classes CSS mémorisées pour les performances
   const sectionClasses = useMemo(() => cn(
-    "py-12 sm:py-16 md:py-20 overflow-hidden w-screen relative -mx-4 md:-mx-8 lg:-mx-12",
-    isDarkMode ? "bg-vynal-purple-dark/50" : "bg-indigo-50/80"
+    "py-16 md:py-24 overflow-hidden w-screen relative -mx-4 md:-mx-8 lg:-mx-12",
+    isDarkMode ? "bg-vynal-purple-dark/50" : "bg-white"
   ), [isDarkMode]);
   
   const headingClasses = useMemo(() => cn(
-    "text-2xl sm:text-3xl font-bold text-center bg-gradient-to-r bg-clip-text text-transparent",
-    isDarkMode 
-      ? "from-vynal-accent-primary to-vynal-accent-secondary" 
-      : "from-indigo-600 to-indigo-800"
-  ), [isDarkMode]);
+    "text-2xl sm:text-3xl font-bold text-center bg-gradient-to-r from-vynal-accent-primary to-vynal-accent-secondary bg-clip-text text-transparent",
+  ), []);
   
   const leftGradientClasses = useMemo(() => cn(
     "absolute left-0 w-16 sm:w-24 md:w-32 h-full z-10",
     "bg-gradient-to-r",
     isDarkMode 
       ? "from-vynal-purple-dark/95 to-transparent"
-      : "from-indigo-50/95 to-transparent"
+      : "from-white/95 to-transparent"
   ), [isDarkMode]);
   
   const rightGradientClasses = useMemo(() => cn(
@@ -147,7 +144,7 @@ const PartnersSection = memo(() => {
     "bg-gradient-to-l",
     isDarkMode 
       ? "from-vynal-purple-dark/95 to-transparent"
-      : "from-indigo-50/95 to-transparent"
+      : "from-white/95 to-transparent"
   ), [isDarkMode]);
   
   // Styles d'animation mémorisés
