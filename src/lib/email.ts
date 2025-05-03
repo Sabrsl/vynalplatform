@@ -225,19 +225,25 @@ export const sendTemplateEmail = async (
     const html = replaceTemplateVariables(template, variables);
     
     // Créer un texte simple alternatif (version sans HTML)
-    const text = html
-      // Supprimer les balises HTML
-      .replace(/<[^>]*>/g, '')
-      // Décoder les entités HTML
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&amp;/g, '&')
-      .replace(/&quot;/g, '"')
-      .replace(/&#39;/g, "'")
-      // Supprimer les espaces multiples
-      .replace(/\s+/g, ' ')
-      // Supprimer les espaces au début et à la fin
-      .trim();
+    // Méthode sécurisée pour convertir HTML en texte
+    const text = (() => {
+      // 1. Supprimer les balises HTML
+      let plainText = html.replace(/<[^>]*>/g, '');
+      
+      // 2. Décoder les entités HTML communes (dans un ordre précis)
+      plainText = plainText
+        .replace(/&amp;/g, '&')  // Décoder &amp; en premier pour éviter les doubles décodages
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&nbsp;/g, ' ');
+      
+      // 3. Normaliser les espaces
+      plainText = plainText.replace(/\s+/g, ' ').trim();
+      
+      return plainText;
+    })();
     
     // Envoyer l'email
     return await sendEmail({

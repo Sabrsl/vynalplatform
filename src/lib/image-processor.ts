@@ -86,9 +86,12 @@ export const validateImage = async (
     };
     
     const objectUrl = URL.createObjectURL(file);
-    // Validation de sécurité minimale sans impact sur les performances
-    if (typeof objectUrl === 'string') {
+    // Validation de sécurité pour éviter les XSS
+    if (typeof objectUrl === 'string' && objectUrl.startsWith('blob:')) {
       img.src = objectUrl;
+    } else {
+      URL.revokeObjectURL(objectUrl);
+      resolve({ isValid: false, message: "Format d'image non valide" });
     }
   });
 };
@@ -112,9 +115,12 @@ export const getImageDimensions = (file: File): Promise<{width: number, height: 
     };
     
     const objectUrl = URL.createObjectURL(file);
-    // Validation de sécurité minimale sans impact sur les performances
-    if (typeof objectUrl === 'string') {
+    // Validation de sécurité pour éviter les XSS
+    if (typeof objectUrl === 'string' && objectUrl.startsWith('blob:')) {
       img.src = objectUrl;
+    } else {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("Format d'image non valide"));
     }
   });
 };
@@ -416,9 +422,13 @@ export const processImage = async (
     };
     
     const objectUrl = URL.createObjectURL(file);
-    // Validation de sécurité minimale sans impact sur les performances
-    if (typeof objectUrl === 'string') {
+    // Validation de sécurité pour éviter les XSS
+    if (typeof objectUrl === 'string' && objectUrl.startsWith('blob:')) {
       img.src = objectUrl;
+    } else {
+      URL.revokeObjectURL(objectUrl);
+      clearTimeout(timeoutId);
+      reject(new Error("Format d'image non valide"));
     }
     
     // S'assurer que l'URL est libérée si l'image n'est pas chargée
