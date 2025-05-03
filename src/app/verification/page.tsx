@@ -96,30 +96,37 @@ export default function VerificationPage() {
       
       // Dans une vraie application, on extrairait l'ID du document du QR code
       // et on vérifierait son authenticité
-      if (qrValue.includes("vynalplatform.com")) {
-        setVerificationResult("success");
-        // Données de démonstration
-        setDocumentInfo({
-          user: {
-            username: "jane_smith",
-            full_name: "Jane Smith",
-            role: "client",
-          },
-          generated_at: new Date().toISOString(),
-          is_valid: true
+      try {
+        const url = new URL(qrValue);
+        const allowedHosts = ['vynalplatform.com', 'www.vynalplatform.com'];
+        const isSecureProtocol = url.protocol === 'https:';
+        const isValidHost = allowedHosts.includes(url.hostname);
+        
+        if (isSecureProtocol && isValidHost) {
+          setVerificationResult("success");
+          // Données de démonstration
+          setDocumentInfo({
+            user: {
+              username: "jane_smith",
+              full_name: "Jane Smith",
+              role: "client",
+            },
+            generated_at: new Date().toISOString(),
+            is_valid: true
+          });
+        } else {
+          setVerificationResult("error");
+          setDocumentInfo(null);
+        }
+      } catch (error) {
+        console.error("Error verifying QR code:", error);
+        toast({
+          title: "Erreur",
+          description: "Une erreur est survenue lors de la vérification",
+          variant: "destructive",
         });
-      } else {
         setVerificationResult("error");
-        setDocumentInfo(null);
       }
-    } catch (error) {
-      console.error("Error verifying QR code:", error);
-      toast({
-        title: "Erreur",
-        description: "Une erreur est survenue lors de la vérification",
-        variant: "destructive",
-      });
-      setVerificationResult("error");
     } finally {
       setIsVerifying(false);
     }

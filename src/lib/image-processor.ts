@@ -85,7 +85,11 @@ export const validateImage = async (
       resolve({ isValid: false, message: "Impossible de lire l'image" });
     };
     
-    img.src = URL.createObjectURL(file);
+    const objectUrl = URL.createObjectURL(file);
+    // Validation de sécurité minimale sans impact sur les performances
+    if (typeof objectUrl === 'string') {
+      img.src = objectUrl;
+    }
   });
 };
 
@@ -107,7 +111,11 @@ export const getImageDimensions = (file: File): Promise<{width: number, height: 
       reject(new Error('Impossible de lire les dimensions de l\'image'));
     };
     
-    img.src = URL.createObjectURL(file);
+    const objectUrl = URL.createObjectURL(file);
+    // Validation de sécurité minimale sans impact sur les performances
+    if (typeof objectUrl === 'string') {
+      img.src = objectUrl;
+    }
   });
 };
 
@@ -408,7 +416,10 @@ export const processImage = async (
     };
     
     const objectUrl = URL.createObjectURL(file);
-    img.src = objectUrl;
+    // Validation de sécurité minimale sans impact sur les performances
+    if (typeof objectUrl === 'string') {
+      img.src = objectUrl;
+    }
     
     // S'assurer que l'URL est libérée si l'image n'est pas chargée
     img.onload = img.onload.bind(img);

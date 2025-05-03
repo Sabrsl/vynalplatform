@@ -217,8 +217,18 @@ async function sendTemplateEmail(to, templateName) {
     const html = replaceTemplateVariables(template, templateConfig.variables);
     
     // Créer un texte simple alternatif (version sans HTML)
-    const text = html.replace(/<[^>]*>/g, '')
+    const text = html
+      // Supprimer les balises HTML
+      .replace(/<[^>]*>/g, '')
+      // Décoder les entités HTML
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&amp;/g, '&')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      // Supprimer les espaces multiples
       .replace(/\s+/g, ' ')
+      // Supprimer les espaces au début et à la fin
       .trim();
     
     console.log(`Utilisation du template: ${templateName}`);
