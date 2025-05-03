@@ -279,7 +279,7 @@ const ActionButtons = memo(({
       <Button
         size="sm" 
         variant="secondary"
-        className="rounded-full px-2 py-0.5 h-auto text-[10px] bg-gray-100 dark:bg-vynal-purple-secondary/40 text-vynal-purple-dark dark:text-vynal-text-primary hover:bg-vynal-accent-primary hover:text-white dark:hover:text-vynal-purple-dark border border-gray-200 dark:border-vynal-purple-secondary/30 hover:border-vynal-accent-primary"
+        className="rounded-full px-2 py-0.5 h-auto text-[10px] bg-gray-100 dark:bg-vynal-purple-secondary/40 text-vynal-purple-dark dark:text-vynal-text-primary hover:bg-vynal-accent-primary hover:text-white dark:hover:bg-vynal-accent-primary dark:hover:text-vynal-purple-dark border border-gray-200 dark:border-vynal-purple-secondary/30 hover:border-vynal-accent-primary"
       >
         Voir détails
       </Button>

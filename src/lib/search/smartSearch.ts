@@ -38,8 +38,8 @@ export function filterServicesBySearchTerm(
     // Calcul d'un score de correspondance
     const score = calculateRelevanceScore(normalizedSearchTerm, searchWords, searchableText);
     
-    // On garde le service si son score est supérieur à un seuil
-    return score > 10;
+    // On garde le service si son score est supérieur à un seuil plus bas
+    return score > 5; // Réduit de 10 à 5 pour inclure plus de résultats pertinents
   });
 }
 
@@ -52,38 +52,36 @@ function calculateRelevanceScore(
   searchWords: string[], 
   text: string
 ): number {
-  // Correspondance exacte
+  let score = 0;
+
+  // Correspondance exacte du terme complet
   if (text.includes(fullSearchTerm)) {
-    return 100;
+    score += 50;
   }
 
-  let score = 0;
-  
-  // Pour chaque mot de la recherche, vérifier s'il est présent dans le texte
-  for (const word of searchWords) {
+  // Pour chaque mot de recherche
+  searchWords.forEach(word => {
+    // Correspondance exacte d'un mot
     if (text.includes(word)) {
-      score += 30 / searchWords.length;
-      
-      // Bonus si le mot est au début du texte ou d'un mot
-      if (text.startsWith(word) || text.includes(' ' + word)) {
-        score += 20 / searchWords.length;
-      }
+      score += 30;
     }
-  }
-  
-  // Correspondance partielle pour des mots plus longs
-  if (fullSearchTerm.length > 3) {
-    for (const word of searchWords) {
-      if (word.length > 3) {
-        // Rechercher des correspondances partielles (au moins 3 caractères)
-        const matches = text.match(new RegExp(word.substring(0, Math.max(3, word.length - 1)), 'g'));
-        if (matches && matches.length > 0) {
-          score += (10 * matches.length) / searchWords.length;
-        }
-      }
+    
+    // Correspondance partielle (début de mot)
+    if (text.split(/\s+/).some(textWord => textWord.startsWith(word))) {
+      score += 20;
     }
+    
+    // Correspondance partielle (contenu du mot)
+    if (text.split(/\s+/).some(textWord => textWord.includes(word))) {
+      score += 10;
+    }
+  });
+
+  // Bonus pour les correspondances dans le titre
+  if (text.includes(fullSearchTerm)) {
+    score += 20;
   }
-  
+
   return score;
 }
 

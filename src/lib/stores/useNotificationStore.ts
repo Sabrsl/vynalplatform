@@ -154,27 +154,23 @@ export const useNotificationStore = create<NotificationState>(
         }
         
         const isFreelance = recipientData?.role === 'freelance';
+        const senderName = senderData?.full_name || senderData?.username || "Quelqu'un";
+        const truncatedContent = content.length > 50 ? `${content.substring(0, 47)}...` : content;
         
-        // Si le destinataire est un freelance, toujours créer une notification
-        // Pour les clients, utiliser la logique existante
-        if (isFreelance) {
-          console.log("Création de notification pour freelance");
-          
-          const senderName = senderData?.full_name || senderData?.username || "Quelqu'un";
-          const truncatedContent = content.length > 50 ? `${content.substring(0, 47)}...` : content;
-          
-          await get().createNotification({
-            user_id: userId,
-            type: 'message',
-            content: `${senderName}: ${truncatedContent}`,
-            link: `/dashboard/messages?conversation=${conversationId}`,
-            metadata: JSON.stringify({
-              conversation_id: conversationId,
-              sender_id: senderId,
-              sender_name: senderName
-            })
-          });
-        }
+        // Créer une notification pour tous les utilisateurs (freelances et clients)
+        console.log(`Création de notification pour ${isFreelance ? 'freelance' : 'client'}`);
+        
+        await get().createNotification({
+          user_id: userId,
+          type: 'message',
+          content: `${senderName}: ${truncatedContent}`,
+          link: `/dashboard/messages?conversation=${conversationId}`,
+          metadata: JSON.stringify({
+            conversation_id: conversationId,
+            sender_id: senderId,
+            sender_name: senderName
+          })
+        });
       } catch (err) {
         console.error('Erreur lors de la création de la notification de message:', err);
       }

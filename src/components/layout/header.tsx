@@ -31,8 +31,9 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useTheme } from "next-themes";
-import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuGroup, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import Image from "next/image";
+import { debounce } from "lodash";
 
 // Données de navigation mémorisées en dehors du composant
 const BASE_NAVIGATION = [
@@ -129,12 +130,14 @@ const SearchBarContainer = memo(({
   searchQuery, 
   setSearchQuery, 
   handleSearch, 
+  handleSearchChange,
   isDark 
 }: { 
   pathname: string | null, 
   searchQuery: string, 
   setSearchQuery: (query: string) => void, 
   handleSearch: (e: React.FormEvent) => void,
+  handleSearchChange: (query: string) => void,
   isDark: boolean 
 }) => {
   if (!pathname?.includes('/services')) return null;
@@ -143,7 +146,7 @@ const SearchBarContainer = memo(({
     <div className="hidden md:block w-[350px] max-w-md transition-all">
       <SearchBar 
         searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
+        onSearchChange={handleSearchChange}
         onSearch={handleSearch}
         className="shadow-sm h-9 border-0 dark:bg-vynal-purple-dark/50 dark:border-vynal-purple-secondary/30"
         placeholder="Rechercher un service..."
@@ -391,6 +394,7 @@ const MobileSearchBar = memo(({
   searchQuery, 
   setSearchQuery, 
   handleSearch, 
+  handleSearchChange,
   isDark 
 }: { 
   pathname: string | null, 
@@ -399,6 +403,7 @@ const MobileSearchBar = memo(({
   searchQuery: string, 
   setSearchQuery: (query: string) => void, 
   handleSearch: (e: React.FormEvent) => void, 
+  handleSearchChange: (query: string) => void,
   isDark: boolean 
 }) => {
   if (!pathname?.includes('/services') || !searchBarVisible) return null;
@@ -419,7 +424,7 @@ const MobileSearchBar = memo(({
       <div className="relative">
         <SearchBar 
           searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
+          onSearchChange={handleSearchChange}
           onSearch={handleSearch}
           className={`h-9 rounded-full shadow-sm ${
             isDark 
@@ -454,11 +459,14 @@ function Header() {
   const [activePath, setActivePath] = useState<string>('');
   const [isNavigating, setIsNavigating] = useState<boolean>(false);
   const [isMounted, setIsMounted] = useState<boolean>(false);
+  const [isOpen, setIsOpen] = useState<boolean>(false);
   
   // Références
   const searchBarRef = useRef<HTMLDivElement>(null);
   const searchButtonRef = useRef<HTMLButtonElement>(null);
   const headerRef = useRef<HTMLElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   
   // Hooks Next.js
   const router = useRouter();
@@ -468,6 +476,22 @@ function Header() {
   // Hooks personnalisés
   const auth = useAuth();
   const userProfile = useUser();
+  
+  // Effet d'initialisation
+  useEffect(() => {
+    setIsMounted(true);
+    if (pathname) {
+      setActivePath(pathname);
+      // Récupération de la recherche initiale depuis l'URL
+      if (pathname.includes('/services')) {
+        const searchParams = new URLSearchParams(window.location.search);
+        const searchParam = searchParams.get('search');
+        if (searchParam) {
+          setSearchQuery(decodeURIComponent(searchParam));
+        }
+      }
+    }
+  }, [pathname]);
   
   // Fonction pour changer le thème
   const toggleTheme = useCallback(() => {
@@ -554,6 +578,25 @@ function Header() {
       setSearchBarVisible(false);
     }
   }, [searchQuery, router]);
+
+  // Debounce pour la recherche en temps réel
+  const debouncedSearch = useCallback(
+    debounce((query: string) => {
+      if (query.trim()) {
+        NavigationLoadingState.setIsNavigating(true);
+        router.push(`/services?search=${encodeURIComponent(query.trim())}`);
+      } else {
+        // Si la recherche est vide, on redirige vers la page des services sans paramètre de recherche
+        router.push('/services');
+      }
+    }, 300),
+    [router]
+  );
+
+  const handleSearchChange = useCallback((query: string) => {
+    setSearchQuery(query);
+    debouncedSearch(query);
+  }, [debouncedSearch]);
   
   const toggleSearchBar = useCallback(() => {
     setSearchBarVisible(prev => {
@@ -571,14 +614,17 @@ function Header() {
   }, []);
   
   const handleNavigation = useCallback((href: string) => {
-    if (href === pathname || isNavigating) {
-      return;
-    }
+    if (href === pathname || isNavigating) return;
     
     NavigationLoadingState.setIsNavigating(true);
     setActivePath(href);
-    router.push(href);
-  }, [pathname, isNavigating, router]);
+    
+    if (href === '/services' && searchQuery) {
+      router.push(`/services?search=${encodeURIComponent(searchQuery)}`);
+    } else {
+      router.push(href);
+    }
+  }, [pathname, isNavigating, router, searchQuery]);
   
   const handleLogout = useCallback(async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -646,6 +692,40 @@ function Header() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, [isMounted]);
   
+  // Fonction pour basculer le menu
+  const toggleMenu = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsOpen(prev => !prev);
+  }, []);
+
+  // Gestionnaire de clic à l'extérieur
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        menuRef.current && 
+        buttonRef.current && 
+        !menuRef.current.contains(event.target as Node) && 
+        !buttonRef.current.contains(event.target as Node)
+      ) {
+        setIsOpen(false);
+      }
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setIsOpen(false);
+    };
+
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside, { capture: true });
+      document.addEventListener("keydown", handleKeyDown);
+    }
+    
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside, { capture: true });
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen]);
+  
   // Si l'app n'est pas montée, afficher un placeholder simple
   if (!isMounted) {
     return <header className="h-16 sticky top-0 z-50" />;
@@ -694,7 +774,7 @@ function Header() {
         } rounded-full blur-3xl opacity-50`}></div>
         
         <div className={`absolute inset-0 bg-[url('/img/grid-pattern.svg')] bg-center ${
-          isDark ? "opacity-5" : "opacity-0"
+          isDark ? "opacity-5" : "opacity-0 hidden"
         }`}></div>
       </div>
       
@@ -712,6 +792,7 @@ function Header() {
                   searchQuery={searchQuery} 
                   setSearchQuery={setSearchQuery} 
                   handleSearch={handleSearch}
+                  handleSearchChange={handleSearchChange}
                   isDark={isDark}
                 />
               </div>
@@ -815,41 +896,97 @@ function Header() {
                   />
 
                   {/* Avatar utilisateur - CACHÉ SUR MOBILE */}
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <motion.button
-                        className={`relative h-9 w-9 rounded-full transition-all duration-300 overflow-hidden hidden sm:flex items-center justify-center ${
+                  <div className="relative">
+                    <motion.button
+                      ref={buttonRef}
+                      className={`relative h-9 w-9 rounded-full transition-all duration-300 overflow-hidden hidden sm:flex items-center justify-center ${
+                        isDark 
+                          ? "ring-1 ring-vynal-purple-secondary/40 hover:ring-vynal-accent-primary/60" 
+                          : "ring-1 ring-vynal-purple-300/60 hover:ring-vynal-purple-500/60"
+                      }`}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      aria-label="Menu utilisateur"
+                      onClick={toggleMenu}
+                      aria-haspopup="true"
+                      aria-expanded={isOpen}
+                    >
+                      {userStatus.avatarUrl ? (
+                        <Image 
+                          src={userStatus.avatarUrl} 
+                          alt="Profile" 
+                          width={36}
+                          height={36}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className={`h-full w-full flex items-center justify-center ${
                           isDark 
-                            ? "ring-1 ring-vynal-purple-secondary/40 hover:ring-vynal-accent-primary/60" 
-                            : "ring-1 ring-vynal-purple-300/60 hover:ring-vynal-purple-500/60"
-                        }`}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        aria-label="Menu utilisateur"
-                      >
-                        {userStatus.avatarUrl ? (
-                          <Image 
-                            src={userStatus.avatarUrl} 
-                            alt="Profile" 
-                            width={36}
-                            height={36}
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          <div className={`h-full w-full flex items-center justify-center ${
-                            isDark 
-                              ? "bg-vynal-purple-secondary text-vynal-accent-primary" 
-                              : "bg-vynal-purple-100 text-vynal-purple-600"
-                          }`}>
-                            <span className="text-sm font-medium">
-                              {userStatus.username?.charAt(0).toUpperCase()}
+                            ? "bg-vynal-purple-secondary text-vynal-accent-primary" 
+                            : "bg-vynal-purple-100 text-vynal-purple-600"
+                        }`}>
+                          <span className="text-sm font-medium">
+                            {userStatus.username?.charAt(0).toUpperCase()}
+                          </span>
+                        </div>
+                      )}
+                    </motion.button>
+
+                    <AnimatePresence>
+                      {isOpen && (
+                        <motion.div 
+                          ref={menuRef}
+                          className="absolute right-0 mt-2 w-48 z-50 rounded-lg border border-vynal-purple-secondary/20 bg-white p-1 text-vynal-purple-dark shadow-lg dark:border-vynal-purple-secondary/20 dark:bg-vynal-purple-dark dark:text-vynal-text-primary backdrop-blur-sm"
+                          initial={{ opacity: 0, scale: 0.95, y: -5 }}
+                          animate={{ opacity: 1, scale: 1, y: 0 }}
+                          exit={{ opacity: 0, scale: 0.95, y: -5 }}
+                          transition={{ duration: 0.2, ease: "easeOut" }}
+                          role="menu"
+                          aria-orientation="vertical"
+                        >
+                          <div className="px-2 py-1.5 text-xs font-semibold">
+                            <span className="flex items-center gap-1.5">
+                              <User className="h-3 w-3 text-vynal-accent-primary" strokeWidth={2.5} />
+                              <span>{userStatus.username || 'Mon Compte'}</span>
                             </span>
                           </div>
-                        )}
-                      </motion.button>
-                    </DropdownMenuTrigger>
-                    {/* Dropdown menu content would go here */}
-                  </DropdownMenu>
+                          <div className="border-t border-vynal-purple-secondary/20 dark:border-vynal-purple-secondary/20 my-1" />
+                          <div className="space-y-0.5">
+                            <Link href="/dashboard/profile" className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs cursor-pointer ${isDark ? 'hover:bg-vynal-purple-secondary/30 text-vynal-text-primary' : 'hover:bg-vynal-purple-100/60 text-vynal-purple-dark'}`}>
+                              <User className="h-3 w-3" />
+                              <span>Profil</span>
+                            </Link>
+                            <Link href="/dashboard/orders" className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs cursor-pointer ${isDark ? 'hover:bg-vynal-purple-secondary/30 text-vynal-text-primary' : 'hover:bg-vynal-purple-100/60 text-vynal-purple-dark'}`}>
+                              <Briefcase className="h-3 w-3" />
+                              <span>Commandes</span>
+                            </Link>
+                            {userStatus.isFreelance && (
+                              <Link href="/dashboard/services" className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs cursor-pointer ${isDark ? 'hover:bg-vynal-purple-secondary/30 text-vynal-text-primary' : 'hover:bg-vynal-purple-100/60 text-vynal-purple-dark'}`}>
+                                <Briefcase className="h-3 w-3" />
+                                <span>Mes Services</span>
+                              </Link>
+                            )}
+                            <Link href="/dashboard/messages" className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs cursor-pointer ${isDark ? 'hover:bg-vynal-purple-secondary/30 text-vynal-text-primary' : 'hover:bg-vynal-purple-100/60 text-vynal-purple-dark'}`}>
+                              <MessageSquare className="h-3 w-3" />
+                              <span>Messages</span>
+                            </Link>
+                            <Link href="/dashboard/wallet" className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs cursor-pointer ${isDark ? 'hover:bg-vynal-purple-secondary/30 text-vynal-text-primary' : 'hover:bg-vynal-purple-100/60 text-vynal-purple-dark'}`}>
+                              <Wallet className="h-3 w-3" />
+                              <span>Portefeuille</span>
+                            </Link>
+                          </div>
+                          <div className="border-t border-vynal-purple-secondary/20 dark:border-vynal-purple-secondary/20 my-1" />
+                          <button 
+                            onClick={handleLogout} 
+                            className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs w-full cursor-pointer ${isDark ? 'hover:bg-vynal-purple-secondary/30 text-vynal-text-primary' : 'hover:bg-vynal-purple-100/60 text-vynal-purple-dark'}`}
+                          >
+                            <LogOut className="h-3 w-3" />
+                            <span>Déconnexion</span>
+                          </button>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -894,7 +1031,8 @@ function Header() {
           searchBarRef={searchBarRef} 
           searchQuery={searchQuery} 
           setSearchQuery={setSearchQuery} 
-          handleSearch={handleSearch} 
+          handleSearch={handleSearch}
+          handleSearchChange={handleSearchChange}
           isDark={isDark} 
         />
       </AnimatePresence>

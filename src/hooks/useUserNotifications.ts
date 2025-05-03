@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useAuth } from './useAuth';
+import { useNotificationStore } from '@/lib/stores/useNotificationStore';
 
 interface NotificationCache {
   [userId: string]: {
@@ -28,6 +29,7 @@ export const useUserNotifications = (userId?: string) => {
   const [totalUnreadCount, setTotalUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
+  const { unreadCount, fetchNotifications, setupRealtimeSubscriptions } = useNotificationStore();
   
   // Références pour contrôler les effets de bord
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -38,7 +40,7 @@ export const useUserNotifications = (userId?: string) => {
   const effectiveUserId = useMemo(() => userId || user?.id || null, [userId, user?.id]);
   
   // Fonction de récupération des notifications memoïsée
-  const fetchNotifications = useCallback(async (forceRefresh = false): Promise<void> => {
+  const fetchNotificationsWithCache = useCallback(async (forceRefresh = false): Promise<void> => {
     // Valider l'id utilisateur
     if (!effectiveUserId) {
       setLoading(false);
@@ -73,19 +75,13 @@ export const useUserNotifications = (userId?: string) => {
       setLoading(true);
       lastFetchTimeRef.current = now;
       
-      // Simuler l'appel API avec un compte aléatoire à des fins de démonstration
-      // Noter: Ceci est temporaire, à remplacer par l'API réelle
-      await new Promise(resolve => {
-        activeTimerRef.current = setTimeout(resolve, 500);
-      });
-      
-      // Simuler des données avec un nombre aléatoire entre 0-4
-      const mockCount = Math.floor(Math.random() * 5);
+      // Récupérer les notifications depuis le store
+      await fetchNotifications(effectiveUserId);
       
       // Mettre à jour l'état et le cache
-      setTotalUnreadCount(mockCount);
+      setTotalUnreadCount(unreadCount);
       globalNotificationCache[effectiveUserId] = {
-        count: mockCount,
+        count: unreadCount,
         timestamp: Date.now()
       };
     } catch (error) {
@@ -101,7 +97,7 @@ export const useUserNotifications = (userId?: string) => {
       setLoading(false);
       abortControllerRef.current = null;
     }
-  }, [effectiveUserId, totalUnreadCount]);
+  }, [effectiveUserId, totalUnreadCount, fetchNotifications, unreadCount]);
 
   // Reset optimisé pour marquer les notifications comme lues
   const markAsRead = useCallback(() => {
@@ -134,7 +130,7 @@ export const useUserNotifications = (userId?: string) => {
           if (!isActive) return;
           
           // Déclencher la requête
-          await fetchNotifications();
+          await fetchNotificationsWithCache();
         } catch (err) {
           console.error("Erreur lors du chargement initial des notifications:", err);
         }
@@ -142,10 +138,13 @@ export const useUserNotifications = (userId?: string) => {
       
       initialFetch();
       
+      // Configurer les abonnements en temps réel
+      const cleanup = setupRealtimeSubscriptions(effectiveUserId);
+      
       // Optimiser les écouteurs d'événements
       const handleVisibilityChange = () => {
         if (document.visibilityState === 'visible' && isActive) {
-          fetchNotifications();
+          fetchNotificationsWithCache();
         }
       };
       
@@ -154,7 +153,7 @@ export const useUserNotifications = (userId?: string) => {
         if (customEvent.detail?.type === 'visibility' 
             && customEvent.detail?.isVisible 
             && isActive) {
-          fetchNotifications();
+          fetchNotificationsWithCache();
         }
       };
       
@@ -168,6 +167,9 @@ export const useUserNotifications = (userId?: string) => {
         
         document.removeEventListener('visibilitychange', handleVisibilityChange);
         window.removeEventListener('vynal:app-state-changed', handleAppStateChange as EventListener);
+        
+        // Nettoyer l'abonnement en temps réel
+        cleanup();
         
         // Abort la requête en cours
         if (abortController && !abortController.signal.aborted) {
@@ -192,13 +194,13 @@ export const useUserNotifications = (userId?: string) => {
         isActive = false;
       };
     }
-  }, [effectiveUserId, fetchNotifications]);
+  }, [effectiveUserId, fetchNotificationsWithCache, setupRealtimeSubscriptions]);
 
   // Retourner un objet mémorisé pour éviter les re-rendus inutiles
   return useMemo(() => ({
     totalUnreadCount,
     loading,
     markAsRead,
-    refresh: () => fetchNotifications(true)
-  }), [totalUnreadCount, loading, markAsRead, fetchNotifications]);
+    refresh: () => fetchNotificationsWithCache(true)
+  }), [totalUnreadCount, loading, markAsRead, fetchNotificationsWithCache]);
 }; 

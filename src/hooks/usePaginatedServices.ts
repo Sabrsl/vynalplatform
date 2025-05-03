@@ -206,8 +206,26 @@ export function usePaginatedServices({
           const term = searchTerm.trim();
           
           if (term.length > 2) {
-            // Recherche multi-champs avec termes fractionnés pour meilleure performance
-            query = query.or(`title.ilike.%${term}%,description.ilike.%${term}%,categories.name.ilike.%${term}%`);
+            console.log('Début de la recherche avec le terme:', term);
+            
+            // Diviser le terme de recherche en mots-clés
+            const keywords = term.toLowerCase().split(/\s+/);
+            console.log('Mots-clés extraits:', keywords);
+            
+            // Requête de base
+            query = query.eq('active', true);
+            
+            // Ajouter les conditions de recherche pour chaque mot-clé
+            keywords.forEach(keyword => {
+              query = query.or(`title.ilike.%${keyword}%,description.ilike.%${keyword}%`);
+            });
+
+            // Log de la requête
+            console.log('Requête de recherche:', {
+              active: true,
+              searchTerm: term,
+              keywords: keywords
+            });
           }
         }
 
@@ -237,7 +255,10 @@ export function usePaginatedServices({
         }
 
         // Gérer les erreurs
-        if (supabaseError) throw supabaseError;
+        if (supabaseError) {
+          console.error('Erreur Supabase:', supabaseError);
+          throw new Error(`Erreur de recherche: ${supabaseError.message}`);
+        }
         if (signal.aborted || refs.current.currentRequestId !== requestId) {
           console.debug('Requête annulée pendant l\'exécution ou devenue obsolète');
           return;
