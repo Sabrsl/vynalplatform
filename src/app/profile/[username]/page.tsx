@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader } from "@/components/ui/loader";
-import { MessageSquare, Star, UserCircle, ArrowLeft, Briefcase, Calendar } from "lucide-react";
+import { MessageSquare, Star, UserCircle, ArrowLeft, Briefcase, Calendar, ThumbsUp, ThumbsDown } from "lucide-react";
 import { useFreelancerRating } from "@/hooks/useFreelancerRating";
 import Link from "next/link";
 import ServiceCard from "@/components/services/ServiceCard";
@@ -17,6 +17,14 @@ import { Badge } from "@/components/ui/badge";
 import ReviewReplyComponent from '@/components/reviews/ReviewReply';
 import Image from 'next/image';
 import { CertificationBadge } from "@/components/ui/certification-badge";
+import { PaginationControls } from '@/components/ui/pagination';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { InfoTooltip } from "@/components/ui/InfoTooltip";
 /* Imports générant des erreurs - à créer plus tard
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
@@ -182,7 +190,7 @@ const StarRating = memo(({ rating, size = "small" }: { rating: number, size?: st
       {[1, 2, 3, 4, 5].map((star) => (
         <Star 
           key={star} 
-          className={`${starSize} ${star <= rating ? "text-vynal-accent-primary fill-vynal-accent-primary" : "text-vynal-purple-secondary/50 fill-transparent"}`} 
+          className={`${starSize} ${star <= rating ? "text-vynal-purple-darkest dark:text-vynal-accent-primary fill-vynal-purple-darkest dark:fill-vynal-accent-primary" : "text-vynal-purple-secondary/50 dark:text-vynal-purple-secondary/50 fill-transparent"}`} 
         />
       ))}
     </div>
@@ -193,8 +201,8 @@ StarRating.displayName = 'StarRating';
 
 // Composant pour les badges d'info mémorisé
 const InfoBadge = memo(({ icon: Icon, text }: { icon: React.ElementType, text: string }) => (
-  <div className="flex items-center px-3 py-1 rounded-full bg-vynal-purple-secondary/30 text-vynal-text-primary text-xs border border-vynal-purple-secondary/20">
-    <Icon className="h-3 w-3 mr-1.5 text-vynal-accent-primary" />
+  <div className="flex items-center px-3 py-1 rounded-full bg-gray-100 dark:bg-vynal-purple-secondary/30 text-gray-600 dark:text-vynal-text-primary text-[10px] sm:text-xs border border-gray-200 dark:border-vynal-purple-secondary/20">
+    <Icon className="h-3 w-3 mr-1.5 text-gray-500 dark:text-vynal-accent-primary" />
     {text}
   </div>
 ));
@@ -365,6 +373,15 @@ export default function ProfilePage() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [currentServicesPage, setCurrentServicesPage] = useState(1);
+  const reviewsPerPage = 5;
+  
+  // Calculer le nombre de services par page selon la taille de l'écran
+  const servicesPerPage = useMemo(() => {
+    if (typeof window === 'undefined') return 6;
+    return window.innerWidth < 768 ? 6 : 8;
+  }, []);
   
   // Récupérer la note moyenne du vendeur
   const { averageRating, reviewCount } = useFreelancerRating(profile?.id);
@@ -455,6 +472,31 @@ export default function ProfilePage() {
     };
   }, [profile, reviews]);
   
+  // Calculer les avis à afficher pour la page courante
+  const paginatedReviews = useMemo(() => {
+    const startIndex = (currentPage - 1) * reviewsPerPage;
+    return reviews.slice(startIndex, startIndex + reviewsPerPage);
+  }, [reviews, currentPage]);
+  
+  // Calculer les services à afficher pour la page courante
+  const paginatedServices = useMemo(() => {
+    const startIndex = (currentServicesPage - 1) * servicesPerPage;
+    return services.slice(startIndex, startIndex + servicesPerPage);
+  }, [services, currentServicesPage, servicesPerPage]);
+  
+  const totalPages = Math.ceil(reviews.length / reviewsPerPage);
+  const totalServicesPages = Math.ceil(services.length / servicesPerPage);
+  
+  const handlePageChange = useCallback((newPage: number) => {
+    setCurrentPage(newPage);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+  
+  const handleServicesPageChange = useCallback((newPage: number) => {
+    setCurrentServicesPage(newPage);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+  
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-vynal-purple-dark">
@@ -494,15 +536,15 @@ export default function ProfilePage() {
   }
   
   return (
-    <div className="min-h-screen bg-vynal-purple-dark">
+    <div className="min-h-screen bg-white dark:bg-vynal-purple-dark">
       {/* Bannière du profil */}
-      <div className="h-40 md:h-56 bg-gradient-to-b from-vynal-purple-dark to-vynal-purple-darkest relative overflow-hidden">
+      <div className="h-32 md:h-40 bg-gradient-to-b from-white to-gray-50 dark:from-vynal-purple-dark dark:to-vynal-purple-darkest relative overflow-hidden">
         <div className="absolute inset-0 bg-[url('/img/grid-pattern.svg')] bg-center opacity-0 dark:opacity-10"></div>
-        <div className="absolute -top-24 -right-24 w-96 h-96 bg-vynal-accent-secondary/20 rounded-full blur-3xl"></div>
-        <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-vynal-accent-primary/20 rounded-full blur-3xl"></div>
+        <div className="absolute -top-24 -right-24 w-96 h-96 bg-vynal-accent-secondary/10 dark:bg-vynal-accent-secondary/20 rounded-full blur-3xl"></div>
+        <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-vynal-accent-primary/10 dark:bg-vynal-accent-primary/20 rounded-full blur-3xl"></div>
       </div>
       
-      <div className="container mx-auto px-4 relative">
+      <div className="container mx-auto px-4 relative -mt-8 md:-mt-10">
         {/* Photo de profil et info principale */}
         <div className="flex flex-col items-center -mt-14 md:-mt-16 mb-6">
           <div className="relative mb-3">
@@ -510,38 +552,51 @@ export default function ProfilePage() {
               <Image
                 src={profile.avatar_url}
                 alt={fullName}
-                className="w-28 h-28 rounded-full object-cover border-4 border-vynal-purple-dark"
+                className="w-28 h-28 rounded-full object-cover border-4 border-white dark:border-vynal-purple-dark"
                 width={112}
                 height={112}
                 unoptimized
               />
             ) : (
-              <div className="w-28 h-28 rounded-full bg-gray-100 dark:bg-vynal-purple-secondary/30 flex items-center justify-center border-4 border-vynal-purple-dark">
-                <UserCircle className="h-14 w-14 text-vynal-accent-primary" />
+              <div className="w-28 h-28 rounded-full bg-gray-100 dark:bg-vynal-purple-secondary/30 flex items-center justify-center border-4 border-white dark:border-vynal-purple-dark">
+                <UserCircle className="h-14 w-14 text-gray-400 dark:text-vynal-accent-primary" />
               </div>
             )}
             
             {isFreelance && (
-              <Badge className="absolute bottom-1 right-1 bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-vynal-purple-dark text-xs">
+              <Badge className="absolute bottom-1 right-1 bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-white dark:text-vynal-purple-dark text-xs">
                 Freelance
               </Badge>
             )}
           </div>
           
-          <h1 className="text-xl md:text-2xl font-semibold text-vynal-text-primary mb-1">{fullName}</h1>
+          <h1 className="text-xl md:text-2xl font-semibold text-gray-900 dark:text-vynal-text-primary mb-1">{fullName}</h1>
           
           {username_display && (
-            <p className="text-vynal-text-secondary mb-2 text-sm">@{username_display}</p>
-          )}
-          
-          {/* Badge de certification */}
-          {profile.is_certified && profile.certification_type && (
-            <div className="mb-3">
-              <CertificationBadge 
-                type={profile.certification_type} 
-                size="md"
-                showLabel
-              />
+            <div className="flex items-center gap-2 mb-2">
+              <p className="text-gray-500 dark:text-vynal-text-secondary text-sm">@{username_display}</p>
+              {profile.is_certified && profile.certification_type && (
+                <TooltipProvider delayDuration={0}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button 
+                        type="button"
+                        className="focus:outline-none"
+                        aria-label={`Certification ${profile.certification_type}`}
+                      >
+                        <CertificationBadge 
+                          type={profile.certification_type} 
+                          size="sm"
+                          showLabel
+                        />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="text-xs">Certification {profile.certification_type}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
             </div>
           )}
           
@@ -549,7 +604,7 @@ export default function ProfilePage() {
           {isFreelance && (
             <div className="flex items-center mb-4">
               <StarRating rating={averageRating} size="medium" />
-              <span className="text-sm text-vynal-text-secondary ml-2">
+              <span className="text-sm text-gray-600 dark:text-vynal-text-secondary ml-2">
                 {averageRating > 0 
                   ? `${averageRating.toFixed(1)} (${reviewCount} avis)` 
                   : "Aucun avis"}
@@ -559,13 +614,13 @@ export default function ProfilePage() {
           
           {/* Boutons d'action */}
           <div className="flex flex-wrap gap-2 justify-center mb-5">
-            <Button className="bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-vynal-purple-dark font-medium transition-all text-xs h-9">
+            <Button className="bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-white dark:text-vynal-purple-dark font-medium transition-all text-xs h-9">
               <MessageSquare className="h-3.5 w-3.5 mr-1.5" />
               Contacter
             </Button>
             
             {isFreelance && (
-              <Button variant="outline" className="border-vynal-purple-secondary/50 bg-vynal-purple-secondary/30 text-vynal-text-primary hover:bg-vynal-purple-secondary/50 hover:text-vynal-text-primary transition-colors text-xs h-9">
+              <Button variant="outline" className="border-gray-200 dark:border-vynal-purple-secondary/50 bg-white dark:bg-vynal-purple-secondary/30 text-gray-600 dark:text-vynal-text-primary hover:bg-gray-50 dark:hover:bg-vynal-purple-secondary/50 hover:text-gray-900 dark:hover:text-vynal-text-primary transition-colors text-xs h-9">
                 <Briefcase className="h-3.5 w-3.5 mr-1.5" />
                 Voir tous les services
               </Button>
@@ -590,28 +645,142 @@ export default function ProfilePage() {
         
         {/* Bio et informations principales */}
         {profile.bio && (
-          <Card className="max-w-3xl mx-auto mb-10 backdrop-blur-md bg-vynal-purple-dark/90 border-vynal-purple-secondary/30 rounded-xl">
+          <Card className="max-w-3xl mx-auto -mt-2 mb-14 sm:mb-16 backdrop-blur-md bg-white/90 dark:bg-vynal-purple-dark/90 border-gray-200 dark:border-vynal-purple-secondary/30 rounded-xl">
             <CardContent className="p-6">
-              <h2 className="text-lg text-vynal-text-primary mb-3 font-medium">À propos</h2>
-              <p className="text-vynal-text-secondary leading-relaxed text-sm">{profile.bio}</p>
+              <h2 className="text-base text-gray-900 dark:text-vynal-text-primary mb-3 font-medium">À propos</h2>
+              <p className="text-[11px] sm:text-xs text-gray-600 dark:text-vynal-text-secondary leading-relaxed">{profile.bio}</p>
             </CardContent>
           </Card>
         )}
         
         {/* Services (si freelance) */}
         {isFreelance && services.length > 0 && (
-          <ServicesSection services={services} />
+          <div className="max-w-3xl mx-auto mb-20 sm:mb-20">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-vynal-text-primary mb-6">Services proposés</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {paginatedServices.map((service) => (
+                <ServiceCard
+                  key={service.id}
+                  service={service}
+                  className="bg-white dark:bg-vynal-purple-dark/90 border-gray-200 dark:border-vynal-purple-secondary/30"
+                />
+              ))}
+            </div>
+            
+            {/* Pagination controls */}
+            {totalServicesPages > 1 && (
+              <PaginationControls
+                currentPage={currentServicesPage}
+                totalPages={totalServicesPages}
+                onPageChange={handleServicesPageChange}
+                className="mt-8"
+              />
+            )}
+          </div>
         )}
         
         {/* Avis (si freelance et a des avis) */}
         {isFreelance && reviews.length > 0 && (
-          <ReviewsSection 
-            reviews={reviews} 
-            positiveReviews={positiveReviews} 
-            negativeReviews={negativeReviews} 
-            profileId={profile.id}
-            username={username_display}
-          />
+          <div className="max-w-3xl mx-auto mb-14 sm:mb-12">
+            <h2 className="text-base font-semibold text-gray-900 dark:text-vynal-text-primary mb-6 flex items-center gap-2">
+              <MessageSquare className="h-5 w-5 text-vynal-purple-darkest dark:text-vynal-accent-primary" />
+              Avis clients
+            </h2>
+            
+            {/* Statistiques des avis */}
+            <div className="grid grid-cols-2 gap-3 sm:gap-6 mb-8">
+              <Card className="bg-green-100 dark:bg-green-900/10 border-gray-200 dark:border-vynal-purple-secondary/30">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-900 dark:text-vynal-text-primary">Avis positifs</h3>
+                      <p className="text-xs text-gray-500 dark:text-vynal-text-secondary">{positiveReviews.length} avis</p>
+                    </div>
+                    <div className="flex items-center">
+                      <ThumbsUp className="h-5 w-5 text-green-600 dark:text-green-400" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card className="bg-red-100 dark:bg-red-900/10 border-gray-200 dark:border-vynal-purple-secondary/30">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-900 dark:text-vynal-text-primary">Avis négatifs</h3>
+                      <p className="text-xs text-gray-500 dark:text-vynal-text-secondary">{negativeReviews.length} avis</p>
+                    </div>
+                    <div className="flex items-center">
+                      <ThumbsDown className="h-5 w-5 text-red-600 dark:text-red-400" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+            
+            {/* Liste des avis */}
+            <div className="space-y-5">
+              {paginatedReviews.map((review) => (
+                <Card key={review.id} className="bg-white dark:bg-vynal-purple-dark/90 border-gray-200 dark:border-vynal-purple-secondary/30">
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center">
+                        {review.client.avatar_url ? (
+                          <Image
+                            src={review.client.avatar_url}
+                            alt={review.client.full_name || review.client.username || "Client"}
+                            className="w-10 h-10 rounded-full object-cover mr-3"
+                            width={40}
+                            height={40}
+                            unoptimized
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-vynal-purple-secondary/30 flex items-center justify-center mr-3">
+                            <UserCircle className="h-5 w-5 text-gray-400 dark:text-vynal-accent-primary" />
+                          </div>
+                        )}
+                        <div>
+                          <p className="font-medium text-xs text-gray-900 dark:text-vynal-text-primary">
+                            {review.client.full_name || review.client.username || "Client"}
+                          </p>
+                          <p className="text-[10px] text-gray-500 dark:text-vynal-text-secondary">
+                            {formatDate(review.created_at)}
+                          </p>
+                        </div>
+                      </div>
+                      <StarRating rating={review.rating} size="small" />
+                    </div>
+                    
+                    <p className="text-xs text-gray-600 dark:text-vynal-text-secondary mb-4">{review.comment}</p>
+                    
+                    {review.services && (
+                      <Link 
+                        href={`/services/${review.services.slug}`}
+                        className="text-xs text-indigo-600 dark:text-vynal-accent-primary hover:text-indigo-700 dark:hover:text-vynal-accent-secondary"
+                      >
+                        Service : {review.services.title}
+                      </Link>
+                    )}
+                    
+                    <ReviewReplyComponent 
+                      reviewId={review.id}
+                      freelanceId={profile.id}
+                    />
+                  </CardContent>
+                </Card>
+              ))}
+              
+              {/* Pagination controls */}
+              {totalPages > 1 && (
+                <PaginationControls
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={handlePageChange}
+                  className="mt-8"
+                />
+              )}
+            </div>
+          </div>
         )}
       </div>
     </div>
