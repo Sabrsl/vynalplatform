@@ -179,11 +179,11 @@ export default function OrderDetailPage() {
           <div className="flex items-center">
             <Button variant="ghost" size="sm" asChild className="mr-2 sm:mr-4 text-vynal-purple-secondary hover:bg-vynal-purple-secondary/5 hover:text-vynal-purple-light dark:text-vynal-text-secondary dark:hover:bg-vynal-purple-secondary/10 dark:hover:text-vynal-text-primary">
               <Link href="/dashboard/orders">
-                <ArrowLeft className="h-4 w-4 mr-1 sm:mr-2" />
-                <span className="hidden sm:inline">Retour</span>
+                <ArrowLeft className="h-3.5 w-3.5 mr-1" />
+                <span className="hidden sm:inline text-[10px] sm:text-xs">Retour</span>
               </Link>
             </Button>
-            <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-vynal-purple-light dark:text-vynal-text-primary truncate">
+            <h1 className="text-sm sm:text-base md:text-lg font-bold text-vynal-purple-light dark:text-vynal-text-primary truncate">
               Détails de la commande
             </h1>
           </div>

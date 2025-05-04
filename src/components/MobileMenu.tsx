@@ -232,14 +232,6 @@ const AuthenticatedMenuContent = memo(({
                 isNavigating={isNavigating}
               />
               <NavItem 
-                href="/dashboard/orders/delivery" 
-                icon={PackageOpen} 
-                label="Livrer un travail" 
-                isActive={isActive("/dashboard/orders/delivery")}
-                onClick={navItemCallbacks.delivery}
-                isNavigating={isNavigating}
-              />
-              <NavItem 
                 href="/dashboard/stats" 
                 icon={BarChart2} 
                 label="Statistiques" 
@@ -495,7 +487,6 @@ export default function MobileMenu({ isOpen, onClose, user, activePath, setActiv
       disputes: () => { setActivePath("/dashboard/disputes"); onClose(); },
       wallet: () => { setActivePath("/dashboard/wallet"); onClose(); },
       services: () => { setActivePath("/dashboard/services"); onClose(); },
-      delivery: () => { setActivePath("/dashboard/orders/delivery"); onClose(); },
       stats: () => { setActivePath("/dashboard/stats"); onClose(); },
       certifications: () => { setActivePath("/dashboard/certifications"); onClose(); },
       profile: () => { setActivePath("/dashboard/profile"); onClose(); },

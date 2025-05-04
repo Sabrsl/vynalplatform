@@ -4,8 +4,8 @@ import { PaymentsContent } from "@/components/payments/PaymentsContent";
 
 export function PaymentsPageClient() {
   return (
-    <div className="flex flex-col gap-6">
-      <h1 className="text-2xl md:text-3xl font-bold">Mes paiements</h1>
+    <div className="flex flex-col gap-4">
+      <h1 className="text-lg md:text-xl font-semibold text-vynal-purple-light dark:text-vynal-text-primary">Mes paiements</h1>
       <PaymentsContent />
     </div>
   );

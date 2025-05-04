@@ -84,35 +84,39 @@ export function DisputesContent() {
       {
         title: "Total des litiges",
         value: stats.totalCount,
-        icon: <AlertTriangle className="h-5 w-5 text-indigo-500" strokeWidth={2.5} />,
-        bgColor: "bg-indigo-50",
-        className: "border-indigo-100"
+        icon: <AlertTriangle className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-indigo-500" strokeWidth={2.5} />,
+        bgColor: "bg-indigo-100/50 dark:bg-indigo-900/20",
+        textColor: "text-indigo-600 dark:text-indigo-400",
+        subtitle: "Tous les litiges",
       },
       {
         title: "Litiges en cours",
         value: stats.openCount,
-        icon: <AlertTriangle className="h-5 w-5 text-amber-500" strokeWidth={2.5} />,
-        bgColor: "bg-amber-50",
-        className: "border-amber-100"
+        icon: <AlertTriangle className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-amber-500" strokeWidth={2.5} />,
+        bgColor: "bg-amber-100/50 dark:bg-amber-900/20",
+        textColor: "text-amber-600 dark:text-amber-400",
+        subtitle: "En attente de résolution",
       },
       {
         title: "Litiges résolus",
         value: stats.resolvedCount,
-        icon: <CheckCircle className="h-5 w-5 text-emerald-500" strokeWidth={2.5} />,
-        bgColor: "bg-emerald-50",
-        className: "border-emerald-100"
+        icon: <CheckCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-500" strokeWidth={2.5} />,
+        bgColor: "bg-emerald-100/50 dark:bg-emerald-900/20",
+        textColor: "text-emerald-600 dark:text-emerald-400",
+        subtitle: "Traités avec succès",
       },
       {
         title: "Litiges fermés",
         value: stats.closedCount,
-        icon: <XCircle className="h-5 w-5 text-slate-500" strokeWidth={2.5} />,
-        bgColor: "bg-slate-50",
-        className: "border-slate-100"
+        icon: <XCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-slate-500" strokeWidth={2.5} />,
+        bgColor: "bg-slate-100/50 dark:bg-slate-900/20",
+        textColor: "text-slate-600 dark:text-slate-400",
+        subtitle: "Sans résolution",
       }
     ];
     
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         {statCards.map((card, index) => (
           <motion.div
             key={card.title}
@@ -120,24 +124,26 @@ export function DisputesContent() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, delay: index * 0.1 }}
           >
-            <Card className={cn("bg-white shadow-sm hover:shadow-md transition-shadow dark:bg-vynal-purple-dark/30 dark:border-vynal-purple-secondary/30", card.className)}>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs sm:text-sm font-medium text-slate-500 dark:text-vynal-text-secondary">{card.title}</p>
-                    <h2 className="text-base sm:text-lg font-bold text-slate-800 dark:text-vynal-text-primary mt-1">
-                      {loading ? (
-                        <div className="animate-pulse w-8 h-6 bg-vynal-purple-secondary/30 rounded"></div>
-                      ) : (
-                        card.value
-                      )}
-                    </h2>
+            <Card className="h-full overflow-hidden border border-vynal-accent-primary/20 shadow-sm bg-white relative before:absolute before:inset-0 before:bg-gradient-to-br before:from-vynal-accent-primary/20 before:via-vynal-accent-primary/10 before:to-white before:rounded-lg dark:bg-vynal-purple-dark/20 dark:before:from-vynal-accent-primary/20 dark:before:via-vynal-purple-secondary/10 dark:before:to-transparent hover:shadow-md transition-shadow duration-300">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 px-2 pt-2 sm:px-4 sm:pt-4 relative z-10">
+                <CardTitle className="text-[10px] sm:text-xs md:text-sm font-medium">
+                  <div className="flex items-center">
+                    <div className={`mr-1.5 p-0.5 sm:p-1.5 rounded-full ${card.bgColor} shadow-sm flex-shrink-0`}>
+                      {card.icon}
+                    </div>
+                    <span className="truncate text-vynal-purple-light dark:text-vynal-text-primary">
+                      {card.title}
+                    </span>
                   </div>
-                  <div className={cn("h-10 w-10 rounded-lg flex items-center justify-center", card.bgColor, {
-                    "dark:bg-vynal-accent-secondary/20": card.bgColor.includes("emerald") || card.bgColor.includes("amber"),
-                    "dark:bg-vynal-purple-secondary/20": card.bgColor.includes("slate") || card.bgColor.includes("indigo")
-                  })}>
-                    {card.icon}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="px-2 pb-2 sm:px-4 sm:pb-4 relative z-10">
+                <div className="text-sm sm:text-base font-bold text-vynal-purple-light dark:text-vynal-text-primary">
+                  {loading ? "-" : card.value}
+                </div>
+                <div className="flex items-center mt-0.5">
+                  <div className="text-[8px] sm:text-[9px] px-1 py-0.5 rounded-md truncate text-vynal-purple-secondary/80 dark:text-vynal-text-secondary/80">
+                    {card.subtitle}
                   </div>
                 </div>
               </CardContent>
@@ -263,219 +269,189 @@ export function DisputesContent() {
     );
   }, [currentPage, totalPages, goToPage, goToPreviousPage, goToNextPage]);
 
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between mb-4">
-        <motion.h1 
-          className="text-xl font-bold text-slate-800 hidden sm:block"
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          Gestion des litiges
-        </motion.h1>
-        
-        <motion.div 
-          className="flex items-center gap-2 ml-auto"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.2 }}
-        >
+  // Mémoiser le contenu principal de la liste des litiges
+  const DisputesList = useMemo(() => {
+    if (loading && !initialLoadComplete) {
+      return (
+        <div className="flex justify-center items-center p-6">
+          <Loader2 className="w-10 h-10 text-vynal-accent-primary animate-spin" strokeWidth={1.5} />
+        </div>
+      );
+    }
+    
+    if (currentDisputes.length === 0) {
+      const emptyStateIcon = () => {
+        if (activeTab === 'open') return <AlertTriangle className="h-12 w-12 text-amber-400" strokeWidth={1.5} />;
+        if (activeTab === 'resolved') return <CheckCircle className="h-12 w-12 text-emerald-400" strokeWidth={1.5} />;
+        if (activeTab === 'closed') return <XCircle className="h-12 w-12 text-slate-400" strokeWidth={1.5} />;
+        return <AlertTriangle className="h-12 w-12 text-vynal-accent-primary/80" strokeWidth={1.5} />;
+      };
+      
+      return (
+        <div className="flex flex-col items-center justify-center p-8 text-center">
+          <div className="bg-vynal-purple-secondary/10 p-4 rounded-full mb-4">
+            {emptyStateIcon()}
+          </div>
+          <h3 className="text-sm sm:text-base font-medium text-vynal-purple-light dark:text-vynal-text-primary mb-2">
+            Aucun litige {activeTab === 'all' ? '' : (tabLabels[activeTab as keyof typeof tabLabels] || '').toLowerCase()}
+          </h3>
+          <p className="text-[10px] sm:text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary/80 max-w-md">
+            {activeTab === 'all' 
+              ? "Vous n'avez actuellement aucun litige en cours." 
+              : activeTab === 'open' 
+                ? "Vous n'avez actuellement aucun litige en attente de résolution." 
+                : activeTab === 'resolved' 
+                  ? "Aucun de vos litiges n'a été résolu pour le moment." 
+                  : "Vous n'avez actuellement aucun litige fermé."}
+          </p>
+        </div>
+      );
+    }
+    
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        {currentDisputes.map((dispute) => (
+          <AnimatePresence key={dispute.id} mode="wait">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.2 }}
+            >
+              <DisputeCard dispute={dispute} isClient={isClient} />
+            </motion.div>
+          </AnimatePresence>
+        ))}
+      </div>
+    );
+  }, [currentDisputes, loading, activeTab, initialLoadComplete, tabLabels, isClient]);
+  
+  // Mémoriser les contrôles supérieurs (tabs, tri, recherche)
+  const ListControls = useMemo(() => (
+    <>
+      <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-4 gap-3">
+        <div className="flex items-center space-x-2">
           <Button
-            onClick={refreshDisputes}
             variant="outline"
             size="sm"
+            onClick={refreshDisputes}
             disabled={isRefreshing}
-            className="flex gap-1 items-center text-xs text-slate-600 hover:text-indigo-600 border-slate-200"
+            className="h-8 text-[10px] sm:text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary"
           >
-            <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} strokeWidth={2.5} />
-            <span className="hidden sm:inline">Actualiser</span>
+            <RefreshCw className={`h-3 w-3 mr-1.5 ${isRefreshing ? 'animate-spin' : ''}`} strokeWidth={2.5} />
+            <span>Actualiser</span>
           </Button>
-          
-          <div className="text-xs text-slate-400">
+          <span className="text-[10px] text-vynal-purple-secondary/70 dark:text-vynal-text-secondary/70">
             {getLastRefreshText()}
-          </div>
-        </motion.div>
+          </span>
+        </div>
+        
+        <div className="flex gap-2 items-center">
+          <form onSubmit={handleSearch} className="relative">
+            <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-vynal-purple-secondary dark:text-vynal-text-secondary" strokeWidth={2.5} />
+            <Input
+              type="text"
+              placeholder="Rechercher un litige..."
+              className="pl-8 h-8 text-[10px] sm:text-xs w-full sm:w-[225px] border-vynal-purple-secondary/20 dark:border-vynal-purple-secondary/30 bg-white dark:bg-vynal-purple-dark/50"
+              value={tempSearchQuery}
+              onChange={handleSearchChange}
+            />
+            {tempSearchQuery && (
+              <button
+                type="button"
+                onClick={handleClearSearch}
+                className="absolute right-2 top-1/2 transform -translate-y-1/2"
+              >
+                <X className="h-3.5 w-3.5 text-vynal-purple-secondary dark:text-vynal-text-secondary hover:text-vynal-accent-primary" strokeWidth={2.5} />
+              </button>
+            )}
+          </form>
+          
+          <Select 
+            value={sortOption} 
+            onValueChange={(value) => changeSortOption(value as DisputeSortOption)}
+          >
+            <SelectTrigger className="w-[150px] h-8 text-[10px] sm:text-xs border-vynal-purple-secondary/20 dark:border-vynal-purple-secondary/30 bg-white dark:bg-vynal-purple-dark/50">
+              <div className="flex items-center">
+                <ArrowDownUp className="h-3 w-3 mr-2 text-vynal-purple-secondary dark:text-vynal-text-secondary" strokeWidth={2.5} />
+                <SelectValue placeholder="Tri" className="text-[10px] sm:text-xs" />
+              </div>
+            </SelectTrigger>
+            <SelectContent className="text-[10px] sm:text-xs">
+              {Object.entries(sortOptionLabels).map(([value, label]) => (
+                <SelectItem key={value} value={value} className="text-[10px] sm:text-xs">
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
+      
+      <Tabs 
+        value={activeTab} 
+        className="mb-6" 
+        onValueChange={(value) => setTab(value as any)}
+      >
+        <TabsList className="w-full border-b border-vynal-purple-secondary/10 p-0 h-auto bg-transparent flex justify-start mb-3 dark:border-vynal-purple-secondary/20">
+          {Object.entries(tabLabels).map(([value, label]) => (
+            <TabsTrigger
+              key={value}
+              value={value}
+              className="text-[10px] sm:text-xs py-2 px-4 rounded-none border-b-2 border-transparent data-[state=active]:border-vynal-accent-primary data-[state=active]:text-vynal-accent-primary bg-transparent hover:bg-transparent data-[state=active]:shadow-none data-[state=active]:bg-transparent relative dark:text-vynal-text-secondary dark:data-[state=active]:text-vynal-accent-primary"
+            >
+              <span>{label}</span>
+              {value !== 'all' && (
+                <div className="absolute -top-1 -right-1 text-[8px] bg-vynal-accent-primary text-white rounded-full w-4 h-4 flex items-center justify-center">
+                  {value === 'open' ? stats.openCount : value === 'resolved' ? stats.resolvedCount : stats.closedCount}
+                </div>
+              )}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+        
+        <TabsContent value={activeTab} className="mt-0">
+          {DisputesList}
+        </TabsContent>
+      </Tabs>
+    </>
+  ), [
+    activeTab, sortOption, tempSearchQuery, isRefreshing, 
+    handleSearch, handleSearchChange, handleClearSearch, refreshDisputes, 
+    changeSortOption, setTab, getLastRefreshText, tabLabels, sortOptionLabels, stats, DisputesList
+  ]);
 
+  return (
+    <div className="w-full max-w-7xl mx-auto">
+      {/* Cartes de statistiques */}
       {StatsCards}
-
-      <Card className="bg-white border border-slate-200 shadow-sm dark:bg-vynal-purple-dark/30 dark:border-vynal-purple-secondary/30">
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row gap-3 sm:items-center justify-between">
-            <CardTitle className="text-base font-bold text-slate-800 dark:text-vynal-text-primary">
+      
+      {/* Conteneur principal avec l'en-tête et les litiges */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3 }}
+      >
+        <Card className="border border-vynal-purple-secondary/10 shadow-sm bg-white dark:bg-vynal-purple-dark/10">
+          <CardHeader className="px-4 pt-4 sm:px-6 sm:pt-6 pb-0">
+            <CardTitle className="text-sm sm:text-base text-vynal-purple-light dark:text-vynal-text-primary">
               Liste des litiges
             </CardTitle>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <form onSubmit={handleSearch} className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-vynal-text-secondary/70" strokeWidth={2.5} />
-                <Input
-                  type="text"
-                  placeholder="Rechercher un litige..."
-                  className="pl-9 pr-9 bg-white border-slate-200 w-full sm:w-[200px] text-sm text-slate-800 dark:bg-vynal-purple-secondary/20 dark:border-vynal-purple-secondary/30 dark:text-vynal-text-primary dark:placeholder:text-vynal-text-secondary/50"
-                  value={tempSearchQuery}
-                  onChange={handleSearchChange}
-                />
-                {tempSearchQuery && (
-                  <button
-                    type="button"
-                    onClick={handleClearSearch}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:text-vynal-text-secondary/70 dark:hover:text-vynal-text-primary"
-                  >
-                    <X className="h-4 w-4" strokeWidth={2.5} />
-                  </button>
-                )}
-              </form>
-              
-              <Select
-                value={sortOption}
-                onValueChange={(value) => changeSortOption(value as DisputeSortOption)}
-              >
-                <SelectTrigger className="w-full sm:w-[180px] bg-white border-slate-200 dark:bg-vynal-purple-secondary/20 dark:border-vynal-purple-secondary/30 dark:text-vynal-text-primary">
-                  <div className="flex items-center">
-                    <ArrowDownUp className="mr-2 h-3.5 w-3.5 text-slate-500 dark:text-vynal-text-secondary" strokeWidth={2.5} />
-                    <SelectValue placeholder="Trier par" className="text-sm" />
-                  </div>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="newest" className="text-sm">{sortOptionLabels.newest}</SelectItem>
-                  <SelectItem value="oldest" className="text-sm">{sortOptionLabels.oldest}</SelectItem>
-                  <SelectItem value="status" className="text-sm">{sortOptionLabels.status}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardHeader>
-        <Tabs value={activeTab} onValueChange={(value) => setTab(value as any)}>
-          <div className="px-4 sm:px-6">
-            <TabsList className="w-full max-w-3xl overflow-x-auto scrollbar-hide mb-4 bg-slate-50 dark:bg-vynal-purple-secondary/10">
-              {Object.entries(tabLabels).map(([value, label]) => (
-                <TabsTrigger 
-                  key={value} 
-                  value={value} 
-                  className="text-xs sm:text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm 
-                    data-[state=active]:text-vynal-accent-primary dark:data-[state=active]:text-vynal-accent-primary
-                    data-[state=active]:border-b-2 data-[state=active]:border-vynal-accent-primary
-                    dark:data-[state=active]:bg-vynal-purple-dark dark:text-vynal-text-secondary"
-                >
-                  {label}
-                  {value !== "all" && (
-                    <span className="ml-1.5 bg-slate-100 text-slate-700 py-0.5 px-1.5 rounded-full text-[10px] dark:bg-vynal-purple-secondary/20 dark:text-vynal-text-secondary">
-                      {value === "open" 
-                        ? stats.openCount 
-                        : value === "resolved" 
-                          ? stats.resolvedCount 
-                          : stats.closedCount}
-                    </span>
-                  )}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </div>
-          <CardContent>
-            <AnimatePresence mode="wait">
-              <TabsContent value={activeTab} className="mt-0">
-                {loading && !initialLoadComplete ? (
-                  <motion.div 
-                    className="flex justify-center items-center py-20"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                  >
-                    <div className="flex flex-col items-center space-y-3">
-                      <div className="relative">
-                        <div className="w-16 h-16 rounded-full absolute inset-0 bg-indigo-100 animate-ping opacity-25"></div>
-                        <div className="w-16 h-16 rounded-full border-2 border-transparent border-t-indigo-500 animate-spin"></div>
-                      </div>
-                      <p className="text-sm text-slate-500">Chargement des litiges...</p>
-                    </div>
-                  </motion.div>
-                ) : error ? (
-                  <motion.div 
-                    className="flex flex-col items-center justify-center py-20"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                  >
-                    <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-4">
-                      <AlertTriangle className="h-8 w-8 text-red-500" strokeWidth={2} />
-                    </div>
-                    <div className="text-slate-600 text-center max-w-md">
-                      <p className="font-medium mb-2">{error}</p>
-                      <p className="text-sm text-slate-500 mb-4">
-                        Nous n'avons pas pu charger vos litiges. Veuillez réessayer.
-                      </p>
-                    </div>
-                    <Button 
-                      onClick={refreshDisputes} 
-                      className="bg-indigo-600 hover:bg-indigo-700 text-white"
-                    >
-                      <RefreshCw className="h-4 w-4 mr-2" strokeWidth={2.5} /> Réessayer
-                    </Button>
-                  </motion.div>
-                ) : currentDisputes.length > 0 ? (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                  >
-                    <div className="grid grid-cols-1 gap-4">
-                      {currentDisputes.map((dispute, index) => (
-                        <motion.div 
-                          key={dispute.id}
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.3, delay: index * 0.05 }}
-                        >
-                          <DisputeCard dispute={dispute} isClient={!!isClient} />
-                        </motion.div>
-                      ))}
-                    </div>
-                    
-                    {Pagination}
-                  </motion.div>
-                ) : (
-                  <motion.div 
-                    className="flex flex-col items-center justify-center py-20"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                  >
-                    <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4 dark:bg-vynal-purple-secondary/20">
-                      <Filter className="h-8 w-8 text-slate-400 dark:text-vynal-text-secondary" strokeWidth={2} />
-                    </div>
-                    <div className="text-slate-600 text-center dark:text-vynal-text-primary">
-                      <p className="font-medium text-sm mb-1">
-                        {tempSearchQuery 
-                          ? "Aucun litige trouvé correspondant à votre recherche" 
-                          : "Vous n'avez pas de litiges pour le moment"}
-                      </p>
-                      <p className="text-xs text-slate-500 mb-4 dark:text-vynal-text-secondary">
-                        {tempSearchQuery 
-                          ? "Essayez avec d'autres termes ou effacez votre recherche" 
-                          : "Les litiges apparaîtront ici lorsque vous en aurez"}
-                      </p>
-                    </div>
-                    {tempSearchQuery ? (
-                      <Button 
-                        onClick={handleClearSearch} 
-                        variant="outline"
-                        className="border-slate-200 dark:border-vynal-purple-secondary/30"
-                      >
-                        <X className="h-4 w-4 mr-2" strokeWidth={2.5} /> Effacer la recherche
-                      </Button>
-                    ) : (
-                      <Button asChild className="bg-indigo-600 hover:bg-indigo-700 text-white">
-                        <Link href="/dashboard">Retour au tableau de bord</Link>
-                      </Button>
-                    )}
-                  </motion.div>
-                )}
-              </TabsContent>
-            </AnimatePresence>
+            <p className="text-[10px] sm:text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary/80 mt-1">
+              {isClient
+                ? "Gérez vos demandes de litiges concernant vos commandes"
+                : "Répondez aux litiges ouverts par vos clients"}
+            </p>
+          </CardHeader>
+          <CardContent className="p-4 sm:p-6">
+            {/* Contrôles de liste (recherche, tri, onglets) */}
+            {ListControls}
+            
+            {/* Pagination */}
+            {Pagination}
           </CardContent>
-        </Tabs>
-      </Card>
+        </Card>
+      </motion.div>
     </div>
   );
 }

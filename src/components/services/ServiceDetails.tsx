@@ -84,7 +84,7 @@ const ServiceDetails: React.FC<ServiceDetailsProps> = ({
       case 'pending':
         return (
           <Badge variant="outline" className={cn(
-            "bg-amber-500/80 text-white hover:bg-amber-500 border-amber-500/50 text-xs py-0.5 px-2",
+            "bg-amber-500/80 text-white hover:bg-amber-500 border-amber-500/50 text-[10px] sm:text-xs py-0.5 px-2",
             "flex items-center"
           )}>
             <AlertTriangle className="h-3 w-3 mr-1" />
@@ -94,7 +94,7 @@ const ServiceDetails: React.FC<ServiceDetailsProps> = ({
       case 'approved':
         return (
           <Badge variant="outline" className={cn(
-            "bg-green-500/80 text-white hover:bg-green-500 border-green-500/50 text-xs py-0.5 px-2",
+            "bg-green-500/80 text-white hover:bg-green-500 border-green-500/50 text-[10px] sm:text-xs py-0.5 px-2",
             "flex items-center"
           )}>
             <CheckCircle className="h-3 w-3 mr-1" />
@@ -165,18 +165,12 @@ const ServiceDetails: React.FC<ServiceDetailsProps> = ({
         <div className="flex items-center">
           {onBack && (
             <Button 
-              variant="ghost" 
-              onClick={onBack} 
-              className={cn(
-                "mr-2 p-1.5 h-auto transition-colors",
-                isDarkMode 
-                  ? "text-vynal-text-primary hover:bg-vynal-purple-secondary/20 hover:text-vynal-accent-primary" 
-                  : "text-gray-700 hover:bg-gray-100 hover:text-indigo-600"
-              )}
-              aria-label="Retour"
+              variant="outline"
+              onClick={onBack}
+              className="flex items-center justify-center gap-1.5 w-full xs:w-auto text-[10px] sm:text-xs py-0.5 sm:py-1 h-7 sm:h-8"
             >
-              <ArrowLeft className="h-3.5 w-3.5 mr-1" />
-              <span className="text-xs">Retour</span>
+              <ArrowLeft className="h-3 w-3 sm:h-4 sm:w-4" />
+              Retour
             </Button>
           )}
           <h1 className={cn(
@@ -239,7 +233,7 @@ const ServiceDetails: React.FC<ServiceDetailsProps> = ({
                   "text-base sm:text-lg text-right whitespace-nowrap mt-2",
                   isDarkMode ? "text-vynal-accent-primary" : "text-indigo-600"
                 )}>
-                  {formatPrice(service.price || 0)} FCFA
+                  {formatPrice(service.price || 0)}
                 </div>
               </div>
               
@@ -264,107 +258,56 @@ const ServiceDetails: React.FC<ServiceDetailsProps> = ({
           <CardContent className="p-3 sm:p-4 pt-0">
             <div className="space-y-3 sm:space-y-4">
               <div>
-                <h3 className={cn(
-                  "text-sm sm:text-base font-normal mb-1.5",
-                  isDarkMode ? "text-white" : "text-gray-900"
-                )}>Description</h3>
-                <div className={cn(
-                  "p-2.5 sm:p-3 rounded-md whitespace-pre-wrap",
-                  isDarkMode ? "bg-slate-800/60" : "bg-slate-50"
-                )}>
-                  <p className={cn(
-                    "text-xs break-words",
-                    isDarkMode ? "text-gray-300" : "text-gray-700"
-                  )}>{service.description || "Aucune description disponible"}</p>
+                <h3 className="text-xs sm:text-sm md:text-base font-semibold text-slate-900 dark:text-vynal-text-primary mb-1.5">Description</h3>
+                <div className="p-2.5 sm:p-3 rounded-md whitespace-pre-wrap bg-slate-50 dark:bg-slate-800/60">
+                  <p className="text-[10px] sm:text-xs break-words text-slate-900 dark:text-slate-200">{service.description || "Aucune description disponible"}</p>
                 </div>
               </div>
               
               <div className="grid grid-cols-2 gap-2 sm:gap-3">
                 <div className="flex items-center space-x-2">
-                  <Tag className={cn(
-                    "h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0",
-                    isDarkMode ? "text-indigo-400" : "text-indigo-600"
-                  )} />
+                  <Tag className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0 text-indigo-600 dark:text-indigo-400" />
                   <div>
-                    <p className={cn(
-                      "text-[10px] sm:text-xs",
-                      isDarkMode ? "text-gray-400" : "text-gray-500"
-                    )}>Catégorie</p>
-                    <p className={cn(
-                      "text-xs sm:text-sm font-normal",
-                      isDarkMode ? "text-white" : "text-gray-900"
-                    )}>{service.categories?.name || "Non spécifiée"}</p>
+                    <p className="text-[10px] sm:text-xs text-slate-600 dark:text-slate-400">Catégorie</p>
+                    <p className="text-[10px] sm:text-xs font-normal text-slate-900 dark:text-slate-200">{service.categories?.name || "Non spécifiée"}</p>
                   </div>
                 </div>
                 
                 {service.subcategories && (
                   <div className="flex items-center space-x-2">
-                    <Tag className={cn(
-                      "h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0",
-                      isDarkMode ? "text-indigo-400" : "text-indigo-600"
-                    )} />
+                    <Tag className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0 text-indigo-600 dark:text-indigo-400" />
                     <div>
-                      <p className={cn(
-                        "text-[10px] sm:text-xs",
-                        isDarkMode ? "text-gray-400" : "text-gray-500"
-                      )}>Sous-catégorie</p>
-                      <p className={cn(
-                        "text-xs sm:text-sm font-normal",
-                        isDarkMode ? "text-white" : "text-gray-900"
-                      )}>{service.subcategories.name}</p>
+                      <p className="text-[10px] sm:text-xs text-slate-600 dark:text-slate-400">Sous-catégorie</p>
+                      <p className="text-[10px] sm:text-xs font-normal text-slate-900 dark:text-slate-200">{service.subcategories.name}</p>
                     </div>
                   </div>
                 )}
                 
                 <div className="flex items-center space-x-2">
-                  <Clock className={cn(
-                    "h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0",
-                    isDarkMode ? "text-indigo-400" : "text-indigo-600"
-                  )} />
+                  <Clock className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0 text-indigo-600 dark:text-indigo-400" />
                   <div>
-                    <p className={cn(
-                      "text-[10px] sm:text-xs",
-                      isDarkMode ? "text-gray-400" : "text-gray-500"
-                    )}>Livraison</p>
-                    <p className={cn(
-                      "text-xs sm:text-sm font-normal",
-                      isDarkMode ? "text-white" : "text-gray-900"
-                    )}>{service.delivery_time || 0} jour{(service.delivery_time || 0) > 1 ? 's' : ''}</p>
+                    <p className="text-[10px] sm:text-xs text-slate-600 dark:text-slate-400">Livraison</p>
+                    <p className="text-[10px] sm:text-xs font-normal text-slate-900 dark:text-slate-200">{service.delivery_time || 0} jour{(service.delivery_time || 0) > 1 ? 's' : ''}</p>
                   </div>
                 </div>
                 
                 <div className="flex items-center space-x-2">
-                  <Calendar className={cn(
-                    "h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0",
-                    isDarkMode ? "text-indigo-400" : "text-indigo-600"
-                  )} />
+                  <Calendar className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0 text-indigo-600 dark:text-indigo-400" />
                   <div>
-                    <p className={cn(
-                      "text-[10px] sm:text-xs",
-                      isDarkMode ? "text-gray-400" : "text-gray-500"
-                    )}>Créé le</p>
-                    <p className={cn(
-                      "text-xs sm:text-sm font-normal",
-                      isDarkMode ? "text-white" : "text-gray-900"
-                    )}>{formatDate(service.created_at || new Date().toISOString())}</p>
+                    <p className="text-[10px] sm:text-xs text-slate-600 dark:text-slate-400">Créé le</p>
+                    <p className="text-[10px] sm:text-xs font-normal text-slate-900 dark:text-slate-200">{formatDate(service.created_at || new Date().toISOString())}</p>
                   </div>
                 </div>
               </div>
               
               <div>
-                <h3 className={cn(
-                  "text-sm sm:text-base font-normal mb-1.5",
-                  isDarkMode ? "text-white" : "text-gray-900"
-                )}>Images</h3>
+                <h3 className="text-xs sm:text-sm md:text-base font-semibold text-slate-900 dark:text-vynal-text-primary mb-1.5">Images</h3>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {service.images && service.images.length > 0 ? (
                     service.images.map((img, index) => (
                       <div 
                         key={index} 
-                        className={cn(
-                          "aspect-video rounded-md overflow-hidden",
-                          isDarkMode ? "bg-slate-800" : "bg-slate-100"
-                        )}
+                        className="aspect-video rounded-md overflow-hidden bg-slate-100 dark:bg-slate-800"
                       >
                         <Image 
                           src={img} 
@@ -375,7 +318,6 @@ const ServiceDetails: React.FC<ServiceDetailsProps> = ({
                           unoptimized
                           loading={index < 4 ? "eager" : "lazy"}
                           onError={(e) => {
-                            // Fallback en cas d'erreur d'image
                             e.currentTarget.src = 'data:image/svg+xml;charset=UTF-8,%3Csvg xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22 viewBox%3D%220 0 24 24%22 width%3D%2224%22 height%3D%2224%22%3E%3Cpath fill%3D%22%23ccc%22 d%3D%22M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z%22%3E%3C%2Fpath%3E%3C%2Fsvg%3E';
                             e.currentTarget.classList.add('error-image');
                           }}
@@ -383,59 +325,12 @@ const ServiceDetails: React.FC<ServiceDetailsProps> = ({
                       </div>
                     ))
                   ) : (
-                    <div className={cn(
-                      "aspect-video rounded-md flex items-center justify-center",
-                      isDarkMode ? "bg-slate-800" : "bg-slate-100"
-                    )}>
-                      <p className={cn(
-                        "text-xs",
-                        isDarkMode ? "text-slate-400" : "text-slate-500"
-                      )}>Aucune image</p>
+                    <div className="aspect-video rounded-md flex items-center justify-center bg-slate-100 dark:bg-slate-800">
+                      <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400">Aucune image</p>
                     </div>
                   )}
                 </div>
               </div>
-              
-              {/* Commentaires de modération (si présents) */}
-              {service.moderation_comment && (
-                <div className={cn(
-                  "p-3 rounded-md border",
-                  isDarkMode 
-                    ? "bg-amber-900/20 border-amber-800/30" 
-                    : "bg-amber-50 border-amber-200"
-                )}>
-                  <h4 className={cn(
-                    "text-xs font-semibold mb-1 flex items-center",
-                    isDarkMode ? "text-amber-300" : "text-amber-800"
-                  )}>
-                    <AlertCircle className="h-3.5 w-3.5 mr-1" />
-                    Commentaire de modération
-                  </h4>
-                  <p className={cn(
-                    "text-xs",
-                    isDarkMode ? "text-amber-200" : "text-amber-700"
-                  )}>{service.moderation_comment}</p>
-                </div>
-              )}
-              
-              {/* Notes d'administration (si présentes et en vue admin) */}
-              {isFreelanceView && service.admin_notes && (
-                <div className={cn(
-                  "p-3 rounded-md border",
-                  isDarkMode 
-                    ? "bg-blue-900/20 border-blue-800/30" 
-                    : "bg-blue-50 border-blue-200"
-                )}>
-                  <h4 className={cn(
-                    "text-xs font-semibold mb-1",
-                    isDarkMode ? "text-blue-300" : "text-blue-800"
-                  )}>Notes administratives</h4>
-                  <p className={cn(
-                    "text-xs",
-                    isDarkMode ? "text-blue-200" : "text-blue-700"
-                  )}>{service.admin_notes}</p>
-                </div>
-              )}
             </div>
           </CardContent>
         </Card>

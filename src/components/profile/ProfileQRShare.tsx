@@ -11,7 +11,11 @@ import {
   MessageCircle,
   Mail,
   Send,
-  X as XIcon
+  X as XIcon,
+  AlertCircle,
+  ArrowLeft,
+  ArrowRight,
+  Copy
 } from "lucide-react";
 import { 
   Popover, 
@@ -29,6 +33,10 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import Image from 'next/image';
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Loader } from "@/components/ui/loader";
+import { motion } from "framer-motion";
 
 interface ProfileQRShareProps {
   profileData: {

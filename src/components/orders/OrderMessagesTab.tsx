@@ -1,15 +1,15 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, memo, useMemo } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { MessageSquare, Send, Paperclip, X, Loader2, FileText, Image, FileIcon } from "lucide-react";
+import { MessageSquare, Send, Paperclip, X, Loader2, FileText, FileIcon } from "lucide-react";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { useToast } from "@/components/ui/use-toast";
 import { Order } from "@/types/orders";
-import { Message, Messages } from "@/types/supabase/messages.types";
+import { Message } from "@/types/supabase/messages.types";
 import { motion } from "framer-motion";
 import clsx from "clsx";
 import { useAuth } from "@/hooks/useAuth";
@@ -18,39 +18,246 @@ import { uploadOrderFile } from "@/lib/supabase/order-files";
 import { validateMessage } from "@/lib/message-validation";
 import ImageNext from 'next/image';
 
-interface OrderMessagesTabProps {
-  order: Order;
-  isFreelance: boolean;
-}
+// Composant memoïsé pour le rendu des pièces jointes
+const MessageAttachment = memo(({ message }: { message: Message }) => {
+  if (!message.attachment_url) return null;
+  
+  const isImage = message.attachment_type?.startsWith('image/');
+  
+  return (
+    <div className="mb-2 border rounded-md overflow-hidden bg-white/10">
+      {isImage ? (
+        <a href={message.attachment_url} target="_blank" rel="noopener noreferrer" className="block">
+          <ImageNext 
+            src={message.attachment_url} 
+            alt={message.attachment_name || "Pièce jointe"} 
+            className="max-h-[150px] w-auto object-contain"
+            width={200}
+            height={150}
+            unoptimized
+          />
+        </a>
+      ) : (
+        <a 
+          href={message.attachment_url} 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="flex items-center p-2 hover:bg-black/5"
+        >
+          <FileIcon className="h-4 w-4 mr-2 flex-shrink-0" />
+          <div className="text-[8px] sm:text-[9px] text-gray-200 dark:text-gray-300 truncate">
+            {message.attachment_name || "Fichier joint"}
+          </div>
+        </a>
+      )}
+    </div>
+  );
+});
 
-export function OrderMessagesTab({ order, isFreelance }: OrderMessagesTabProps) {
+MessageAttachment.displayName = 'MessageAttachment';
+
+// Composant memoïsé pour l'avatar de l'utilisateur
+const UserAvatar = memo(({ 
+  sender, 
+  avatarUrl, 
+  size = "small" 
+}: { 
+  sender: any; 
+  avatarUrl: string | null;
+  size?: "small" | "medium" 
+}) => {
+  const sizeClass = size === "small" ? "h-7 w-7 sm:h-8 sm:w-8" : "h-8 w-8 sm:h-10 sm:w-10";
+  
+  const getSenderInitials = (sender: any) => {
+    if (!sender) return 'UN';
+    
+    if (sender.full_name) {
+      const nameParts = sender.full_name.split(' ');
+      if (nameParts.length > 1) {
+        return `${nameParts[0].charAt(0)}${nameParts[1].charAt(0)}`.toUpperCase();
+      }
+      return sender.full_name.substring(0, 2).toUpperCase();
+    }
+    
+    return sender.username ? sender.username.substring(0, 2).toUpperCase() : 'UN';
+  };
+
+  return (
+    <div className={`${sizeClass} rounded-full bg-vynal-purple-secondary/10 flex items-center justify-center overflow-hidden`}>
+      {avatarUrl ? (
+        <ImageNext
+          src={avatarUrl}
+          alt={sender?.username || 'Avatar'}
+          width={32}
+          height={32}
+          className="h-full w-full object-cover"
+        />
+      ) : (
+        <span className="text-[8px] sm:text-[9px] font-medium text-vynal-purple-secondary">
+          {getSenderInitials(sender)}
+        </span>
+      )}
+    </div>
+  );
+});
+
+UserAvatar.displayName = 'UserAvatar';
+
+// Composant memoïsé pour l'indicateur de frappe
+const TypingIndicator = memo(() => (
+  <div className="flex justify-start">
+    <div className="max-w-[60%] rounded-lg p-2 bg-vynal-purple-secondary/5 dark:bg-vynal-purple-secondary/10 text-vynal-purple-secondary dark:text-vynal-text-secondary animate-in fade-in slide-in-from-bottom-2 duration-200">
+      <div className="flex space-x-1 items-center text-vynal-accent-primary dark:text-vynal-text-secondary animate-in fade-in slide-in-from-bottom-2 duration-200">
+        <div className="w-1.5 h-1.5 bg-vynal-purple-secondary/30 rounded-full animate-bounce" style={{ animationDelay: '0ms', animationDuration: '1s' }} />
+        <div className="w-1.5 h-1.5 bg-vynal-purple-secondary/30 rounded-full animate-bounce" style={{ animationDelay: '150ms', animationDuration: '1s' }} />
+        <div className="w-1.5 h-1.5 bg-vynal-purple-secondary/30 rounded-full animate-bounce" style={{ animationDelay: '300ms', animationDuration: '1s' }} />
+      </div>
+    </div>
+  </div>
+));
+
+TypingIndicator.displayName = 'TypingIndicator';
+
+// Composant memoïsé pour l'état vide
+const EmptyMessagesState = memo(({ isFreelance }: { isFreelance: boolean }) => (
+  <div className="flex flex-col items-center justify-center h-full">
+    <MessageSquare className="h-6 w-6 sm:h-8 sm:w-8 mx-auto text-vynal-purple-secondary/30 dark:text-vynal-text-secondary/30" />
+    <p className="mt-2 text-[10px] sm:text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary">Aucun message pour le moment</p>
+    <p className="text-[8px] sm:text-[9px] text-vynal-purple-secondary/70 dark:text-vynal-text-secondary/70">Envoyez un message pour communiquer avec {isFreelance ? "le client" : "le freelance"}</p>
+  </div>
+));
+
+EmptyMessagesState.displayName = 'EmptyMessagesState';
+
+// Composant memoïsé pour un message individuel
+const MessageItem = memo(({ 
+  message, 
+  isCurrentUser, 
+  sender,
+  index
+}: { 
+  message: Message; 
+  isCurrentUser: boolean; 
+  sender: any;
+  index: number;
+}) => {
+  return (
+    <div 
+      key={message.id || index} 
+      className={clsx(
+        "flex items-start space-x-2 mb-4",
+        isCurrentUser ? "justify-end" : "justify-start"
+      )}
+    >
+      {!isCurrentUser && (
+        <div className="flex-shrink-0">
+          <UserAvatar sender={sender} avatarUrl={sender.avatar_url} />
+        </div>
+      )}
+      
+      <motion.div 
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.2 }}
+        className={clsx(
+          "relative max-w-[80%] sm:max-w-[75%] rounded-lg p-2.5 pb-4 sm:p-3 sm:pb-4",
+          isCurrentUser 
+            ? "bg-vynal-accent-primary text-white" 
+            : "bg-vynal-purple-secondary/10 text-vynal-purple-light dark:bg-vynal-purple-secondary/20 dark:text-vynal-text-primary"
+        )}
+      >
+        <MessageAttachment message={message} />
+        
+        <div className="text-[10px] sm:text-xs break-words whitespace-pre-wrap leading-relaxed">
+          {message.content}
+        </div>
+        
+        <div 
+          className={clsx(
+            "absolute bottom-0.5 right-2 text-[8px] sm:text-[9px] whitespace-nowrap",
+            isCurrentUser ? "text-white/80" : "text-vynal-purple-secondary dark:text-vynal-text-secondary"
+          )}
+        >
+          {formatDistanceToNow(new Date(message.created_at), { addSuffix: true, locale: fr })}
+        </div>
+      </motion.div>
+      
+      {isCurrentUser && (
+        <div className="flex-shrink-0">
+          <UserAvatar sender={sender} avatarUrl={sender.avatar_url} />
+        </div>
+      )}
+    </div>
+  );
+});
+
+MessageItem.displayName = 'MessageItem';
+
+// Composant pour le fichier sélectionné
+const SelectedFile = memo(({ 
+  attachment, 
+  onClear 
+}: { 
+  attachment: File | null; 
+  onClear: () => void 
+}) => {
+  if (!attachment) return null;
+  
+  return (
+    <div className="bg-vynal-purple-secondary/5 dark:bg-vynal-purple-secondary/10 rounded-md p-2 mb-2 flex items-center justify-between">
+      <div className="flex items-center space-x-2 text-[9px] sm:text-[10px] text-vynal-purple-secondary dark:text-vynal-text-secondary truncate">
+        <FileText className="h-3 w-3 flex-shrink-0" />
+        <span className="truncate">{attachment.name}</span>
+      </div>
+      <Button 
+        variant="ghost" 
+        size="sm"
+        className="h-6 w-6 p-0 rounded-full hover:bg-vynal-purple-secondary/10"
+        onClick={onClear}
+      >
+        <X className="h-3 w-3 text-vynal-purple-secondary dark:text-vynal-text-secondary" />
+      </Button>
+    </div>
+  );
+});
+
+SelectedFile.displayName = 'SelectedFile';
+
+// Composant principal pour l'onglet des messages
+export function OrderMessagesTab({ order, isFreelance }: { order: Order; isFreelance: boolean }) {
+  // Convertir les messages existants au format attendu
+  const initialMessages = useMemo(() => (order.messages || []).map(msg => ({
+    id: msg.id,
+    created_at: msg.created_at || msg.timestamp || new Date().toISOString(),
+    order_id: order.id,
+    sender_id: msg.sender_id,
+    content: msg.content,
+    read: msg.is_read !== undefined ? msg.is_read : false,
+    conversation_id: null,
+    attachment_url: msg.attachment_url || null,
+    attachment_type: msg.attachment_type || null,
+    attachment_name: msg.attachment_name || null,
+    is_typing: msg.is_typing || false
+  })), [order.id, order.messages]);
+
+  // États du composant
   const [newMessage, setNewMessage] = useState("");
-  const [messages, setMessages] = useState<Message[]>(() => {
-    // Convert existing OrderMessage[] to Message[]
-    return (order.messages || []).map(msg => ({
-      id: msg.id,
-      created_at: msg.created_at || msg.timestamp || new Date().toISOString(),
-      order_id: order.id,
-      sender_id: msg.sender_id,
-      content: msg.content,
-      read: msg.is_read !== undefined ? msg.is_read : false,
-      conversation_id: null,
-      attachment_url: msg.attachment_url || null,
-      attachment_type: msg.attachment_type || null,
-      attachment_name: msg.attachment_name || null,
-      is_typing: msg.is_typing || false
-    }));
-  });
+  const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [isLoading, setIsLoading] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [attachment, setAttachment] = useState<File | null>(null);
   const [typingTimeout, setTypingTimeout] = useState<NodeJS.Timeout | null>(null);
+  
+  // Refs
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  // Hooks
   const { toast } = useToast();
   const supabase = createClientComponentClient();
   const { user } = useAuth();
   
+  // Identifiants des utilisateurs
   const currentUserId = isFreelance ? order.freelance.id : order.client.id;
   const otherUserId = isFreelance ? order.client.id : order.freelance.id;
 
@@ -59,11 +266,30 @@ export function OrderMessagesTab({ order, isFreelance }: OrderMessagesTabProps) 
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Consolidated subscriptions for messages and typing indicators
+  // Fonction pour marquer un message comme lu
+  const markMessageAsRead = useCallback(async (messageId: string) => {
+    await supabase
+      .from('messages')
+      .update({ read: true })
+      .eq('id', messageId);
+  }, [supabase]);
+
+  // Marquer les messages non lus comme lus
+  useEffect(() => {
+    const unreadMessages = messages.filter(
+      message => !message.read && message.sender_id !== currentUserId
+    );
+    
+    unreadMessages.forEach(message => {
+      markMessageAsRead(message.id);
+    });
+  }, [messages, currentUserId, markMessageAsRead]);
+
+  // Abonnement aux mises à jour des messages
   useEffect(() => {
     if (!order.id || !supabase || !currentUserId || !otherUserId) return;
     
-    // Channel for message updates and new messages
+    // Canal pour les nouveaux messages et mises à jour
     const messagesChannel = supabase
       .channel('order-messages')
       .on('postgres_changes', {
@@ -75,7 +301,7 @@ export function OrderMessagesTab({ order, isFreelance }: OrderMessagesTabProps) 
         const newMessage = payload.new as Message;
         setMessages(prev => [...prev, newMessage]);
         
-        // Mark as read if it's from the other user
+        // Marquer comme lu si c'est de l'autre utilisateur
         if (newMessage.sender_id !== currentUserId) {
           markMessageAsRead(newMessage.id);
         }
@@ -88,55 +314,37 @@ export function OrderMessagesTab({ order, isFreelance }: OrderMessagesTabProps) 
       }, (payload) => {
         const updatedMessage = payload.new as Message;
         
-        // Handle typing indicator
+        // Gérer l'indicateur de frappe
         if (updatedMessage.sender_id === otherUserId && updatedMessage.is_typing) {
           setIsTyping(true);
           
-          // Auto-clear typing status after 3 seconds
+          // Auto-reset de l'indicateur après 3 secondes
           setTimeout(() => {
             setIsTyping(false);
           }, 3000);
         }
         
-        // Update message in the list
+        // Mettre à jour le message dans la liste
         setMessages(prev => prev.map(msg => 
           msg.id === updatedMessage.id ? updatedMessage : msg
         ));
       })
       .subscribe();
 
-    // Clean up subscriptions on unmount
+    // Nettoyage à la désinscription
     return () => {
       supabase.removeChannel(messagesChannel);
     };
-  }, [order.id, currentUserId, otherUserId, supabase]);
+  }, [order.id, currentUserId, otherUserId, supabase, markMessageAsRead]);
 
-  // Mark message as read
-  const markMessageAsRead = useCallback(async (messageId: string) => {
-    await supabase
-      .from('messages')
-      .update({ read: true })
-      .eq('id', messageId);
-  }, [supabase]);
-
-  useEffect(() => {
-    if (messages.length > 0) {
-      messages.forEach(message => {
-        if (!message.read && message.sender_id !== currentUserId) {
-          markMessageAsRead(message.id);
-        }
-      });
-    }
-  }, [messages, currentUserId, markMessageAsRead]);
-
-  // Handle typing indicator
-  const handleTyping = () => {
-    // Clear previous timeout
+  // Gérer l'indicateur de frappe
+  const handleTyping = useCallback(() => {
+    // Effacer le timeout précédent
     if (typingTimeout) {
       clearTimeout(typingTimeout);
     }
     
-    // Update typing status
+    // Mettre à jour le statut de frappe
     const updateTyping = async () => {
       await supabase
         .from('messages')
@@ -146,7 +354,7 @@ export function OrderMessagesTab({ order, isFreelance }: OrderMessagesTabProps) 
         .order('created_at', { ascending: false })
         .limit(1);
       
-      // Auto reset typing indicator after 2 seconds
+      // Réinitialiser l'indicateur après 2 secondes
       const timeout = setTimeout(async () => {
         await supabase
           .from('messages')
@@ -161,48 +369,39 @@ export function OrderMessagesTab({ order, isFreelance }: OrderMessagesTabProps) 
     };
     
     updateTyping();
-  };
+  }, [supabase, currentUserId, order.id, typingTimeout]);
 
-  // Handle file selection
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Gérer le changement de fichier
+  const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setAttachment(e.target.files[0]);
     }
-  };
+  }, []);
 
-  // Clear selected file
-  const clearAttachment = () => {
+  // Effacer le fichier sélectionné
+  const clearAttachment = useCallback(() => {
     setAttachment(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
-  };
+  }, []);
 
   // Uploader un fichier joint
-  const uploadAttachment = async (file: File) => {
+  const uploadAttachment = useCallback(async (file: File) => {
     try {
-      console.log(`Tentative d'upload de fichier pour la commande: ${order.id}`);
-      
       // Uploader le fichier pour le message du tchat
       const result = await uploadOrderMessageAttachment(file, order.id);
       
       if (!result.success) {
-        console.error("Échec de l'upload du fichier:", result.error);
         throw result.error || new Error("Échec de l'upload de fichier");
       }
       
-      console.log(`Upload pour le tchat réussi:`, result);
-      
-      // Enregistrer également le fichier dans la table order_files pour qu'il apparaisse dans l'onglet Fichiers
+      // Enregistrer également le fichier dans la table order_files
       try {
-        console.log(`Enregistrement du fichier dans la table order_files`);
-        // Utiliser le même fichier déjà uploadé mais créer une entrée dans order_files
-        const orderFile = await uploadOrderFile(order.id, file);
-        console.log(`Fichier enregistré avec succès dans order_files:`, orderFile);
+        await uploadOrderFile(order.id, file);
       } catch (fileErr) {
         // Ne pas bloquer l'envoi du message si l'enregistrement dans order_files échoue
         console.error("Erreur lors de l'enregistrement du fichier dans order_files:", fileErr);
-        // On continue le processus même en cas d'erreur ici
       }
       
       return {
@@ -214,28 +413,29 @@ export function OrderMessagesTab({ order, isFreelance }: OrderMessagesTabProps) 
       console.error("Exception lors de l'upload du fichier:", err);
       throw err;
     }
-  };
+  }, [order.id]);
 
   // Gérer l'envoi d'un nouveau message
-  const handleSendMessage = async () => {
+  const handleSendMessage = useCallback(async () => {
     if (!newMessage.trim() && !attachment) return;
     
     setIsLoading(true);
     
     try {
       // Valider le message pour bloquer les mots interdits
-      if (newMessage.trim()) {
-        const validationResult = validateMessage(newMessage.trim(), {
+      let finalContent = newMessage.trim();
+      
+      if (finalContent) {
+        const validationResult = validateMessage(finalContent, {
           maxLength: 5000,
           minLength: 1,
           censorInsteadOfBlock: true,
-          allowQuotedWords: true,      // Autorise les mots interdits dans les citations/signalements
-          allowLowSeverityWords: true,  // Autorise les mots de faible gravité
-          respectRecommendedActions: true  // Utiliser les actions recommandées
+          allowQuotedWords: true,
+          allowLowSeverityWords: true,
+          respectRecommendedActions: true
         });
         
         if (!validationResult.isValid) {
-          // Afficher un message d'erreur si le message contient des mots interdits
           toast({
             title: "Message non valide",
             description: "Ce message est interdit.",
@@ -245,7 +445,6 @@ export function OrderMessagesTab({ order, isFreelance }: OrderMessagesTabProps) 
           return;
         }
         
-        // Afficher un avertissement si nécessaire mais laisser l'utilisateur envoyer le message
         if (validationResult.warningMessage) {
           toast({
             title: "Attention",
@@ -254,9 +453,8 @@ export function OrderMessagesTab({ order, isFreelance }: OrderMessagesTabProps) 
           });
         }
         
-        // Si le message a été censuré, on le remplace par la version censurée
         if (validationResult.censored) {
-          setNewMessage(validationResult.message + " [Ce message a été modéré automatiquement]");
+          finalContent = validationResult.message + " [Ce message a été modéré automatiquement]";
         }
       }
       
@@ -267,27 +465,23 @@ export function OrderMessagesTab({ order, isFreelance }: OrderMessagesTabProps) 
       }
       
       // Utiliser le message potentiellement censuré
-      const finalContent = newMessage.trim() || (attachment ? `Fichier: ${attachment.name}` : '');
+      const messageContent = finalContent || (attachment ? `Fichier: ${attachment.name}` : '');
       
-      // Création d'un message avec tous les champs nécessaires pour passer la politique RLS
+      // Création d'un message avec tous les champs nécessaires
       const messageData = {
         order_id: order.id,
         sender_id: user?.id || currentUserId,
-        content: finalContent,
+        content: messageContent,
         attachment_url: attachmentData?.url || null,
         attachment_type: attachmentData?.type || null,
         attachment_name: attachmentData?.name || null,
         read: false,
         is_typing: false,
-        conversation_id: null,  // Assurez-vous que ce champ est explicitement null
-        created_at: new Date().toISOString()  // Fournir explicitement created_at
+        conversation_id: null,
+        created_at: new Date().toISOString()
       };
       
-      // Log des données que nous allons insérer pour le débogage
-      console.log("Tentative d'insertion avec les données:", messageData);
-      
-      // Envoyer le message à la base de données en utilisant une insertion directe
-      // plutôt que le helper createOrderMessage pour être sûr des champs exacts
+      // Envoyer le message à la base de données
       const { data, error: insertError } = await supabase
         .from('messages')
         .insert(messageData)
@@ -295,17 +489,6 @@ export function OrderMessagesTab({ order, isFreelance }: OrderMessagesTabProps) 
       
       if (insertError) {
         console.error("Erreur lors de l'envoi du message:", insertError);
-        
-        // Information détaillée pour le débogage
-        if (insertError.message && insertError.message.includes('violates row-level security policy')) {
-          console.error("Erreur de politique RLS détectée. Détails:", {
-            table: 'messages',
-            operation: 'INSERT',
-            userId: user?.id,
-            currentUserId,
-            orderId: order.id
-          });
-        }
         
         toast({
           title: "Erreur",
@@ -315,10 +498,7 @@ export function OrderMessagesTab({ order, isFreelance }: OrderMessagesTabProps) 
         return;
       }
       
-      console.log("Message envoyé avec succès:", data);
-      
-      // Ajouter le message localement à l'état pour assurer un affichage immédiat
-      // même si la souscription real-time a un délai
+      // Ajouter le message à l'état local
       if (data && data.length > 0) {
         const newMessageData = data[0] as Message;
         setMessages(prev => [...prev, newMessageData]);
@@ -329,7 +509,7 @@ export function OrderMessagesTab({ order, isFreelance }: OrderMessagesTabProps) 
       clearAttachment();
       
       // Si le message a été censuré, afficher une notification
-      if (messageData.content.includes("[Ce message a été modéré automatiquement]")) {
+      if (messageContent.includes("[Ce message a été modéré automatiquement]")) {
         toast({
           title: "Modération",
           description: "Certains mots de votre message ont été censurés.",
@@ -347,151 +527,45 @@ export function OrderMessagesTab({ order, isFreelance }: OrderMessagesTabProps) 
     } finally {
       setIsLoading(false);
     }
-  };
-
-  // Rendu d'une pièce jointe
-  const renderAttachment = (message: Message) => {
-    if (!message.attachment_url) return null;
-    
-    const isImage = message.attachment_type?.startsWith('image/');
-    
-    return (
-      <div className="mt-2 border rounded-md overflow-hidden">
-        {isImage ? (
-          <a href={message.attachment_url} target="_blank" rel="noopener noreferrer" className="block">
-            <ImageNext 
-              src={message.attachment_url} 
-              alt={message.attachment_name || "Pièce jointe"} 
-              className="max-h-[200px] max-w-full object-contain"
-              width={200}
-              height={200}
-              unoptimized
-            />
-          </a>
-        ) : (
-          <a 
-            href={message.attachment_url} 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="flex items-center p-2 hover:bg-black/5"
-          >
-            <FileIcon className="h-5 w-5 mr-2" />
-            <div className="text-xs truncate">{message.attachment_name}</div>
-          </a>
-        )}
-      </div>
-    );
-  };
-
-  // Récupérer l'avatar de l'utilisateur
-  const getUserAvatar = (userId: string) => {
-    // Utiliser un avatar par défaut si aucun n'est trouvé
-    const defaultAvatar = "https://ui-avatars.com/api/?name=" + encodeURIComponent(
-      userId === user?.id ? "Vous" : 
-      userId === order.freelance.id ? "Freelance" : 
-      "Client"
-    ) + "&background=random";
-    
-    // Si c'est l'utilisateur actuel
-    if (userId === user?.id) {
-      // Pour l'utilisateur actuel, chercher dans l'objet client ou freelance selon le rôle
-      if (isFreelance && order.freelance.id === user?.id) {
-        return order.freelance.avatar_url || defaultAvatar;
-      } else if (!isFreelance && order.client.id === user?.id) {
-        return order.client.avatar_url || defaultAvatar;
-      }
-      return defaultAvatar;
-    }
-    
-    // Si c'est le freelance
-    if (userId === order.freelance.id) {
-      return order.freelance.avatar_url || defaultAvatar;
-    }
-    
-    // Si c'est le client
-    if (userId === order.client.id) {
-      return order.client.avatar_url || defaultAvatar;
-    }
-    
-    return defaultAvatar;
-  };
+  }, [
+    newMessage, 
+    attachment, 
+    order.id, 
+    user?.id, 
+    currentUserId, 
+    supabase, 
+    toast, 
+    uploadAttachment, 
+    clearAttachment
+  ]);
 
   return (
     <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
-      <div className="space-y-3 sm:space-y-4 max-h-[300px] sm:max-h-[400px] overflow-y-auto pr-1 sm:pr-2 scrollbar-thin scrollbar-thumb-vynal-purple-secondary/20 scrollbar-track-transparent no-scrollbar">
+      <div className="space-y-3 sm:space-y-4 h-[450px] sm:h-[500px] overflow-y-auto py-3 px-1 sm:px-2 scrollbar-thin scrollbar-thumb-vynal-purple-secondary/20 scrollbar-track-transparent border border-vynal-purple-secondary/10 dark:border-vynal-purple-secondary/20 rounded-md bg-vynal-purple-secondary/5 dark:bg-vynal-purple-secondary/10">
         {messages.length > 0 ? (
           <>
-            {messages.map((message, index) => (
-              <motion.div
-                key={message.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: Math.min(index * 0.05, 0.3) }}
-                className={clsx(
-                  "flex flex-col py-3 px-4 rounded-lg mb-4 max-w-[80%]",
-                  message.sender_id === user?.id
-                    ? "bg-primary-50 ml-auto dark:bg-primary-800"
-                    : "bg-gray-100 mr-auto dark:bg-gray-800"
-                )}
-              >
-                <div className="flex items-center mb-1">
-                  <div className="w-5 h-5 rounded-full overflow-hidden mr-2 flex-shrink-0 bg-vynal-purple-secondary/30">
-                    <ImageNext 
-                      src={getUserAvatar(message.sender_id)} 
-                      alt="Avatar" 
-                      className="w-full h-full object-cover"
-                      width={20}
-                      height={20}
-                      unoptimized
-                      onError={(e) => {
-                        // En cas d'erreur, utiliser l'avatar par défaut
-                        const target = e.target as HTMLImageElement;
-                        const defaultAvatar = "https://ui-avatars.com/api/?name=" + encodeURIComponent(
-                          message.sender_id === user?.id ? "Vous" : "Utilisateur"
-                        ) + "&background=random";
-                        
-                        if (target.src !== defaultAvatar) {
-                          target.src = defaultAvatar;
-                        } else {
-                          // Si l'avatar par défaut échoue aussi, masquer l'image
-                          target.style.display = 'none';
-                        }
-                      }}
-                    />
-                  </div>
-                  <div className="text-sm font-medium">
-                    {message.sender_id === user?.id ? "Vous" : "Freelance"}
-                  </div>
-                </div>
-                <div className="text-sm">
-                  {message.content || ""}
-                  {message.attachment_url && renderAttachment(message)}
-                </div>
-                <div className="text-xs text-gray-500 mt-1 self-end">
-                  {message.created_at ? formatDistanceToNow(new Date(message.created_at), { addSuffix: true, locale: fr }) : ""}
-                </div>
-              </motion.div>
-            ))}
+            {messages.map((message, index) => {
+              const isCurrentUser = message.sender_id === currentUserId;
+              const sender = isCurrentUser 
+                ? (isFreelance ? order.freelance : order.client) 
+                : (isFreelance ? order.client : order.freelance);
+              
+              return (
+                <MessageItem 
+                  key={message.id || `msg-${index}`}
+                  message={message}
+                  isCurrentUser={isCurrentUser}
+                  sender={sender}
+                  index={index}
+                />
+              );
+            })}
             <div ref={messagesEndRef} />
             
-            {isTyping && (
-              <div className="flex justify-start">
-                <div className="max-w-[60%] rounded-lg p-2 bg-vynal-purple-secondary/5 dark:bg-vynal-purple-secondary/10 text-vynal-purple-secondary dark:text-vynal-text-secondary animate-in fade-in slide-in-from-bottom-2 duration-200">
-                  <div className="flex space-x-1 items-center text-vynal-accent-primary dark:text-vynal-text-secondary animate-in fade-in slide-in-from-bottom-2 duration-200">
-                    <div className="w-1.5 h-1.5 bg-vynal-purple-secondary/30 rounded-full animate-bounce" style={{ animationDelay: '0ms', animationDuration: '1s' }} />
-                    <div className="w-1.5 h-1.5 bg-vynal-purple-secondary/30 rounded-full animate-bounce" style={{ animationDelay: '150ms', animationDuration: '1s' }} />
-                    <div className="w-1.5 h-1.5 bg-vynal-purple-secondary/30 rounded-full animate-bounce" style={{ animationDelay: '300ms', animationDuration: '1s' }} />
-                  </div>
-                </div>
-              </div>
-            )}
+            {isTyping && <TypingIndicator />}
           </>
         ) : (
-          <div className="text-center py-4 sm:py-6">
-            <MessageSquare className="h-8 w-8 sm:h-12 sm:w-12 mx-auto text-vynal-purple-secondary/30 dark:text-vynal-text-secondary/30" />
-            <p className="mt-2 text-sm text-vynal-purple-secondary dark:text-vynal-text-secondary">Aucun message pour le moment</p>
-            <p className="text-xs text-vynal-purple-secondary/70 dark:text-vynal-text-secondary/70">Envoyez un message pour communiquer avec {isFreelance ? "le client" : "le freelance"}</p>
-          </div>
+          <EmptyMessagesState isFreelance={isFreelance} />
         )}
       </div>
       
@@ -504,22 +578,22 @@ export function OrderMessagesTab({ order, isFreelance }: OrderMessagesTabProps) 
           accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt"
         />
         
-        {attachment && (
-          <div className="mb-2 p-2 bg-vynal-purple-secondary/5 rounded-md flex items-center justify-between">
-            <div className="flex items-center text-xs truncate">
-              <FileText className="h-3.5 w-3.5 mr-1.5" />
-              <span className="truncate">{attachment.name}</span>
-            </div>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="h-6 w-6 p-0" 
-              onClick={clearAttachment}
+        <div className="mt-3 sm:mt-4">
+          <div className="flex items-center space-x-2 mb-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="text-[8px] sm:text-[9px] h-7 sm:h-8 rounded-lg"
+              onClick={() => fileInputRef.current?.click()}
             >
-              <X className="h-3.5 w-3.5" />
+              <Paperclip className="h-3 w-3 mr-1" />
+              Joindre un fichier
             </Button>
           </div>
-        )}
+          
+          <SelectedFile attachment={attachment} onClear={clearAttachment} />
+        </div>
         
         <form onSubmit={(e) => { e.preventDefault(); handleSendMessage(); }} className="flex gap-2">
           <Textarea
@@ -529,19 +603,10 @@ export function OrderMessagesTab({ order, isFreelance }: OrderMessagesTabProps) 
               handleTyping();
             }}
             placeholder={`Envoyez un message à ${isFreelance ? "votre client" : "votre freelance"}...`}
-            className="flex-1 border-vynal-purple-secondary/20 dark:border-vynal-purple-secondary/30 focus-visible:ring-vynal-accent-primary text-xs sm:text-sm"
+            className="flex-1 border-vynal-purple-secondary/20 dark:border-vynal-purple-secondary/30 focus-visible:ring-vynal-accent-primary text-[10px] sm:text-xs min-h-[80px]"
             rows={3}
           />
           <div className="flex flex-col justify-end gap-2">
-            <Button 
-              type="button"
-              variant="outline"
-              size="sm"
-              className="border-vynal-purple-secondary/20 dark:border-vynal-purple-secondary/30"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <Paperclip className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-            </Button>
             <Button 
               type="submit"
               disabled={(!newMessage.trim() && !attachment) || isLoading}
@@ -549,9 +614,9 @@ export function OrderMessagesTab({ order, isFreelance }: OrderMessagesTabProps) 
               className="bg-gradient-to-r from-vynal-accent-primary to-vynal-accent-secondary hover:from-vynal-accent-primary/90 hover:to-vynal-accent-secondary/90"
             >
               {isLoading ? (
-                <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
               ) : (
-                <Send className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <Send className="h-3.5 w-3.5" />
               )}
             </Button>
           </div>
@@ -559,4 +624,4 @@ export function OrderMessagesTab({ order, isFreelance }: OrderMessagesTabProps) 
       </div>
     </div>
   );
-} 
+}

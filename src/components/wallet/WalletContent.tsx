@@ -86,24 +86,24 @@ export default function WalletContent() {
   }
   
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
-        <h1 className="text-2xl font-bold dark:text-vynal-text-primary">Wallet</h1>
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
+        <h1 className="text-base sm:text-lg md:text-xl font-bold text-vynal-purple-light dark:text-vynal-text-primary">Wallet</h1>
         <div className="flex gap-2">
           <Button
             variant="outline"
             size="sm"
             onClick={handleRefresh}
             disabled={isRefreshing}
-            className="flex items-center gap-1 text-slate-700 border-slate-300 hover:bg-slate-100 hover:text-slate-900 dark:text-vynal-text-secondary dark:border-vynal-purple-secondary/40 dark:hover:bg-vynal-purple-secondary/20 dark:hover:text-vynal-text-primary"
+            className="flex items-center gap-1 text-[10px] text-slate-700 border-slate-300 hover:bg-slate-100 hover:text-slate-900 dark:text-vynal-text-secondary dark:border-vynal-purple-secondary/40 dark:hover:bg-vynal-purple-secondary/20 dark:hover:text-vynal-text-primary"
           >
-            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-3 w-3 ${isRefreshing ? 'animate-spin' : ''}`} />
             {isRefreshing ? 'Actualisation' : 'Actualiser'}
           </Button>
           <Button 
             onClick={handleWithdrawalNavigation} 
             disabled={isNavigating || !wallet || wallet.balance < 2000}
-            className="bg-slate-700 hover:bg-slate-800 dark:bg-vynal-accent-primary dark:hover:bg-vynal-accent-secondary text-white"
+            className="text-[10px] bg-slate-700 hover:bg-slate-800 dark:bg-vynal-accent-primary dark:hover:bg-vynal-accent-secondary text-white"
           >
             {isNavigating ? "Redirection..." : "Retirer des fonds"}
           </Button>
@@ -111,112 +111,102 @@ export default function WalletContent() {
       </div>
       
       {/* Wallet Info Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <Card className="dark:border-vynal-purple-secondary/40">
-          <CardHeader className="pb-2">
-            <CardDescription className="text-slate-500 dark:text-vynal-text-secondary flex items-center text-sm">
-              <Wallet className="h-4 w-4 mr-1.5" />Solde disponible
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4 mb-4">
+        <Card className="rounded-2xl border border-vynal-purple-secondary/10 bg-gradient-to-br from-white to-blue-50/50 dark:from-vynal-purple-dark/50 dark:to-blue-900/20 shadow-sm hover:shadow-md transition-all duration-300">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 px-3 pt-3 sm:px-4 sm:pt-4">
+            <CardDescription className="text-[10px] sm:text-xs font-medium text-vynal-purple-light dark:text-vynal-text-primary">
+              Solde disponible
             </CardDescription>
-            <CardTitle className="text-2xl font-bold flex items-center">
-              {isRefreshing || !wallet ? (
-                <div className="flex items-center gap-2">
-                  <div className="h-6 w-28 bg-vynal-purple-secondary/30 rounded-md animate-pulse"></div>
-                </div>
-              ) : (
-                <>{formatCurrency(wallet.balance)}</>
-              )}
-            </CardTitle>
+            <div className="p-1.5 rounded-full bg-gradient-to-tr from-blue-200/80 to-blue-100/80 shadow-sm dark:from-blue-900/20 dark:to-blue-800/20">
+              <Wallet className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-blue-600 dark:text-blue-400" />
+            </div>
           </CardHeader>
-          <CardContent className="pb-2">
-            <p className="text-sm text-slate-500 dark:text-vynal-text-secondary">
-              Fonds disponibles pour retrait
-            </p>
+          <CardContent className="px-3 pb-3 sm:px-4 sm:pb-4">
+            {isRefreshing || !wallet ? (
+              <div className="h-6 w-28 bg-vynal-purple-secondary/30 rounded-md animate-pulse"></div>
+            ) : (
+              <div className="text-sm sm:text-base font-bold text-blue-600 dark:text-blue-400">{formatCurrency(wallet.balance)}</div>
+            )}
           </CardContent>
-          <CardFooter>
+          <CardFooter className="px-3 pb-3 sm:px-4 sm:pb-4">
             <Button 
               onClick={handleWithdrawalNavigation} 
               disabled={isNavigating || !wallet || wallet.balance < 2000}
-              className="w-full text-sm bg-slate-700 hover:bg-slate-800 dark:bg-vynal-accent-primary dark:hover:bg-vynal-accent-secondary text-white"
+              className="hidden sm:block w-full h-7 text-[10px] bg-gradient-to-r from-vynal-accent-primary to-vynal-accent-secondary hover:from-vynal-accent-secondary hover:to-vynal-accent-primary text-white rounded-xl"
             >
               {isNavigating ? "Redirection..." : "Effectuer un retrait"}
             </Button>
           </CardFooter>
         </Card>
 
-        <Card className="dark:border-vynal-purple-secondary/40">
-          <CardHeader className="pb-2">
-            <CardDescription className="text-slate-500 dark:text-vynal-text-secondary flex items-center text-sm">
-              <Calendar className="h-4 w-4 mr-1.5" />En attente
+        <Card className="rounded-2xl border border-vynal-purple-secondary/10 bg-gradient-to-br from-white to-amber-50/50 dark:from-vynal-purple-dark/50 dark:to-amber-900/20 shadow-sm hover:shadow-md transition-all duration-300">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 px-3 pt-3 sm:px-4 sm:pt-4">
+            <CardDescription className="text-[10px] sm:text-xs font-medium text-vynal-purple-light dark:text-vynal-text-primary">
+              En attente
             </CardDescription>
-            <CardTitle className="text-2xl font-bold flex items-center">
-              {isRefreshing || !wallet ? (
-                <div className="flex items-center gap-2">
-                  <div className="h-6 w-28 bg-vynal-purple-secondary/30 rounded-md animate-pulse"></div>
-                </div>
-              ) : (
-                <>{formatCurrency(wallet.pending_balance)}</>
-              )}
-            </CardTitle>
+            <div className="p-1.5 rounded-full bg-gradient-to-tr from-amber-200/80 to-amber-100/80 shadow-sm dark:from-amber-900/20 dark:to-amber-800/20">
+              <Calendar className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-amber-600 dark:text-amber-400" />
+            </div>
           </CardHeader>
-          <CardContent className="pb-2">
-            <p className="text-sm text-slate-500 dark:text-vynal-text-secondary">
-              Sommes en attente de validation
-            </p>
+          <CardContent className="px-3 pb-3 sm:px-4 sm:pb-4">
+            {isRefreshing || !wallet ? (
+              <div className="h-6 w-28 bg-vynal-purple-secondary/30 rounded-md animate-pulse"></div>
+            ) : (
+              <div className="text-sm sm:text-base font-bold text-amber-600 dark:text-amber-400">
+                {formatCurrency(wallet.pending_balance)}
+              </div>
+            )}
           </CardContent>
         </Card>
 
-        <Card className="dark:border-vynal-purple-secondary/40">
-          <CardHeader className="pb-2">
-            <CardDescription className="text-slate-500 dark:text-vynal-text-secondary flex items-center text-sm">
-              <ArrowDown className="h-4 w-4 mr-1.5" />Total des gains
+        <Card className="rounded-2xl border border-vynal-purple-secondary/10 bg-gradient-to-br from-white to-green-50/50 dark:from-vynal-purple-dark/50 dark:to-green-900/20 shadow-sm hover:shadow-md transition-all duration-300">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 px-3 pt-3 sm:px-4 sm:pt-4">
+            <CardDescription className="text-[10px] sm:text-xs font-medium text-vynal-purple-light dark:text-vynal-text-primary">
+              Total des gains
             </CardDescription>
-            <CardTitle className="text-2xl font-bold flex items-center text-emerald-600 dark:text-emerald-500">
-              {isRefreshing || !wallet ? (
-                <div className="flex items-center gap-2">
-                  <div className="h-6 w-28 bg-vynal-purple-secondary/30 rounded-md animate-pulse"></div>
-                </div>
-              ) : (
-                <>{formatCurrency(wallet.total_earnings)}</>
-              )}
-            </CardTitle>
+            <div className="p-1.5 rounded-full bg-gradient-to-tr from-green-200/80 to-green-100/80 shadow-sm dark:from-green-900/20 dark:to-green-800/20">
+              <ArrowDown className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-green-600 dark:text-green-400" />
+            </div>
           </CardHeader>
-          <CardContent className="pb-4">
-            <p className="text-sm text-slate-500 dark:text-vynal-text-secondary">
-              Cumul de vos revenus sur la plateforme
-            </p>
+          <CardContent className="px-3 pb-3 sm:px-4 sm:pb-4">
+            {isRefreshing || !wallet ? (
+              <div className="h-6 w-28 bg-vynal-purple-secondary/30 rounded-md animate-pulse"></div>
+            ) : (
+              <div className="text-sm sm:text-base font-bold text-green-600 dark:text-green-400">
+                {formatCurrency(wallet.total_earnings)}
+              </div>
+            )}
           </CardContent>
         </Card>
 
-        <Card className="dark:border-vynal-purple-secondary/40">
-          <CardHeader className="pb-2">
-            <CardDescription className="text-slate-500 dark:text-vynal-text-secondary flex items-center text-sm">
-              <ArrowUp className="h-4 w-4 mr-1.5" />Total des retraits
+        <Card className="rounded-2xl border border-vynal-purple-secondary/10 bg-gradient-to-br from-white to-red-50/50 dark:from-vynal-purple-dark/50 dark:to-red-900/20 shadow-sm hover:shadow-md transition-all duration-300">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 px-3 pt-3 sm:px-4 sm:pt-4">
+            <CardDescription className="text-[10px] sm:text-xs font-medium text-vynal-purple-light dark:text-vynal-text-primary">
+              Total des retraits
             </CardDescription>
-            <CardTitle className="text-2xl font-bold flex items-center text-amber-600 dark:text-amber-500">
-              {isRefreshing || !wallet ? (
-                <div className="flex items-center gap-2">
-                  <div className="h-6 w-28 bg-vynal-purple-secondary/30 rounded-md animate-pulse"></div>
-                </div>
-              ) : (
-                <>{formatCurrency(wallet.total_withdrawals)}</>
-              )}
-            </CardTitle>
+            <div className="p-1.5 rounded-full bg-gradient-to-tr from-red-200/80 to-red-100/80 shadow-sm dark:from-red-900/20 dark:to-red-800/20">
+              <ArrowUp className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-red-600 dark:text-red-400" />
+            </div>
           </CardHeader>
-          <CardContent className="pb-4">
-            <p className="text-sm text-slate-500 dark:text-vynal-text-secondary">
-              Montant total retiré sur votre compte
-            </p>
+          <CardContent className="px-3 pb-3 sm:px-4 sm:pb-4">
+            {isRefreshing || !wallet ? (
+              <div className="h-6 w-28 bg-vynal-purple-secondary/30 rounded-md animate-pulse"></div>
+            ) : (
+              <div className="text-sm sm:text-base font-bold text-red-600 dark:text-red-400">
+                {formatCurrency(wallet.total_withdrawals)}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
       
       {/* Transactions List */}
-      <Card className="dark:border-vynal-purple-secondary/40">
-        <CardHeader>
-          <CardTitle>Historique des transactions</CardTitle>
-          <CardDescription>Consultez l'historique de vos transactions, paiements et retraits</CardDescription>
+      <Card className="rounded-2xl border border-vynal-purple-secondary/10 bg-gradient-to-br from-white to-vynal-purple-secondary/5 dark:from-vynal-purple-dark/50 dark:to-vynal-purple-dark/30 shadow-sm hover:shadow-md transition-all duration-300">
+        <CardHeader className="px-3 pt-3 sm:px-4 sm:pt-4">
+          <CardTitle className="text-sm sm:text-base font-semibold">Historique des transactions</CardTitle>
+          <CardDescription className="text-[10px] sm:text-xs">Consultez l'historique de vos transactions, paiements et retraits</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-3 pb-3 sm:px-4 sm:pb-4">
           <Tabs 
             defaultValue={activeTab} 
             value={activeTab} 
@@ -226,20 +216,20 @@ export default function WalletContent() {
               }
             }}
           >
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-4">
-              <TabsList>
-                <TabsTrigger value="all">Toutes</TabsTrigger>
-                <TabsTrigger value="deposit">Dépôts</TabsTrigger>
-                <TabsTrigger value="payment">Paiements</TabsTrigger>
-                <TabsTrigger value="earning">Gains</TabsTrigger>
-                <TabsTrigger value="withdrawal">Retraits</TabsTrigger>
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 mb-3">
+              <TabsList className="h-8">
+                <TabsTrigger value="all" className="text-xs px-3 py-1.5">Toutes</TabsTrigger>
+                <TabsTrigger value="deposit" className="text-xs px-3 py-1.5">Dépôts</TabsTrigger>
+                <TabsTrigger value="payment" className="text-xs px-3 py-1.5">Paiements</TabsTrigger>
+                <TabsTrigger value="earning" className="text-xs px-3 py-1.5">Gains</TabsTrigger>
+                <TabsTrigger value="withdrawal" className="text-xs px-3 py-1.5">Retraits</TabsTrigger>
               </TabsList>
-              <div className="relative w-full md:w-64">
-                <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <div className="relative w-full sm:w-64">
+                <SearchIcon className="absolute left-2.5 top-2.5 h-3 w-3 text-muted-foreground" />
                 <Input
                   type="search"
                   placeholder="Rechercher..."
-                  className="w-full pl-8"
+                  className="w-full h-8 text-xs pl-8"
                   defaultValue={searchQuery}
                   onChange={(e) => handleSearchChange(e.target.value)}
                 />

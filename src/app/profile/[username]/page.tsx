@@ -1,787 +1,688 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback, memo } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useState, useEffect, useCallback, memo } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { useUser, UserProfile } from "@/hooks/useUser";
 import { supabase } from "@/lib/supabase/client";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader } from "@/components/ui/loader";
-import { MessageSquare, Star, UserCircle, ArrowLeft, Briefcase, Calendar, ThumbsUp, ThumbsDown } from "lucide-react";
-import { useFreelancerRating } from "@/hooks/useFreelancerRating";
-import Link from "next/link";
-import ServiceCard from "@/components/services/ServiceCard";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { formatDate } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import ReviewReplyComponent from '@/components/reviews/ReviewReply';
-import Image from 'next/image';
+import { 
+  UserCircle, 
+  Loader2, 
+  Upload, 
+  Mail, 
+  Check, 
+  AlertCircle, 
+  Lock, 
+  Calendar, 
+  Shield,
+  Info,
+  Phone,
+  Share2
+} from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
+import { ProfileQRShare } from "@/components/profile/ProfileQRShare";
+import Image from "next/image";
+import { ProfilePageSkeleton } from "@/components/skeletons/ProfilePageSkeleton";
 import { CertificationBadge } from "@/components/ui/certification-badge";
-import { PaginationControls } from '@/components/ui/pagination';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { InfoTooltip } from "@/components/ui/InfoTooltip";
-/* Imports générant des erreurs - à créer plus tard
-import { Metadata } from 'next';
-import { notFound } from 'next/navigation';
-import { FreelanceProfile } from '@/components/profile/FreelanceProfile';
-import { ClientProfile } from '@/components/profile/ClientProfile';
-import { createClient } from '@/utils/supabase/server';
-import { getFreelanceProfile } from '@/lib/queries/profile';
-import { LoadingView } from '@/components/shared/LoadingView';
-*/
 
-// Type pour le profil du vendeur et ses services
-type ProfileData = {
-  id: string;
-  username: string | null;
-  full_name: string | null;
-  avatar_url: string | null;
-  bio: string | null;
-  role: string;
-  email?: string;
-  created_at?: string;
-  is_certified?: boolean;
-  certification_type?: 'standard' | 'premium' | 'expert' | null;
-};
-
-// Type pour les avis
-type Review = {
-  id: string;
-  created_at: string;
-  rating: number;
-  comment: string;
-  client_id: string;
-  order_id: string;
-  service_id: string;
-  client: {
-    username: string | null;
-    full_name: string | null;
-    avatar_url: string | null;
-  };
-  services: {
-    title: string;
-    slug: string;
-  };
-};
-
-// Données mockées pour les avis (à utiliser pendant le développement)
-const MOCK_REVIEWS: Review[] = [
-  {
-    id: "review-1",
-    created_at: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
-    rating: 5,
-    comment: "Excellent travail ! Le logo est exactement ce que je recherchais. Communication parfaite et livraison rapide.",
-    client_id: "client-2",
-    order_id: "order-past-1",
-    service_id: "service-1",
-    client: {
-      username: "sarahb",
-      full_name: "Sarah Blanc",
-      avatar_url: "/avatars/sarah.jpg"
-    },
-    services: {
-      title: "Création de logo professionnel",
-      slug: "creation-logo-professionnel"
-    }
-  },
-  {
-    id: "review-2",
-    created_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-    rating: 4,
-    comment: "Très bon travail. La première proposition n'était pas tout à fait ce que je voulais mais les ajustements ont été parfaits.",
-    client_id: "client-3",
-    order_id: "order-past-2",
-    service_id: "service-2",
-    client: {
-      username: "thomasv",
-      full_name: "Thomas Vidal",
-      avatar_url: "/avatars/thomas.jpg"
-    },
-    services: {
-      title: "Design de flyer promotionnel",
-      slug: "design-flyer-promotionnel"
-    }
-  },
-  {
-    id: "review-3",
-    created_at: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-    rating: 5,
-    comment: "Article très bien écrit et optimisé pour le SEO. Je recommande vivement !",
-    client_id: "client-4",
-    order_id: "order-past-3",
-    service_id: "service-3",
-    client: {
-      username: "carole_m",
-      full_name: "Carole Mercier",
-      avatar_url: "/avatars/carole.jpg"
-    },
-    services: {
-      title: "Rédaction SEO optimisée",
-      slug: "redaction-seo-optimisee"
-    }
-  },
-  {
-    id: "review-4",
-    created_at: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString(),
-    rating: 3,
-    comment: "Le site web fonctionne correctement mais le design pourrait être amélioré. Délai de livraison respecté.",
-    client_id: "client-5",
-    order_id: "order-past-4",
-    service_id: "service-4",
-    client: {
-      username: "pierre_d",
-      full_name: "Pierre Durand",
-      avatar_url: "/avatars/pierre.jpg"
-    },
-    services: {
-      title: "Création de site web vitrine",
-      slug: "creation-site-web-vitrine"
-    }
-  },
-  {
-    id: "review-5",
-    created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-    rating: 2,
-    comment: "Travail décevant. Le résultat final ne correspond pas du tout à ce qui était présenté dans le service.",
-    client_id: "client-6",
-    order_id: "order-past-5",
-    service_id: "service-5",
-    client: {
-      username: "julien_m",
-      full_name: "Julien Martin",
-      avatar_url: "/avatars/julien.jpg"
-    },
-    services: {
-      title: "Montage vidéo promotionnel",
-      slug: "montage-video-promotionnel"
-    }
-  },
-  {
-    id: "review-6",
-    created_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-    rating: 5,
-    comment: "Service impeccable ! Communication claire, processus transparent et résultat au-delà de mes attentes.",
-    client_id: "client-7",
-    order_id: "order-past-6",
-    service_id: "service-6",
-    client: {
-      username: "sophie_l",
-      full_name: "Sophie Laurent",
-      avatar_url: "/avatars/sophie.jpg"
-    },
-    services: {
-      title: "Traduction anglais-français",
-      slug: "traduction-anglais-francais"
-    }
-  }
-];
-
-// Composant pour l'affichage des étoiles mémorisé
-const StarRating = memo(({ rating, size = "small" }: { rating: number, size?: string }) => {
-  const starSize = size === "small" ? "h-3 w-3" : size === "medium" ? "h-4 w-4" : "h-5 w-5";
+// Composant pour les messages d'alerte
+const AlertMessage = memo(({ 
+  type, 
+  message 
+}: { 
+  type: 'success' | 'error', 
+  message: string | null 
+}) => {
+  if (!message) return null;
   
-  return (
-    <div className="flex space-x-0.5">
-      {[1, 2, 3, 4, 5].map((star) => (
-        <Star 
-          key={star} 
-          className={`${starSize} ${star <= rating ? "text-vynal-purple-darkest dark:text-vynal-accent-primary fill-vynal-purple-darkest dark:fill-vynal-accent-primary" : "text-vynal-purple-secondary/50 dark:text-vynal-purple-secondary/50 fill-transparent"}`} 
-        />
-      ))}
+  return type === 'success' ? (
+    <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 rounded-lg flex items-center gap-2 mx-4">
+      <Check className="h-5 w-5 flex-shrink-0" />
+      {message}
+    </div>
+  ) : (
+    <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-lg flex items-center gap-2 mx-4">
+      <AlertCircle className="h-5 w-5 flex-shrink-0" />
+      {message}
     </div>
   );
 });
 
-StarRating.displayName = 'StarRating';
+AlertMessage.displayName = 'AlertMessage';
 
-// Composant pour les badges d'info mémorisé
-const InfoBadge = memo(({ icon: Icon, text }: { icon: React.ElementType, text: string }) => (
-  <div className="flex items-center px-3 py-1 rounded-full bg-gray-100 dark:bg-vynal-purple-secondary/30 text-gray-600 dark:text-vynal-text-primary text-[10px] sm:text-xs border border-gray-200 dark:border-vynal-purple-secondary/20">
-    <Icon className="h-3 w-3 mr-1.5 text-gray-500 dark:text-vynal-accent-primary" />
-    {text}
+// Composant pour l'avatar avec fonctionnalité d'upload
+const ProfileAvatar = memo(({ 
+  avatarUrl, 
+  uploading, 
+  onUpload, 
+  profileData,
+  baseUrl
+}: { 
+  avatarUrl: string, 
+  uploading: boolean, 
+  onUpload: (e: React.ChangeEvent<HTMLInputElement>) => Promise<void>,
+  profileData: any,
+  baseUrl: string
+}) => {
+  return (
+    <div className="relative inline-block">
+      {avatarUrl ? (
+        <Image 
+          src={avatarUrl}
+          alt="Avatar"
+          width={128}
+          height={128}
+          className="w-32 h-32 rounded-full object-cover border-4 border-white dark:border-vynal-purple-dark/90 shadow-md"
+        />
+      ) : (
+        <div className="w-32 h-32 rounded-full bg-white dark:bg-vynal-purple-dark flex items-center justify-center border-4 border-white dark:border-vynal-purple-dark/90 shadow-md">
+          <UserCircle className="w-20 h-20 text-gray-300 dark:text-gray-600" />
+        </div>
+      )}
+      
+      <div className="absolute -bottom-2 -right-2 flex items-center space-x-2">
+        <ProfileQRShare 
+          profileData={profileData} 
+          baseUrl={baseUrl}
+        />
+        
+        <label 
+          htmlFor="avatar-upload" 
+          className="bg-vynal-accent-primary dark:bg-vynal-accent-primary p-2 rounded-full cursor-pointer text-white hover:bg-vynal-accent-secondary dark:hover:bg-vynal-accent-secondary transition-colors shadow-sm"
+        >
+          {uploading ? (
+            <Loader2 size={16} className="animate-spin" />
+          ) : (
+            <Upload size={16} />
+          )}
+          <span className="sr-only">Télécharger avatar</span>
+        </label>
+      </div>
+      
+      <input
+        id="avatar-upload"
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        onChange={onUpload}
+        className="hidden"
+        disabled={uploading}
+      />
+    </div>
+  );
+});
+
+ProfileAvatar.displayName = 'ProfileAvatar';
+
+// Composant pour les informations de profil
+const ProfileInfo = memo(({ 
+  fullName, 
+  username, 
+  email, 
+  phone, 
+  createdAt, 
+  bio, 
+  isCertified, 
+  certificationType 
+}: { 
+  fullName: string, 
+  username: string, 
+  email: string,
+  phone: string, 
+  createdAt: string | null, 
+  bio: string,
+  isCertified?: boolean,
+  certificationType?: 'standard' | 'premium' | 'expert' | null
+}) => {
+  // Formater la date pour l'affichage
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return "N/A";
+    const date = new Date(dateString);
+    return date.toLocaleDateString('fr-FR', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    });
+  };
+
+  return (
+    <div className="pt-20 pb-6 px-6">
+      <div className="text-center mb-6">
+        <h2 className="text-base sm:text-lg font-bold truncate text-vynal-purple-light dark:text-vynal-text-primary">
+          {fullName || "Votre nom"}
+        </h2>
+        <p className="text-xs sm:text-sm text-vynal-purple-secondary dark:text-vynal-text-secondary font-medium truncate flex items-center justify-center gap-1">
+          {username ? (
+            <>@{username}</>
+          ) : (
+            <>Nom d'utilisateur non défini</>
+          )}
+        </p>
+        
+        {/* Affichage du badge de certification */}
+        {isCertified && certificationType && (
+          <div className="mt-2 flex items-center justify-center">
+            <CertificationBadge 
+              type={certificationType} 
+              size="md"
+              showLabel
+            />
   </div>
-));
-
-InfoBadge.displayName = 'InfoBadge';
-
-// Composant pour une carte d'avis mémorisée
-const ReviewCard = memo(({ review, profileId }: { review: Review, profileId: string }) => (
-  <Card className="backdrop-blur-md bg-vynal-purple-dark/90 border-vynal-purple-secondary/30 rounded-xl">
-    <CardContent className="p-4">
-      <div className="flex items-start gap-2">
-        <Avatar className="h-8 w-8 border border-vynal-purple-secondary/30">
-          <AvatarImage src={review.client?.avatar_url || undefined} />
-          <AvatarFallback className="bg-vynal-accent-primary text-vynal-purple-dark text-xs">
-            {(review.client?.username || review.client?.full_name || 'C')
-              .charAt(0)
-              .toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
-        <div className="flex-1">
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="font-medium text-xs text-vynal-text-primary">
-                {review.client?.full_name || review.client?.username || "Client"}
-              </p>
-              <div className="flex items-center mt-0.5">
-                <StarRating rating={review.rating} />
-                <span className="text-[10px] text-vynal-text-secondary ml-2">
-                  {formatDate(review.created_at)}
-                </span>
-              </div>
+        )}
+        
+        <div className="mt-2 flex items-center justify-center gap-1 text-[10px] sm:text-xs text-vynal-accent-primary dark:text-vynal-accent-secondary">
+          <Share2 className="h-3 w-3" />
+          <span>Utilisez le bouton en haut à droite pour partager votre profil</span>
             </div>
           </div>
           
-          <p className="mt-2 text-xs text-vynal-text-secondary leading-relaxed line-clamp-3">
-            {review.comment || "Aucun commentaire"}
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <h3 className="text-[10px] sm:text-xs font-medium text-vynal-purple-light dark:text-vynal-text-primary flex items-center gap-2">
+            <Mail className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-vynal-accent-primary" />
+            Email
+          </h3>
+          <p className="text-[10px] sm:text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary break-all">
+            {email}
           </p>
-          
-          {review.services && (
-            <div className="mt-1.5 text-[10px] font-medium">
-              <Link 
-                href={`/services/${review.services.slug || review.service_id}`}
-                className="text-vynal-accent-primary hover:underline"
-              >
-                Service: {review.services.title || "Service"}
-              </Link>
+        </div>
+        
+        {phone && (
+          <div className="space-y-2">
+            <h3 className="text-[10px] sm:text-xs font-medium text-vynal-purple-light dark:text-vynal-text-primary flex items-center gap-2">
+              <Phone className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-vynal-accent-primary" />
+              Téléphone
+            </h3>
+            <p className="text-[10px] sm:text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary">
+              {phone}
+            </p>
             </div>
           )}
           
-          {/* Ajouter le composant de réponse à l'avis */}
-          {profileId && <ReviewReplyComponent reviewId={review.id} freelanceId={profileId} />}
+        <div className="space-y-2">
+          <h3 className="text-[10px] sm:text-xs font-medium text-vynal-purple-light dark:text-vynal-text-primary flex items-center gap-2">
+            <Calendar className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-vynal-accent-primary" />
+            Membre depuis
+          </h3>
+          <p className="text-[10px] sm:text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary">
+            {formatDate(createdAt)}
+          </p>
+        </div>
+
+        <div className="pt-2">
+          <h3 className="text-[10px] sm:text-xs font-medium text-vynal-purple-light dark:text-vynal-text-primary mb-2">
+            À propos
+          </h3>
+          <p className="text-[8px] sm:text-[10px] text-vynal-purple-secondary dark:text-vynal-text-secondary/70">
+            {bio || "Aucune biographie renseignée"}
+          </p>
         </div>
       </div>
-    </CardContent>
-  </Card>
-));
-
-ReviewCard.displayName = 'ReviewCard';
-
-// Composant pour la section des avis
-const ReviewsSection = memo(({ 
-  reviews, 
-  positiveReviews, 
-  negativeReviews, 
-  profileId,
-  username
-}: { 
-  reviews: Review[], 
-  positiveReviews: Review[], 
-  negativeReviews: Review[], 
-  profileId: string,
-  username: string
-}) => {
-  const renderReviewsList = useCallback((reviewsList: Review[]) => (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-      {reviewsList.slice(0, 6).map((review) => (
-        <ReviewCard key={review.id} review={review} profileId={profileId} />
-      ))}
-    </div>
-  ), [profileId]);
-
-  return (
-    <div className="max-w-4xl mx-auto mb-12">
-      <h2 className="text-xl text-vynal-text-primary mb-5 font-medium text-center">Avis clients</h2>
-      
-      <Tabs defaultValue="tous" className="w-full">
-        <div className="flex justify-center mb-4">
-          <TabsList className="bg-vynal-purple-secondary/30 border border-vynal-purple-secondary/30">
-            <TabsTrigger value="tous" className="text-xs data-[state=active]:bg-vynal-accent-primary data-[state=active]:text-vynal-purple-dark">
-              Tous ({reviews.length})
-            </TabsTrigger>
-            <TabsTrigger value="positifs" className="text-xs data-[state=active]:bg-vynal-accent-primary data-[state=active]:text-vynal-purple-dark">
-              Positifs ({positiveReviews.length})
-            </TabsTrigger>
-            <TabsTrigger value="negatifs" className="text-xs data-[state=active]:bg-vynal-accent-primary data-[state=active]:text-vynal-purple-dark">
-              Négatifs ({negativeReviews.length})
-            </TabsTrigger>
-          </TabsList>
-        </div>
-        
-        <TabsContent value="tous" className="space-y-3">
-          {reviews.length > 0 ? renderReviewsList(reviews) : (
-            <div className="text-center py-6">
-              <p className="text-vynal-text-secondary text-sm">Aucun avis disponible</p>
-            </div>
-          )}
-        </TabsContent>
-        
-        <TabsContent value="positifs" className="space-y-3">
-          {positiveReviews.length > 0 ? renderReviewsList(positiveReviews) : (
-            <div className="text-center py-6">
-              <p className="text-vynal-text-secondary text-sm">Aucun avis positif disponible</p>
-            </div>
-          )}
-        </TabsContent>
-        
-        <TabsContent value="negatifs" className="space-y-3">
-          {negativeReviews.length > 0 ? renderReviewsList(negativeReviews) : (
-            <div className="text-center py-6">
-              <p className="text-vynal-text-secondary text-sm">Aucun avis négatif disponible</p>
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
-      
-      {reviews.length > 6 && (
-        <div className="text-center mt-6">
-          <Button asChild variant="outline" className="border-vynal-accent-primary text-vynal-accent-primary hover:bg-vynal-accent-primary/10 text-xs h-8">
-            <Link href={`/profile/${username}/reviews`}>
-              Voir tous les avis ({reviews.length})
-            </Link>
-          </Button>
-        </div>
-      )}
     </div>
   );
 });
 
-ReviewsSection.displayName = 'ReviewsSection';
+ProfileInfo.displayName = 'ProfileInfo';
 
-// Composant pour les services du freelance
-const ServicesSection = memo(({ services }: { services: any[] }) => (
-  <div className="max-w-7xl mx-auto mb-12">
-    <h2 className="text-xl text-vynal-text-primary mb-5 font-medium text-center">Services proposés</h2>
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {services.map((service) => (
-        <Link 
-          key={service.id}
-          href={`/services/${service.slug || service.id}`}
-          className="block h-full transition-transform duration-300 hover:scale-[1.02]"
-        >
-          <ServiceCard service={service} className="h-full" />
-        </Link>
-      ))}
+// Composant pour le champ de nom d'utilisateur
+const UsernameField = memo(({ 
+  username, 
+  isSet, 
+  onChange 
+}: { 
+  username: string, 
+  isSet: boolean, 
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void 
+}) => {
+  return (
+    <div className="grid gap-2">
+      <div className="flex justify-between items-center">
+        <Label htmlFor="username" className="text-[10px] sm:text-xs text-vynal-purple-light dark:text-vynal-text-primary">
+          Nom d'utilisateur
+        </Label>
+        {isSet && (
+          <div className="flex items-center text-xs text-amber-600 dark:text-amber-400 gap-1">
+            <Lock size={12} />
+            Non modifiable
+          </div>
+        )}
+      </div>
+      
+      <div className="relative">
+        <Input
+          id="username"
+          name="username"
+          value={username}
+          onChange={onChange}
+          placeholder="votre_username"
+          className={`border-vynal-border dark:border-vynal-purple-secondary/40 dark:bg-vynal-purple-secondary/10 text-xs sm:text-sm ${isSet ? 'bg-gray-50 dark:bg-vynal-purple-secondary/5 cursor-not-allowed' : ''}`}
+          disabled={isSet}
+        />
+        {isSet && (
+          <div className="absolute top-1/2 right-3 transform -translate-y-1/2">
+            <Lock size={16} className="text-gray-400 dark:text-gray-500" />
+          </div>
+        )}
+      </div>
+      
+      <div className="text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary/70 flex flex-col gap-1">
+        <p>Ce nom sera visible par les autres utilisateurs</p>
+        {!isSet ? (
+          <p className="text-amber-600 dark:text-amber-400 flex items-center gap-1 mt-1">
+            <AlertCircle size={12} className="flex-shrink-0" />
+            <span>
+              Une fois défini, le nom d'utilisateur ne pourra plus être modifié sans l'aide du support
+            </span>
+          </p>
+        ) : (
+          <p className="text-vynal-accent-secondary dark:text-vynal-accent-primary flex items-center gap-1 mt-1">
+            <Info size={12} className="flex-shrink-0" />
+            <span className="text-[10px] sm:text-xs">
+              Pour modifier votre nom d'utilisateur, veuillez contacter le support
+            </span>
+          </p>
+        )}
+      </div>
     </div>
-  </div>
-));
+  );
+});
 
-ServicesSection.displayName = 'ServicesSection';
+UsernameField.displayName = 'UsernameField';
 
+// Composant pour le formulaire d'édition
+const ProfileEditForm = memo(({ 
+  profile, 
+  usernameIsSet, 
+  onChange, 
+  onSubmit, 
+  saving 
+}: { 
+  profile: {
+    username: string;
+    full_name: string;
+    bio: string;
+    phone: string;
+  };
+  usernameIsSet: boolean;
+  onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
+  onSubmit: (e: React.FormEvent) => Promise<void>;
+  saving: boolean;
+}) => {
+  return (
+    <form onSubmit={onSubmit} className="space-y-6">
+      <div className="grid gap-6">
+        <div className="grid gap-2">
+          <Label htmlFor="full_name" className="text-[10px] sm:text-xs text-vynal-purple-light dark:text-vynal-text-primary">
+            Nom complet
+          </Label>
+          <Input
+            id="full_name"
+            name="full_name"
+            value={profile.full_name}
+            onChange={onChange}
+            placeholder="Votre nom complet"
+            className="border-vynal-border dark:border-vynal-purple-secondary/40 dark:bg-vynal-purple-secondary/10 text-xs sm:text-sm"
+          />
+          <p className="text-[10px] sm:text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary/70">
+            Votre nom réel tel qu'il apparaîtra sur votre profil
+          </p>
+        </div>
+        
+        <UsernameField 
+          username={profile.username}
+          isSet={usernameIsSet}
+          onChange={onChange}
+        />
+
+        <div className="grid gap-2">
+          <Label htmlFor="phone" className="text-[10px] sm:text-xs text-vynal-purple-light dark:text-vynal-text-primary">
+            Téléphone
+          </Label>
+          <Input
+            id="phone"
+            name="phone"
+            type="tel"
+            value={profile.phone}
+            onChange={onChange}
+            placeholder="+221 77 123 45 67"
+            className="border-vynal-border dark:border-vynal-purple-secondary/40 dark:bg-vynal-purple-secondary/10 text-xs sm:text-sm"
+          />
+          <p className="text-[10px] sm:text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary/70">
+            Votre numéro de téléphone (facultatif)
+          </p>
+            </div>
+
+        <div className="grid gap-2">
+          <Label htmlFor="bio" className="text-[10px] sm:text-xs text-vynal-purple-light dark:text-vynal-text-primary">
+            Biographie
+          </Label>
+          <Textarea
+            id="bio"
+            name="bio"
+            value={profile.bio}
+            onChange={onChange}
+            placeholder="Parlez un peu de vous..."
+            rows={4}
+            maxLength={150}
+            className="border-vynal-border dark:border-vynal-purple-secondary/40 dark:bg-vynal-purple-secondary/10 resize-none text-xs sm:text-sm"
+          />
+          <p className="text-[8px] sm:text-[10px] text-vynal-purple-secondary dark:text-vynal-text-secondary/70">
+            Une courte description pour vous présenter aux autres utilisateurs (150 caractères max)
+          </p>
+            </div>
+
+        <div className="pt-2">
+          <Button 
+            type="submit" 
+            disabled={saving}
+            className="bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-white"
+          >
+            {saving ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Enregistrement...
+              </>
+            ) : (
+              "Enregistrer les modifications"
+            )}
+          </Button>
+        </div>
+    </div>
+    </form>
+  );
+});
+
+ProfileEditForm.displayName = 'ProfileEditForm';
+
+// Composant principal
 export default function ProfilePage() {
-  const params = useParams();
-  const router = useRouter();
-  const username = params?.username as string;
+  const { user } = useAuth();
+  const { profile: userProfile, updateProfile, loading: profileLoading, updateError: profileUpdateError } = useUser();
+  const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [localProfile, setLocalProfile] = useState({
+    username: "",
+    full_name: "",
+    bio: "",
+    avatar_url: "",
+    phone: "",
+  });
+  const [updateError, setUpdateError] = useState<string | null>(null);
+  const [updateMessage, setUpdateMessage] = useState<string | null>(null);
+  const { toast } = useToast();
   
-  const [profile, setProfile] = useState<ProfileData | null>(null);
-  const [services, setServices] = useState<any[]>([]);
-  const [reviews, setReviews] = useState<Review[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [currentServicesPage, setCurrentServicesPage] = useState(1);
-  const reviewsPerPage = 5;
+  // Base URL pour le partage
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://vynal-platform.vercel.app';
   
-  // Calculer le nombre de services par page selon la taille de l'écran
-  const servicesPerPage = useMemo(() => {
-    if (typeof window === 'undefined') return 6;
-    return window.innerWidth < 768 ? 6 : 8;
+  // Vérifier si le nom d'utilisateur a déjà été défini
+  const usernameIsSet = Boolean(userProfile?.username && userProfile.username.trim() !== "");
+
+  // Synchroniser les données du profil
+  useEffect(() => {
+    if (userProfile) {
+      setLocalProfile({
+        username: userProfile.username || "",
+        full_name: userProfile.full_name || "",
+        bio: userProfile.bio || "",
+        avatar_url: userProfile.avatar_url || "",
+        phone: userProfile.phone || "",
+      });
+    }
+  }, [userProfile]);
+
+  // Gérer les changements de formulaire
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setLocalProfile((prev) => ({ ...prev, [name]: value }));
   }, []);
   
-  // Récupérer la note moyenne du vendeur
-  const { averageRating, reviewCount } = useFreelancerRating(profile?.id);
-  
-  // Charger les informations du profil - optimisé avec useCallback
-  const fetchProfileData = useCallback(async () => {
-    if (!username) {
-      setError("Profil introuvable");
-      setLoading(false);
-      return;
-    }
+  // Soumettre le formulaire
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    setUpdateError(null);
+    setUpdateMessage(null);
     
-    setLoading(true);
     try {
-      // Récupérer le profil
-      const { data: profileData, error: profileError } = await supabase
-        .from("profiles")
-        .select("*, is_certified, certification_type")
-        .eq("username", username)
-        .single();
+      // Nettoyer les valeurs
+      const cleanUsername = localProfile.username?.trim() || "";
+      const cleanFullName = localProfile.full_name?.trim() || "";
+      const cleanBio = localProfile.bio?.trim() || "";
+      const cleanPhone = localProfile.phone?.trim() || "";
       
-      if (profileError) {
-        setError("Profil introuvable");
-        setLoading(false);
+      // Validation de base
+      if (!usernameIsSet && !cleanUsername) {
+        setUpdateError("Le nom d'utilisateur est requis et ne pourra plus être modifié ultérieurement.");
+        setSaving(false);
         return;
       }
 
-      setProfile(profileData);
+      // Validation de la longueur de la biographie
+      if (cleanBio.length > 150) {
+        setUpdateError("La biographie ne doit pas dépasser 150 caractères.");
+        setSaving(false);
+        return;
+      }
+
+      // Préparer les mises à jour avec les valeurs nettoyées
+      const updates: Partial<UserProfile> = {
+        full_name: cleanFullName,
+        bio: cleanBio,
+        avatar_url: localProfile.avatar_url,
+        phone: cleanPhone,
+        updated_at: new Date().toISOString(),
+      };
       
-      // Si c'est un freelance, récupérer ses services
-      if (profileData.role === "freelance") {
-        const { data: servicesData } = await supabase
-          .from("services")
-          .select(`
-            *,
-            profiles:freelance_id (*),
-            categories (*)
-          `)
-          .eq("freelance_id", profileData.id)
-          .eq("active", true)
-          .order("created_at", { ascending: false });
-        
-        setServices(servicesData || []);
-        
-        // Utiliser les données mockées pour les avis en développement
-        setReviews(MOCK_REVIEWS);
+      // Ajouter le nom d'utilisateur uniquement s'il n'a pas déjà été défini
+      if (!usernameIsSet) {
+        updates.username = cleanUsername;
       }
       
-      setError(null);
-    } catch (err) {
-      console.error("Erreur:", err);
-      setError("Une erreur est survenue lors du chargement du profil");
-    } finally {
-      setLoading(false);
-    }
-  }, [username]);
-  
-  // Chargement des données du profil
-  useEffect(() => {
-    fetchProfileData();
-  }, [fetchProfileData]);
-  
-  // Données dérivées mémorisées
-  const {
-    fullName,
-    username_display,
-    isFreelance,
-    joinDate,
-    positiveReviews,
-    negativeReviews
-  } = useMemo(() => {
-    const fname = profile?.full_name || profile?.username || "Utilisateur";
-    const uname = profile?.username || '';
-    const isFreel = profile?.role === "freelance";
-    const jDate = profile?.created_at ? formatDate(profile?.created_at) : "Date inconnue";
-    
-    // Filtrer les avis positifs et négatifs
-    const posReviews = reviews.filter(review => review.rating >= 4);
-    const negReviews = reviews.filter(review => review.rating < 4);
-    
-    return {
-      fullName: fname,
-      username_display: uname,
-      isFreelance: isFreel,
-      joinDate: jDate,
-      positiveReviews: posReviews,
-      negativeReviews: negReviews
-    };
-  }, [profile, reviews]);
-  
-  // Calculer les avis à afficher pour la page courante
-  const paginatedReviews = useMemo(() => {
-    const startIndex = (currentPage - 1) * reviewsPerPage;
-    return reviews.slice(startIndex, startIndex + reviewsPerPage);
-  }, [reviews, currentPage]);
-  
-  // Calculer les services à afficher pour la page courante
-  const paginatedServices = useMemo(() => {
-    const startIndex = (currentServicesPage - 1) * servicesPerPage;
-    return services.slice(startIndex, startIndex + servicesPerPage);
-  }, [services, currentServicesPage, servicesPerPage]);
-  
-  const totalPages = Math.ceil(reviews.length / reviewsPerPage);
-  const totalServicesPages = Math.ceil(services.length / servicesPerPage);
-  
-  const handlePageChange = useCallback((newPage: number) => {
-    setCurrentPage(newPage);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, []);
-  
-  const handleServicesPageChange = useCallback((newPage: number) => {
-    setCurrentServicesPage(newPage);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, []);
-  
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-vynal-purple-dark">
-        <div className="flex flex-col items-center">
-          <Loader size="lg" variant="primary" showText={true} />
-        </div>
-      </div>
-    );
-  }
-  
-  if (error || !profile) {
-    return (
-      <div className="min-h-screen bg-vynal-purple-dark py-14 px-4">
-        <div className="max-w-2xl mx-auto">
-          <Card className="backdrop-blur-md bg-vynal-purple-dark/90 border-vynal-purple-secondary/30 rounded-xl">
-            <CardContent className="p-6 flex flex-col items-center">
-              <div className="w-14 h-14 rounded-full bg-gray-100 dark:bg-vynal-purple-secondary/30 flex items-center justify-center mb-5">
-                <UserCircle className="h-7 w-7 text-vynal-accent-primary" />
-              </div>
-              <h2 className="text-xl font-medium text-vynal-text-primary mb-3">Profil non disponible</h2>
-              <p className="text-vynal-text-secondary text-center mb-6 leading-relaxed text-sm">
-                {error || "Ce profil n'existe pas ou n'est pas accessible pour le moment."}
-              </p>
-              <Button 
-                variant="outline" 
-                onClick={() => router.push('/')}
-                className="group border-vynal-purple-secondary/50 bg-vynal-purple-secondary/30 text-vynal-text-primary hover:bg-vynal-purple-secondary/50 hover:text-vynal-text-primary transition-colors text-sm"
-              >
-                <ArrowLeft className="h-4 w-4 mr-2 group-hover:-translate-x-1 transition-transform" />
-                Retour à l'accueil
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
-  
-  return (
-    <div className="min-h-screen bg-white dark:bg-vynal-purple-dark">
-      {/* Bannière du profil */}
-      <div className="h-32 md:h-40 bg-gradient-to-b from-white to-gray-50 dark:from-vynal-purple-dark dark:to-vynal-purple-darkest relative overflow-hidden">
-        <div className="absolute inset-0 bg-[url('/img/grid-pattern.svg')] bg-center opacity-0 dark:opacity-10"></div>
-        <div className="absolute -top-24 -right-24 w-96 h-96 bg-vynal-accent-secondary/10 dark:bg-vynal-accent-secondary/20 rounded-full blur-3xl"></div>
-        <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-vynal-accent-primary/10 dark:bg-vynal-accent-primary/20 rounded-full blur-3xl"></div>
-      </div>
+      const { success, error } = await updateProfile(updates);
       
-      <div className="container mx-auto px-4 relative -mt-8 md:-mt-10">
-        {/* Photo de profil et info principale */}
-        <div className="flex flex-col items-center -mt-14 md:-mt-16 mb-6">
-          <div className="relative mb-3">
-            {profile.avatar_url ? (
-              <Image
-                src={profile.avatar_url}
-                alt={fullName}
-                className="w-28 h-28 rounded-full object-cover border-4 border-white dark:border-vynal-purple-dark"
-                width={112}
-                height={112}
-                unoptimized
-              />
-            ) : (
-              <div className="w-28 h-28 rounded-full bg-gray-100 dark:bg-vynal-purple-secondary/30 flex items-center justify-center border-4 border-white dark:border-vynal-purple-dark">
-                <UserCircle className="h-14 w-14 text-gray-400 dark:text-vynal-accent-primary" />
-              </div>
-            )}
-            
-            {isFreelance && (
-              <Badge className="absolute bottom-1 right-1 bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-white dark:text-vynal-purple-dark text-xs">
-                Freelance
-              </Badge>
-            )}
-          </div>
-          
-          <h1 className="text-xl md:text-2xl font-semibold text-gray-900 dark:text-vynal-text-primary mb-1">{fullName}</h1>
-          
-          {username_display && (
-            <div className="flex items-center gap-2 mb-2">
-              <p className="text-gray-500 dark:text-vynal-text-secondary text-sm">@{username_display}</p>
-              {profile.is_certified && profile.certification_type && (
-                <TooltipProvider delayDuration={0}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button 
-                        type="button"
-                        className="focus:outline-none"
-                        aria-label={`Certification ${profile.certification_type}`}
-                      >
-                        <CertificationBadge 
-                          type={profile.certification_type} 
-                          size="sm"
-                          showLabel
-                        />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p className="text-xs">Certification {profile.certification_type}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
-            </div>
-          )}
-          
-          {/* Note moyenne et nombre d'avis */}
-          {isFreelance && (
-            <div className="flex items-center mb-4">
-              <StarRating rating={averageRating} size="medium" />
-              <span className="text-sm text-gray-600 dark:text-vynal-text-secondary ml-2">
-                {averageRating > 0 
-                  ? `${averageRating.toFixed(1)} (${reviewCount} avis)` 
-                  : "Aucun avis"}
-              </span>
-            </div>
-          )}
-          
-          {/* Boutons d'action */}
-          <div className="flex flex-wrap gap-2 justify-center mb-5">
-            <Button className="bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-white dark:text-vynal-purple-dark font-medium transition-all text-xs h-9">
-              <MessageSquare className="h-3.5 w-3.5 mr-1.5" />
-              Contacter
-            </Button>
-            
-            {isFreelance && (
-              <Button variant="outline" className="border-gray-200 dark:border-vynal-purple-secondary/50 bg-white dark:bg-vynal-purple-secondary/30 text-gray-600 dark:text-vynal-text-primary hover:bg-gray-50 dark:hover:bg-vynal-purple-secondary/50 hover:text-gray-900 dark:hover:text-vynal-text-primary transition-colors text-xs h-9">
-                <Briefcase className="h-3.5 w-3.5 mr-1.5" />
-                Voir tous les services
-              </Button>
-            )}
-          </div>
-          
-          {/* Badges et infos */}
-          <div className="flex flex-wrap gap-2 justify-center items-center mb-6">
-            <InfoBadge 
-              icon={Calendar} 
-              text={`Membre depuis ${joinDate}`} 
-            />
-            
-            {isFreelance && (
-              <InfoBadge 
-                icon={Briefcase} 
-                text={`${services.length} service${services.length !== 1 ? 's' : ''}`} 
-              />
-            )}
-          </div>
+      if (success) {
+        toast({
+          title: "Succès",
+          description: "Profil mis à jour avec succès!",
+          variant: "default",
+        });
+        setUpdateMessage("Profil mis à jour avec succès!");
+      } else if (error) {
+        console.error("Erreur lors de la mise à jour:", error);
+        
+        // Vérifier si error a une propriété code
+        const errorObj = error as any;
+        if (errorObj.code === '23505') {
+          setUpdateError("Ce nom d'utilisateur est déjà utilisé. Veuillez en choisir un autre.");
+        } else if (errorObj.code === '23502') {
+          setUpdateError("Un champ obligatoire est manquant.");
+        } else if (errorObj.code === '23503') {
+          setUpdateError("Une référence invalide a été détectée.");
+        } else {
+          setUpdateError(errorObj.message || "Une erreur s'est produite lors de la mise à jour du profil.");
+        }
+      }
+    } catch (error: any) {
+      console.error("Erreur inattendue:", error);
+      setUpdateError(error.message || "Une erreur inattendue s'est produite");
+    } finally {
+      setSaving(false);
+      // Faire défiler vers le haut pour voir les messages d'erreur/succès
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [localProfile, usernameIsSet, updateProfile, toast]);
+
+  // Gérer l'upload d'avatar
+  const handleAvatarUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) {
+      return;
+    }
+
+    // Vérifier que l'utilisateur est bien connecté
+    if (!user || !user.id) {
+      toast({
+        title: "Erreur",
+        description: "Vous devez être connecté pour uploader un avatar.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setUploading(true);
+      const file = e.target.files[0];
+      
+      // Vérifier la taille du fichier (max 5 MB)
+      if (file.size > 5 * 1024 * 1024) {
+        throw new Error("La taille de l'image ne doit pas dépasser 5 MB");
+      }
+      
+      // Vérifier le type de fichier
+      if (!file.type.match(/^image\/(jpeg|png|jpg|webp)$/)) {
+        throw new Error("Format d'image non supporté. Utilisez JPG, PNG ou WebP");
+      }
+      
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${user?.id}.${fileExt}`;
+      const filePath = fileName;
+
+      // Upload the file to Supabase Storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) {
+        console.error("Erreur lors de l'upload:", uploadError);
+        
+        // Messages d'erreur spécifiques par type d'erreur
+        if (uploadError.message?.includes("row-level security")) {
+          throw new Error("Problème de permission avec le bucket de stockage. Contactez l'administrateur.");
+        }
+        
+        if (uploadError.message?.includes("not found") || (uploadError as any).statusCode === 404) {
+          throw new Error("Le bucket 'avatars' n'existe pas. Contactez l'administrateur.");
+        }
+        
+        if (uploadError.message?.includes("permission")) {
+          throw new Error("Permission refusée pour le stockage. Contactez l'administrateur.");
+        }
+        
+        throw uploadError;
+      }
+
+      // Get public URL
+      const { data } = supabase.storage.from("avatars").getPublicUrl(filePath);
+      
+      if (!data || !data.publicUrl) {
+        throw new Error("Impossible d'obtenir l'URL publique de l'image");
+      }
+      
+      // Update profile with avatar URL
+      const avatarUrl = data.publicUrl;
+      setLocalProfile((prev) => ({ ...prev, avatar_url: avatarUrl }));
+
+      // Save to database via updateProfile
+      const { error: updateError } = await updateProfile({ avatar_url: avatarUrl });
+
+      if (updateError) throw updateError;
+      
+      toast({
+        title: "Succès",
+        description: "Avatar mis à jour avec succès!",
+        variant: "default",
+      });
+    } catch (error: any) {
+      console.error("Erreur lors du téléchargement de l'avatar:", error);
+      toast({
+        title: "Erreur",
+        description: error.message || "Erreur lors du téléchargement de l'avatar",
+        variant: "destructive",
+      });
+    } finally {
+      setUploading(false);
+    }
+  }, [user, toast, updateProfile]);
+
+  if (profileLoading) {
+    return <ProfilePageSkeleton />;
+  }
+
+  return (
+    <div className="px-0 py-4">
+      {/* En-tête de la page */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 px-4">
+        <div>
+          <h1 className="text-lg sm:text-xl md:text-2xl font-bold tracking-tight mb-2 text-vynal-purple-light dark:text-vynal-text-primary">
+            Mon profil
+          </h1>
+          <p className="text-xs sm:text-sm text-muted-foreground">
+            Gérez vos informations personnelles et préférences
+          </p>
         </div>
         
-        {/* Bio et informations principales */}
-        {profile.bio && (
-          <Card className="max-w-3xl mx-auto -mt-2 mb-14 sm:mb-16 backdrop-blur-md bg-white/90 dark:bg-vynal-purple-dark/90 border-gray-200 dark:border-vynal-purple-secondary/30 rounded-xl">
-            <CardContent className="p-6">
-              <h2 className="text-base text-gray-900 dark:text-vynal-text-primary mb-3 font-medium">À propos</h2>
-              <p className="text-[11px] sm:text-xs text-gray-600 dark:text-vynal-text-secondary leading-relaxed">{profile.bio}</p>
-            </CardContent>
-          </Card>
-        )}
-        
-        {/* Services (si freelance) */}
-        {isFreelance && services.length > 0 && (
-          <div className="max-w-3xl mx-auto mb-20 sm:mb-20">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-vynal-text-primary mb-6">Services proposés</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {paginatedServices.map((service) => (
-                <ServiceCard
-                  key={service.id}
-                  service={service}
-                  className="bg-white dark:bg-vynal-purple-dark/90 border-gray-200 dark:border-vynal-purple-secondary/30"
-                />
-              ))}
+        <div className="mt-4 sm:mt-0">
+          <Badge variant="outline" className="bg-vynal-accent-primary/10 text-vynal-accent-primary border-vynal-accent-primary/20 flex items-center gap-1.5 px-3 py-1.5">
+            <Shield size={14} />
+            {userProfile?.role === "freelance" ? "Compte Freelance" : userProfile?.role === "admin" ? "Compte Admin" : "Compte Client"}
+          </Badge>
+        </div>
             </div>
             
-            {/* Pagination controls */}
-            {totalServicesPages > 1 && (
-              <PaginationControls
-                currentPage={currentServicesPage}
-                totalPages={totalServicesPages}
-                onPageChange={handleServicesPageChange}
-                className="mt-8"
+      {/* Messages d'alerte */}
+      <AlertMessage type="success" message={updateMessage} />
+      <AlertMessage type="error" message={updateError} />
+
+      <div className="grid md:grid-cols-12 gap-6 md:gap-6 px-4">
+        {/* Carte de profil */}
+        <Card className="md:col-span-4 p-0 overflow-hidden border-vynal-border dark:border-vynal-purple-secondary/40 shadow-sm bg-white dark:bg-vynal-purple-dark/20">
+          <div className="bg-gradient-to-r from-vynal-accent-primary/30 via-vynal-accent-secondary/20 to-transparent h-32 relative">
+            {/* Bouton upload avatar */}
+            <div className="absolute -bottom-16 left-6">
+              <ProfileAvatar 
+                avatarUrl={localProfile.avatar_url}
+                uploading={uploading}
+                onUpload={handleAvatarUpload}
+                profileData={localProfile}
+                baseUrl={baseUrl}
               />
-            )}
+            </div>
           </div>
-        )}
-        
-        {/* Avis (si freelance et a des avis) */}
-        {isFreelance && reviews.length > 0 && (
-          <div className="max-w-3xl mx-auto mb-14 sm:mb-12">
-            <h2 className="text-base font-semibold text-gray-900 dark:text-vynal-text-primary mb-6 flex items-center gap-2">
-              <MessageSquare className="h-5 w-5 text-vynal-purple-darkest dark:text-vynal-accent-primary" />
-              Avis clients
-            </h2>
-            
-            {/* Statistiques des avis */}
-            <div className="grid grid-cols-2 gap-3 sm:gap-6 mb-8">
-              <Card className="bg-green-100 dark:bg-green-900/10 border-gray-200 dark:border-vynal-purple-secondary/30">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-900 dark:text-vynal-text-primary">Avis positifs</h3>
-                      <p className="text-xs text-gray-500 dark:text-vynal-text-secondary">{positiveReviews.length} avis</p>
-                    </div>
-                    <div className="flex items-center">
-                      <ThumbsUp className="h-5 w-5 text-green-600 dark:text-green-400" />
-                    </div>
-                  </div>
-                </CardContent>
+
+          <ProfileInfo 
+            fullName={localProfile.full_name}
+            username={localProfile.username}
+            email={user?.email || ""}
+            phone={localProfile.phone}
+            createdAt={userProfile?.created_at || null}
+            bio={localProfile.bio}
+            isCertified={userProfile?.is_certified ?? undefined}
+            certificationType={userProfile?.certification_type as 'standard' | 'premium' | 'expert' | null}
+          />
               </Card>
               
-              <Card className="bg-red-100 dark:bg-red-900/10 border-gray-200 dark:border-vynal-purple-secondary/30">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-900 dark:text-vynal-text-primary">Avis négatifs</h3>
-                      <p className="text-xs text-gray-500 dark:text-vynal-text-secondary">{negativeReviews.length} avis</p>
-                    </div>
-                    <div className="flex items-center">
-                      <ThumbsDown className="h-5 w-5 text-red-600 dark:text-red-400" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+        {/* Formulaire d'édition */}
+        <div className="md:col-span-8">
+          <Card className="border-vynal-border dark:border-vynal-purple-secondary/40 shadow-sm bg-white dark:bg-vynal-purple-dark/20 p-6">
+            <div className="flex items-center mb-6">
+              <h2 className="text-base sm:text-lg font-bold text-vynal-purple-light dark:text-vynal-text-primary">
+                Modifier vos informations
+              </h2>
             </div>
             
-            {/* Liste des avis */}
-            <div className="space-y-5">
-              {paginatedReviews.map((review) => (
-                <Card key={review.id} className="bg-white dark:bg-vynal-purple-dark/90 border-gray-200 dark:border-vynal-purple-secondary/30">
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center">
-                        {review.client.avatar_url ? (
-                          <Image
-                            src={review.client.avatar_url}
-                            alt={review.client.full_name || review.client.username || "Client"}
-                            className="w-10 h-10 rounded-full object-cover mr-3"
-                            width={40}
-                            height={40}
-                            unoptimized
-                          />
-                        ) : (
-                          <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-vynal-purple-secondary/30 flex items-center justify-center mr-3">
-                            <UserCircle className="h-5 w-5 text-gray-400 dark:text-vynal-accent-primary" />
-                          </div>
-                        )}
-                        <div>
-                          <p className="font-medium text-xs text-gray-900 dark:text-vynal-text-primary">
-                            {review.client.full_name || review.client.username || "Client"}
-                          </p>
-                          <p className="text-[10px] text-gray-500 dark:text-vynal-text-secondary">
-                            {formatDate(review.created_at)}
-                          </p>
-                        </div>
-                      </div>
-                      <StarRating rating={review.rating} size="small" />
-                    </div>
-                    
-                    <p className="text-xs text-gray-600 dark:text-vynal-text-secondary mb-4">{review.comment}</p>
-                    
-                    {review.services && (
-                      <Link 
-                        href={`/services/${review.services.slug}`}
-                        className="text-xs text-indigo-600 dark:text-vynal-accent-primary hover:text-indigo-700 dark:hover:text-vynal-accent-secondary"
-                      >
-                        Service : {review.services.title}
-                      </Link>
-                    )}
-                    
-                    <ReviewReplyComponent 
-                      reviewId={review.id}
-                      freelanceId={profile.id}
-                    />
-                  </CardContent>
+            <ProfileEditForm 
+              profile={localProfile}
+              usernameIsSet={usernameIsSet}
+              onChange={handleChange}
+              onSubmit={handleSubmit}
+              saving={saving}
+            />
                 </Card>
-              ))}
-              
-              {/* Pagination controls */}
-              {totalPages > 1 && (
-                <PaginationControls
-                  currentPage={currentPage}
-                  totalPages={totalPages}
-                  onPageChange={handlePageChange}
-                  className="mt-8"
-                />
-              )}
-            </div>
           </div>
-        )}
       </div>
     </div>
   );

@@ -66,23 +66,29 @@ export function useFreelanceStats(freelanceId: string | undefined): UseFreelance
   const fetchStats = useCallback(async (forceRefresh = false): Promise<void> => {
     // Early return if no freelanceId provided
     if (!freelanceId) {
+      console.log("[useFreelanceStats] No freelanceId provided");
       setError(new Error('No freelance ID provided'));
       return;
     }
     
+    console.log("[useFreelanceStats] Starting fetch for freelanceId:", freelanceId);
+    
     // Prevent too frequent refreshes unless forced
     const now = Date.now();
     if (!forceRefresh && now - lastFetchRef.current < THROTTLE_MS) {
+      console.log("[useFreelanceStats] Throttled, skipping fetch");
       return;
     }
     
     // Cancel any existing request before starting a new one
     if (abortControllerRef.current) {
+      console.log("[useFreelanceStats] Aborting previous request");
       abortControllerRef.current.abort();
     }
     
     // Prevent concurrent fetches
     if (loadingRef.current && !forceRefresh) {
+      console.log("[useFreelanceStats] Already loading, skipping fetch");
       return;
     }
     
@@ -96,6 +102,8 @@ export function useFreelanceStats(freelanceId: string | undefined): UseFreelance
     try {
       lastFetchRef.current = now;
       
+      console.log("[useFreelanceStats] Starting parallel requests");
+      
       // Run parallel requests for better performance
       const [
         servicesResponse,
@@ -106,7 +114,28 @@ export function useFreelanceStats(freelanceId: string | undefined): UseFreelance
         // Active services
         supabase
           .from('services')
-          .select('id, active, price')
+          .select(`
+            id,
+            title,
+            description,
+            price,
+            freelance_id,
+            category_id,
+            created_at,
+            updated_at,
+            status,
+            rating,
+            image_url,
+            moderation_comment,
+            subcategory_id,
+            images,
+            delivery_time,
+            slug,
+            active,
+            admin_notes,
+            validated_at,
+            validated_by
+          `)
           .eq('freelance_id', freelanceId)
           .throwOnError(),
         
@@ -133,39 +162,15 @@ export function useFreelanceStats(freelanceId: string | undefined): UseFreelance
           .throwOnError()
       ]);
       
+      console.log("[useFreelanceStats] Parallel requests completed");
+      console.log("[useFreelanceStats] Services response:", servicesResponse);
+      console.log("[useFreelanceStats] Orders response:", ordersResponse);
+      console.log("[useFreelanceStats] Conversations response:", conversationsResponse);
+      console.log("[useFreelanceStats] Notifications response:", notificationsResponse);
+      
       // Process services data
       const activeServices = servicesResponse.data?.filter(s => s.active).length || 0;
-      
-      // Éviter l'erreur "JSON object requested, multiple (or no) rows returned"
-      let totalRevenue = 0;
-      try {
-        // D'abord, récupérer le wallet de l'utilisateur
-        const { data: wallet } = await supabase
-          .from('wallets')
-          .select('id')
-          .eq('user_id', freelanceId)
-          .single();
-        
-        if (wallet && wallet.id) {
-          // Puis récupérer les transactions liées à ce wallet
-          const { data: transactionsData } = await supabase
-            .from('transactions')
-            .select('amount, type')
-            .eq('wallet_id', wallet.id)
-            .eq('type', 'earning');
-            
-          // Calculer le total des revenus
-          if (transactionsData && transactionsData.length > 0) {
-            totalRevenue = transactionsData.reduce((sum, transaction) => 
-              sum + (transaction.amount || 0), 0);
-          }
-        } else {
-          console.log(`Aucun wallet trouvé pour l'utilisateur ${freelanceId}`);
-        }
-      } catch (error) {
-        console.error('Erreur lors de la récupération des transactions:', error);
-        // Continuer avec totalRevenue = 0
-      }
+      console.log("[useFreelanceStats] Active services:", activeServices);
       
       // Process orders data
       const totalOrders = ordersResponse.data?.length || 0;
@@ -173,58 +178,38 @@ export function useFreelanceStats(freelanceId: string | undefined): UseFreelance
         ['pending', 'in_progress', 'revision_requested'].includes(order.status)
       ).length || 0;
       
-      // Process unread messages
-      let unreadMessages = 0;
-      const orderIds = ordersResponse.data?.map(order => order.id) || [];
-      const conversationIds = conversationsResponse.data?.map(conv => conv.conversation_id) || [];
-      
-      if (orderIds.length > 0 || conversationIds.length > 0) {
-        try {
-          const query = supabase
-            .from('messages')
-            .select('id')
-            .eq('read', false)
-            .neq('sender_id', freelanceId);
-          
-          if (orderIds.length > 0 && conversationIds.length > 0) {
-            query.or(`order_id.in.(${orderIds.join(',')}),conversation_id.in.(${conversationIds.join(',')})`);
-          } else if (orderIds.length > 0) {
-            query.in('order_id', orderIds);
-          } else if (conversationIds.length > 0) {
-            query.in('conversation_id', conversationIds);
-          }
-          
-          const { data: messagesData } = await query;
-          unreadMessages = messagesData?.length || 0;
-        } catch (messagesErr) {
-          console.warn('Erreur lors de la récupération des messages non lus:', messagesErr);
-          // Continue with unreadMessages = 0
-        }
-      }
-      
       // Process notifications
       const notifications = notificationsResponse.data?.length || 0;
       
-      // Calculate average rating
-      let averageRating = 0;
-      if (servicesResponse.data && servicesResponse.data.length > 0) {
-        try {
-          const serviceIds = servicesResponse.data.map(service => service.id);
-          const { data: reviewsData } = await supabase
-            .from('reviews')
-            .select('rating')
-            .in('service_id', serviceIds)
-            .throwOnError();
-
-          if (reviewsData && reviewsData.length > 0) {
-            const totalRating = reviewsData.reduce((sum, review) => sum + (review.rating || 0), 0);
-            averageRating = Number((totalRating / reviewsData.length).toFixed(2));
-          }
-        } catch (ratingErr) {
-          console.warn('Erreur lors de la récupération des évaluations:', ratingErr);
-          // Continue with averageRating = 0
-        }
-      }
+      // Calculate total revenue from active services
+      const totalRevenue = servicesResponse.data?.reduce((sum, service) => 
+        sum + (service.active ? (service.price || 0) : 0), 0) || 0;
+      
+      // Map active services to correct type
+      const activeServicesList = servicesResponse.data?.filter(s => s.active).map(service => ({
+        id: service.id,
+        title: service.title,
+        description: service.description,
+        price: service.price,
+        freelance_id: service.freelance_id,
+        category_id: service.category_id,
+        created_at: service.created_at,
+        updated_at: service.updated_at,
+        status: service.status,
+        rating: service.rating || 0,
+        image_url: service.image_url || null,
+        moderation_comment: service.moderation_comment || null,
+        subcategory_id: service.subcategory_id || null,
+        images: service.images || [],
+        delivery_time: service.delivery_time || 0,
+        slug: service.slug || '',
+        active: service.active || false,
+        admin_notes: service.admin_notes || null,
+        validated_at: service.validated_at || null,
+        validated_by: service.validated_by || null,
+        bookings_count: 0,
+        last_booked_at: null
+      })) || [];
       
       // Update stats
       const newStats = {
@@ -232,30 +217,28 @@ export function useFreelanceStats(freelanceId: string | undefined): UseFreelance
         totalRevenue,
         totalOrders,
         activeOrders,
-        averageRating,
-        unreadMessages,
+        averageRating: 0, // Will be updated in the next step
+        unreadMessages: 0, // Will be updated in the next step
         notifications,
         activeServicesCount: activeServices,
-        completedServicesCount: 0,
-        activeServices: [],
+        completedServicesCount: totalOrders - activeOrders,
+        activeServices: activeServicesList,
         isLoading: false,
         error: null,
         servicesCount: activeServices,
         totalEarnings: totalRevenue,
-        pendingDeliveries: 0
+        pendingDeliveries: activeOrders
       };
       
       setStats(newStats);
       setLastUpdated(now);
       
-    } catch (err) {
-      console.error('Error loading freelance stats:', err);
-      setError(err instanceof Error ? err : new Error('Failed to load freelance statistics'));
-      // Ne pas réinitialiser les statistiques en cas d'erreur, garder les précédentes
-      // setStats(DEFAULT_STATS);
+    } catch (error) {
+      console.error("[useFreelanceStats] Error fetching stats:", error);
+      setError(error instanceof Error ? error : new Error('Unknown error occurred'));
     } finally {
-      setLoading(false);
       loadingRef.current = false;
+      setLoading(false);
       abortControllerRef.current = null;
     }
   }, [freelanceId]);

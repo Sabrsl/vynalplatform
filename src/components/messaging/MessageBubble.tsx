@@ -97,8 +97,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     <>
       {/* Séparateur de date si nécessaire */}
       {showDateSeparator && (
-        <div className="flex justify-center my-4">
-          <div className="px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-full text-xs text-gray-500 dark:text-gray-400">
+        <div className="flex justify-center my-3">
+          <div className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 rounded-full text-xs text-gray-500 dark:text-gray-400">
             {formatDate(messageDate)}
           </div>
         </div>
@@ -109,12 +109,12 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         {/* Avatar (seulement pour les messages reçus et le premier d'un groupe) */}
         {!isCurrentUser && showAvatar && (
           <div className="flex-shrink-0 mr-2 self-end">
-            <Avatar className="h-8 w-8">
+            <Avatar className="h-6 w-6">
               <AvatarImage 
                 src={senderInfo?.avatar_url || ''} 
                 alt={senderInfo?.full_name || 'Contact'} 
               />
-              <AvatarFallback className="bg-indigo-100 text-indigo-700">
+              <AvatarFallback className="bg-indigo-100 text-indigo-700 text-xs">
                 {getInitials(senderInfo?.full_name || senderInfo?.username || 'User')}
               </AvatarFallback>
             </Avatar>
@@ -122,29 +122,29 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         )}
         
         {/* Espace réservé pour maintenir l'alignement */}
-        {!isCurrentUser && !showAvatar && <div className="w-10"></div>}
+        {!isCurrentUser && !showAvatar && <div className="w-8"></div>}
         
         {/* Contenu du message */}
-        <div className={`${bubbleMaxWidth} ${bubbleColor} ${bubbleShape} px-4 py-2 shadow-sm`}>
+        <div className={`${bubbleMaxWidth} ${bubbleColor} ${bubbleShape} px-3 py-1.5 shadow-sm`}>
           {/* Contenu texte */}
           {message.content && (
-            <p className="whitespace-pre-wrap break-words text-sm">
+            <p className="whitespace-pre-wrap break-words text-xs">
               {message.content}
             </p>
           )}
           
           {/* Pièce jointe */}
           {hasAttachment && (
-            <div className={`mt-1 ${message.content ? 'pt-2 border-t border-white/10' : ''}`}>
+            <div className={`mt-1 ${message.content ? 'pt-1 border-t border-white/10' : ''}`}>
               {isImageAttachment ? (
                 <div className="rounded-md overflow-hidden bg-gray-100 dark:bg-gray-700 relative">
                   <Image 
                     src={attachmentUrl} 
                     alt={attachmentName} 
-                    className="max-w-full h-auto max-h-80 object-contain" 
+                    className="max-w-full h-auto max-h-60 object-contain" 
                     width={300}
                     height={300}
-                    style={{ maxHeight: '320px' }}
+                    style={{ maxHeight: '240px' }}
                     unoptimized={attachmentUrl.startsWith('data:')}
                   />
                 </div>
@@ -153,17 +153,17 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                   href={attachmentUrl} 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="flex items-center p-2 rounded-md bg-black/10 hover:bg-black/20 dark:bg-white/10 dark:hover:bg-white/20 transition-colors"
+                  className="flex items-center p-1.5 rounded-md bg-black/10 hover:bg-black/20 dark:bg-white/10 dark:hover:bg-white/20 transition-colors"
                 >
                   <FileIcon 
                     fileName={attachmentName} 
-                    className="h-8 w-8 mr-3 flex-shrink-0" 
+                    className="h-6 w-6 mr-2 flex-shrink-0" 
                   />
                   <div className="overflow-hidden flex-1">
-                    <p className="text-sm font-medium truncate">
+                    <p className="text-xs font-medium truncate">
                       {attachmentName}
                     </p>
-                    <p className="text-xs opacity-70">
+                    <p className="text-[10px] opacity-70">
                       Télécharger
                     </p>
                   </div>
@@ -173,14 +173,14 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           )}
           
           {/* Horodatage et statut de lecture */}
-          <div className={`flex items-center justify-end mt-1 space-x-1 text-xs ${
+          <div className={`flex items-center justify-end mt-0.5 space-x-1 text-[10px] ${
             isCurrentUser ? 'text-white/70' : 'text-gray-500 dark:text-gray-400'
           }`}>
             <span>{formattedTime}</span>
             {isCurrentUser && (
               message.read ? 
-                <CheckCheck className="h-3.5 w-3.5 ml-0.5" /> : 
-                <Check className="h-3.5 w-3.5 ml-0.5" />
+                <CheckCheck className="h-3 w-3 ml-0.5" /> : 
+                <Check className="h-3 w-3 ml-0.5" />
             )}
           </div>
         </div>

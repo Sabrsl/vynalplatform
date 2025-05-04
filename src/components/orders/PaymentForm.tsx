@@ -5,9 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Lock, Phone } from "lucide-react";
+import { PaymentMethodType } from "@/lib/constants/payment";
 
 interface PaymentFormProps {
-  method: string;
+  method: PaymentMethodType | null;
   cardNumber: string;
   setCardNumber: (value: string) => void;
   cardHolder: string;
@@ -51,52 +52,56 @@ export function PaymentForm({
         </div>
         
         <div className="space-y-2">
-          <Label htmlFor="cardNumber" className="text-gray-700 dark:text-gray-300">Numéro de carte</Label>
-          <Input
-            id="cardNumber"
-            placeholder="1234 5678 9012 3456"
-            value={cardNumber}
-            onChange={(e) => setCardNumber(e.target.value)}
-            className="font-mono focus:border-vynal-purple-400 focus:ring-vynal-purple-400/20 dark:focus:border-vynal-purple-500 dark:focus:ring-vynal-purple-500/20"
-            maxLength={19}
-          />
+          <Label className="text-gray-700 dark:text-gray-300">
+            Numéro de carte
+            <Input
+              placeholder="1234 5678 9012 3456"
+              value={cardNumber}
+              onChange={(e) => setCardNumber(e.target.value)}
+              className="mt-1 font-mono focus:border-vynal-purple-400 focus:ring-vynal-purple-400/20 dark:focus:border-vynal-purple-500 dark:focus:ring-vynal-purple-500/20"
+              maxLength={19}
+            />
+          </Label>
         </div>
         
         <div className="space-y-2">
-          <Label htmlFor="cardHolder" className="text-gray-700 dark:text-gray-300">Titulaire de la carte</Label>
-          <Input
-            id="cardHolder"
-            placeholder="JEAN DUPONT"
-            value={cardHolder}
-            onChange={(e) => setCardHolder(e.target.value)}
-            className="uppercase focus:border-vynal-purple-400 focus:ring-vynal-purple-400/20 dark:focus:border-vynal-purple-500 dark:focus:ring-vynal-purple-500/20"
-          />
+          <Label className="text-gray-700 dark:text-gray-300">
+            Titulaire de la carte
+            <Input
+              placeholder="JEAN DUPONT"
+              value={cardHolder}
+              onChange={(e) => setCardHolder(e.target.value)}
+              className="mt-1 uppercase focus:border-vynal-purple-400 focus:ring-vynal-purple-400/20 dark:focus:border-vynal-purple-500 dark:focus:ring-vynal-purple-500/20"
+            />
+          </Label>
         </div>
         
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="expiryDate" className="text-gray-700 dark:text-gray-300">Date d'expiration</Label>
-            <Input
-              id="expiryDate"
-              placeholder="MM/AA"
-              value={expiryDate}
-              onChange={(e) => setExpiryDate(e.target.value)}
-              maxLength={5}
-              className="font-mono focus:border-vynal-purple-400 focus:ring-vynal-purple-400/20 dark:focus:border-vynal-purple-500 dark:focus:ring-vynal-purple-500/20"
-            />
+            <Label className="text-gray-700 dark:text-gray-300">
+              Date d'expiration
+              <Input
+                placeholder="MM/AA"
+                value={expiryDate}
+                onChange={(e) => setExpiryDate(e.target.value)}
+                maxLength={5}
+                className="mt-1 font-mono focus:border-vynal-purple-400 focus:ring-vynal-purple-400/20 dark:focus:border-vynal-purple-500 dark:focus:ring-vynal-purple-500/20"
+              />
+            </Label>
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="cvv" className="text-gray-700 dark:text-gray-300">Code de sécurité</Label>
-            <Input
-              id="cvv"
-              placeholder="123"
-              value={cvv}
-              onChange={(e) => setCvv(e.target.value)}
-              maxLength={4}
-              type="password"
-              className="font-mono focus:border-vynal-purple-400 focus:ring-vynal-purple-400/20 dark:focus:border-vynal-purple-500 dark:focus:ring-vynal-purple-500/20"
-            />
+            <Label className="text-gray-700 dark:text-gray-300">
+              Code de sécurité
+              <Input
+                placeholder="123"
+                value={cvv}
+                onChange={(e) => setCvv(e.target.value)}
+                maxLength={4}
+                type="password"
+                className="mt-1 font-mono focus:border-vynal-purple-400 focus:ring-vynal-purple-400/20 dark:focus:border-vynal-purple-500 dark:focus:ring-vynal-purple-500/20"
+              />
+            </Label>
           </div>
         </div>
       </div>
@@ -120,106 +125,106 @@ export function PaymentForm({
         </div>
         
         <div className="space-y-2">
-          <Label htmlFor="paypalEmail" className="text-gray-700 dark:text-gray-300">Email associé à votre compte PayPal</Label>
-          <Input
-            id="paypalEmail"
-            type="email"
-            placeholder="exemple@email.com"
-            value={paypalEmail}
-            onChange={(e) => setPaypalEmail(e.target.value)}
-            className="focus:border-vynal-purple-400 focus:ring-vynal-purple-400/20 dark:focus:border-vynal-purple-500 dark:focus:ring-vynal-purple-500/20"
-          />
+          <Label className="text-gray-700 dark:text-gray-300">
+            Email associé à votre compte PayPal
+            <Input
+              type="email"
+              placeholder="exemple@email.com"
+              value={paypalEmail}
+              onChange={(e) => setPaypalEmail(e.target.value)}
+              className="mt-1 focus:border-vynal-purple-400 focus:ring-vynal-purple-400/20 dark:focus:border-vynal-purple-500 dark:focus:ring-vynal-purple-500/20"
+            />
+          </Label>
         </div>
       </div>
     );
   } 
-  else if (['orange-money', 'free-money', 'wave'].includes(method)) {
+  else if (method && ['orange-money', 'free-money', 'wave'].includes(method)) {
     return (
       <div className="space-y-4">
         <div className="mb-4">
           <div className="space-y-2">
-            <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">Sélectionnez votre opérateur</Label>
-            <div className="grid grid-cols-3 gap-2">
-              <Button 
-                type="button"
-                variant={mobileOperator === "orange-money" ? "default" : "outline"}
-                className={`flex flex-col items-center justify-center h-20 ${
-                  mobileOperator === "orange-money" 
-                    ? "bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white" 
-                    : "border-gray-200 dark:border-gray-700 hover:border-orange-300 dark:hover:border-orange-700"
-                }`}
-                onClick={() => setMobileOperator("orange-money")}
-              >
-                <div className={`w-8 h-8 rounded-full mb-1 flex items-center justify-center ${
-                  mobileOperator === "orange-money"
-                    ? "bg-white/20 text-white"
-                    : "bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400"
-                }`}>
-                  <Phone className="h-4 w-4" />
-                </div>
-                <span className="text-xs">Orange Money</span>
-              </Button>
-              
-              <Button 
-                type="button"
-                variant={mobileOperator === "free-money" ? "default" : "outline"}
-                className={`flex flex-col items-center justify-center h-20 ${
-                  mobileOperator === "free-money" 
-                    ? "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white" 
-                    : "border-gray-200 dark:border-gray-700 hover:border-red-300 dark:hover:border-red-700"
-                }`}
-                onClick={() => setMobileOperator("free-money")}
-              >
-                <div className={`w-8 h-8 rounded-full mb-1 flex items-center justify-center ${
-                  mobileOperator === "free-money"
-                    ? "bg-white/20 text-white"
-                    : "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400"
-                }`}>
-                  <Phone className="h-4 w-4" />
-                </div>
-                <span className="text-xs">Free Money</span>
-              </Button>
-              
-              <Button 
-                type="button"
-                variant={mobileOperator === "wave" ? "default" : "outline"}
-                className={`flex flex-col items-center justify-center h-20 ${
-                  mobileOperator === "wave" 
-                    ? "bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white" 
-                    : "border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-700"
-                }`}
-                onClick={() => setMobileOperator("wave")}
-              >
-                <div className={`w-8 h-8 rounded-full mb-1 flex items-center justify-center ${
-                  mobileOperator === "wave"
-                    ? "bg-white/20 text-white"
-                    : "bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400"
-                }`}>
-                  <Phone className="h-4 w-4" />
-                </div>
-                <span className="text-xs">Wave</span>
-              </Button>
-            </div>
+            <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              Sélectionnez votre opérateur
+              <div className="grid grid-cols-3 gap-2 mt-2" role="radiogroup">
+                <Button 
+                  type="button"
+                  variant={mobileOperator === "orange-money" ? "default" : "outline"}
+                  className={`flex flex-col items-center justify-center h-20 ${
+                    mobileOperator === "orange-money" 
+                      ? "bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white" 
+                      : "border-gray-200 dark:border-gray-700 hover:border-orange-300 dark:hover:border-orange-700"
+                  }`}
+                  onClick={() => setMobileOperator("orange-money")}
+                  role="radio"
+                  aria-checked={mobileOperator === "orange-money"}
+                >
+                  <div className="w-8 h-8 mb-1">
+                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full">
+                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/>
+                    </svg>
+                  </div>
+                  <span className="text-xs">Orange Money</span>
+                </Button>
+                
+                <Button 
+                  type="button"
+                  variant={mobileOperator === "free-money" ? "default" : "outline"}
+                  className={`flex flex-col items-center justify-center h-20 ${
+                    mobileOperator === "free-money" 
+                      ? "bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white" 
+                      : "border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-700"
+                  }`}
+                  onClick={() => setMobileOperator("free-money")}
+                  role="radio"
+                  aria-checked={mobileOperator === "free-money"}
+                >
+                  <div className="w-8 h-8 mb-1">
+                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full">
+                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/>
+                    </svg>
+                  </div>
+                  <span className="text-xs">Free Money</span>
+                </Button>
+                
+                <Button 
+                  type="button"
+                  variant={mobileOperator === "wave" ? "default" : "outline"}
+                  className={`flex flex-col items-center justify-center h-20 ${
+                    mobileOperator === "wave" 
+                      ? "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white" 
+                      : "border-gray-200 dark:border-gray-700 hover:border-green-300 dark:hover:border-green-700"
+                  }`}
+                  onClick={() => setMobileOperator("wave")}
+                  role="radio"
+                  aria-checked={mobileOperator === "wave"}
+                >
+                  <div className="w-8 h-8 mb-1">
+                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full">
+                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/>
+                    </svg>
+                  </div>
+                  <span className="text-xs">Wave</span>
+                </Button>
+              </div>
+            </Label>
           </div>
         </div>
         
         <div className="space-y-2">
-          <Label htmlFor="phoneNumber" className="text-gray-700 dark:text-gray-300">Numéro de téléphone</Label>
-          <div className="flex">
-            <div className="bg-gray-100 dark:bg-gray-800 border border-r-0 border-input dark:border-gray-700 rounded-l-md px-3 flex items-center text-gray-500 dark:text-gray-400">
-              +221
+          <Label className="text-gray-700 dark:text-gray-300">
+            Numéro de téléphone
+            <div className="relative mt-1">
+              <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                type="tel"
+                placeholder="Ex: 77 123 45 67"
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value)}
+                className="pl-10 focus:border-vynal-purple-400 focus:ring-vynal-purple-400/20 dark:focus:border-vynal-purple-500 dark:focus:ring-vynal-purple-500/20"
+              />
             </div>
-            <Input
-              id="phoneNumber"
-              placeholder="77 123 45 67"
-              value={phoneNumber}
-              onChange={(e) => setPhoneNumber(e.target.value)}
-              className="rounded-l-none focus:border-vynal-purple-400 focus:ring-vynal-purple-400/20 dark:focus:border-vynal-purple-500 dark:focus:ring-vynal-purple-500/20"
-            />
-          </div>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            Vous recevrez une notification sur votre téléphone pour confirmer le paiement
-          </p>
+          </Label>
         </div>
         
         <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-md border border-gray-200 dark:border-gray-700 mt-4">

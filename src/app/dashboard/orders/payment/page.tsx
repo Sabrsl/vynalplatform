@@ -14,8 +14,11 @@ import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
 import { formatPrice } from "@/lib/utils";
-import { PAYMENT_METHODS } from "@/components/orders/constants";
+import { PAYMENT_METHODS, PaymentMethodType, validatePaymentData } from "@/lib/constants/payment";
 import { PaymentForm } from "@/components/orders/PaymentForm";
+import { encrypt } from "@/lib/security/encryption";
+import { generateCSRFToken, validateCSRFToken } from "@/lib/security/csrf";
+import { logSecurityEvent, isSuspiciousActivity } from "@/lib/security/audit";
 
 export default function PaymentPage() {
   const { user } = useAuth();
@@ -29,7 +32,7 @@ export default function PaymentPage() {
   const [error, setError] = useState<string | null>(null);
   const [errorFading, setErrorFading] = useState(false);
   const [isOwnService, setIsOwnService] = useState(false);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>("");
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethodType | null>(null);
   const [paymentProcessing, setPaymentProcessing] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   
@@ -164,7 +167,6 @@ export default function PaymentPage() {
   }, [user, router, serviceId, profile]);
 
   const handlePayment = async () => {
-    // Vérifier si c'est le propre service de l'utilisateur
     if (isOwnService) {
       setError("Vous ne pouvez pas commander votre propre service");
       return;
@@ -175,30 +177,38 @@ export default function PaymentPage() {
       return;
     }
 
-    // Valider les informations de paiement selon la méthode choisie
-    if (selectedPaymentMethod === 'card') {
-      if (!cardNumber.trim() || !cardHolder.trim() || !expiryDate.trim() || !cvv.trim()) {
-        setError("Veuillez remplir tous les champs de paiement");
-        return;
-      }
-    } 
-    else if (selectedPaymentMethod === 'paypal') {
-      if (!paypalEmail.trim()) {
-        setError("Veuillez entrer votre email PayPal");
+    // Vérifier les activités suspectes
+    if (user?.id) {
+      const isSuspicious = await isSuspiciousActivity(user.id, 'payment_attempt');
+      if (isSuspicious) {
+        setError("Trop de tentatives de paiement. Veuillez réessayer plus tard.");
         return;
       }
     }
-    else if (['orange-money', 'free-money', 'wave'].includes(selectedPaymentMethod)) {
-      if (!phoneNumber.trim()) {
-        setError("Veuillez entrer votre numéro de téléphone");
-        return;
-      }
+
+    const paymentData = {
+      cardNumber,
+      cardHolder,
+      expiryDate,
+      cvv,
+      paypalEmail,
+      phoneNumber,
+      mobileOperator
+    };
+
+    const validationError = validatePaymentData(selectedPaymentMethod, paymentData);
+    if (validationError) {
+      setError(validationError);
+      return;
     }
 
     setError(null);
     setPaymentProcessing(true);
 
     try {
+      // Générer un token CSRF
+      const csrfToken = generateCSRFToken(user?.id || '');
+      
       // Récupérer les données de commande du sessionStorage
       const savedOrder = sessionStorage.getItem('pendingOrder');
       if (!savedOrder) {
@@ -206,6 +216,13 @@ export default function PaymentPage() {
       }
       
       const orderData = JSON.parse(savedOrder);
+      
+      // Chiffrer les données sensibles
+      const encryptedPaymentData = {
+        ...paymentData,
+        cardNumber: encrypt(paymentData.cardNumber),
+        cvv: encrypt(paymentData.cvv)
+      };
       
       // Envoyer les données à l'API
       const { data: insertedOrder, error: orderError } = await supabase
@@ -219,7 +236,9 @@ export default function PaymentPage() {
             status: 'pending',
             payment_method: selectedPaymentMethod,
             payment_status: 'completed',
-            total_amount: service?.price || 0
+            total_amount: service?.price || 0,
+            payment_data: encryptedPaymentData,
+            csrf_token: csrfToken
           }
         ])
         .select()
@@ -229,8 +248,17 @@ export default function PaymentPage() {
         throw new Error("Erreur lors de la création de la commande: " + orderError.message);
       }
       
-      // Si nous avons des fichiers, il faudrait les télécharger dans le stockage Supabase
-      // Cette partie est à implémenter selon les besoins spécifiques
+      // Logger l'événement de paiement
+      await logSecurityEvent({
+        type: 'payment_success',
+        userId: user?.id,
+        severity: 'medium',
+        details: {
+          orderId: insertedOrder.id,
+          amount: service?.price,
+          paymentMethod: selectedPaymentMethod
+        }
+      });
       
       // Paiement réussi
       setPaymentSuccess(true);
@@ -244,6 +272,18 @@ export default function PaymentPage() {
       }, 3000);
     } catch (err: any) {
       console.error("Erreur lors du traitement du paiement", err);
+      
+      // Logger l'échec du paiement
+      await logSecurityEvent({
+        type: 'payment_failure',
+        userId: user?.id,
+        severity: 'high',
+        details: {
+          error: err.message,
+          paymentMethod: selectedPaymentMethod
+        }
+      });
+      
       setError("Une erreur s'est produite lors du traitement du paiement: " + (err.message || ""));
     } finally {
       setPaymentProcessing(false);
@@ -428,7 +468,7 @@ export default function PaymentPage() {
                       description={method.description}
                       logo={method.logo}
                       selected={selectedPaymentMethod === method.id}
-                      onSelect={setSelectedPaymentMethod}
+                      onSelect={(id) => setSelectedPaymentMethod(id as PaymentMethodType)}
                     />
                   ))}
                 </div>
@@ -453,7 +493,7 @@ export default function PaymentPage() {
                   <Button 
                     type="button" 
                     variant="ghost" 
-                    onClick={() => setSelectedPaymentMethod("")}
+                    onClick={() => setSelectedPaymentMethod(null)}
                   >
                     <ArrowLeft className="h-4 w-4 mr-2" />
                     Retour

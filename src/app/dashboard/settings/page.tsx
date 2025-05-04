@@ -1101,119 +1101,119 @@ export default function SettingsPage() {
     <div className="w-full h-full overflow-x-hidden overflow-y-auto scrollbar-hide bg-gray-50/50 dark:bg-transparent">
       <div className="p-2 sm:p-4 space-y-6 sm:space-y-8 pb-12 max-w-[1600px] mx-auto">
         <div className="flex flex-col space-y-1">
-          <div className="flex items-center space-x-2 mb-2">
-            <div className="p-1.5 rounded-full bg-gradient-to-tr from-vynal-accent-primary/40 to-vynal-accent-primary/20 shadow-sm dark:from-vynal-purple-secondary/30 dark:to-vynal-purple-secondary/20 flex-shrink-0">
-              <Settings className="h-4 w-4 sm:h-5 sm:w-5 text-vynal-accent-primary dark:text-vynal-accent-primary" />
+          <div className="flex items-center space-x-2 mb-1.5">
+            <div className="p-1 rounded-full bg-gradient-to-tr from-vynal-accent-primary/40 to-vynal-accent-primary/20 shadow-sm dark:from-vynal-purple-secondary/30 dark:to-vynal-purple-secondary/20 flex-shrink-0">
+              <Settings className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-vynal-accent-primary dark:text-vynal-accent-primary" />
             </div>
-            <h1 className="text-xl sm:text-2xl font-bold text-vynal-purple-light dark:text-vynal-text-primary">
+            <h1 className="text-base sm:text-lg md:text-xl font-bold text-vynal-purple-light dark:text-vynal-text-primary">
               Paramètres
             </h1>
           </div>
-          <p className="text-sm text-vynal-purple-secondary dark:text-vynal-text-secondary/80 ml-1">
-            Gérez les paramètres de votre compte et vos préférences
+          <p className="text-[10px] sm:text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary/80 ml-1">
+            Gérez vos paramètres et préférences
           </p>
         </div>
 
         <Tabs defaultValue="account" className="space-y-6">
-          <TabsList className="grid w-full max-w-md grid-cols-4 p-1 bg-slate-100/80 dark:bg-vynal-purple-dark/30">
+          <TabsList className="grid w-full max-w-md grid-cols-4 p-0.5 bg-slate-200/80 dark:bg-vynal-purple-dark/30">
             <TabsTrigger 
               value="account" 
-              className="data-[state=active]:bg-white data-[state=active]:text-vynal-accent-primary data-[state=active]:shadow-sm dark:data-[state=active]:bg-vynal-purple-dark dark:data-[state=active]:text-vynal-accent-primary"
+              className="data-[state=active]:bg-white data-[state=active]:text-vynal-accent-primary data-[state=active]:shadow-sm text-vynal-purple-dark dark:text-vynal-text-primary dark:data-[state=active]:bg-vynal-purple-dark dark:data-[state=active]:text-vynal-accent-primary"
             >
-              <UserCog className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline text-xs">Compte</span>
+              <UserCog className="h-3.5 w-3.5 sm:mr-1.5" />
+              <span className="hidden sm:inline text-[10px] sm:text-xs">Compte</span>
             </TabsTrigger>
             <TabsTrigger 
               value="security"
-              className="data-[state=active]:bg-white data-[state=active]:text-vynal-accent-primary data-[state=active]:shadow-sm dark:data-[state=active]:bg-vynal-purple-dark dark:data-[state=active]:text-vynal-accent-primary"
+              className="data-[state=active]:bg-white data-[state=active]:text-vynal-accent-primary data-[state=active]:shadow-sm text-vynal-purple-dark dark:text-vynal-text-primary dark:data-[state=active]:bg-vynal-purple-dark dark:data-[state=active]:text-vynal-accent-primary"
             >
-              <Shield className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline text-xs">Sécurité</span>
+              <Shield className="h-3.5 w-3.5 sm:mr-1.5" />
+              <span className="hidden sm:inline text-[10px] sm:text-xs">Sécurité</span>
             </TabsTrigger>
             <TabsTrigger 
               value="experimental"
-              className="data-[state=active]:bg-white data-[state=active]:text-vynal-accent-primary data-[state=active]:shadow-sm dark:data-[state=active]:bg-vynal-purple-dark dark:data-[state=active]:text-vynal-accent-primary"
+              className="data-[state=active]:bg-white data-[state=active]:text-vynal-accent-primary data-[state=active]:shadow-sm text-vynal-purple-dark dark:text-vynal-text-primary dark:data-[state=active]:bg-vynal-purple-dark dark:data-[state=active]:text-vynal-accent-primary"
             >
-              <Rocket className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline text-xs">Expérimental</span>
+              <Rocket className="h-3.5 w-3.5 sm:mr-1.5" />
+              <span className="hidden sm:inline text-[10px] sm:text-xs">Expérimental</span>
             </TabsTrigger>
             <TabsTrigger 
               value="data"
-              className="data-[state=active]:bg-white data-[state=active]:text-vynal-accent-primary data-[state=active]:shadow-sm dark:data-[state=active]:bg-vynal-purple-dark dark:data-[state=active]:text-vynal-accent-primary"
+              className="data-[state=active]:bg-white data-[state=active]:text-vynal-accent-primary data-[state=active]:shadow-sm text-vynal-purple-dark dark:text-vynal-text-primary dark:data-[state=active]:bg-vynal-purple-dark dark:data-[state=active]:text-vynal-accent-primary"
             >
-              <FileDown className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline text-xs">Données</span>
+              <FileDown className="h-3.5 w-3.5 sm:mr-1.5" />
+              <span className="hidden sm:inline text-[10px] sm:text-xs">Données</span>
             </TabsTrigger>
-        </TabsList>
-        
+          </TabsList>
+          
           {/* Onglet compte */}
           <TabsContent value="account" className="space-y-4">
             <Card className="overflow-hidden border border-vynal-border dark:border-vynal-purple-secondary/40 shadow-sm bg-white dark:bg-vynal-purple-dark/20">
-              <CardHeader className="px-4 sm:px-6 py-4 sm:py-5 bg-gradient-to-r from-white to-slate-50 dark:from-vynal-purple-dark/60 dark:to-vynal-purple-dark/20">
-                <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-                  <div className="p-1.5 rounded-md bg-vynal-accent-primary/10 text-vynal-accent-primary dark:bg-vynal-purple-secondary/30 dark:text-vynal-accent-primary">
-                    <User className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <CardHeader className="px-3 sm:px-4 py-3 sm:py-4 bg-gradient-to-r from-white to-slate-50 dark:from-vynal-purple-dark/60 dark:to-vynal-purple-dark/20">
+                <CardTitle className="flex items-center gap-1.5 text-[10px] sm:text-xs">
+                  <div className="p-1 rounded-md bg-vynal-accent-primary/10 text-vynal-accent-primary dark:bg-vynal-purple-secondary/30 dark:text-vynal-accent-primary">
+                    <User className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                   </div>
                   <span className="text-vynal-purple-light dark:text-vynal-text-primary">Informations du compte</span>
-              </CardTitle>
-                <CardDescription className="text-xs sm:text-sm text-vynal-purple-secondary dark:text-vynal-text-secondary/80 mt-1">
+                </CardTitle>
+                <CardDescription className="text-[10px] sm:text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary/80 mt-0.5">
                   Consultez et gérez les informations de base de votre compte.
               </CardDescription>
             </CardHeader>
-              <CardContent className="space-y-4 px-4 sm:px-6 py-4 sm:py-5">
-                <div className="space-y-2">
-                  <Label htmlFor="name" className="text-sm text-vynal-purple-light dark:text-vynal-text-primary">Nom</Label>
+              <CardContent className="space-y-3 px-3 sm:px-4 py-3 sm:py-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="name" className="text-[10px] sm:text-xs text-vynal-purple-light dark:text-vynal-text-primary">Nom</Label>
                   <Input 
                     id="name" 
                     value={profile?.full_name || ""} 
                     disabled 
-                    className="bg-slate-50 border-vynal-border dark:bg-vynal-purple-secondary/10 dark:border-vynal-purple-secondary/40 dark:text-vynal-text-secondary text-sm" 
+                    className="bg-white border-vynal-border text-vynal-purple-dark dark:bg-vynal-purple-secondary/10 dark:border-vynal-purple-secondary/40 dark:text-vynal-text-secondary text-[10px] sm:text-xs h-7" 
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="email" className="text-sm text-vynal-purple-light dark:text-vynal-text-primary">Email</Label>
+                  <Label htmlFor="email" className="text-[10px] sm:text-xs text-vynal-purple-light dark:text-vynal-text-primary">Email</Label>
                   <Input 
                     id="email" 
                     value={authUser?.email || ""} 
                     disabled 
-                    className="bg-slate-50 border-vynal-border dark:bg-vynal-purple-secondary/10 dark:border-vynal-purple-secondary/40 dark:text-vynal-text-secondary text-sm" 
+                    className="bg-white border-vynal-border text-vynal-purple-dark dark:bg-vynal-purple-secondary/10 dark:border-vynal-purple-secondary/40 dark:text-vynal-text-secondary text-[10px] sm:text-xs h-7" 
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="username" className="text-sm text-vynal-purple-light dark:text-vynal-text-primary">Nom d'utilisateur</Label>
+                  <Label htmlFor="username" className="text-[10px] sm:text-xs text-vynal-purple-light dark:text-vynal-text-primary">Nom d'utilisateur</Label>
                   <Input 
                     id="username" 
                     value={profile?.username || ""} 
                     disabled 
-                    className="bg-slate-50 border-vynal-border dark:bg-vynal-purple-secondary/10 dark:border-vynal-purple-secondary/40 dark:text-vynal-text-secondary text-sm" 
+                    className="bg-white border-vynal-border text-vynal-purple-dark dark:bg-vynal-purple-secondary/10 dark:border-vynal-purple-secondary/40 dark:text-vynal-text-secondary text-[10px] sm:text-xs h-7" 
                   />
-                  <p className="text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary/70">
+                  <p className="text-[10px] sm:text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary/70">
                     Votre nom d'utilisateur ne peut être modifié que par l'assistance.
                   </p>
                     </div>
               </CardContent>
             </Card>
 
-            <Card className="overflow-hidden border border-red-200/50 dark:border-red-800/20 shadow-sm bg-white dark:bg-vynal-purple-dark/20">
-              <CardHeader className="px-4 sm:px-6 py-3 bg-white dark:bg-vynal-purple-dark/20 border-b border-red-100/50 dark:border-red-800/10">
-                <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
-                  <div className="p-1 rounded-md bg-red-50 text-red-500/70 dark:bg-red-900/20 dark:text-red-400/70">
+            <Card className="overflow-hidden border border-red-300/50 dark:border-red-800/20 shadow-sm bg-red-50/30 dark:bg-red-900/5">
+              <CardHeader className="px-4 sm:px-6 py-3 bg-red-50/30 dark:bg-red-900/5 border-b border-red-200/50 dark:border-red-800/10">
+                <CardTitle className="flex items-center gap-2 text-[10px] sm:text-xs">
+                  <div className="p-1 rounded-md bg-red-100 text-red-500/80 dark:bg-red-900/20 dark:text-red-400/70">
                     <Trash2 className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                   </div>
-                  <span className="text-red-500/80 dark:text-red-400/80 font-medium">Supprimer mon compte</span>
+                  <span className="text-red-500/90 dark:text-red-400/80 font-medium">Supprimer mon compte</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="px-4 sm:px-6 py-3">
-                <div className="text-xs text-red-500/70 dark:text-red-300/60 mb-3">
-                  Cette action est irréversible. Toutes vos données personnelles seront supprimées.
+                <div className="text-[10px] text-red-500/70 dark:text-red-300/60 mb-3">
+                  Cette action supprimera définitivement votre compte
                 </div>
                 <Button 
                   variant="outline" 
                   onClick={() => setDeleteDialogOpen(true)}
-                  className="text-xs h-7 px-2 border-red-200 bg-white hover:bg-red-50 text-red-500 hover:text-red-600 dark:border-red-800/30 dark:bg-transparent dark:text-red-400 dark:hover:bg-red-900/20"
+                  className="text-[10px] h-6 px-1.5 border-red-200 bg-white hover:bg-red-50 text-red-500 hover:text-red-600 dark:border-red-800/30 dark:bg-transparent dark:text-red-400 dark:hover:bg-red-900/20"
                   size="sm"
                 >
-                  <Trash2 className="h-3 w-3 mr-1.5" />
+                  <Trash2 className="h-2.5 w-2.5 mr-1" />
                   Supprimer mon compte
                 </Button>
                 
@@ -1234,7 +1234,7 @@ export default function SettingsPage() {
                         placeholder="Saisir SUPPRIMER"
                         value={confirmDelete}
                         onChange={(e) => setConfirmDelete(e.target.value)}
-                        className="border-vynal-border dark:bg-vynal-purple-secondary/10 dark:border-vynal-purple-secondary/40 dark:text-vynal-text-primary"
+                        className="bg-white border-vynal-border text-vynal-purple-dark dark:bg-vynal-purple-secondary/10 dark:border-vynal-purple-secondary/40 dark:text-vynal-text-primary text-[10px] sm:text-xs h-7"
                       />
                     </div>
                     <DialogFooter>
@@ -1271,13 +1271,13 @@ export default function SettingsPage() {
           <TabsContent value="security" className="space-y-4">
             <Card className="overflow-hidden border border-vynal-border dark:border-vynal-purple-secondary/40 shadow-sm bg-white dark:bg-vynal-purple-dark/20">
               <CardHeader className="px-4 sm:px-6 py-4 sm:py-5 bg-gradient-to-r from-white to-slate-50 dark:from-vynal-purple-dark/60 dark:to-vynal-purple-dark/20">
-                <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <CardTitle className="flex items-center gap-2 text-[10px] sm:text-xs">
                   <div className="p-1.5 rounded-md bg-vynal-accent-primary/10 text-vynal-accent-primary dark:bg-vynal-purple-secondary/30 dark:text-vynal-accent-primary">
                     <LockKeyhole className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   </div>
                   <span className="text-vynal-purple-light dark:text-vynal-text-primary">Authentification à deux facteurs (2FA)</span>
                 </CardTitle>
-                <CardDescription className="text-xs sm:text-sm text-vynal-purple-secondary dark:text-vynal-text-secondary/80 mt-1">
+                <CardDescription className="text-[10px] sm:text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary/80 mt-1">
                   {userProfile?.two_factor_enabled
                     ? "L'authentification à deux facteurs est activée pour votre compte."
                     : "Sécurisez votre compte avec l'authentification à deux facteurs."}
@@ -1327,28 +1327,28 @@ export default function SettingsPage() {
                 ) : (
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="phone" className="text-sm text-vynal-purple-light dark:text-vynal-text-primary">Numéro de téléphone</Label>
+                      <Label htmlFor="phone" className="text-[10px] sm:text-xs text-vynal-purple-light dark:text-vynal-text-primary">Numéro de téléphone</Label>
                       <Input
                         id="phone"
                         placeholder="+221 77 123 45 67"
                         value={phoneNumber}
                         onChange={(e) => setPhoneNumber(e.target.value)}
-                        className="text-sm border-vynal-border dark:bg-vynal-purple-secondary/10 dark:border-vynal-purple-secondary/40 dark:text-vynal-text-primary"
+                        className="bg-white border-vynal-border text-vynal-purple-dark dark:bg-vynal-purple-secondary/10 dark:border-vynal-purple-secondary/40 dark:text-vynal-text-primary text-[10px] sm:text-xs h-7"
                       />
-                      <p className="text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary/70">
+                      <p className="text-[10px] sm:text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary/70">
                         Nous vous enverrons un code de vérification par SMS.
                       </p>
                     </div>
                     
                     {codeSent && (
                       <div className="space-y-2">
-                        <Label htmlFor="code" className="text-sm text-vynal-purple-light dark:text-vynal-text-primary">Code de vérification</Label>
+                        <Label htmlFor="code" className="text-[10px] sm:text-xs text-vynal-purple-light dark:text-vynal-text-primary">Code de vérification</Label>
                         <Input
                           id="code"
                           placeholder="123456"
                           value={verificationCode}
                           onChange={(e) => setVerificationCode(e.target.value)}
-                          className="text-sm border-vynal-border dark:bg-vynal-purple-secondary/10 dark:border-vynal-purple-secondary/40 dark:text-vynal-text-primary"
+                          className="bg-white border-vynal-border text-vynal-purple-dark dark:bg-vynal-purple-secondary/10 dark:border-vynal-purple-secondary/40 dark:text-vynal-text-primary text-[10px] sm:text-xs h-7"
                         />
                       </div>
                     )}
@@ -1408,14 +1408,14 @@ export default function SettingsPage() {
 
             <Card className="overflow-hidden border border-vynal-border dark:border-vynal-purple-secondary/40 shadow-sm bg-white dark:bg-vynal-purple-dark/20">
               <CardHeader className="px-4 sm:px-6 py-4 sm:py-5 bg-gradient-to-r from-white to-slate-50 dark:from-vynal-purple-dark/60 dark:to-vynal-purple-dark/20">
-                <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <CardTitle className="flex items-center gap-2 text-[10px] sm:text-xs">
                   <div className="p-1.5 rounded-md bg-vynal-accent-secondary/10 dark:bg-vynal-accent-secondary/20">
                     <LogOut className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-vynal-accent-secondary dark:text-vynal-accent-secondary" />
                   </div>
                   <span className="text-vynal-purple-light dark:text-vynal-text-primary">Sessions actives</span>
                 </CardTitle>
-                <CardDescription className="text-xs sm:text-sm text-vynal-purple-secondary dark:text-vynal-text-secondary/80 mt-1">
-                  Gérez vos sessions et déconnectez-vous des appareils.
+                <CardDescription className="text-[10px] sm:text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary/80 mt-1">
+                  Gérez vos sessions et déconnectez-vous des appareils
                 </CardDescription>
               </CardHeader>
               <CardContent className="px-4 sm:px-6 py-4 sm:py-5">
@@ -1424,11 +1424,11 @@ export default function SettingsPage() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-3">
                         <div className="relative rounded-full bg-vynal-accent-primary/10 p-2 dark:bg-vynal-purple-secondary/30">
-                          <Smartphone className="h-4 w-4 text-vynal-accent-primary dark:text-vynal-accent-primary" />
+                          <Smartphone className="h-3.5 w-3.5 text-vynal-accent-primary dark:text-vynal-accent-primary" />
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-vynal-purple-light dark:text-vynal-text-primary">Session courante</p>
-                          <p className="text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary">
+                          <p className="text-[10px] font-medium text-vynal-purple-light dark:text-vynal-text-primary">Session actuelle</p>
+                          <p className="text-[10px] text-vynal-purple-secondary dark:text-vynal-text-secondary">
                             Navigateur • {new Date().toLocaleString()}
                           </p>
                         </div>
@@ -1452,13 +1452,13 @@ export default function SettingsPage() {
           <TabsContent value="experimental" className="space-y-4">
             <Card className="overflow-hidden border border-vynal-border dark:border-vynal-purple-secondary/40 shadow-sm bg-white dark:bg-vynal-purple-dark/20">
               <CardHeader className="px-4 sm:px-6 py-4 sm:py-5 bg-gradient-to-r from-white to-slate-50 dark:from-vynal-purple-dark/60 dark:to-vynal-purple-dark/20">
-                <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <CardTitle className="flex items-center gap-2 text-[10px] sm:text-xs">
                   <div className="p-1.5 rounded-md bg-gradient-to-br from-purple-500/20 to-amber-500/20 dark:from-vynal-accent-primary/20 dark:to-vynal-accent-secondary/20">
                     <Rocket className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-vynal-accent-primary dark:text-vynal-accent-primary" />
                   </div>
                   <span className="text-vynal-purple-light dark:text-vynal-text-primary">Fonctionnalités expérimentales</span>
                 </CardTitle>
-                <CardDescription className="text-xs sm:text-sm text-vynal-purple-secondary dark:text-vynal-text-secondary/80 mt-1">
+                <CardDescription className="text-[10px] sm:text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary/80 mt-1">
                   Activez les fonctionnalités en version bêta et obtenez un accès anticipé aux nouvelles fonctionnalités.
                 </CardDescription>
               </CardHeader>
@@ -1470,10 +1470,10 @@ export default function SettingsPage() {
                         <div className="p-1.5 rounded-md bg-vynal-accent-primary/10 mr-2">
                           <Rocket className="h-3.5 w-3.5 text-vynal-accent-primary" />
                         </div>
-                        <Label className="text-sm font-medium text-vynal-purple-light dark:text-vynal-text-primary">Accès bêta</Label>
+                        <Label className="text-[10px] font-medium text-vynal-purple-light dark:text-vynal-text-primary">Accès bêta</Label>
                       </div>
-                      <p className="text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary pl-7">
-                        Obtenez un accès anticipé aux fonctionnalités non encore publiques.
+                      <p className="text-[10px] text-vynal-purple-secondary dark:text-vynal-text-secondary pl-7">
+                        Accès anticipé aux nouvelles fonctionnalités
                       </p>
                     </div>
                     <Switch
@@ -1482,6 +1482,7 @@ export default function SettingsPage() {
                         setBetaAccess(value);
                         updateExperimentalSettings("beta_access", value);
                       }}
+                      className="data-[state=checked]:bg-vynal-accent-primary data-[state=unchecked]:bg-slate-300"
                     />
                   </div>
 
@@ -1491,10 +1492,10 @@ export default function SettingsPage() {
                         <div className="p-1.5 rounded-md bg-vynal-accent-secondary/10 mr-2">
                           <Sparkles className="h-3.5 w-3.5 text-vynal-accent-secondary" />
                         </div>
-                        <Label className="text-sm font-medium text-vynal-purple-light dark:text-vynal-text-primary">Nouveaux designs</Label>
+                        <Label className="text-[10px] font-medium text-vynal-purple-light dark:text-vynal-text-primary">Nouveaux designs</Label>
                       </div>
-                      <p className="text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary pl-7">
-                        Testez les nouvelles interfaces utilisateur avant leur déploiement officiel.
+                      <p className="text-[10px] text-vynal-purple-secondary dark:text-vynal-text-secondary pl-7">
+                        Testez les nouvelles interfaces
                       </p>
                     </div>
                     <Switch
@@ -1503,19 +1504,20 @@ export default function SettingsPage() {
                         setNewDesigns(value);
                         updateExperimentalSettings("new_designs", value);
                       }}
+                      className="data-[state=checked]:bg-vynal-accent-primary data-[state=unchecked]:bg-slate-300"
                     />
                   </div>
                   
                   <div className="flex items-center justify-between space-x-2 p-3 rounded-lg border border-vynal-border bg-slate-50/70 dark:border-vynal-purple-secondary/30 dark:bg-vynal-purple-secondary/10">
                     <div className="space-y-0.5">
                       <div className="flex items-center">
-                        <div className="p-1.5 rounded-md bg-purple-400/10 mr-2 dark:bg-purple-500/20">
+                        <div className="p-1 rounded-md bg-purple-400/10 mr-2 dark:bg-purple-500/20">
                           <Sparkles className="h-3.5 w-3.5 text-purple-500 dark:text-purple-400" />
                         </div>
-                        <Label className="text-sm font-medium text-vynal-purple-light dark:text-vynal-text-primary">Suggestions IA</Label>
+                        <Label className="text-[10px] font-medium text-vynal-purple-light dark:text-vynal-text-primary">Suggestions IA</Label>
                       </div>
-                      <p className="text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary pl-7">
-                        Recevez des recommandations personnalisées basées sur l'intelligence artificielle.
+                      <p className="text-[10px] text-vynal-purple-secondary dark:text-vynal-text-secondary pl-7">
+                        Recommandations personnalisées
                       </p>
                     </div>
                     <Switch
@@ -1524,6 +1526,7 @@ export default function SettingsPage() {
                         setAiSuggestions(value);
                         updateExperimentalSettings("ai_suggestions", value);
                       }}
+                      className="data-[state=checked]:bg-vynal-accent-primary data-[state=unchecked]:bg-slate-300"
                     />
                   </div>
                 </div>
@@ -1535,50 +1538,41 @@ export default function SettingsPage() {
           <TabsContent value="data" className="space-y-4">
             <Card className="overflow-hidden border border-vynal-border dark:border-vynal-purple-secondary/40 shadow-sm bg-white dark:bg-vynal-purple-dark/20">
               <CardHeader className="px-4 sm:px-6 py-4 sm:py-5 bg-gradient-to-r from-white to-slate-50 dark:from-vynal-purple-dark/60 dark:to-vynal-purple-dark/20">
-                <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <CardTitle className="flex items-center gap-2 text-[10px] sm:text-xs">
                   <div className="p-1.5 rounded-md bg-vynal-accent-secondary/10 dark:bg-vynal-accent-secondary/20">
                     <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-vynal-accent-secondary dark:text-vynal-accent-secondary" />
                   </div>
                   <span className="text-vynal-purple-light dark:text-vynal-text-primary">Exporter le profil en PDF</span>
                 </CardTitle>
-                <CardDescription className="text-xs sm:text-sm text-vynal-purple-secondary dark:text-vynal-text-secondary/80 mt-1">
+                <CardDescription className="text-[10px] sm:text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary/80 mt-1">
                   Générez un document PDF de votre profil professionnel.
                 </CardDescription>
               </CardHeader>
               <CardContent className="px-4 sm:px-6 py-4 sm:py-5">
                 <div className="space-y-4">
-                  <p className="text-sm text-vynal-purple-secondary dark:text-vynal-text-secondary">
-                    Exportez votre profil professionnel au format PDF, idéal pour le partage ou l'impression.
+                  <p className="text-[10px] sm:text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary">
+                    Exportez votre profil en PDF
                   </p>
                   
-                  <div className="text-xs flex items-start gap-1.5 p-2 rounded-md bg-vynal-accent-secondary/5 dark:bg-vynal-purple-secondary/5 border border-vynal-accent-secondary/10 dark:border-vynal-purple-secondary/10">
+                  <div className="text-[10px] flex items-start gap-1.5 p-2 rounded-md bg-vynal-accent-secondary/5 dark:bg-vynal-purple-secondary/5 border border-vynal-accent-secondary/10 dark:border-vynal-purple-secondary/10">
                     <AlertTriangle className="h-3 w-3 text-vynal-accent-secondary dark:text-vynal-accent-secondary mt-0.5 flex-shrink-0" />
                     <div>
                       <span className="text-vynal-purple-dark dark:text-vynal-text-primary font-medium">Info :</span>
                       <span className="ml-1 text-vynal-purple-secondary dark:text-vynal-text-secondary/90">
-                        Limité à une demande tous les 30 jours.
-                        {pdfBlockRemainingDays > 0 ? (
-                          <span className="ml-1 text-vynal-accent-secondary dark:text-vynal-accent-secondary">
-                            Prochaine demande possible dans {pdfBlockRemainingDays} jour{pdfBlockRemainingDays > 1 ? 's' : ''}.
-                          </span>
-                        ) : userProfile?.last_profile_pdf_download && (
-                          <span className="ml-1 text-vynal-accent-secondary dark:text-vynal-accent-secondary">
-                            Dernière : {new Date(userProfile.last_profile_pdf_download).toLocaleDateString()}
-                          </span>
-                        )}
+                        Limité à une demande tous les 30 jours
                       </span>
                     </div>
                   </div>
                   
-                  <p className="text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary mt-3">
-                    Le PDF de votre profil inclura :
+                  <p className="text-[10px] text-vynal-purple-secondary dark:text-vynal-text-secondary mt-3">
+                    Contenu du PDF :
                   </p>
-                  <ul className="text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary list-disc pl-4 space-y-1">
-                    <li>Vos informations personnelles et professionnelles</li>
-                    <li>Vos compétences et services (pour les freelances)</li>
-                    <li>Historique des commandes récentes</li>
-                    <li>Avis et témoignages reçus</li>
-                    <li>QR code pour accéder directement à votre profil en ligne</li>
+                  <ul className="text-[10px] text-vynal-purple-secondary dark:text-vynal-text-secondary list-disc pl-4 space-y-1">
+                    <li>Informations personnelles</li>
+                    <li>Compétences et services</li>
+                    <li>Commandes récentes</li>
+                    <li>Avis reçus</li>
+                    <li>QR code du profil</li>
                   </ul>
                   
                 <Button
@@ -1612,44 +1606,35 @@ export default function SettingsPage() {
 
             <Card className="overflow-hidden border border-vynal-border dark:border-vynal-purple-secondary/40 shadow-sm bg-white dark:bg-vynal-purple-dark/20">
               <CardHeader className="px-4 sm:px-6 py-4 sm:py-5 bg-gradient-to-r from-white to-slate-50 dark:from-vynal-purple-dark/60 dark:to-vynal-purple-dark/20">
-                <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <CardTitle className="flex items-center gap-2 text-[10px] sm:text-xs">
                   <div className="p-1.5 rounded-md bg-vynal-accent-primary/10 dark:bg-vynal-purple-secondary/30">
                     <Download className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-vynal-accent-primary dark:text-vynal-accent-primary" />
                   </div>
                   <span className="text-vynal-purple-light dark:text-vynal-text-primary">Téléchargement des données</span>
                 </CardTitle>
-                <CardDescription className="text-xs sm:text-sm text-vynal-purple-secondary dark:text-vynal-text-secondary/80 mt-1">
-                  Téléchargez une copie de vos données personnelles.
+                <CardDescription className="text-[10px] sm:text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary/80 mt-1">
+                  Téléchargez une copie de vos données personnelles
                 </CardDescription>
               </CardHeader>
               <CardContent className="px-4 sm:px-6 py-4 sm:py-5">
                 <div className="space-y-4">
-                  <p className="text-sm text-vynal-purple-secondary dark:text-vynal-text-secondary">
-                    Vous pouvez télécharger une copie complète de vos données personnelles, y compris votre profil, vos préférences et votre historique.
+                  <p className="text-[10px] sm:text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary">
+                    Vous pouvez télécharger une copie complète de vos données personnelles, y compris votre profil, vos préférences et votre historique
                   </p>
-                  <div className="text-xs flex items-start gap-1.5 p-2 rounded-md bg-vynal-accent-primary/5 dark:bg-vynal-purple-secondary/5 border border-vynal-accent-primary/10 dark:border-vynal-purple-secondary/10">
+                  <div className="text-[10px] flex items-start gap-1.5 p-2 rounded-md bg-vynal-accent-primary/5 dark:bg-vynal-purple-secondary/5 border border-vynal-accent-primary/10 dark:border-vynal-purple-secondary/10">
                     <AlertTriangle className="h-3 w-3 text-vynal-accent-primary dark:text-vynal-accent-primary mt-0.5 flex-shrink-0" />
                     <div>
                       <span className="text-vynal-purple-dark dark:text-vynal-text-primary font-medium">Info :</span>
                       <span className="ml-1 text-vynal-purple-secondary dark:text-vynal-text-secondary/90">
-                        Limité à une demande tous les 30 jours.
-                        {blockRemainingDays > 0 ? (
-                          <span className="ml-1 text-vynal-accent-primary dark:text-vynal-accent-primary">
-                            Prochaine demande possible dans {blockRemainingDays} jour{blockRemainingDays > 1 ? 's' : ''}.
-                          </span>
-                        ) : userProfile?.last_data_download && (
-                          <span className="ml-1 text-vynal-accent-primary dark:text-vynal-accent-primary">
-                            Dernière : {new Date(userProfile.last_data_download).toLocaleDateString()}
-                          </span>
-                        )}
+                        Limité à une demande tous les 30 jours
                       </span>
                     </div>
                   </div>
 
-                  <p className="text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary mt-3">
-                    Le fichier ZIP téléchargé contiendra :
+                  <p className="text-[10px] text-vynal-purple-secondary dark:text-vynal-text-secondary mt-3">
+                    Le fichier ZIP contiendra :
                   </p>
-                  <ul className="text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary list-disc pl-4 space-y-1">
+                  <ul className="text-[10px] text-vynal-purple-secondary dark:text-vynal-text-secondary list-disc pl-4 space-y-1">
                     <li>Votre profil (JSON)</li>
                     <li>Vos commandes (CSV)</li>
                     <li>Vos conversations (CSV)</li>

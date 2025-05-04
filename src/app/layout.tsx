@@ -28,8 +28,8 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: 'Vynal Platform | Mise en relation freelances et clients',
-  description: 'Plateforme de mise en relation entre freelances et clients pour des services de qualité',
+  title: 'Vynal - Plateforme de services numériques',
+  description: 'Vynal est une plateforme dédiée aux services numériques proposés par des professionnels indépendants',
   keywords: 'freelance, clients, services, marketplace, gig economy',
 };
 

@@ -110,13 +110,6 @@ export default function MessagesPage() {
     (user?.role === 'freelance') ||
     (user?.user_metadata?.userRole === 'freelance');
   
-  console.log('DEBUG - User role info:', {
-    user_metadata_role: user?.user_metadata?.role,
-    user_metadata_userRole: user?.user_metadata?.userRole,
-    user_role: user?.role,
-    resolved_isFreelance: isFreelance
-  });
-  
   return (
     <ErrorBoundary fallback={
       <div className="p-6 bg-red-50 rounded-lg">
@@ -124,14 +117,17 @@ export default function MessagesPage() {
         <p className="text-red-600">Impossible de charger la messagerie. Veuillez rafraîchir la page.</p>
       </div>
     }>
-      <div className={`p-4 sm:p-6 ${fadeIn}`}>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Messagerie Freelance</h1>
-          
-          <NewConversationDialog 
-            onConversationCreated={handleConversationCreated}
-            isFreelance={isFreelance}
-          />
+      <div className={`p-0 sm:p-6 ${fadeIn}`}>
+        <div className="flex items-center justify-between px-2 mb-3">
+          <div className="flex items-center gap-2">
+            <h1 className="text-base sm:text-lg md:text-xl font-bold text-vynal-purple-light dark:text-vynal-text-primary">Messagerie Freelance</h1>
+            <NewConversationDialog 
+              onConversationCreated={handleConversationCreated}
+              isFreelance={isFreelance}
+              buttonVariant="ghost"
+              className="h-8 w-8 p-0 rounded-full bg-gradient-to-r from-pink-500/10 to-purple-500/10 text-pink-600 dark:text-pink-400 hover:text-pink-700 dark:hover:text-pink-300 hover:bg-gradient-to-r hover:from-pink-500/20 hover:to-purple-500/20"
+            />
+          </div>
         </div>
         
         <MessagingInterface 
@@ -139,6 +135,7 @@ export default function MessagesPage() {
           orderId={orderId || undefined}
           isFreelance={isFreelance}
           key={`messaging-${conversationId || orderId || 'all'}`}
+          className="w-full sm:mx-0"
         />
       </div>
     </ErrorBoundary>

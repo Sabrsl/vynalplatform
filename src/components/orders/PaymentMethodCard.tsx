@@ -2,14 +2,15 @@
 
 import Image from "next/image";
 import { CheckCircle2 } from "lucide-react";
+import { PaymentMethodType } from "@/lib/constants/payment";
 
 interface PaymentMethodCardProps {
-  id: string;
+  id: PaymentMethodType;
   name: string;
   description: string;
   logo: string;
   selected: boolean;
-  onSelect: (id: string) => void;
+  onSelect: (id: PaymentMethodType) => void;
 }
 
 export function PaymentMethodCard({

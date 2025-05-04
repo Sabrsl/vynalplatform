@@ -7,12 +7,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useRouter } from "next/navigation";
-import { Calendar as CalendarIcon, Clock, FileText, Upload, AlertCircle, ArrowRight, X } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, FileText, Upload, AlertCircle, ArrowRight, X, ArrowLeft } from "lucide-react";
 import { FileUpload } from "@/components/orders/FileUpload";
 import { supabase } from "@/lib/supabase/client";
 import { formatPrice, formatFileSize } from "@/lib/utils";
 import Image from "next/image";
-import { DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useUser } from "@/hooks/useUser";
 import { cn } from "@/lib/utils";
@@ -25,6 +24,7 @@ import { FileIcon } from "lucide-react";
 import { Loader } from "@/components/ui/loader";
 import { useForm } from "react-hook-form";
 import { Calendar } from "@/components/ui/calendar";
+import { motion } from "framer-motion";
 
 interface OrderFormProps {
   serviceId: string;
@@ -55,7 +55,6 @@ export function OrderForm({ serviceId, onClose }: OrderFormProps) {
   const [loadingService, setLoadingService] = useState(true);
   const [service, setService] = useState<ServiceData | null>(null);
   const [requirements, setRequirements] = useState("");
-  const [deliveryDate, setDeliveryDate] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [errorFading, setErrorFading] = useState(false);
@@ -66,8 +65,7 @@ export function OrderForm({ serviceId, onClose }: OrderFormProps) {
   // Setup react-hook-form
   const form = useForm({
     defaultValues: {
-      requirements: "",
-      deliveryDate: undefined as unknown as Date
+      requirements: ""
     }
   });
 
@@ -193,11 +191,6 @@ export function OrderForm({ serviceId, onClose }: OrderFormProps) {
       return;
     }
 
-    if (!data.deliveryDate) {
-      setError("Veuillez sélectionner une date de livraison souhaitée");
-      return;
-    }
-
     setSubmitting(true);
 
     try {
@@ -205,7 +198,6 @@ export function OrderForm({ serviceId, onClose }: OrderFormProps) {
       const orderData = {
         service_id: serviceId,
         requirements: data.requirements,
-        delivery_date: data.deliveryDate.toISOString(),
         has_files: files.length > 0
       };
       
@@ -256,12 +248,29 @@ export function OrderForm({ serviceId, onClose }: OrderFormProps) {
 
   return (
     <>
-      <DialogHeader className="bg-gradient-to-b from-vynal-purple-dark to-vynal-purple-darkest p-4 rounded-t-lg border-b border-vynal-purple-secondary/30">
-        <DialogTitle className="text-vynal-text-primary">Commander un service</DialogTitle>
-        <DialogDescription className="text-vynal-text-secondary">
-          Fournissez les détails pour votre commande
-        </DialogDescription>
-      </DialogHeader>
+      <motion.div 
+        className="bg-gradient-to-b from-vynal-purple-dark to-vynal-purple-darkest p-4 rounded-t-lg border-b border-vynal-purple-secondary/30"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.2 }}
+      >
+        <motion.h2 
+          className="text-lg font-semibold text-vynal-text-primary"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.1 }}
+        >
+          Détails de la commande
+        </motion.h2>
+        <motion.p 
+          className="text-sm text-vynal-text-secondary"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.2 }}
+        >
+          Remplissez les détails de votre commande
+        </motion.p>
+      </motion.div>
       
       <Form {...form}>
         <form onSubmit={onSubmit} className="space-y-6 p-4">
@@ -324,50 +333,6 @@ export function OrderForm({ serviceId, onClose }: OrderFormProps) {
                   </FormControl>
                   <FormDescription>
                     Fournissez autant de détails que possible pour une livraison réussie
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <FormField
-              control={form.control}
-              name="deliveryDate"
-              render={({ field }) => (
-                <FormItem className="flex flex-col">
-                  <FormLabel className="text-vynal-text-primary">Date de livraison souhaitée</FormLabel>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <FormControl>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            "pl-3 text-left font-normal bg-transparent border-vynal-purple-secondary/30 text-vynal-text-primary hover:bg-vynal-purple-secondary/10",
-                            !field.value && "text-muted-foreground"
-                          )}
-                        >
-                          {field.value ? (
-                            format(field.value, "PPP", { locale: fr })
-                          ) : (
-                            <span>Choisir une date</span>
-                          )}
-                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                        </Button>
-                      </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0 bg-vynal-purple-dark border-vynal-purple-secondary/30" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={field.value}
-                        onSelect={field.onChange}
-                        disabled={(date: Date) => date < new Date() || date < addDays(new Date(), service?.delivery_time || 1)}
-                        initialFocus
-                        className="bg-vynal-purple-dark text-vynal-text-primary border-vynal-purple-secondary/30"
-                      />
-                    </PopoverContent>
-                  </Popover>
-                  <FormDescription>
-                    La date la plus proche possible est dans {service?.delivery_time || 1} jour{(service?.delivery_time || 1) > 1 ? 's' : ''}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -444,33 +409,75 @@ export function OrderForm({ serviceId, onClose }: OrderFormProps) {
             </div>
           </div>
           
-          <DialogFooter className="mt-6 px-0">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={onClose}
-              className="text-vynal-text-primary hover:text-vynal-accent-primary hover:bg-vynal-purple-secondary/20"
-              disabled={submitting}
-            >
-              Annuler
-            </Button>
-            <Button 
-              type="submit" 
-              className="bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-vynal-purple-dark"
-              disabled={submitting || !form.formState.isValid}
-            >
-              {submitting ? (
-                <>
-                  <Loader className="mr-2 h-4 w-4 animate-spin" />
-                  Traitement...
-                </>
-              ) : (
-                "Continuer vers le paiement"
-              )}
-            </Button>
-          </DialogFooter>
+          <motion.div 
+            className="mt-6 px-0"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={onClose}
+                className="text-vynal-text-primary hover:text-vynal-accent-primary hover:bg-vynal-purple-secondary/20"
+                disabled={submitting}
+              >
+                Annuler
+              </Button>
+              <Button 
+                type="submit" 
+                className="bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-vynal-purple-dark"
+                disabled={submitting || !form.formState.isValid}
+              >
+                {submitting ? (
+                  <>
+                    <Loader className="mr-2 h-4 w-4 animate-spin" />
+                    Traitement...
+                  </>
+                ) : (
+                  "Continuer vers le paiement"
+                )}
+              </Button>
+            </div>
+          </motion.div>
         </form>
       </Form>
+
+      <motion.div 
+        className="flex justify-between sm:justify-between px-4 py-3 bg-vynal-purple-secondary/10 border-t border-vynal-purple-secondary/30"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.2 }}
+      >
+        <Button
+          onClick={onClose}
+          variant="ghost"
+          className="text-vynal-text-primary hover:text-vynal-accent-primary hover:bg-vynal-purple-secondary/20"
+          disabled={loading}
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Retour
+        </Button>
+        
+        <Button 
+          onClick={onSubmit}
+          className="bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-vynal-purple-dark"
+          disabled={loading}
+        >
+          {loading ? (
+            <>
+              <Loader className="mr-2 h-4 w-4 animate-spin" />
+              Traitement...
+            </>
+          ) : (
+            <>
+              Suivant
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </>
+          )}
+        </Button>
+      </motion.div>
     </>
   );
 } 

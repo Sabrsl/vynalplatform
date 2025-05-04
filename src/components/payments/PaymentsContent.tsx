@@ -79,54 +79,60 @@ export function PaymentsContent() {
   };
   
   return (
-    <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
+    <div className="space-y-4">
+      <div className="grid gap-3 md:grid-cols-3">
+        <Card className="border border-vynal-purple-secondary/10 shadow-sm hover:shadow-md transition-shadow duration-300">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 px-3 pt-3 sm:px-4 sm:pt-4">
+            <CardTitle className="text-xs sm:text-sm font-medium text-vynal-purple-light dark:text-vynal-text-primary">
               Solde du portefeuille
             </CardTitle>
-            <Wallet className="h-4 w-4 text-muted-foreground" />
+            <div className="p-1.5 rounded-full bg-gradient-to-tr from-vynal-purple-secondary/30 to-vynal-purple-secondary/20 shadow-sm">
+              <Wallet className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-vynal-purple-secondary dark:text-vynal-text-secondary" />
+            </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-3 pb-3 sm:px-4 sm:pb-4">
             {loading ? (
-              <Skeleton className="h-8 w-24" />
+              <Skeleton className="h-6 w-20" />
             ) : (
-              <div className="text-2xl font-bold">{formatCurrency(safeWallet.balance)}</div>
+              <div className="text-base sm:text-lg font-bold">{formatCurrency(safeWallet.balance)}</div>
             )}
           </CardContent>
         </Card>
         
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
+        <Card className="border border-vynal-purple-secondary/10 shadow-sm hover:shadow-md transition-shadow duration-300">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 px-3 pt-3 sm:px-4 sm:pt-4">
+            <CardTitle className="text-xs sm:text-sm font-medium text-vynal-purple-light dark:text-vynal-text-primary">
               Total des gains
             </CardTitle>
-            <ArrowDown className="h-4 w-4 text-green-500" />
+            <div className="p-1.5 rounded-full bg-gradient-to-tr from-green-200/80 to-green-100/80 shadow-sm dark:from-green-900/20 dark:to-green-800/20">
+              <ArrowDown className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-green-600 dark:text-green-400" />
+            </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-3 pb-3 sm:px-4 sm:pb-4">
             {loading ? (
-              <Skeleton className="h-8 w-24" />
+              <Skeleton className="h-6 w-20" />
             ) : (
-              <div className="text-2xl font-bold text-green-600">
+              <div className="text-base sm:text-lg font-bold text-green-600 dark:text-green-400">
                 {formatCurrency(safeWallet.total_earnings)}
               </div>
             )}
           </CardContent>
         </Card>
         
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
+        <Card className="border border-vynal-purple-secondary/10 shadow-sm hover:shadow-md transition-shadow duration-300">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 px-3 pt-3 sm:px-4 sm:pt-4">
+            <CardTitle className="text-xs sm:text-sm font-medium text-vynal-purple-light dark:text-vynal-text-primary">
               Total des retraits
             </CardTitle>
-            <ArrowUp className="h-4 w-4 text-red-500" />
+            <div className="p-1.5 rounded-full bg-gradient-to-tr from-red-200/80 to-red-100/80 shadow-sm dark:from-red-900/20 dark:to-red-800/20">
+              <ArrowUp className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-red-600 dark:text-red-400" />
+            </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-3 pb-3 sm:px-4 sm:pb-4">
             {loading ? (
-              <Skeleton className="h-8 w-24" />
+              <Skeleton className="h-6 w-20" />
             ) : (
-              <div className="text-2xl font-bold text-red-600">
+              <div className="text-base sm:text-lg font-bold text-red-600 dark:text-red-400">
                 {formatCurrency(safeWallet.total_withdrawals)}
               </div>
             )}
@@ -134,13 +140,13 @@ export function PaymentsContent() {
         </Card>
       </div>
       
-      <div className="space-y-4">
+      <div className="space-y-3">
         <Tabs defaultValue={currentTab} value={currentTab} onValueChange={handleTabChange}>
-          <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-4">
-            <TabsList>
-              <TabsTrigger value="all">Toutes les transactions</TabsTrigger>
-              <TabsTrigger value="earnings">Gains</TabsTrigger>
-              <TabsTrigger value="withdrawals">Retraits</TabsTrigger>
+          <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 mb-3">
+            <TabsList className="h-8">
+              <TabsTrigger value="all" className="text-xs px-3 py-1.5">Toutes les transactions</TabsTrigger>
+              <TabsTrigger value="earnings" className="text-xs px-3 py-1.5">Gains</TabsTrigger>
+              <TabsTrigger value="withdrawals" className="text-xs px-3 py-1.5">Retraits</TabsTrigger>
             </TabsList>
             
             <div className="w-full sm:w-auto sm:max-w-sm">
@@ -148,7 +154,7 @@ export function PaymentsContent() {
                 placeholder="Rechercher des transactions..."
                 value={search}
                 onChange={(e) => handleSearch(e.target.value)}
-                className="w-full"
+                className="w-full h-8 text-xs"
               />
             </div>
           </div>

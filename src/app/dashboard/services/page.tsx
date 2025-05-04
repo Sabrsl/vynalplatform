@@ -102,20 +102,24 @@ const StatsCard = memo(function StatsCard({
   bgClass: string;
 }) {
   return (
-    <Card className={`bg-gradient-to-br ${bgClass} border border-${bgClass.split('-')[1]}-100`}>
-      <CardContent className="p-4 flex items-center justify-between">
-        <div>
-          <p className="text-sm font-medium text-${bgClass.split('-')[1]}-600 mb-1">{title}</p>
-          <p className="text-2xl font-bold">
+    <Card className="h-full overflow-hidden rounded-2xl border border-vynal-purple-secondary/10 bg-gradient-to-br from-white to-vynal-purple-secondary/5 dark:from-vynal-purple-dark/50 dark:to-vynal-purple-dark/30 shadow-sm hover:shadow-md transition-all duration-300">
+      <CardContent className="p-3 sm:p-4">
+        <div className="flex items-center justify-between">
+          <div className="space-y-1">
+            <p className="text-xs font-medium text-vynal-purple-light dark:text-vynal-text-primary">
+              {title}
+            </p>
             {isLoading ? (
-              <Loader size="sm" variant="primary" className={`text-${bgClass.split('-')[1]}-500`} />
+              <div className="h-6 w-20 bg-vynal-purple-secondary/30 rounded animate-pulse"></div>
             ) : (
-              value
+              <p className="text-base sm:text-lg font-bold text-vynal-purple-light dark:text-vynal-text-primary">
+                {value}
+              </p>
             )}
-          </p>
-        </div>
-        <div className={`p-3 rounded-full bg-${bgClass.split('-')[1]}-100 text-${bgClass.split('-')[1]}-600`}>
-          {icon}
+          </div>
+          <div className={`p-2 rounded-full ${bgClass}`}>
+            {icon}
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -1026,44 +1030,28 @@ export default function ServicesPage() {
       <div className="mb-4 sm:mb-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-4 mb-3 sm:mb-5">
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">Mes services</h1>
-            <p className="text-slate-500 dark:text-slate-400 mt-0.5 text-xs sm:text-sm">Gérez vos prestations pour attirer plus de clients</p>
+            <h1 className="text-xs sm:text-sm md:text-base font-semibold text-slate-800 dark:text-vynal-text-primary">Mes services</h1>
+            <p className="text-[10px] sm:text-xs text-slate-600 dark:text-vynal-text-secondary/80">Gérez vos prestations pour attirer plus de clients</p>
           </div>
           
-          <div className="flex gap-2 w-full sm:w-auto mt-2 sm:mt-0">
-            <Button 
-              onClick={refreshData}
-              disabled={isRefreshing || loading}
-              variant="outline"
-              size="sm"
-              className={`bg-white dark:bg-transparent h-8 w-8 p-0 transition-colors ${Date.now() - lastRefreshTimeRef.current < MIN_REFRESH_INTERVAL ? 'opacity-50' : 'opacity-100'}`}
-              title={Date.now() - lastRefreshTimeRef.current < MIN_REFRESH_INTERVAL ? 
-                `Rafraîchissement disponible dans ${Math.ceil((MIN_REFRESH_INTERVAL - (Date.now() - lastRefreshTimeRef.current)) / 1000)} secondes` : 
-                'Rafraîchir les données'
-              }
-            >
-              {isRefreshing ? (
-                <div className="animate-spin h-3.5 w-3.5 border-2 border-indigo-600 dark:border-indigo-400 rounded-full border-t-transparent"></div>
-              ) : (
-                <RefreshCw className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
-              )}
-            </Button>
-            
-            <Button 
-              onClick={() => router.push("/dashboard/services/new")} 
-              className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 transition-all h-8 text-xs flex-grow sm:flex-grow-0 sm:text-sm"
-              disabled={!loading && profile !== null && profile !== undefined && profile.role === 'freelance' && (!profile.is_certified || profile.certification_type !== 'expert') && activeServicesCount >= 6}
-              title={!loading && profile !== null && profile !== undefined && profile.role === 'freelance' && (!profile.is_certified || profile.certification_type !== 'expert') && activeServicesCount >= 6 ? 
-                "Vous avez atteint la limite de 6 services actifs" : 
-                "Créer un nouveau service"}
-            >
-              <Plus className="mr-1.5 h-3.5 w-3.5" /> Nouveau service
-            </Button>
-          </div>
+          {services.length > 0 && (
+            <div className="w-full sm:w-auto flex justify-center sm:justify-end">
+              <Button 
+                onClick={() => router.push("/dashboard/services/new")} 
+                className="w-full sm:w-auto text-xs sm:text-sm bg-gradient-to-r from-vynal-accent-primary to-vynal-accent-secondary hover:from-vynal-accent-primary/90 hover:to-vynal-accent-secondary/90 dark:from-vynal-accent-primary dark:to-vynal-accent-secondary dark:hover:from-vynal-accent-primary/90 dark:hover:to-vynal-accent-secondary/90 transition-all duration-300 shadow-sm hover:shadow-md"
+                disabled={!loading && profile !== null && profile !== undefined && profile.role === 'freelance' && (!profile.is_certified || profile.certification_type !== 'expert') && activeServicesCount >= 6}
+                title={!loading && profile !== null && profile !== undefined && profile.role === 'freelance' && (!profile.is_certified || profile.certification_type !== 'expert') && activeServicesCount >= 6 ? 
+                  "Vous avez atteint la limite de 6 services actifs" : 
+                  "Créer un nouveau service"}
+              >
+                <Plus className="mr-1.5 h-3.5 w-3.5" /> Nouveau service
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Ajouter l'indicateur de dernière mise à jour */}
-        <div className="text-[10px] sm:text-xs text-slate-400 dark:text-slate-500 text-right">
+        <div className="text-[10px] sm:text-[10px] md:text-[10px] text-slate-500 dark:text-slate-500 text-right">
           {isRefreshing ? 'Rafraîchissement en cours...' : `Mise à jour: ${lastRefreshText}`}
         </div>
       </div>
@@ -1087,48 +1075,67 @@ export default function ServicesPage() {
 
       {/* Message d'information sur la limitation des services actifs */}
       {!loading && profile && profile.role === 'freelance' && (!profile.is_certified || profile.certification_type !== 'expert') && (
-        <div className="mb-3 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-400 rounded-lg flex items-start gap-2">
-          <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-500 mt-0.5 flex-shrink-0" />
+        <div className="mb-3 p-2 sm:p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-400 rounded-lg flex items-start gap-2">
+          <AlertCircle className="h-3 w-3 text-amber-600 dark:text-amber-500 mt-0.5 flex-shrink-0" />
           <div>
-            <p className="font-medium text-sm">Limitation des services actifs</p>
-            <p className="text-xs">Sans certification expert, vous êtes limité à 6 services actifs maximum. Actuellement, vous avez {activeServicesCount} service{activeServicesCount > 1 ? 's' : ''} actif{activeServicesCount > 1 ? 's' : ''}. Pour supprimer cette limitation, obtenez une certification expert.</p>
+            <p className="text-[10px] sm:text-xs font-medium text-amber-800 dark:text-amber-400">Limitation des services actifs</p>
+            <p className="text-[8px] sm:text-[10px] text-amber-700 dark:text-amber-400">Sans certification expert, vous êtes limité à 6 services actifs maximum. Actuellement, vous avez {activeServicesCount} service{activeServicesCount > 1 ? 's' : ''} actif{activeServicesCount > 1 ? 's' : ''}. Pour supprimer cette limitation, obtenez une certification expert.</p>
           </div>
         </div>
       )}
 
-      {/* Onglets de filtrage avec optimisation des callbacks */}
+      {/* Onglets de filtrage et bouton d'actualisation */}
       {services.length > 0 && (
-        <div className="flex border-b border-slate-200 dark:border-slate-700 mb-4 sm:mb-5 overflow-x-auto no-scrollbar">
-          <button
-            onClick={() => handleTabChange('all')}
-            className={`pb-1.5 sm:pb-2 px-2 sm:px-4 text-xs sm:text-sm font-medium whitespace-nowrap ${
-              activeTab === 'all'
-                ? 'text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600 dark:border-indigo-400'
-                : 'text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400'
-            }`}
+        <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 mb-4 sm:mb-5">
+          <div className="flex overflow-x-auto no-scrollbar gap-1">
+            <button
+              onClick={() => handleTabChange('all')}
+              className={`pb-1.5 sm:pb-2 px-2 sm:px-4 text-[10px] sm:text-xs font-medium whitespace-nowrap transition-colors duration-200 ${
+                activeTab === 'all'
+                  ? 'text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600 dark:border-indigo-400'
+                  : 'text-slate-700 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400'
+              }`}
+            >
+              Tous ({totalServices})
+            </button>
+            <button
+              onClick={() => handleTabChange('active')}
+              className={`pb-1.5 sm:pb-2 px-2 sm:px-4 text-[10px] sm:text-xs font-medium whitespace-nowrap transition-colors duration-200 ${
+                activeTab === 'active'
+                  ? 'text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600 dark:border-indigo-400'
+                  : 'text-slate-700 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400'
+              }`}
+            >
+              Actifs ({activeServicesCount})
+            </button>
+            <button
+              onClick={() => handleTabChange('inactive')}
+              className={`pb-1.5 sm:pb-2 px-2 sm:px-4 text-[10px] sm:text-xs font-medium whitespace-nowrap transition-colors duration-200 ${
+                activeTab === 'inactive'
+                  ? 'text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600 dark:border-indigo-400'
+                  : 'text-slate-700 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400'
+              }`}
+            >
+              Inactifs ({inactiveServicesCount})
+            </button>
+          </div>
+          <Button 
+            onClick={refreshData}
+            disabled={isRefreshing || loading}
+            variant="outline"
+            size="sm"
+            className={`bg-white dark:bg-transparent h-8 w-8 p-0 transition-colors duration-200 ${Date.now() - lastRefreshTimeRef.current < MIN_REFRESH_INTERVAL ? 'opacity-50' : 'opacity-100'}`}
+            title={Date.now() - lastRefreshTimeRef.current < MIN_REFRESH_INTERVAL ? 
+              `Rafraîchissement disponible dans ${Math.ceil((MIN_REFRESH_INTERVAL - (Date.now() - lastRefreshTimeRef.current)) / 1000)} secondes` : 
+              'Rafraîchir les données'
+            }
           >
-            Tous ({totalServices})
-          </button>
-          <button
-            onClick={() => handleTabChange('active')}
-            className={`pb-1.5 sm:pb-2 px-2 sm:px-4 text-xs sm:text-sm font-medium whitespace-nowrap ${
-              activeTab === 'active'
-                ? 'text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600 dark:border-indigo-400'
-                : 'text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400'
-            }`}
-          >
-            Actifs ({activeServicesCount})
-          </button>
-          <button
-            onClick={() => handleTabChange('inactive')}
-            className={`pb-1.5 sm:pb-2 px-2 sm:px-4 text-xs sm:text-sm font-medium whitespace-nowrap ${
-              activeTab === 'inactive'
-                ? 'text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600 dark:border-indigo-400'
-                : 'text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400'
-            }`}
-          >
-            Inactifs ({inactiveServicesCount})
-          </button>
+            {isRefreshing ? (
+              <div className="animate-spin h-3.5 w-3.5 border-2 border-indigo-600 dark:border-indigo-400 rounded-full border-t-transparent"></div>
+            ) : (
+              <RefreshCw className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+            )}
+          </Button>
         </div>
       )}
 
@@ -1147,9 +1154,13 @@ export default function ServicesPage() {
             <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mb-5 sm:mb-6 text-center max-w-md">Créez votre premier service pour mettre en valeur vos compétences</p>
             <Button 
               onClick={() => router.push("/dashboard/services/new")} 
-              className="w-full sm:w-auto text-xs sm:text-sm bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 transition-all"
+              className="w-full sm:w-auto text-xs sm:text-sm bg-gradient-to-r from-vynal-accent-primary to-vynal-accent-secondary hover:from-vynal-accent-primary/90 hover:to-vynal-accent-secondary/90 dark:from-vynal-accent-primary dark:to-vynal-accent-secondary dark:hover:from-vynal-accent-primary/90 dark:hover:to-vynal-accent-secondary/90 transition-all duration-300 shadow-sm hover:shadow-md"
+              disabled={!loading && profile !== null && profile !== undefined && profile.role === 'freelance' && (!profile.is_certified || profile.certification_type !== 'expert') && activeServicesCount >= 6}
+              title={!loading && profile !== null && profile !== undefined && profile.role === 'freelance' && (!profile.is_certified || profile.certification_type !== 'expert') && activeServicesCount >= 6 ? 
+                "Vous avez atteint la limite de 6 services actifs" : 
+                "Créer un nouveau service"}
             >
-              <Plus className="mr-1.5 h-3.5 w-3.5" /> Créer mon premier service
+              <Plus className="mr-1.5 h-3.5 w-3.5" /> Nouveau service
             </Button>
           </div>
         </div>

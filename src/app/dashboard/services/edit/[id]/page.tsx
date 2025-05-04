@@ -376,32 +376,42 @@ export default function EditServicePage() {
       <div className="flex items-center mb-6">
         <Button 
           variant="ghost" 
-          onClick={() => router.push(`/dashboard/services/${serviceId}`)} 
-          className="mr-4"
+          onClick={() => router.push("/dashboard/services")} 
+          className="mr-4 text-vynal-purple-dark hover:text-vynal-purple-dark/80 dark:text-vynal-text-primary"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
           Retour
         </Button>
-        <h1 className="text-3xl font-bold tracking-tight">Modifier le service</h1>
+        <h1 className="text-xs sm:text-sm md:text-base font-semibold text-vynal-purple-dark dark:text-vynal-text-primary">Modifier le service</h1>
       </div>
       
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-800 p-4 rounded-lg mb-6 flex gap-2 items-start">
-          <AlertCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
-          <p>{error}</p>
+        <div className="bg-red-50 border border-red-200 text-red-900 p-4 rounded-lg mb-6 flex gap-2 items-start">
+          <AlertCircle className="h-3 w-3 text-red-600 mt-0.5 flex-shrink-0" />
+          <p className="text-[10px] sm:text-xs text-red-900">{error}</p>
         </div>
       )}
 
       <form onSubmit={handleSubmit}>
         <div className="grid gap-6 md:grid-cols-2">
-          <Card className="md:col-span-1">
+          {profile && !profile.is_certified && profile.role === 'freelance' && (
+            <div className="md:col-span-2 mb-2 p-2 sm:p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-400 rounded-lg flex items-start gap-2">
+              <AlertCircle className="h-3 w-3 text-amber-600 dark:text-amber-500 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-[10px] sm:text-xs font-medium text-amber-900 dark:text-amber-400">Limitation des services actifs</p>
+                <p className="text-[8px] sm:text-[10px] text-amber-800 dark:text-amber-400">Sans certification expert, vous êtes limité à 6 services actifs maximum. Pour supprimer cette limitation, obtenez une certification expert.</p>
+              </div>
+            </div>
+          )}
+          
+          <Card className="md:col-span-1 border-slate-200/50 dark:border-slate-800/50">
             <CardHeader>
-              <CardTitle>Informations générales</CardTitle>
-              <CardDescription>Définissez les informations principales de votre service</CardDescription>
+              <CardTitle className="text-xs sm:text-sm md:text-base font-semibold text-vynal-purple-dark dark:text-vynal-text-primary">Informations générales</CardTitle>
+              <CardDescription className="text-[10px] sm:text-xs text-vynal-purple-dark/80 dark:text-vynal-text-secondary">Définissez les informations principales de votre service</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="title">Titre du service *</Label>
+                <Label htmlFor="title" className="text-[10px] sm:text-xs text-vynal-purple-dark dark:text-vynal-text-primary">Titre du service *</Label>
                 <Input
                   id="title"
                   name="title"
@@ -410,14 +420,15 @@ export default function EditServicePage() {
                   placeholder="Ex: Je vais créer un logo professionnel pour votre entreprise"
                   maxLength={100}
                   required
+                  className="text-[10px] sm:text-xs text-vynal-purple-dark dark:text-vynal-text-primary"
                 />
-                <p className="text-xs text-gray-500">
+                <p className="text-[8px] sm:text-[10px] text-vynal-purple-dark/80 dark:text-vynal-text-secondary">
                   {formData.title.length}/100 caractères
                 </p>
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="description">Description *</Label>
+                <Label htmlFor="description" className="text-[10px] sm:text-xs text-vynal-purple-dark dark:text-vynal-text-primary">Description *</Label>
                 <Textarea
                   id="description"
                   name="description"
@@ -427,15 +438,16 @@ export default function EditServicePage() {
                   rows={8}
                   maxLength={10000}
                   required
+                  className="text-[10px] sm:text-xs text-vynal-purple-dark dark:text-vynal-text-primary"
                 />
-                <p className="text-xs text-gray-500">
+                <p className="text-[8px] sm:text-[10px] text-vynal-purple-dark/80 dark:text-vynal-text-secondary">
                   {formData.description.length}/10000 caractères (minimum 3000 caractères requis)
                 </p>
               </div>
               
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="price">Prix (FCFA) *</Label>
+                  <Label htmlFor="price" className="text-[10px] sm:text-xs text-vynal-purple-dark dark:text-vynal-text-primary">Prix (FCFA) *</Label>
                   <Input
                     id="price"
                     name="price"
@@ -443,11 +455,15 @@ export default function EditServicePage() {
                     onChange={handleChange}
                     placeholder="Ex: 5000"
                     required
+                    className="text-[10px] sm:text-xs text-vynal-purple-dark dark:text-vynal-text-primary"
                   />
+                  <p className="text-[8px] sm:text-[10px] text-vynal-purple-dark/80 dark:text-vynal-text-secondary">
+                    Prix minimum: 1000 FCFA
+                  </p>
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="delivery_time">Délai de livraison (jours) *</Label>
+                  <Label htmlFor="delivery_time" className="text-[10px] sm:text-xs text-vynal-purple-dark dark:text-vynal-text-primary">Délai de livraison (jours) *</Label>
                   <Input
                     id="delivery_time"
                     name="delivery_time"
@@ -455,22 +471,23 @@ export default function EditServicePage() {
                     onChange={handleChange}
                     placeholder="Ex: 3"
                     required
+                    className="text-[10px] sm:text-xs text-vynal-purple-dark dark:text-vynal-text-primary"
                   />
                 </div>
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="category_id">Catégorie *</Label>
+                <Label htmlFor="category_id" className="text-[10px] sm:text-xs text-vynal-purple-dark dark:text-vynal-text-primary">Catégorie *</Label>
                 <Select
                   value={formData.category_id}
                   onValueChange={(value) => handleSelectChange("category_id", value)}
                 >
-                  <SelectTrigger id="category_id" className="w-full">
+                  <SelectTrigger id="category_id" className="w-full text-[10px] sm:text-xs text-vynal-purple-dark dark:text-vynal-text-primary">
                     <SelectValue placeholder="Sélectionnez une catégorie" />
                   </SelectTrigger>
                   <SelectContent>
                     {categories.map((category) => (
-                      <SelectItem key={category.id} value={category.id}>
+                      <SelectItem key={category.id} value={category.id} className="text-[10px] sm:text-xs text-vynal-purple-dark dark:text-vynal-text-primary">
                         {category.name}
                       </SelectItem>
                     ))}
@@ -480,17 +497,18 @@ export default function EditServicePage() {
               
               {subcategoriesForSelected.length > 0 && (
                 <div className="space-y-2">
-                  <Label htmlFor="subcategory_id">Sous-catégorie</Label>
+                  <Label htmlFor="subcategory_id" className="text-[10px] sm:text-xs text-vynal-purple-dark dark:text-vynal-text-primary">Sous-catégorie *</Label>
                   <Select
                     value={formData.subcategory_id}
                     onValueChange={(value) => handleSelectChange("subcategory_id", value)}
+                    required
                   >
-                    <SelectTrigger id="subcategory_id" className="w-full">
+                    <SelectTrigger id="subcategory_id" className="w-full text-[10px] sm:text-xs text-vynal-purple-dark dark:text-vynal-text-primary">
                       <SelectValue placeholder="Sélectionnez une sous-catégorie" />
                     </SelectTrigger>
                     <SelectContent>
                       {subcategoriesForSelected.map((subcategory) => (
-                        <SelectItem key={subcategory.id} value={subcategory.id}>
+                        <SelectItem key={subcategory.id} value={subcategory.id} className="text-[10px] sm:text-xs text-vynal-purple-dark dark:text-vynal-text-primary">
                           {subcategory.name}
                         </SelectItem>
                       ))}
@@ -498,57 +516,34 @@ export default function EditServicePage() {
                   </Select>
                 </div>
               )}
-              
-              <div className="space-y-2">
-                <Label htmlFor="active">Statut</Label>
-                <Select
-                  value={typeof formData.active === 'boolean' ? (formData.active ? "true" : "false") : formData.active as string}
-                  onValueChange={(value) => handleSelectChange("active", value === "true")}
-                >
-                  <SelectTrigger id="active" className="w-full">
-                    <SelectValue placeholder="Statut du service" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="true">Actif</SelectItem>
-                    <SelectItem value="false">Inactif</SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-gray-500">
-                  Un service inactif ne sera pas visible par les clients
-                </p>
-              </div>
             </CardContent>
           </Card>
           
-          <Card className="md:col-span-1">
+          <Card className="md:col-span-1 border-slate-200/50 dark:border-slate-800/50">
             <CardHeader>
-              <CardTitle>Images</CardTitle>
-              <CardDescription>Ajoutez ou modifiez les images de votre service (1 à 3 images)</CardDescription>
+              <CardTitle className="text-xs sm:text-sm md:text-base font-semibold text-vynal-purple-dark dark:text-vynal-text-primary">Images</CardTitle>
+              <CardDescription className="text-[10px] sm:text-xs text-vynal-purple-dark/80 dark:text-vynal-text-secondary">Ajoutez des images représentatives de votre service (1 à 3 images)</CardDescription>
             </CardHeader>
             <CardContent>
-              <ServiceImageUploader 
-                serviceId={serviceId} 
-                initialImages={images} 
-                onImagesChange={setImages} 
-              />
+              <ServiceImageUploader onImagesChange={setImages} />
             </CardContent>
           </Card>
           
-          <Card className="md:col-span-2">
+          <Card className="md:col-span-2 border-slate-200/50 dark:border-slate-800/50">
             <CardContent className="pt-6">
               <div className="flex justify-end">
                 <Button 
                   type="submit" 
                   disabled={isSubmitting}
-                  className="w-full sm:w-auto"
+                  className="w-full sm:w-auto text-[10px] sm:text-xs text-white hover:text-white/80"
                 >
                   {isSubmitting ? (
                     <>
                       <Loader size="xs" variant="white" className="mr-2" />
-                      Mise à jour du service...
+                      Modification du service...
                     </>
                   ) : (
-                    "Mettre à jour le service"
+                    "Modifier le service"
                   )}
                 </Button>
               </div>

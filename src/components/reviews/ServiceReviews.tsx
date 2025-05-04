@@ -113,7 +113,7 @@ const ServiceReviews = ({ serviceId, initialReviews }: ServiceReviewsProps) => {
         {[1, 2, 3, 4, 5].map((star) => (
           <Star 
             key={star} 
-            className={`h-3.5 w-3.5 ${star <= rating ? "text-vynal-accent-primary fill-vynal-accent-primary" : "text-vynal-purple-secondary/50 fill-transparent"}`} 
+            className={`h-3 w-3 ${star <= rating ? "text-vynal-accent-primary fill-vynal-accent-primary" : "text-vynal-purple-secondary/50 fill-transparent"}`} 
           />
         ))}
       </div>
@@ -127,8 +127,8 @@ const ServiceReviews = ({ serviceId, initialReviews }: ServiceReviewsProps) => {
   if (loading) {
     return (
       <div className="py-4">
-        <h2 className="text-base font-medium text-vynal-text-primary mb-3 flex items-center">
-          <MessageSquare className="h-4 w-4 mr-1.5 text-vynal-accent-primary" />
+        <h2 className="text-xs sm:text-sm font-medium text-vynal-title mb-2 flex items-center">
+          <MessageSquare className="h-3 w-3 mr-1 text-vynal-accent-primary" />
           Avis clients
         </h2>
         <div className="space-y-4">
@@ -142,8 +142,8 @@ const ServiceReviews = ({ serviceId, initialReviews }: ServiceReviewsProps) => {
   if (error) {
     return (
       <div className="py-4">
-        <h2 className="text-base font-medium text-vynal-text-primary mb-3 flex items-center">
-          <MessageSquare className="h-4 w-4 mr-1.5 text-vynal-accent-primary" />
+        <h2 className="text-xs sm:text-sm font-medium text-vynal-title mb-2 flex items-center">
+          <MessageSquare className="h-3 w-3 mr-1 text-vynal-accent-primary" />
           Avis clients
         </h2>
         <Card className="backdrop-blur-md bg-vynal-purple-dark/90 border-vynal-purple-secondary/40 rounded-xl">
@@ -159,8 +159,8 @@ const ServiceReviews = ({ serviceId, initialReviews }: ServiceReviewsProps) => {
   if (reviews.length === 0) {
     return (
       <div className="py-4">
-        <h2 className="text-base font-medium text-vynal-title mb-3 flex items-center">
-          <MessageSquare className="h-4 w-4 mr-1.5 text-vynal-accent-primary" />
+        <h2 className="text-xs sm:text-sm font-medium text-vynal-title mb-2 flex items-center">
+          <MessageSquare className="h-3 w-3 mr-1 text-vynal-accent-primary" />
           Avis clients
         </h2>
         <Card className={cn(
@@ -192,12 +192,12 @@ const ServiceReviews = ({ serviceId, initialReviews }: ServiceReviewsProps) => {
     return (
       <div className="space-y-5 lg:space-y-4">
         {reviewsList.map((review) => (
-          <Card key={review.id} className="backdrop-blur-md bg-vynal-purple-dark/90 border-vynal-purple-secondary/40 rounded-xl overflow-hidden">
-            <CardContent className="p-5 lg:p-4">
-              <div className="flex items-start gap-3">
-                <Avatar className="h-10 w-10 border border-vynal-purple-secondary/30">
+          <Card key={review.id} className="backdrop-blur-md bg-vynal-purple-dark/90 border-vynal-purple-secondary/40 rounded-lg overflow-hidden">
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex items-start gap-2">
+                <Avatar className="h-7 w-7 sm:h-8 sm:w-8 border border-vynal-purple-secondary/30">
                   <AvatarImage src={review.client?.avatar_url || undefined} />
-                  <AvatarFallback className="bg-vynal-accent-primary text-vynal-purple-dark">
+                  <AvatarFallback className="bg-vynal-accent-primary text-vynal-purple-dark text-[8px] sm:text-[10px]">
                     {(review.client?.username || review.client?.full_name || 'C')
                       .charAt(0)
                       .toUpperCase()}
@@ -206,19 +206,19 @@ const ServiceReviews = ({ serviceId, initialReviews }: ServiceReviewsProps) => {
                 <div className="flex-1">
                   <div className="flex justify-between items-start">
                     <div>
-                      <p className="font-medium text-sm text-vynal-text-primary">
+                      <p className="font-medium text-[10px] sm:text-xs text-vynal-text-primary">
                         {review.client?.full_name || review.client?.username || "Client"}
                       </p>
-                      <div className="flex items-center mt-1">
+                      <div className="flex items-center mt-0.5">
                         {renderStars(review.rating)}
-                        <span className="text-xs text-vynal-text-secondary ml-2">
+                        <span className="text-[8px] sm:text-[9px] text-vynal-text-secondary ml-1">
                           {formatDate(review.created_at)}
                         </span>
                       </div>
                     </div>
                   </div>
                   
-                  <p className="mt-2 text-sm text-vynal-text-secondary leading-relaxed">
+                  <p className="mt-1.5 text-[8px] sm:text-[10px] text-vynal-text-secondary leading-relaxed">
                     {review.comment || "Aucun commentaire"}
                   </p>
                   
@@ -239,8 +239,8 @@ const ServiceReviews = ({ serviceId, initialReviews }: ServiceReviewsProps) => {
   return (
     <div className="py-4">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-base font-medium text-vynal-text-primary flex items-center">
-          <MessageSquare className="h-4 w-4 mr-1.5 text-vynal-accent-primary" />
+        <h2 className="text-xs sm:text-sm font-medium text-vynal-title mb-2 flex items-center">
+          <MessageSquare className="h-3 w-3 mr-1 text-vynal-accent-primary" />
           Avis clients ({reviews.length})
         </h2>
         

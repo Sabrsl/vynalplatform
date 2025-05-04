@@ -52,10 +52,10 @@ const ConversationList: React.FC<ConversationListProps> = ({
   return (
     <div className="flex flex-col h-full bg-white dark:bg-gray-950">
       {/* En-tête avec titre et barre de recherche */}
-      <div className="p-4 border-b border-gray-200 dark:border-gray-800 bg-gradient-to-r from-pink-600 to-purple-600 text-white">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold">
-            {isFreelance ? "Clients" : "Freelances"}
+      <div className="p-3 border-b border-gray-200 dark:border-gray-800 bg-gradient-to-r from-pink-600 to-purple-600 text-white">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-semibold">
+            {isFreelance ? "" : "Freelances"}
           </h2>
         </div>
         
@@ -66,7 +66,7 @@ const ConversationList: React.FC<ConversationListProps> = ({
             placeholder="Rechercher une conversation..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-full text-sm text-gray-900 bg-white/90 focus:bg-white border-none focus:ring-2 focus:ring-white/50 placeholder-gray-500"
+            className="w-full pl-10 pr-4 py-2 rounded-full text-xs text-gray-900 bg-white/90 focus:bg-white border-none focus:ring-2 focus:ring-white/50 placeholder-gray-500"
           />
         </div>
       </div>
@@ -75,13 +75,13 @@ const ConversationList: React.FC<ConversationListProps> = ({
       <div className="flex-1 overflow-y-auto no-scrollbar">
         {filteredConversations.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full p-6 text-center">
-            <div className="bg-pink-100 dark:bg-pink-900/30 rounded-full p-4 mb-3">
-              <MessagesSquare className="h-8 w-8 text-pink-600 dark:text-pink-400" />
+            <div className="bg-pink-100 dark:bg-pink-900/30 rounded-full p-3 mb-2">
+              <MessagesSquare className="h-6 w-6 text-pink-600 dark:text-pink-400" />
             </div>
-            <h3 className="text-lg font-semibold mb-1 text-gray-800 dark:text-gray-200">
+            <h3 className="text-base font-semibold mb-1 text-gray-800 dark:text-gray-200">
               {searchTerm ? "Aucun résultat" : "Aucune conversation"}
             </h3>
-            <p className="text-gray-500 dark:text-gray-400 text-sm max-w-xs">
+            <p className="text-gray-500 dark:text-gray-400 text-xs max-w-xs">
               {searchTerm 
                 ? "Essayez avec un autre terme de recherche" 
                 : "Aucune conversation disponible pour le moment"}
@@ -119,10 +119,10 @@ const ConversationList: React.FC<ConversationListProps> = ({
                   `}
                   onClick={() => onSelectConversation(conversation.id)}
                 >
-                  <div className="flex items-center p-4">
+                  <div className="flex items-center p-3">
                     {/* Avatar avec indicateur de statut */}
                     <div className="relative flex-shrink-0">
-                      <Avatar className="h-12 w-12 border border-gray-200 dark:border-gray-700">
+                      <Avatar className="h-10 w-10 border border-gray-200 dark:border-gray-700">
                         <AvatarImage 
                           src={otherParticipant?.avatar_url || ''} 
                           alt={otherParticipant?.full_name || otherParticipant?.username || 'Contact'} 
@@ -150,7 +150,7 @@ const ConversationList: React.FC<ConversationListProps> = ({
                       </div>
                       
                       <div className="flex justify-between items-center mt-1">
-                        <p className={`text-sm truncate ${
+                        <p className={`text-xs truncate ${
                           unreadCount > 0 
                             ? 'text-gray-900 dark:text-gray-100 font-medium' 
                             : 'text-gray-500 dark:text-gray-400'
@@ -159,7 +159,7 @@ const ConversationList: React.FC<ConversationListProps> = ({
                         </p>
                         
                         {unreadCount > 0 && (
-                          <span className="ml-2 bg-pink-600 text-white text-xs font-medium rounded-full h-5 min-w-5 inline-flex items-center justify-center px-1.5">
+                          <span className="ml-2 bg-pink-600 text-white text-xs font-medium rounded-full h-4 min-w-4 inline-flex items-center justify-center px-1">
                             {unreadCount > 99 ? '99+' : unreadCount}
                           </span>
                         )}

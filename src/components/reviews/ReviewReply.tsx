@@ -90,7 +90,7 @@ export default function ReviewReplyComponent({ reviewId, freelanceId }: ReviewRe
   if (!isOwner && !reply) return null;
 
   return (
-    <div className="mt-4 pl-4 border-l-2 border-vynal-purple-secondary/30">
+    <div className="mt-3 pl-3 border-l border-vynal-purple-secondary/30">
       {reply ? (
         <>
           {isEditing ? (
@@ -99,34 +99,36 @@ export default function ReviewReplyComponent({ reviewId, freelanceId }: ReviewRe
                 value={replyContent}
                 onChange={(e) => setReplyContent(e.target.value)}
                 placeholder="Votre réponse"
-                className="min-h-[100px] bg-vynal-purple-secondary/10"
+                className="min-h-[80px] text-[10px] sm:text-xs bg-vynal-purple-secondary/10"
               />
               <div className="flex gap-2">
                 <Button 
                   size="sm" 
-                  variant="default" 
+                  variant="default"
+                  className="text-[8px] sm:text-[10px] h-7"
                   onClick={handleUpdate}
                   disabled={isLoading}
                 >
-                  <Save className="h-4 w-4 mr-1" />
+                  <Save className="h-3 w-3 mr-1" />
                   Enregistrer
                 </Button>
                 <Button 
                   size="sm" 
-                  variant="outline" 
+                  variant="outline"
+                  className="text-[8px] sm:text-[10px] h-7"
                   onClick={cancelEditing}
                   disabled={isLoading}
                 >
-                  <X className="h-4 w-4 mr-1" />
+                  <X className="h-3 w-3 mr-1" />
                   Annuler
                 </Button>
               </div>
             </div>
           ) : (
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center text-vynal-accent-primary text-sm">
-                  <MessageSquare className="h-3.5 w-3.5 mr-1" />
+              <div className="flex items-center justify-between mb-1.5">
+                <div className="flex items-center text-vynal-accent-primary text-[9px] sm:text-[10px]">
+                  <MessageSquare className="h-2.5 w-2.5 mr-1" />
                   <span>Réponse du freelance · {formatDate(reply.created_at)}</span>
                 </div>
                 {isOwner && (
@@ -134,23 +136,23 @@ export default function ReviewReplyComponent({ reviewId, freelanceId }: ReviewRe
                     <Button 
                       size="icon" 
                       variant="ghost" 
-                      className="h-7 w-7 text-vynal-text-secondary hover:text-vynal-accent-primary"
+                      className="h-5 w-5 text-vynal-text-secondary hover:text-vynal-accent-primary"
                       onClick={startEditing}
                     >
-                      <Edit className="h-3.5 w-3.5" />
+                      <Edit className="h-2.5 w-2.5" />
                     </Button>
                     <Button 
                       size="icon" 
                       variant="ghost" 
-                      className="h-7 w-7 text-vynal-text-secondary hover:text-red-500"
+                      className="h-5 w-5 text-vynal-text-secondary hover:text-red-500"
                       onClick={handleDelete}
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
+                      <Trash2 className="h-2.5 w-2.5" />
                     </Button>
                   </div>
                 )}
               </div>
-              <p className="text-vynal-text-secondary text-sm leading-relaxed">{reply.content}</p>
+              <p className="text-vynal-text-secondary text-[8px] sm:text-[10px] leading-relaxed">{reply.content}</p>
             </div>
           )}
         </>
@@ -160,15 +162,16 @@ export default function ReviewReplyComponent({ reviewId, freelanceId }: ReviewRe
             value={replyContent}
             onChange={(e) => setReplyContent(e.target.value)}
             placeholder="Répondez à cet avis..."
-            className="min-h-[100px] bg-vynal-purple-secondary/10"
+            className="min-h-[80px] text-[10px] sm:text-xs bg-vynal-purple-secondary/10"
           />
           <Button 
             size="sm" 
-            variant="default" 
+            variant="default"
+            className="text-[8px] sm:text-[10px] h-7"
             onClick={handleSubmit}
             disabled={isLoading || !replyContent.trim()}
           >
-            <MessageSquare className="h-4 w-4 mr-1" />
+            <MessageSquare className="h-3 w-3 mr-1" />
             Répondre
           </Button>
         </div>

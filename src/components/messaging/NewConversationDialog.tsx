@@ -107,9 +107,13 @@ const NewConversationDialog: React.FC<NewConversationDialogProps> = ({
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button variant={buttonVariant} className={className}>
-          <Plus className="mr-2 h-4 w-4" />
-          Nouvelle conversation
+        <Button 
+          variant={buttonVariant} 
+          size="icon"
+          className={`shadow-sm hover:shadow-md transition-all duration-200 ${className}`}
+          title="Nouvelle conversation"
+        >
+          <Plus className="h-4 w-4" />
         </Button>
       </DialogTrigger>
       

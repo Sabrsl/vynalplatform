@@ -1,14 +1,14 @@
 "use client";
 
-import { useDashboard } from "@/hooks/useDashboard";
+import { useDashboard, Activity } from "@/hooks/useDashboard";
 import { useAuth } from "@/hooks/useAuth";
 import { useUser } from "@/hooks/useUser";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
-  ArrowUpRight, FileText, Clock, Activity, Eye, 
+  ArrowUpRight, FileText, Clock, Activity as LucideActivity, Eye, 
   CreditCard, MessageCircle, Bell, Package, Mail,
   ShoppingCart, Star, AlertTriangle, Upload, MessageSquare, CheckCircle,
-  Zap, Users, RefreshCw
+  Zap, Users, RefreshCw, Wallet, ArrowDown, ArrowUp
 } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
 import Link from "next/link";
@@ -29,34 +29,44 @@ interface FreelanceStats {
 // Constantes pour les couleurs et icônes - définis hors du composant pour éviter les recréations
 const STAT_CARD_STYLES = {
   activeOrders: {
-    iconBgClass: "bg-green-100 dark:bg-green-900/20",
+    iconBgClass: "bg-gradient-to-tr from-green-200/80 to-green-100/80 shadow-sm dark:from-green-900/20 dark:to-green-800/20",
     iconTextClass: "text-green-600 dark:text-green-400",
     subtitleBgClass: "bg-green-50 dark:bg-green-900/30",
-    subtitleTextClass: "text-green-700 dark:text-green-400"
+    subtitleTextClass: "text-green-700 dark:text-green-400",
+    cardBgClass: "bg-gradient-to-br from-white to-green-50/50 dark:from-vynal-purple-dark/50 dark:to-green-900/20",
+    valueTextClass: "text-green-600 dark:text-green-400"
   },
   unreadMessages: {
-    iconBgClass: "bg-blue-100 dark:bg-blue-900/20",
+    iconBgClass: "bg-gradient-to-tr from-blue-200/80 to-blue-100/80 shadow-sm dark:from-blue-900/20 dark:to-blue-800/20",
     iconTextClass: "text-blue-600 dark:text-blue-400",
     subtitleBgClass: "bg-blue-50 dark:bg-blue-900/30",
-    subtitleTextClass: "text-blue-700 dark:text-blue-400"
+    subtitleTextClass: "text-blue-700 dark:text-blue-400",
+    cardBgClass: "bg-gradient-to-br from-white to-blue-50/50 dark:from-vynal-purple-dark/50 dark:to-blue-900/20",
+    valueTextClass: "text-blue-600 dark:text-blue-400"
   },
   pendingDeliveries: {
-    iconBgClass: "bg-amber-100 dark:bg-amber-900/20",
+    iconBgClass: "bg-gradient-to-tr from-amber-200/80 to-amber-100/80 shadow-sm dark:from-amber-900/20 dark:to-amber-800/20",
     iconTextClass: "text-amber-600 dark:text-amber-400",
     subtitleBgClass: "bg-amber-50 dark:bg-amber-900/30",
-    subtitleTextClass: "text-amber-700 dark:text-amber-400"
+    subtitleTextClass: "text-amber-700 dark:text-amber-400",
+    cardBgClass: "bg-gradient-to-br from-white to-amber-50/50 dark:from-vynal-purple-dark/50 dark:to-amber-900/20",
+    valueTextClass: "text-amber-600 dark:text-amber-400"
   },
   totalEarnings: {
-    iconBgClass: "bg-purple-100 dark:bg-purple-900/20",
+    iconBgClass: "bg-gradient-to-tr from-purple-200/80 to-purple-100/80 shadow-sm dark:from-purple-900/20 dark:to-purple-800/20",
     iconTextClass: "text-purple-600 dark:text-purple-400",
     subtitleBgClass: "bg-purple-50 dark:bg-purple-900/30",
-    subtitleTextClass: "text-purple-700 dark:text-purple-400"
+    subtitleTextClass: "text-purple-700 dark:text-purple-400",
+    cardBgClass: "bg-gradient-to-br from-white to-purple-50/50 dark:from-vynal-purple-dark/50 dark:to-purple-900/20",
+    valueTextClass: "text-purple-600 dark:text-purple-400"
   },
   servicesCount: {
-    iconBgClass: "bg-rose-100 dark:bg-rose-900/20",
+    iconBgClass: "bg-gradient-to-tr from-rose-200/80 to-rose-100/80 shadow-sm dark:from-rose-900/20 dark:to-rose-800/20",
     iconTextClass: "text-rose-600 dark:text-rose-400",
     subtitleBgClass: "bg-rose-50 dark:bg-rose-900/30",
-    subtitleTextClass: "text-rose-700 dark:text-rose-400"
+    subtitleTextClass: "text-rose-700 dark:text-rose-400",
+    cardBgClass: "bg-gradient-to-br from-white to-rose-50/50 dark:from-vynal-purple-dark/50 dark:to-rose-900/20",
+    valueTextClass: "text-rose-600 dark:text-rose-400"
   }
 };
 
@@ -68,109 +78,98 @@ const STAT_CARD_ICONS = {
   servicesCount: FileText
 };
 
-// Composant memoïsé pour les cartes de statistiques
-const StatCard = memo(({ 
-  title, 
-  value, 
-  icon: Icon, 
-  iconBgClass, 
-  iconTextClass, 
-  subtitleText, 
-  subtitleBgClass,
-  subtitleTextClass,
-  isLoading
-}: {
-  title: string;
-  value: number | string;
-  icon: React.ElementType;
-  iconBgClass: string;
-  iconTextClass: string;
-  subtitleText: string;
-  subtitleBgClass?: string;
-  subtitleTextClass?: string;
-  isLoading: boolean;
-}) => (
-  <Card className="overflow-hidden border border-vynal-accent-primary/20 shadow-sm bg-white relative before:absolute before:inset-0 before:bg-gradient-to-br before:from-vynal-accent-primary/20 before:via-vynal-accent-primary/10 before:to-white before:rounded-lg dark:bg-vynal-purple-dark/20 dark:before:from-vynal-accent-primary/20 dark:before:via-vynal-purple-secondary/10 dark:before:to-transparent hover:shadow-md transition-shadow duration-300">
-    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-2 pt-2 sm:px-6 sm:pt-6 relative z-10">
-      <CardTitle className="text-xs sm:text-base md:text-lg font-medium">
-        <div className="flex items-center">
-          <div className={`mr-2 p-1 sm:p-1.5 rounded-full ${iconBgClass} shadow-sm flex-shrink-0`}>
-            <Icon className={`h-3 w-3 sm:h-4 sm:w-4 ${iconTextClass}`} />
-          </div>
-          <span className="truncate text-vynal-purple-light dark:text-vynal-text-primary">
-            {title}
-          </span>
-        </div>
-      </CardTitle>
-    </CardHeader>
-    <CardContent className="px-2 pb-2 sm:px-6 sm:pb-6 relative z-10">
-      <div className="text-lg sm:text-2xl font-bold text-vynal-purple-light dark:text-vynal-text-primary">
-        {isLoading ? "-" : value}
-      </div>
-      <div className="flex items-center mt-1">
-        <div className={`text-[10px] sm:text-xs px-1.5 py-0.5 ${subtitleBgClass || ''} ${subtitleTextClass || ''} rounded-md truncate`}>
-          {subtitleText}
-        </div>
-      </div>
-    </CardContent>
-  </Card>
-));
+// Map des icônes d'activité pour éviter des recalculs répétés
+const ACTIVITY_ICONS = {
+  order_created: <ShoppingCart className="h-4 w-4 text-green-500" />,
+  review_added: <Star className="h-4 w-4 text-blue-500" />,
+  dispute_opened: <AlertTriangle className="h-4 w-4 text-amber-500" />,
+  file_uploaded: <Upload className="h-4 w-4 text-purple-500" />,
+  message_received: <MessageSquare className="h-4 w-4 text-indigo-500" />,
+  delivery_validated: <CheckCircle className="h-4 w-4 text-rose-500" />,
+  default: <LucideActivity className="h-4 w-4 text-slate-500" />
+} as const;
 
-StatCard.displayName = 'StatCard';
+// Map des couleurs de bordure d'activité
+const ACTIVITY_BORDER_COLORS = {
+  order_created: 'border-green-400',
+  review_added: 'border-blue-400',
+  dispute_opened: 'border-amber-400',
+  file_uploaded: 'border-purple-400',
+  message_received: 'border-indigo-400',
+  delivery_validated: 'border-rose-400',
+  default: 'border-slate-400'
+} as const;
+
+// Type pour les types d'activité basé sur les clés des objets constants
+type ActivityType = keyof typeof ACTIVITY_ICONS;
+
+// Interface pour les props d'ActivityItem
+interface ActivityItemProps {
+  activity: Activity;
+  index: number;
+}
+
+// Composant d'activité unique
+const ActivityItem = memo(({ activity, index }: ActivityItemProps) => {
+  const activityType = (activity.type in ACTIVITY_ICONS) 
+    ? activity.type as ActivityType 
+    : 'default' as ActivityType;
+  
+  const activityIcon = ACTIVITY_ICONS[activityType];
+  const borderColor = ACTIVITY_BORDER_COLORS[activityType];
+  
+  return (
+    <div 
+      key={activity.id || index} 
+      className={`border-l-2 ${borderColor} pl-3 py-1.5 bg-gradient-to-r from-gray-50 to-white dark:from-vynal-purple-secondary/10 dark:to-transparent rounded-md shadow-sm`}
+    >
+      <div className="flex items-start">
+        <div className="mr-2 mt-0.5">
+          {activityIcon}
+        </div>
+        <div>
+          <p className="text-[10px] sm:text-xs text-gray-800 dark:text-vynal-text-primary font-medium">
+            {activity.content}
+          </p>
+          <p className="text-[8px] sm:text-[10px] text-gray-500 dark:text-vynal-text-secondary mt-0.5">
+            {new Date(activity.created_at).toLocaleString('fr-FR')}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+ActivityItem.displayName = 'ActivityItem';
 
 // Composant memoïsé pour la section des activités récentes
-const RecentActivities = memo(({ activities, loading }: { activities: any[], loading: boolean }) => {
-  // Mémoriser les fonctions pour éviter des calculs répétés
-  const getActivityIcon = useCallback((type: string) => {
-    switch (type) {
-      case 'order_created': return <ShoppingCart className="h-4 w-4 text-green-500" />;
-      case 'review_added': return <Star className="h-4 w-4 text-blue-500" />;
-      case 'dispute_opened': return <AlertTriangle className="h-4 w-4 text-amber-500" />;
-      case 'file_uploaded': return <Upload className="h-4 w-4 text-purple-500" />;
-      case 'message_received': return <MessageSquare className="h-4 w-4 text-indigo-500" />;
-      case 'delivery_validated': return <CheckCircle className="h-4 w-4 text-rose-500" />;
-      default: return <Activity className="h-4 w-4 text-slate-500" />;
-    }
-  }, []);
-  
-  const getActivityBorderColor = useCallback((type: string) => {
-    switch (type) {
-      case 'order_created': return 'border-green-400';
-      case 'review_added': return 'border-blue-400';
-      case 'dispute_opened': return 'border-amber-400';
-      case 'file_uploaded': return 'border-purple-400';
-      case 'message_received': return 'border-indigo-400';
-      case 'delivery_validated': return 'border-rose-400';
-      default: return 'border-slate-400';
-    }
-  }, []);
-  
+const RecentActivities = memo(({ activities, loading }: { activities: Activity[], loading: boolean }) => {
   // État de chargement mémorisé
-  const loadingContent = useMemo(() => (
+  const loadingContent = (
     <div className="flex justify-center items-center py-6">
       <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-indigo-500"></div>
     </div>
-  ), []);
+  );
   
   // État vide mémorisé
-  const emptyContent = useMemo(() => (
+  const emptyContent = (
     <div className="flex flex-col items-center justify-center py-6">
-      <p className="text-sm text-vynal-purple-secondary dark:text-vynal-text-secondary">Aucune activité récente</p>
+      <p className="text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary">Aucune activité récente</p>
     </div>
-  ), []);
+  );
   
   return (
     <Card className="md:col-span-7 border border-vynal-purple-secondary/10 shadow-sm bg-white relative before:absolute before:inset-0 before:bg-gradient-to-br before:from-vynal-purple-secondary/10 before:via-vynal-purple-secondary/5 before:to-white before:rounded-lg dark:bg-vynal-purple-dark/10 dark:before:from-vynal-purple-secondary/15 dark:before:via-vynal-purple-secondary/5 dark:before:to-transparent hover:shadow-md transition-shadow duration-300">
       <CardHeader className="px-3 pt-3 sm:px-6 sm:pt-6 relative z-10">
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="text-base sm:text-lg text-vynal-purple-light dark:text-vynal-text-primary">Activité récente</CardTitle>
-            <CardDescription className="mt-1 text-xs sm:text-sm text-vynal-purple-secondary dark:text-vynal-text-secondary/80">
+            <CardTitle className="text-sm sm:text-base text-vynal-purple-light dark:text-vynal-text-primary">Activité récente</CardTitle>
+            <CardDescription className="mt-1 text-[10px] sm:text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary/80">
               Vos dernières interactions sur la plateforme
             </CardDescription>
           </div>
           <div className="p-1.5 sm:p-2 rounded-full bg-gradient-to-tr from-vynal-purple-secondary/30 to-vynal-purple-secondary/20 shadow-sm dark:from-vynal-purple-secondary/20 dark:to-vynal-purple-secondary/10">
-            <Activity className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-vynal-purple-secondary dark:text-vynal-text-secondary" />
+            <LucideActivity className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-vynal-purple-secondary dark:text-vynal-text-secondary" />
           </div>
         </div>
       </CardHeader>
@@ -178,24 +177,7 @@ const RecentActivities = memo(({ activities, loading }: { activities: any[], loa
         {loading ? loadingContent : activities.length > 0 ? (
           <div className="space-y-3">
             {activities.map((activity, index) => (
-              <div 
-                key={activity.id || index} 
-                className={`border-l-2 ${getActivityBorderColor(activity.type)} pl-4 py-2 bg-gradient-to-r from-gray-50 to-white dark:from-vynal-purple-secondary/10 dark:to-transparent rounded-md shadow-sm`}
-              >
-                <div className="flex items-start">
-                  <div className="mr-3 mt-0.5">
-                    {getActivityIcon(activity.type)}
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-800 dark:text-vynal-text-primary font-medium">
-                      {activity.content}
-                    </p>
-                    <p className="text-xs text-gray-500 dark:text-vynal-text-secondary mt-1">
-                      {new Date(activity.created_at).toLocaleString('fr-FR')}
-                    </p>
-                  </div>
-                </div>
-              </div>
+              <ActivityItem key={activity.id || index} activity={activity} index={index} />
             ))}
           </div>
         ) : emptyContent}
@@ -217,7 +199,7 @@ const RefreshButton = memo(({ onClick, isRefreshing, lastRefreshText }: {
     disabled={isRefreshing}
     variant="ghost"
     size="sm"
-    className="flex items-center gap-1.5 text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary hover:text-vynal-accent-secondary dark:hover:text-vynal-accent-primary transition-colors"
+    className="flex items-center gap-1.5 text-[10px] text-vynal-purple-secondary dark:text-vynal-text-secondary hover:text-vynal-accent-secondary dark:hover:text-vynal-accent-primary transition-colors"
   >
     <RefreshIndicator 
       isRefreshing={isRefreshing} 
@@ -230,12 +212,63 @@ const RefreshButton = memo(({ onClick, isRefreshing, lastRefreshText }: {
 
 RefreshButton.displayName = 'RefreshButton';
 
+// Composant memoïsé pour les cartes de statistiques
+const StatCard = memo(({ 
+  title, 
+  value, 
+  icon: Icon, 
+  iconBgClass, 
+  iconTextClass,
+  subtitleText,
+  subtitleBgClass,
+  subtitleTextClass,
+  cardBgClass,
+  valueTextClass,
+  isLoading 
+}: { 
+  title: string;
+  value: string | number;
+  icon: any;
+  iconBgClass: string;
+  iconTextClass: string;
+  subtitleText: string;
+  subtitleBgClass: string;
+  subtitleTextClass: string;
+  cardBgClass: string;
+  valueTextClass: string;
+  isLoading: boolean;
+}) => (
+  <Card className={`rounded-2xl border border-vynal-purple-secondary/10 ${cardBgClass} shadow-sm hover:shadow-md transition-all duration-300`}>
+    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 px-3 pt-3 sm:px-4 sm:pt-4">
+      <CardDescription className="text-[10px] sm:text-xs font-medium text-vynal-purple-light dark:text-vynal-text-primary">
+        {title}
+      </CardDescription>
+      <div className={`p-1.5 rounded-full ${iconBgClass}`}>
+        <Icon className={`h-3 w-3 sm:h-3.5 sm:w-3.5 ${iconTextClass}`} />
+      </div>
+    </CardHeader>
+    <CardContent className="px-3 pb-3 sm:px-4 sm:pb-4">
+      {isLoading ? (
+        <div className="h-6 w-28 bg-vynal-purple-secondary/30 rounded-md animate-pulse"></div>
+      ) : (
+        <div className={`text-sm sm:text-base font-bold ${valueTextClass}`}>{value}</div>
+      )}
+    </CardContent>
+    <CardContent className="px-3 pb-3 sm:px-4 sm:pb-4">
+      <div className={`text-[10px] sm:text-xs ${subtitleBgClass} ${subtitleTextClass} px-2 py-1 rounded-md inline-block`}>
+        {subtitleText}
+      </div>
+    </CardContent>
+  </Card>
+));
+
+StatCard.displayName = 'StatCard';
+
 // Composant pour les statistiques du tableau de bord
 const DashboardStats = memo(({ stats, loading }: { 
   stats: FreelanceStats, 
   loading: boolean 
 }) => {
-  // Tableau mémorisé des configurations de cartes de statistiques
   const statCards = useMemo(() => [
     {
       key: 'activeOrders',
@@ -243,7 +276,8 @@ const DashboardStats = memo(({ stats, loading }: {
       value: stats.activeOrders,
       icon: STAT_CARD_ICONS.activeOrders,
       ...STAT_CARD_STYLES.activeOrders,
-      subtitleText: 'En cours de traitement'
+      subtitleText: 'En cours de traitement',
+      mobileColSpan: 'col-span-2'
     },
     {
       key: 'unreadMessages',
@@ -251,7 +285,8 @@ const DashboardStats = memo(({ stats, loading }: {
       value: stats.unreadMessages,
       icon: STAT_CARD_ICONS.unreadMessages,
       ...STAT_CARD_STYLES.unreadMessages,
-      subtitleText: 'À répondre'
+      subtitleText: 'À répondre',
+      mobileColSpan: 'col-span-1'
     },
     {
       key: 'pendingDeliveries',
@@ -259,7 +294,8 @@ const DashboardStats = memo(({ stats, loading }: {
       value: stats.pendingDeliveries,
       icon: STAT_CARD_ICONS.pendingDeliveries,
       ...STAT_CARD_STYLES.pendingDeliveries,
-      subtitleText: 'À livrer'
+      subtitleText: 'À livrer',
+      mobileColSpan: 'col-span-1'
     },
     {
       key: 'totalEarnings',
@@ -267,7 +303,8 @@ const DashboardStats = memo(({ stats, loading }: {
       value: formatPrice(stats.totalEarnings),
       icon: STAT_CARD_ICONS.totalEarnings,
       ...STAT_CARD_STYLES.totalEarnings,
-      subtitleText: 'Depuis le début'
+      subtitleText: 'Depuis le début',
+      mobileColSpan: 'col-span-2'
     },
     {
       key: 'servicesCount',
@@ -275,31 +312,130 @@ const DashboardStats = memo(({ stats, loading }: {
       value: stats.servicesCount,
       icon: STAT_CARD_ICONS.servicesCount,
       ...STAT_CARD_STYLES.servicesCount,
-      subtitleText: 'Visibles aux clients'
+      subtitleText: 'Visibles aux clients',
+      mobileColSpan: 'col-span-2'
     }
   ], [stats]);
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+    <div className="grid grid-cols-3 gap-2 sm:grid-cols-5 sm:gap-4 mb-4 sm:mb-6">
       {statCards.map((card) => (
-        <StatCard
-          key={card.key}
-          title={card.title}
-          value={card.value}
-          icon={card.icon}
-          iconBgClass={card.iconBgClass}
-          iconTextClass={card.iconTextClass}
-          subtitleText={card.subtitleText}
-          subtitleBgClass={card.subtitleBgClass}
-          subtitleTextClass={card.subtitleTextClass}
-          isLoading={loading}
-        />
+        <div key={card.key} className={`${card.mobileColSpan} sm:col-span-1`}>
+          <StatCard
+            title={card.title}
+            value={card.value}
+            icon={card.icon}
+            iconBgClass={card.iconBgClass}
+            iconTextClass={card.iconTextClass}
+            subtitleText={card.subtitleText}
+            subtitleBgClass={card.subtitleBgClass}
+            subtitleTextClass={card.subtitleTextClass}
+            cardBgClass={card.cardBgClass}
+            valueTextClass={card.valueTextClass}
+            isLoading={loading}
+          />
+        </div>
       ))}
     </div>
   );
 });
 
 DashboardStats.displayName = 'DashboardStats';
+
+// Composant pour les actions rapides
+const QuickActions = memo(() => (
+  <Card className="border border-vynal-purple-secondary/10 shadow-sm dark:bg-vynal-purple-dark/10">
+    <CardHeader className="px-4 pt-4 sm:px-6 sm:pt-6">
+      <CardTitle className="text-sm sm:text-base text-vynal-purple-light dark:text-vynal-text-primary">Actions rapides</CardTitle>
+      <CardDescription className="text-[10px] sm:text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary/80">
+        Accédez rapidement aux fonctionnalités essentielles
+      </CardDescription>
+    </CardHeader>
+    <CardContent className="px-4 pb-4 sm:px-6 sm:pb-6">
+      <div className="grid grid-cols-2 gap-2 sm:gap-3">
+        <Link href="/dashboard/services/new" className="bg-vynal-purple-secondary/5 dark:bg-vynal-purple-secondary/10 hover:bg-vynal-purple-secondary/10 dark:hover:bg-vynal-purple-secondary/20 p-2 sm:p-4 rounded-lg flex flex-col items-center text-center gap-1 sm:gap-2 transition-colors">
+          <Package className="h-4 w-4 sm:h-5 sm:w-5 text-vynal-accent-primary" />
+          <span className="text-[10px] sm:text-xs font-medium text-vynal-purple-light dark:text-vynal-text-primary">Créer un service</span>
+        </Link>
+        <Link href="/dashboard/messages" className="bg-vynal-purple-secondary/5 dark:bg-vynal-purple-secondary/10 hover:bg-vynal-purple-secondary/10 dark:hover:bg-vynal-purple-secondary/20 p-2 sm:p-4 rounded-lg flex flex-col items-center text-center gap-1 sm:gap-2 transition-colors">
+          <MessageCircle className="h-4 w-4 sm:h-5 sm:w-5 text-vynal-accent-primary" />
+          <span className="text-[10px] sm:text-xs font-medium text-vynal-purple-light dark:text-vynal-text-primary">Messages</span>
+        </Link>
+        <Link href="/dashboard/orders" className="bg-vynal-purple-secondary/5 dark:bg-vynal-purple-secondary/10 hover:bg-vynal-purple-secondary/10 dark:hover:bg-vynal-purple-secondary/20 p-2 sm:p-4 rounded-lg flex flex-col items-center text-center gap-1 sm:gap-2 transition-colors">
+          <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-vynal-accent-primary" />
+          <span className="text-[10px] sm:text-xs font-medium text-vynal-purple-light dark:text-vynal-text-primary">Commandes</span>
+        </Link>
+        <Link href="/dashboard/wallet" className="bg-vynal-purple-secondary/5 dark:bg-vynal-purple-secondary/10 hover:bg-vynal-purple-secondary/10 dark:hover:bg-vynal-purple-secondary/20 p-2 sm:p-4 rounded-lg flex flex-col items-center text-center gap-1 sm:gap-2 transition-colors">
+          <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 text-vynal-accent-primary" />
+          <span className="text-[10px] sm:text-xs font-medium text-vynal-purple-light dark:text-vynal-text-primary">Paiements</span>
+        </Link>
+      </div>
+    </CardContent>
+  </Card>
+));
+
+QuickActions.displayName = 'QuickActions';
+
+// Composant pour les performances
+const PerformanceCard = memo(() => (
+  <Card className="border border-vynal-purple-secondary/10 shadow-sm bg-white dark:bg-vynal-purple-dark/10 overflow-hidden">
+    <CardHeader className="px-4 pt-4 pb-2 sm:px-6 sm:pt-6 sm:pb-3">
+      <div className="flex justify-between items-center">
+        <CardTitle className="text-sm sm:text-base text-vynal-purple-light dark:text-vynal-text-primary">Performance</CardTitle>
+        <div className="bg-vynal-accent-primary/10 p-1 rounded-full">
+          <Zap className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-vynal-accent-primary" />
+        </div>
+      </div>
+      <CardDescription className="text-[10px] sm:text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary/80">
+        Analyse de vos performances récentes
+      </CardDescription>
+    </CardHeader>
+    <CardContent className="px-4 pb-4 sm:px-6 sm:pb-6">
+      <div className="flex flex-col gap-3 sm:gap-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-vynal-purple-secondary/5 dark:bg-vynal-purple-secondary/20 rounded-full flex items-center justify-center">
+              <Star className="h-3.5 w-3.5 sm:h-4.5 sm:w-4.5 text-amber-500" />
+            </div>
+            <div>
+              <p className="text-[10px] sm:text-xs font-medium text-vynal-purple-light dark:text-vynal-text-primary">Note moyenne</p>
+              <p className="text-[8px] sm:text-[10px] text-vynal-purple-secondary dark:text-vynal-text-secondary">Sur les 30 derniers jours</p>
+            </div>
+          </div>
+          <div className="text-[10px] sm:text-lg font-semibold text-vynal-purple-light dark:text-vynal-text-primary">4.9/5</div>
+        </div>
+        
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-vynal-purple-secondary/5 dark:bg-vynal-purple-secondary/20 rounded-full flex items-center justify-center">
+              <Eye className="h-3.5 w-3.5 sm:h-4.5 sm:w-4.5 text-blue-500" />
+            </div>
+            <div>
+              <p className="text-[10px] sm:text-xs font-medium text-vynal-purple-light dark:text-vynal-text-primary">Visiteurs</p>
+              <p className="text-[8px] sm:text-[10px] text-vynal-purple-secondary dark:text-vynal-text-secondary">Sur votre profil</p>
+            </div>
+          </div>
+          <div className="text-[10px] sm:text-lg font-semibold text-vynal-purple-light dark:text-vynal-text-primary">324</div>
+        </div>
+        
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-vynal-purple-secondary/5 dark:bg-vynal-purple-secondary/20 rounded-full flex items-center justify-center">
+              <Users className="h-3.5 w-3.5 sm:h-4.5 sm:w-4.5 text-green-500" />
+            </div>
+            <div>
+              <p className="text-[10px] sm:text-xs font-medium text-vynal-purple-light dark:text-vynal-text-primary">Taux de conversion</p>
+              <p className="text-[8px] sm:text-[10px] text-vynal-purple-secondary dark:text-vynal-text-secondary">Visiteurs → Commandes</p>
+            </div>
+          </div>
+          <div className="text-[10px] sm:text-lg font-semibold text-vynal-purple-light dark:text-vynal-text-primary">8.2%</div>
+        </div>
+      </div>
+    </CardContent>
+  </Card>
+));
+
+PerformanceCard.displayName = 'PerformanceCard';
 
 // Configuration globale pour le dashboard
 // Forcer le rendu dynamique pour résoudre les erreurs de revalidation
@@ -329,15 +465,25 @@ export default function DashboardPage() {
   // Mémoriser le texte du dernier rafraîchissement
   const lastRefreshText = useMemo(() => getLastRefreshText(true), [getLastRefreshText]);
   
+  // Message de bienvenue mémorisé
+  const welcomeMessage = useMemo(() => {
+    const userName = profile?.full_name || user?.user_metadata?.name || 'Freelance';
+    return `Bienvenue, ${userName} 👋`;
+  }, [profile?.full_name, user?.user_metadata?.name]);
+  
   // Effet pour rafraîchir les données quand la page devient visible
   useEffect(() => {
+    let lastHiddenTimestamp = 0;
+    
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        // Rafraîchir seulement si la page était cachée depuis un certain temps
-        const lastHidden = document.hidden ? Date.now() - 60000 : 0; // 60 secondes
-        if (lastHidden > 0) {
+      if (document.visibilityState === 'hidden') {
+        lastHiddenTimestamp = Date.now();
+      } else if (document.visibilityState === 'visible' && lastHiddenTimestamp > 0) {
+        // Rafraîchir seulement si la page était cachée depuis au moins 60 secondes
+        if (Date.now() - lastHiddenTimestamp >= 60000) {
           refreshDashboard();
         }
+        lastHiddenTimestamp = 0;
       }
     };
     
@@ -348,22 +494,16 @@ export default function DashboardPage() {
     };
   }, [refreshDashboard]);
   
-  // Message de bienvenue mémorisé
-  const welcomeMessage = useMemo(() => {
-    const userName = profile?.full_name || user?.user_metadata?.name || 'Freelance';
-    return `Bienvenue, ${userName} 👋`;
-  }, [profile?.full_name, user?.user_metadata?.name]);
-  
   // Afficher le skeleton pendant le chargement initial
   if (loadingStats && loadingActivities) {
     return <DashboardPageSkeleton />;
   }
   
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6">
       {/* En-tête du Dashboard */}
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl md:text-3xl font-bold text-vynal-purple-light dark:text-vynal-text-primary">
+        <h1 className="text-base sm:text-lg md:text-xl font-bold text-vynal-purple-light dark:text-vynal-text-primary">
           {welcomeMessage}
         </h1>
         <RefreshButton 
@@ -381,96 +521,12 @@ export default function DashboardPage() {
         {/* Activités récentes */}
         <RecentActivities activities={recentActivities} loading={loadingActivities} />
         
-        {/* Actions rapides */}
+        {/* Actions rapides et Performance */}
         <div className="md:col-span-5 space-y-4">
-          {/* Carte des actions rapides */}
-          <Card className="border border-vynal-purple-secondary/10 shadow-sm dark:bg-vynal-purple-dark/10">
-            <CardHeader className="px-6 pt-6">
-              <CardTitle className="text-lg text-vynal-purple-light dark:text-vynal-text-primary">Actions rapides</CardTitle>
-              <CardDescription className="text-vynal-purple-secondary dark:text-vynal-text-secondary/80">
-                Accédez rapidement aux fonctionnalités essentielles
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="px-6 pb-6">
-              <div className="grid grid-cols-2 gap-3">
-                <Link href="/dashboard/services/new" className="bg-vynal-purple-secondary/5 dark:bg-vynal-purple-secondary/10 hover:bg-vynal-purple-secondary/10 dark:hover:bg-vynal-purple-secondary/20 p-4 rounded-lg flex flex-col items-center text-center gap-2 transition-colors">
-                  <Package className="h-6 w-6 text-vynal-accent-primary" />
-                  <span className="text-sm font-medium text-vynal-purple-light dark:text-vynal-text-primary">Créer un service</span>
-                </Link>
-                <Link href="/dashboard/messages" className="bg-vynal-purple-secondary/5 dark:bg-vynal-purple-secondary/10 hover:bg-vynal-purple-secondary/10 dark:hover:bg-vynal-purple-secondary/20 p-4 rounded-lg flex flex-col items-center text-center gap-2 transition-colors">
-                  <MessageCircle className="h-6 w-6 text-vynal-accent-primary" />
-                  <span className="text-sm font-medium text-vynal-purple-light dark:text-vynal-text-primary">Messages</span>
-                </Link>
-                <Link href="/dashboard/orders" className="bg-vynal-purple-secondary/5 dark:bg-vynal-purple-secondary/10 hover:bg-vynal-purple-secondary/10 dark:hover:bg-vynal-purple-secondary/20 p-4 rounded-lg flex flex-col items-center text-center gap-2 transition-colors">
-                  <Clock className="h-6 w-6 text-vynal-accent-primary" />
-                  <span className="text-sm font-medium text-vynal-purple-light dark:text-vynal-text-primary">Commandes</span>
-                </Link>
-                <Link href="/dashboard/wallet" className="bg-vynal-purple-secondary/5 dark:bg-vynal-purple-secondary/10 hover:bg-vynal-purple-secondary/10 dark:hover:bg-vynal-purple-secondary/20 p-4 rounded-lg flex flex-col items-center text-center gap-2 transition-colors">
-                  <CreditCard className="h-6 w-6 text-vynal-accent-primary" />
-                  <span className="text-sm font-medium text-vynal-purple-light dark:text-vynal-text-primary">Paiements</span>
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
-          
-          {/* Section Performance */}
-          <Card className="border border-vynal-purple-secondary/10 shadow-sm bg-white dark:bg-vynal-purple-dark/10 overflow-hidden">
-            <CardHeader className="px-6 pt-6 pb-3">
-              <div className="flex justify-between items-center">
-                <CardTitle className="text-lg text-vynal-purple-light dark:text-vynal-text-primary">Performance</CardTitle>
-                <div className="bg-vynal-accent-primary/10 p-1.5 rounded-full">
-                  <Zap className="h-4 w-4 text-vynal-accent-primary" />
-                </div>
-              </div>
-              <CardDescription className="text-vynal-purple-secondary dark:text-vynal-text-secondary/80">
-                Analyse de vos performances récentes
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="px-6 pb-6">
-              <div className="flex flex-col gap-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-10 h-10 bg-vynal-purple-secondary/5 dark:bg-vynal-purple-secondary/20 rounded-full flex items-center justify-center">
-                      <Star className="h-5 w-5 text-amber-500" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-vynal-purple-light dark:text-vynal-text-primary">Note moyenne</p>
-                      <p className="text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary">Sur les 30 derniers jours</p>
-                    </div>
-                  </div>
-                  <div className="text-xl font-semibold text-vynal-purple-light dark:text-vynal-text-primary">4.9/5</div>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-10 h-10 bg-vynal-purple-secondary/5 dark:bg-vynal-purple-secondary/20 rounded-full flex items-center justify-center">
-                      <Eye className="h-5 w-5 text-blue-500" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-vynal-purple-light dark:text-vynal-text-primary">Visiteurs</p>
-                      <p className="text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary">Sur votre profil</p>
-                    </div>
-                  </div>
-                  <div className="text-xl font-semibold text-vynal-purple-light dark:text-vynal-text-primary">324</div>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-10 h-10 bg-vynal-purple-secondary/5 dark:bg-vynal-purple-secondary/20 rounded-full flex items-center justify-center">
-                      <Users className="h-5 w-5 text-green-500" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-vynal-purple-light dark:text-vynal-text-primary">Taux de conversion</p>
-                      <p className="text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary">Visiteurs → Commandes</p>
-                    </div>
-                  </div>
-                  <div className="text-xl font-semibold text-vynal-purple-light dark:text-vynal-text-primary">8.2%</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <QuickActions />
+          <PerformanceCard />
         </div>
       </div>
     </div>
   );
-} 
+}

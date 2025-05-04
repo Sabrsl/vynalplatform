@@ -310,7 +310,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     try {
       // Ici, implémentez la logique de chargement des messages
       // Par exemple, vous pourriez appeler un service ou un API
-      console.log("Chargement des messages pour la conversation:", conversationId);
       // Simuler un délai
       await new Promise(resolve => setTimeout(resolve, 1000));
       // Si l'implémentation est incomplète, vous pouvez simplement ne rien faire
@@ -326,7 +325,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const markAsUnread = useCallback(() => {
     if (!user || !conversation) return;
     // Implémentation fictive - à remplacer par votre logique réelle
-    console.log("Marquer comme non lu:", conversation.id);
     
     // Afficher une notification de succès
     showNotification("Messages marqués comme non lus", "success");
@@ -336,7 +334,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const handleDelete = useCallback(() => {
     if (!conversation) return;
     // Implémentation fictive - à remplacer par votre logique réelle
-    console.log("Supprimer la conversation:", conversation.id);
     
     // Afficher une notification de succès
     showNotification("Conversation supprimée", "success");
@@ -349,7 +346,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const enableNotifications = useCallback(async () => {
     try {
       // Implémenter la logique d'activation des notifications
-      console.log("Activer les notifications");
       setShowNotificationDialog(false);
     } catch (error) {
       console.error("Erreur lors de l'activation des notifications:", error);
@@ -433,7 +429,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         const orderId = conversation.order_id || (isOrderConversation ? conversation.id.replace('order-', '') : null);
 
         if (isOrderConversation && orderId) {
-          console.log("Envoi d'un message pour la commande:", orderId);
           
           // Pour les messages de commande, utiliser directement l'API Supabase
           if (attachments.length > 0) {
@@ -617,14 +612,14 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   return (
     <div className="flex flex-col h-full bg-white dark:bg-gray-950">
       {/* En-tête de la conversation avec l'avatar et le nom */}
-      <div className="flex items-center px-4 py-3 border-b border-gray-200 dark:border-gray-800 bg-gradient-to-r from-pink-600 to-purple-600 text-white">
+      <div className="flex items-center px-3 py-2 border-b border-gray-200 dark:border-gray-800 bg-gradient-to-r from-pink-600 to-purple-600 text-white">
           <Button 
             variant="ghost" 
             size="icon" 
             onClick={onBack}
           className="md:hidden mr-2 text-white hover:bg-white/20"
           >
-            <ArrowLeft className="h-5 w-5" />
+            <ArrowLeft className="h-4 w-4" />
           </Button>
           
         <div className="flex items-center flex-1">
@@ -647,7 +642,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           </div>
           
           <div className="ml-3 overflow-hidden">
-            <h2 className="text-base font-semibold truncate">
+            <h2 className="text-sm font-semibold truncate">
               {otherParticipant?.full_name || otherParticipant?.username || 'Contact'}
             </h2>
             {isOtherParticipantTyping ? (
@@ -669,19 +664,19 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             <Button 
               variant="ghost" 
               size="icon"
-              className="ml-2 text-white hover:bg-white/20"
+              className="ml-2 text-white hover:bg-white/20 h-7 w-7"
             >
-              <MoreVertical className="h-5 w-5" />
+              <MoreVertical className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuItem className="cursor-pointer flex items-center gap-2">
-              <MessageSquare className="h-4 w-4" />
+            <DropdownMenuItem className="cursor-pointer flex items-center gap-2 text-xs">
+              <MessageSquare className="h-3 w-3" />
               <span>Marquer comme non lu</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="cursor-pointer text-red-500 flex items-center gap-2">
-              <Trash className="h-4 w-4" />
+            <DropdownMenuItem className="cursor-pointer text-red-500 flex items-center gap-2 text-xs">
+              <Trash className="h-3 w-3" />
               <span>Supprimer la conversation</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -691,7 +686,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       {/* Zone des messages avec virtualisation pour optimiser les performances */}
       <Virtuoso
         ref={messagesContainerRef}
-        style={{ height: 'calc(100vh - 200px)' }}
+        style={{ height: 'calc(100vh - 170px)' }}
         totalCount={visibleMessages.length}
         data={visibleMessages}
         followOutput={"auto"}
@@ -701,13 +696,13 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             <>
               {/* Bouton pour charger plus de messages */}
               {loadMoreVisible && hasMoreMessages && (
-                <div className="flex justify-center mb-4">
+                <div className="flex justify-center mb-3">
                   <Button 
                     variant="outline" 
                     size="sm" 
                     onClick={loadMoreMessages}
                     disabled={isLoadingMore}
-                    className="rounded-full text-xs bg-white shadow-sm hover:bg-gray-100 text-gray-700 flex items-center gap-1"
+                    className="rounded-full text-xs bg-white shadow-sm hover:bg-gray-100 text-gray-700 flex items-center gap-1 h-6 px-2 py-0"
                   >
                     {isLoadingMore ? (
                       <Loader2 className="h-3 w-3 animate-spin mr-1" />
@@ -721,7 +716,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               
               {/* Loader lors du chargement initial des messages - Amélioration de l'animation */}
               {isLoadingMessages && visibleMessages.length === 0 && (
-                <div className="flex justify-center items-center h-[200px] animate-in fade-in duration-300 ease-in-out">
+                <div className="flex justify-center items-center h-[150px] animate-in fade-in duration-300 ease-in-out">
                   <div className="flex flex-col items-center space-y-2">
                     <div className="flex flex-col space-y-3 w-3/4 max-w-md">
                       {/* Skeleton message items avec animation douce */}
@@ -732,10 +727,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                           style={{ animationDelay: `${i * 150}ms`, opacity: 1 - (i * 0.15) }}
                         >
                           {i % 2 !== 0 && (
-                            <div className="h-8 w-8 rounded-full bg-vynal-purple-secondary/30 mr-2"></div>
+                            <div className="h-6 w-6 rounded-full bg-vynal-purple-secondary/30 mr-2"></div>
                           )}
                           <div 
-                            className={`h-[60px] rounded-2xl ${i % 2 === 0 ? 'bg-vynal-purple-secondary/30 w-[65%]' : 'bg-vynal-purple-secondary/30 w-[70%]'}`}
+                            className={`h-[50px] rounded-2xl ${i % 2 === 0 ? 'bg-vynal-purple-secondary/30 w-[65%]' : 'bg-vynal-purple-secondary/30 w-[70%]'}`}
                           ></div>
                         </div>
                       ))}
@@ -746,12 +741,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               
               {/* Liste des messages */}
               {visibleMessages.length === 0 && !isLoadingMessages && (
-                <div className="flex flex-col items-center justify-center h-[300px] p-4 text-center">
-                  <div className="bg-indigo-100 dark:bg-indigo-900/30 rounded-full p-4 mb-3">
-                    <MessageSquare className="h-8 w-8 text-indigo-600 dark:text-indigo-400" />
+                <div className="flex flex-col items-center justify-center h-[250px] p-3 text-center">
+                  <div className="bg-indigo-100 dark:bg-indigo-900/30 rounded-full p-3 mb-2">
+                    <MessageSquare className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
                   </div>
-                  <h3 className="text-lg font-semibold mb-1 text-gray-800 dark:text-gray-200">Aucun message</h3>
-                  <p className="text-gray-500 dark:text-gray-400 text-sm max-w-xs">
+                  <h3 className="text-sm font-semibold mb-1 text-gray-800 dark:text-gray-200">Aucun message</h3>
+                  <p className="text-gray-500 dark:text-gray-400 text-xs max-w-xs">
                     Démarrez la conversation avec {otherParticipant?.full_name || 'votre contact'} en envoyant un message ci-dessous.
                   </p>
                 </div>
@@ -762,23 +757,23 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             <>
               {/* Indicateur de frappe */}
               {isOtherParticipantTyping && (
-                <div className="flex items-start mb-4 animate-fade-in">
+                <div className="flex items-start mb-2 animate-fade-in">
                   <div className="flex items-end">
-                    <Avatar className="h-8 w-8 mr-2">
+                    <Avatar className="h-6 w-6 mr-2">
                       <AvatarImage 
                         src={otherParticipant?.avatar_url || ''} 
                         alt={otherParticipant?.full_name || 'Contact'} 
                         onError={() => setTypingAvatarError(true)}
                       />
-                      <AvatarFallback className="bg-indigo-100 text-indigo-800">
+                      <AvatarFallback className="bg-indigo-100 text-indigo-800 text-xs">
                         {getInitials(otherParticipant?.full_name || otherParticipant?.username || 'User')}
                       </AvatarFallback>
                     </Avatar>
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl px-4 py-2 shadow-sm flex items-center">
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl px-3 py-1 shadow-sm flex items-center">
                       <div className="flex space-x-1">
-                        <span className="bg-vynal-purple-secondary/30 rounded-full h-2 w-2 animate-bounce" style={{ animationDelay: '0s' }}></span>
-                        <span className="bg-vynal-purple-secondary/30 rounded-full h-2 w-2 animate-bounce" style={{ animationDelay: '0.2s' }}></span>
-                        <span className="bg-vynal-purple-secondary/30 rounded-full h-2 w-2 animate-bounce" style={{ animationDelay: '0.4s' }}></span>
+                        <span className="bg-vynal-purple-secondary/30 rounded-full h-1.5 w-1.5 animate-bounce" style={{ animationDelay: '0s' }}></span>
+                        <span className="bg-vynal-purple-secondary/30 rounded-full h-1.5 w-1.5 animate-bounce" style={{ animationDelay: '0.2s' }}></span>
+                        <span className="bg-vynal-purple-secondary/30 rounded-full h-1.5 w-1.5 animate-bounce" style={{ animationDelay: '0.4s' }}></span>
                       </div>
                     </div>
                   </div>
@@ -857,44 +852,44 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       />
       
       {/* Zone de saisie du message */}
-      <div className="border-t border-gray-200 dark:border-gray-800 p-3 bg-white dark:bg-gray-950">
+      <div className="border-t border-gray-200 dark:border-gray-800 p-2 bg-white dark:bg-gray-950">
         {notification && (
-          <div className={`mb-2 p-2 text-sm rounded-md ${
+          <div className={`mb-2 p-1.5 text-xs rounded-md ${
             notification.type === 'error' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' :
             notification.type === 'warning' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300' :
             notification.type === 'success' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' :
             'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
           }`}>
             <div className="flex items-center">
-              {notification.type === 'error' && <X className="h-4 w-4 mr-1 flex-shrink-0" />}
-              {notification.type === 'warning' && <AlertTriangle className="h-4 w-4 mr-1 flex-shrink-0" />}
-              {notification.type === 'success' && <Check className="h-4 w-4 mr-1 flex-shrink-0" />}
-              {notification.type === 'info' && <Info className="h-4 w-4 mr-1 flex-shrink-0" />}
+              {notification.type === 'error' && <X className="h-3 w-3 mr-1 flex-shrink-0" />}
+              {notification.type === 'warning' && <AlertTriangle className="h-3 w-3 mr-1 flex-shrink-0" />}
+              {notification.type === 'success' && <Check className="h-3 w-3 mr-1 flex-shrink-0" />}
+              {notification.type === 'info' && <Info className="h-3 w-3 mr-1 flex-shrink-0" />}
               {notification.message}
             </div>
         </div>
       )}
       
         {attachment && (
-          <div className="mb-2 p-2 bg-gray-50 dark:bg-gray-900 rounded-md border border-gray-200 dark:border-gray-800">
+          <div className="mb-2 p-1.5 bg-gray-50 dark:bg-gray-900 rounded-md border border-gray-200 dark:border-gray-800">
           <div className="flex items-center justify-between">
               <div className="flex items-center">
                 <FileIcon 
                   fileName={attachment.name} 
-                  className="h-8 w-8 mr-2" 
+                  className="h-5 w-5 mr-2" 
                 />
                 <div>
-                  <p className="text-sm font-medium truncate max-w-[200px]">{attachment.name}</p>
+                  <p className="text-xs font-medium truncate max-w-[200px]">{attachment.name}</p>
                   <p className="text-xs text-gray-500">{formatFileSize(attachment.size)}</p>
                 </div>
               </div>
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className="h-6 w-6 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                className="h-5 w-5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                 onClick={() => setAttachment(null)}
             >
-              <X className="h-4 w-4" />
+              <X className="h-3 w-3" />
               </Button>
           </div>
         </div>
@@ -913,14 +908,14 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                 type="button"
                 size="icon"
               variant="ghost"
-              className="rounded-full bg-gray-100 dark:bg-gray-900 hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300"
+              className="rounded-full bg-gray-100 dark:bg-gray-900 hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 h-7 w-7"
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading || isSending}
             >
               {isUploading ? (
-                <Loader2 className="h-5 w-5 animate-spin text-indigo-600" />
+                <Loader2 className="h-4 w-4 animate-spin text-indigo-600" />
               ) : (
-                <Paperclip className="h-5 w-5" />
+                <Paperclip className="h-4 w-4" />
               )}
               </Button>
           
@@ -928,10 +923,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             type="button"
             size="icon"
               variant="ghost"
-              className="rounded-full bg-gray-100 dark:bg-gray-900 hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300"
+              className="rounded-full bg-gray-100 dark:bg-gray-900 hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 h-7 w-7"
               onClick={() => window.alert("La fonction emoji sera implémentée prochainement")}
             >
-              <Smile className="h-5 w-5" />
+              <Smile className="h-4 w-4" />
           </Button>
       </div>
       
@@ -942,9 +937,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               onChange={handleTyping}
               onKeyDown={handleKeyDown}
               placeholder="Écrivez votre message..."
-              className="resize-none py-3 px-4 rounded-full bg-gray-100 dark:bg-gray-900 border-none focus-visible:ring-pink-500 min-h-10"
+              className="resize-none py-2 px-3 rounded-full bg-gray-100 dark:bg-gray-900 border-none focus-visible:ring-pink-500 min-h-8 text-sm"
               rows={1}
-              style={{ minHeight: '44px', maxHeight: '120px', paddingRight: '48px' }}
+              style={{ minHeight: '36px', maxHeight: '100px', paddingRight: '40px' }}
             />
             
           <Button
@@ -952,14 +947,14 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             size="icon"
               className={`absolute right-1 bottom-1 rounded-full ${
                 messageText.trim() ? 'bg-pink-600 hover:bg-pink-700' : 'bg-gray-300 dark:bg-gray-700'
-              } text-white h-8 w-8`}
+              } text-white h-6 w-6`}
               onClick={handleSendMessage}
               disabled={(!messageText.trim() && !attachment) || isSending}
             >
               {isSending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="h-3 w-3 animate-spin" />
               ) : (
-                <SendHorizontal className="h-4 w-4" />
+                <SendHorizontal className="h-3 w-3" />
               )}
           </Button>
         </div>
@@ -972,16 +967,16 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
       {/* Boîte de dialogue de confirmation pour les notifications */}
       <AlertDialog open={showNotificationDialog} onOpenChange={setShowNotificationDialog}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-w-sm">
           <AlertDialogHeader>
-            <AlertDialogTitle>Activer les notifications?</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogTitle className="text-base">Activer les notifications?</AlertDialogTitle>
+            <AlertDialogDescription className="text-xs">
               Recevez des notifications lorsque vous recevez de nouveaux messages, même lorsque l'application est en arrière-plan.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Plus tard</AlertDialogCancel>
-            <AlertDialogAction onClick={enableNotifications}>
+            <AlertDialogCancel className="text-xs">Plus tard</AlertDialogCancel>
+            <AlertDialogAction onClick={enableNotifications} className="text-xs">
               Activer
             </AlertDialogAction>
           </AlertDialogFooter>

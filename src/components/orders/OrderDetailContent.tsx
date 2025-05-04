@@ -81,20 +81,20 @@ export function OrderDetailContent({ order, isFreelance, navigateToOrdersList }:
           <CardHeader className="pb-2 sm:pb-3 border-b border-vynal-purple-secondary/10 dark:border-vynal-purple-secondary/20 p-3 sm:p-4">
             <Tabs defaultValue="details" value={activeTab} onValueChange={(value) => setActiveTab(value as TabValue)} className="w-full">
               <TabsList className="bg-vynal-purple-secondary/10 dark:bg-vynal-purple-secondary/20 grid w-full grid-cols-4 h-9 sm:h-10">
-                <TabsTrigger value="details" className="text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-vynal-accent-primary data-[state=active]:to-vynal-accent-secondary data-[state=active]:text-white">
-                  <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                <TabsTrigger value="details" className="text-[8px] sm:text-[10px] text-vynal-purple-dark dark:text-vynal-text-primary data-[state=active]:bg-gradient-to-r data-[state=active]:from-vynal-accent-primary data-[state=active]:to-vynal-accent-secondary data-[state=active]:text-white">
+                  <FileText className="h-3 w-3 mr-1" />
                   Détails
                 </TabsTrigger>
-                <TabsTrigger value="messages" className="text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-vynal-accent-primary data-[state=active]:to-vynal-accent-secondary data-[state=active]:text-white">
-                  <MessageSquare className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                <TabsTrigger value="messages" className="text-[8px] sm:text-[10px] text-vynal-purple-dark dark:text-vynal-text-primary data-[state=active]:bg-gradient-to-r data-[state=active]:from-vynal-accent-primary data-[state=active]:to-vynal-accent-secondary data-[state=active]:text-white">
+                  <MessageSquare className="h-3 w-3 mr-1" />
                   Messages
                 </TabsTrigger>
-                <TabsTrigger value="files" className="text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-vynal-accent-primary data-[state=active]:to-vynal-accent-secondary data-[state=active]:text-white">
-                  <FileType className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                <TabsTrigger value="files" className="text-[8px] sm:text-[10px] text-vynal-purple-dark dark:text-vynal-text-primary data-[state=active]:bg-gradient-to-r data-[state=active]:from-vynal-accent-primary data-[state=active]:to-vynal-accent-secondary data-[state=active]:text-white">
+                  <FileType className="h-3 w-3 mr-1" />
                   Fichiers
                 </TabsTrigger>
-                <TabsTrigger value="reviews" className="text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-vynal-accent-primary data-[state=active]:to-vynal-accent-secondary data-[state=active]:text-white">
-                  <Star className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                <TabsTrigger value="reviews" className="text-[8px] sm:text-[10px] text-vynal-purple-dark dark:text-vynal-text-primary data-[state=active]:bg-gradient-to-r data-[state=active]:from-vynal-accent-primary data-[state=active]:to-vynal-accent-secondary data-[state=active]:text-white">
+                  <Star className="h-3 w-3 mr-1" />
                   Avis
                 </TabsTrigger>
               </TabsList>

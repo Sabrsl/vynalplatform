@@ -9,7 +9,6 @@ import { supabase } from "@/lib/supabase/client";
 import ServiceDetails from "@/components/services/ServiceDetails";
 import { ArrowLeftIcon, PencilIcon, TrashIcon, LockIcon, AlertCircle, RefreshCw, CheckCircle, Clock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { useToast } from "@/components/ui/use-toast";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -39,6 +38,7 @@ export default function ServiceDetailsPage({
   const [isPendingValidation, setIsPendingValidation] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdateTime, setLastUpdateTime] = useState<Date | null>(null);
+  const [isConfirming, setIsConfirming] = useState(false);
   
   // Références pour éviter les rechargements redondants
   const lastRefreshTime = useRef<number>(0);
@@ -221,10 +221,10 @@ export default function ServiceDetailsPage({
   
   // Rediriger si l'utilisateur n'est pas freelance
   useEffect(() => {
-    if (profile && !isFreelance && profile.role !== 'admin') {
+    if (!loading && profile && !isFreelance && profile.role !== 'admin') {
       router.push("/dashboard");
     }
-  }, [profile, isFreelance, router]);
+  }, [profile, isFreelance, router, loading]);
   
   // Handlers
   const handleBack = () => router.push("/dashboard/services");
@@ -334,7 +334,7 @@ export default function ServiceDetailsPage({
           size="sm"
           onClick={handleRefresh}
           disabled={isRefreshing || loading}
-          className="h-6 sm:h-7 text-[9px] sm:text-[10px] py-0 px-1.5 sm:px-2 flex items-center gap-1"
+          className="h-6 sm:h-7 text-[9px] sm:text-[10px] py-0 px-1.5 sm:px-2 flex items-center gap-1 text-vynal-purple-dark hover:text-vynal-purple-dark/80 dark:text-slate-400 dark:hover:text-slate-100"
         >
           {isRefreshing ? (
             <>
@@ -366,7 +366,7 @@ export default function ServiceDetailsPage({
                 <TooltipTrigger asChild>
                   <Button
                     variant="outline"
-                    className="flex items-center justify-center gap-1.5 w-full xs:w-auto text-[10px] sm:text-xs py-0.5 sm:py-1 h-7 sm:h-8"
+                    className="flex items-center justify-center gap-1.5 w-full xs:w-auto text-[10px] sm:text-xs py-0.5 sm:py-1 h-7 sm:h-8 text-vynal-purple-dark/30 hover:text-vynal-purple-dark/30 dark:text-slate-400/50 dark:hover:text-slate-400/50"
                     disabled
                   >
                     <LockIcon className="h-3 w-3 sm:h-4 sm:w-4" />
@@ -382,64 +382,87 @@ export default function ServiceDetailsPage({
             <Button
               onClick={handleEdit}
               variant="outline"
-              className="flex items-center justify-center gap-1.5 w-full xs:w-auto text-[10px] sm:text-xs py-0.5 sm:py-1 h-7 sm:h-8"
+              className="flex items-center justify-center gap-1.5 w-full xs:w-auto text-[10px] sm:text-xs py-0.5 sm:py-1 h-7 sm:h-8 text-vynal-purple-dark hover:text-vynal-purple-dark/90 dark:text-slate-400 dark:hover:text-slate-100"
             >
               <PencilIcon className="h-3 w-3 sm:h-4 sm:w-4" />
               Modifier
             </Button>
           )}
           
-          <ConfirmDialog
-            title="Supprimer le service"
-            description="Êtes-vous sûr de vouloir supprimer ce service ? Cette action est irréversible."
-            confirmText="Supprimer"
-            variant="destructive"
-            onConfirm={async () => {
-              if (!serviceId) return;
-              
-              try {
-                setIsDeleting(true);
-                
-                // Appeler la fonction de suppression du service
-                const result = await deleteService(serviceId);
-                
-                if (!result.success) {
-                  throw new Error(result.error || "Erreur lors de la suppression du service");
-                }
-                
-                toast({
-                  title: "Succès",
-                  description: "Service supprimé avec succès"
-                });
-                
-                // Attendre un court instant avant de rediriger
-                setTimeout(() => {
-                  router.push('/dashboard/services');
-                }, 500);
-              } catch (err: any) {
-                console.error("Erreur lors de la suppression:", err);
-                toast({
-                  title: "Erreur",
-                  description: err.message || "Une erreur est survenue lors de la suppression",
-                  variant: "destructive"
-                });
-              } finally {
-                setIsDeleting(false);
-              }
-            }}
-            trigger={
-              <Button 
-                variant="destructive" 
-                className="flex items-center justify-center gap-1.5 w-full xs:w-auto text-[10px] sm:text-xs py-0.5 sm:py-1 h-7 sm:h-8"
-                disabled={isDeleting}
-              >
-                <TrashIcon className="h-3 w-3 sm:h-4 sm:w-4" />
-                {isDeleting ? "Suppression..." : "Supprimer"}
-              </Button>
-            }
-          />
+          <Button 
+            variant="destructive" 
+            className="flex items-center justify-center gap-1.5 w-full xs:w-auto text-[10px] sm:text-xs py-0.5 sm:py-1 h-7 sm:h-8 text-white hover:text-white/80"
+            disabled={isDeleting}
+            onClick={() => setIsDeleteDialogOpen(true)}
+          >
+            <TrashIcon className="h-3 w-3 sm:h-4 sm:w-4" />
+            {isDeleting ? "Suppression..." : "Supprimer"}
+          </Button>
         </div>
       </ServiceDetails>
+      
+      {isDeleteDialogOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-slate-900 rounded-lg p-4 sm:p-6 max-w-[425px] w-full mx-4">
+            <div className="space-y-4">
+              <h3 className="text-xs sm:text-sm md:text-base font-semibold text-vynal-purple-dark dark:text-slate-100">
+                Confirmation de suppression
+              </h3>
+              <p className="text-[10px] sm:text-xs text-vynal-purple-dark/80 dark:text-slate-400">
+                Voulez-vous vraiment supprimer ce service ? Cette action est irréversible.
+              </p>
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsDeleteDialogOpen(false)}
+                  className="text-[10px] sm:text-xs text-vynal-purple-dark hover:text-vynal-purple-dark/80 dark:text-slate-400 dark:hover:text-slate-100"
+                >
+                  Annuler
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={async () => {
+                    if (!serviceId) return;
+                    
+                    try {
+                      setIsDeleting(true);
+                      setIsDeleteDialogOpen(false);
+                      
+                      const result = await deleteService(serviceId);
+                      
+                      if (!result.success) {
+                        throw new Error(result.error || "Erreur lors de la suppression du service");
+                      }
+                      
+                      toast({
+                        title: "Succès",
+                        description: "Service supprimé avec succès"
+                      });
+                      
+                      setTimeout(() => {
+                        router.push('/dashboard/services');
+                      }, 500);
+                    } catch (err: any) {
+                      console.error("Erreur lors de la suppression:", err);
+                      toast({
+                        title: "Erreur",
+                        description: err.message || "Une erreur est survenue lors de la suppression",
+                        variant: "destructive"
+                      });
+                    } finally {
+                      setIsDeleting(false);
+                    }
+                  }}
+                  className="text-[10px] sm:text-xs text-white hover:text-white"
+                  disabled={isDeleting}
+                >
+                  {isDeleting ? "Suppression..." : "Confirmer"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 } 

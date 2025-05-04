@@ -11,87 +11,11 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, AlertCircle, CheckCircle, Loader, Wallet, BanknoteIcon } from "lucide-react";
 import { PaymentMethodCard } from "@/components/orders/PaymentMethodCard";
+import { PAYMENT_METHODS, PaymentMethodType } from "@/lib/constants/payment";
 import { CURRENCY } from "@/lib/constants";
 import { useUser } from "@/hooks/useUser";
 import Image from 'next/image';
-
-// Données fictives pour la démo
-const MOCK_WALLET = {
-  balance: 875.50,
-  pending: 350.00,
-  fee_percentage: 5,
-  min_withdrawal: 2000,
-  withdrawal_methods: [
-    {
-      id: "bank",
-      name: "Virement bancaire",
-      description: "3-5 jours ouvrés",
-      fee: "0%",
-      processing_time: "3-5 jours ouvrés",
-      logo: "/assets/payment/bank.svg"
-    },
-    {
-      id: "orange-money",
-      name: "Orange Money",
-      description: "Instantané",
-      fee: "1.5%",
-      processing_time: "Instantané",
-      logo: "/assets/payment/orange-money.svg"
-    },
-    {
-      id: "free-money",
-      name: "Free Money",
-      description: "Instantané",
-      fee: "1.5%",
-      processing_time: "Instantané",
-      logo: "/assets/payment/free-money.svg"
-    },
-    {
-      id: "wave",
-      name: "Wave",
-      description: "Instantané",
-      fee: "1%",
-      processing_time: "Sous 24h",
-      logo: "/assets/payment/wave.svg"
-    }
-  ],
-  saved_methods: [
-    {
-      id: "bank-1",
-      type: "bank",
-      name: "Compte bancaire principal",
-      details: "BNP Paribas ****1234",
-      is_default: true
-    }
-  ]
-};
-
-const WITHDRAWAL_METHODS = [
-  {
-    id: "bank",
-    name: "Virement bancaire",
-    description: "3-5 jours ouvrés",
-    logo: "/assets/payment/bank.svg"
-  },
-  {
-    id: "orange-money",
-    name: "Orange Money",
-    description: "Sous 24h",
-    logo: "/assets/payment/orange-money.svg"
-  },
-  {
-    id: "free-money",
-    name: "Free Money",
-    description: "Sous 24h",
-    logo: "/assets/payment/free-money.svg"
-  },
-  {
-    id: "wave",
-    name: "Wave",
-    description: "Sous 24h",
-    logo: "/assets/payment/wave.svg"
-  }
-];
+import { MOCK_WALLET, MOCK_WITHDRAWAL_METHODS } from "@/lib/mock/data";
 
 export default function WithdrawPage() {
   const { user, loading: authLoading } = useAuth();
@@ -472,7 +396,7 @@ export default function WithdrawPage() {
               </Label>
               
               <div className="grid grid-cols-1 gap-2 mt-2 sm:grid-cols-2 sm:gap-3">
-                {WITHDRAWAL_METHODS.map((method) => (
+                {MOCK_WITHDRAWAL_METHODS.map((method) => (
                   <button
                     key={method.id}
                     type="button"

@@ -7,6 +7,7 @@ import { fr } from "date-fns/locale";
 import { useToast } from "@/components/ui/use-toast";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { Order, OrderStatus } from "@/types/orders";
+import { formatPrice } from "@/lib/utils";
 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -313,36 +314,79 @@ export function OrderSidebar({
 
   return (
     <Card className="lg:col-span-1 border border-vynal-purple-secondary/10 shadow-sm bg-white dark:bg-vynal-purple-dark/20">
-      <CardHeader className="pb-2 sm:pb-3 border-b border-vynal-purple-secondary/10 dark:border-vynal-purple-secondary/20 p-3 sm:p-4">
-        <div className="flex justify-between items-center">
-          <div>
-            <CardTitle className="text-sm sm:text-base md:text-lg text-vynal-purple-light dark:text-vynal-text-primary">
-              Commande #{order.id}
-            </CardTitle>
-          </div>
-          <div className="flex items-center">
-            {statusIcons[order.status as keyof typeof statusIcons]}
-            <Badge variant="outline" className={`ml-1 text-xs sm:text-sm ${statusColors[order.status]}`}>
-              {statusLabels[order.status]}
-            </Badge>
-          </div>
-        </div>
-        <CardDescription className="text-xs sm:text-sm text-vynal-purple-secondary dark:text-vynal-text-secondary flex items-center mt-1 sm:mt-2">
-          <Calendar className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-1 sm:mr-1.5 text-vynal-purple-secondary/70 dark:text-vynal-text-secondary/60" />
-          {format(new Date(order.created_at), 'dd MMMM yyyy à HH:mm', { locale: fr })}
-        </CardDescription>
+      <CardHeader className="p-3 sm:p-4 pb-2 sm:pb-3 border-b border-vynal-purple-secondary/10 dark:border-vynal-purple-secondary/20">
+        <CardTitle className="text-xs sm:text-sm font-semibold text-vynal-purple-light dark:text-vynal-text-primary">
+          Détails de la commande
+        </CardTitle>
       </CardHeader>
       <CardContent className="p-3 sm:p-4 space-y-4">
-        <div>
-          <h3 className="text-base sm:text-lg font-medium text-vynal-purple-light dark:text-vynal-text-primary line-clamp-2">
-            {order.service.title}
-          </h3>
-          <p className="text-xs sm:text-sm text-vynal-purple-secondary dark:text-vynal-text-secondary/80 mt-1 line-clamp-3">
-            {order.service.description}
-          </p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            <Badge variant="secondary" className="bg-vynal-purple-secondary/10 text-vynal-purple-secondary dark:bg-vynal-purple-secondary/20 dark:text-vynal-accent-secondary text-xs">
-              {order.service.category}
+        <div className="flex flex-col p-3 sm:p-4 space-y-3 sm:space-y-4">
+          <div>
+            <h4 className="text-[10px] sm:text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary mb-1.5">
+              Service commandé
+            </h4>
+            <p className="text-[11px] sm:text-[12px] font-medium text-vynal-purple-light dark:text-vynal-text-primary">
+              {order.service.title}
+            </p>
+          </div>
+          <div className="flex items-center space-x-1.5 sm:space-x-2 mt-1">
+            <div className="flex-shrink-0">
+              <Avatar className="h-6 w-6 sm:h-7 sm:w-7 rounded-full">
+                <AvatarImage src={otherParty.avatar_url || ""} alt={otherParty.username} />
+                <AvatarFallback className="text-[8px] sm:text-[9px] bg-vynal-purple-secondary/10 text-vynal-accent-primary">
+                  {otherParty.username.substring(0, 2).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+            </div>
+            <div>
+              <p className="text-[10px] sm:text-xs font-medium text-vynal-purple-light dark:text-vynal-text-primary">
+                {otherParty.full_name || otherParty.username}
+              </p>
+              <p className="text-[8px] sm:text-[9px] text-vynal-purple-secondary dark:text-vynal-text-secondary">
+                Client
+              </p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:gap-3">
+            <div>
+              <p className="text-[10px] sm:text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary mb-1">
+                Référence
+              </p>
+              <p className="text-[8px] sm:text-[9px] font-medium text-vynal-purple-light dark:text-vynal-text-primary">
+                #{order.id.substring(0, 8)}
+              </p>
+            </div>
+            <div>
+              <p className="text-[10px] sm:text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary mb-1">
+                Date
+              </p>
+              <p className="text-[8px] sm:text-[9px] font-medium text-vynal-purple-light dark:text-vynal-text-primary">
+                {format(new Date(order.created_at), 'dd/MM/yyyy', { locale: fr })}
+              </p>
+            </div>
+            <div>
+              <p className="text-[10px] sm:text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary mb-1">
+                Montant
+              </p>
+              <p className="text-[8px] sm:text-[9px] font-medium text-vynal-purple-light dark:text-vynal-text-primary">
+                {formatPrice(order.price)}
+              </p>
+            </div>
+            <div>
+              <p className="text-[10px] sm:text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary mb-1">
+                Délai
+              </p>
+              <div className="flex items-center">
+                <Clock className="h-2.5 w-2.5 mr-1 text-vynal-purple-secondary dark:text-vynal-text-secondary" />
+                <p className="text-[8px] sm:text-[9px] font-medium text-vynal-purple-light dark:text-vynal-text-primary">
+                  {order.delivery_time} jours
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="flex justify-center mt-2">
+            <Badge className={`text-[8px] sm:text-[9px] px-2 py-0.5 border ${statusColors[order.status]} capitalize`}>
+              {statusLabels[order.status]}
             </Badge>
           </div>
         </div>
@@ -373,13 +417,6 @@ export function OrderSidebar({
               </Badge>
             </div>
           )}
-          
-          <div className="flex justify-between items-center">
-            <span className="text-xs sm:text-sm text-vynal-purple-secondary dark:text-vynal-text-secondary">Délai de livraison:</span>
-            <span className="font-medium text-xs sm:text-sm text-vynal-purple-light dark:text-vynal-text-primary">
-              {order.service.delivery_time} jours
-            </span>
-          </div>
           
           {/* Condition pour la date de livraison calculée */}
           {order.delivery_time && (

@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -12,53 +11,36 @@ import Image from "next/image";
 import { formatPrice, formatFileSize } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { useDropzone } from "react-dropzone";
-import { Upload, X } from "lucide-react";
-import { Loader } from "lucide-react";
+import { Upload, X, Loader2 } from "lucide-react";
+import { motion } from "framer-motion";
 
 interface OrderRequirementsFormProps {
   service: any;
   requirements: string;
   setRequirements: (value: string) => void;
-  deliveryDate: string;
-  setDeliveryDate: (value: string) => void;
   files: FileList | null;
   setFiles: (files: FileList | null) => void;
   error: string | null;
   onBack: () => void;
   onNext: () => void;
   isTestMode?: boolean;
+  isLoading: boolean;
 }
 
 export function OrderRequirementsForm({
   service,
   requirements,
   setRequirements,
-  deliveryDate,
-  setDeliveryDate,
   files,
   setFiles,
   error,
   onBack,
   onNext,
-  isTestMode = false
+  isTestMode = false,
+  isLoading
 }: OrderRequirementsFormProps) {
   const [fileError, setFileError] = useState<string | null>(null);
   const [response, setResponse] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  
-  // Calcul de la date de livraison estimée
-  const getEstimatedDeliveryDate = () => {
-    const today = new Date();
-    const deliveryDays = service?.delivery_time || 3;
-    const deliveryDate = new Date(today);
-    deliveryDate.setDate(deliveryDate.getDate() + deliveryDays);
-    
-    return deliveryDate.toLocaleDateString('fr-FR', {
-      day: '2-digit', 
-      month: '2-digit',
-      year: 'numeric'
-    });
-  };
   
   // Gestion du téléchargement de fichiers
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -111,24 +93,19 @@ export function OrderRequirementsForm({
     setFiles(dataTransfer.files.length > 0 ? dataTransfer.files : null);
   };
 
-  // Gestion de la soumission
-  const handleSubmit = () => {
-    setSubmitting(true);
-    // Simulation d'un envoi API
-    setTimeout(() => {
-      setSubmitting(false);
-      onNext();
-    }, 1000);
-  };
-
   return (
-    <>
-      <DialogHeader className="bg-gradient-to-b from-vynal-purple-dark to-vynal-purple-darkest p-4 rounded-t-lg border-b border-vynal-purple-secondary/30">
-        <DialogTitle className="text-vynal-text-primary">Détails de la commande</DialogTitle>
-        <DialogDescription className="text-vynal-text-secondary">
-          Fournissez vos exigences pour cette commande
-        </DialogDescription>
-      </DialogHeader>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 20 }}
+      className="space-y-4"
+    >
+      <div className="bg-gradient-to-b from-vynal-purple-dark to-vynal-purple-darkest p-4 rounded-t-lg border-b border-vynal-purple-secondary/30">
+        <h2 className="text-lg font-semibold text-vynal-text-primary">Détails de la commande</h2>
+        <p className="text-sm text-vynal-text-secondary">
+          Veuillez fournir les détails de votre commande pour que le freelance puisse la traiter.
+        </p>
+      </div>
       
       <div className="p-4 space-y-6">
         {/* Informations du service */}
@@ -140,6 +117,7 @@ export function OrderRequirementsForm({
                   src={service.images[0]} 
                   alt={service.title}
                   fill
+                  sizes="56px"
                   className="object-cover"
                 />
               ) : (
@@ -167,7 +145,7 @@ export function OrderRequirementsForm({
         {isTestMode && (
           <div className="p-3 bg-amber-500/20 border border-amber-500/40 rounded-lg">
             <div className="flex items-start">
-              <AlertCircle className="h-4 w-4 text-amber-500 mt-0.5 mr-2 flex-shrink-0" />
+              <AlertCircle className="h-4 w-4 text-amber-500 mt-0.5 mr-2 flex-shrink0" />
               <div>
                 <h3 className="text-sm font-medium text-amber-500">Mode Test activé</h3>
                 <p className="text-xs text-amber-400/80 mt-1">
@@ -181,76 +159,58 @@ export function OrderRequirementsForm({
         {/* Formulaire d'exigences */}
         <div className="space-y-4">
           <div>
-            <Label htmlFor="requirements" className="text-vynal-text-primary">
+            <Label className="text-vynal-text-primary">
               Exigences détaillées
               <span className="text-vynal-status-error ml-0.5">*</span>
+              <Textarea 
+                id="order-requirements"
+                name="requirements"
+                value={requirements}
+                onChange={(e) => setRequirements(e.target.value)}
+                placeholder="Expliquez en détail ce que vous attendez du vendeur..."
+                className="mt-1.5 min-h-[120px] resize-none bg-transparent border-vynal-purple-secondary/30 text-vynal-text-primary focus-visible:ring-vynal-accent-primary"
+              />
+              <p className="text-xs text-vynal-text-secondary mt-1">
+                {requirements.length} caractères - min. 30 caractères recommandés
+              </p>
             </Label>
-            <Textarea 
-              id="requirements"
-              value={requirements}
-              onChange={(e) => setRequirements(e.target.value)}
-              placeholder="Expliquez en détail ce que vous attendez du vendeur..."
-              className="mt-1.5 min-h-[120px] resize-none bg-transparent border-vynal-purple-secondary/30 text-vynal-text-primary focus-visible:ring-vynal-accent-primary"
-            />
-            <p className="text-xs text-vynal-text-secondary mt-1">
-              {requirements.length} caractères - min. 30 caractères recommandés
-            </p>
           </div>
           
           <div>
-            <Label htmlFor="deliveryDate" className="text-vynal-text-primary">
-              Date de livraison souhaitée
+            <Label className="text-vynal-text-primary">
+              Fichiers joints (optionnel)
+              <div
+                {...getRootProps()}
+                className={cn(
+                  "mt-1.5 border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors",
+                  isDragActive
+                    ? "border-vynal-accent-primary bg-vynal-accent-primary/10"
+                    : "border-vynal-purple-secondary/30 hover:border-vynal-accent-primary/50"
+                )}
+              >
+                <input 
+                  {...getInputProps()} 
+                  id="order-files"
+                  name="files"
+                />
+                <div className="flex flex-col items-center justify-center gap-2">
+                  <Upload className="h-6 w-6 text-vynal-text-secondary" />
+                  <p className="text-sm text-vynal-text-secondary">
+                    {isDragActive
+                      ? "Déposez les fichiers ici..."
+                      : "Glissez-déposez des fichiers ou cliquez pour sélectionner"}
+                  </p>
+                  <p className="text-xs text-vynal-text-secondary/80">
+                    Maximum 5 fichiers, 10MB par fichier
+                  </p>
+                </div>
+              </div>
             </Label>
-            <div className="flex items-center gap-2 mt-1.5">
-              <Calendar className="h-4 w-4 text-vynal-accent-primary" />
-              <Input
-                type="date"
-                id="deliveryDate"
-                value={deliveryDate}
-                onChange={(e) => setDeliveryDate(e.target.value)}
-                min={new Date().toISOString().split('T')[0]}
-                className="bg-transparent border-vynal-purple-secondary/30 text-vynal-text-primary focus-visible:ring-vynal-accent-primary"
-              />
-            </div>
-            <p className="text-xs text-vynal-text-secondary mt-1">
-              Date de livraison estimée: {getEstimatedDeliveryDate()}
-            </p>
           </div>
         </div>
         
         {/* Zone de téléchargement de fichiers */}
         <div>
-          <Label className="text-vynal-text-primary block mb-2">
-            Télécharger des fichiers (optionnel)
-          </Label>
-          
-          {/* Zone de dépôt */}
-          <div 
-            {...getRootProps()} 
-            className={cn(
-              "border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors",
-              isDragActive 
-                ? "border-vynal-accent-primary bg-vynal-accent-primary/10" 
-                : "border-vynal-purple-secondary/30 hover:bg-vynal-purple-secondary/10"
-            )}
-          >
-            <input {...getInputProps()} />
-            {isDragActive ? (
-              <p className="text-sm text-vynal-accent-primary">Déposez les fichiers ici...</p>
-            ) : (
-              <div>
-                <Upload className="mx-auto h-8 w-8 text-vynal-accent-primary mb-2" />
-                <p className="text-sm font-medium text-vynal-text-primary">
-                  Glissez-déposez des fichiers ici, ou cliquez pour sélectionner
-                </p>
-                <p className="text-xs text-vynal-text-secondary mt-1">
-                  Formats acceptés: images, PDF, Word, Excel, ZIP (max 10MB)
-                </p>
-              </div>
-            )}
-          </div>
-          
-          {/* Liste des fichiers */}
           {files && files.length > 0 && (
             <div className="mt-4 space-y-2">
               {Array.from(files).map((file, index) => (
@@ -295,36 +255,30 @@ export function OrderRequirementsForm({
           </div>
         )}
         
-        <DialogFooter className="pt-2">
+        <div className="pt-2 flex justify-between items-center">
           <Button
-            type="button"
-            variant="ghost"
+            variant="outline"
             onClick={onBack}
-            className="text-vynal-text-primary hover:text-vynal-accent-primary hover:bg-vynal-purple-secondary/20"
-            disabled={submitting}
+            className="text-vynal-text-secondary hover:text-vynal-text-primary"
           >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Retour
+            Annuler
           </Button>
-          <Button 
+          <Button
             onClick={onNext}
-            className="bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-vynal-purple-dark"
-            disabled={submitting || requirements.length < 10}
+            disabled={isLoading}
+            className="bg-vynal-accent-primary hover:bg-vynal-accent-primary/90"
           >
-            {submitting ? (
+            {isLoading ? (
               <>
-                <Loader className="mr-2 h-4 w-4 animate-spin" />
-                Traitement...
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Chargement...
               </>
             ) : (
-              <>
-                Continuer
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </>
+              "Continuer"
             )}
           </Button>
-        </DialogFooter>
+        </div>
       </div>
-    </>
+    </motion.div>
   );
 } 

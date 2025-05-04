@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, Suspense, useRef } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { validate as isUUID } from 'uuid';
 import { supabase } from '@/lib/supabase/client';
 import ServiceCard from '@/components/services/ServiceCard';
@@ -24,6 +24,7 @@ function ServiceDetailContent() {
   // Obtenir le paramètre slug ou id de l'URL
   const params = useParams<{ slug: string }>();
   const slugOrId = params?.slug as string;
+  const router = useRouter();
 
   // Fonction pour récupérer les données du service
   const fetchServiceData = async () => {
@@ -228,15 +229,17 @@ function ServiceDetailContent() {
         </div>
         
         {service && (
-          <ServiceView 
-            service={service}
-            loading={false}
-            error={null}
-            isFreelanceView={false}
-            relatedServices={relatedServices}
-            loadingRelated={loadingRelated}
-            className="animate-in fade-in duration-300"
-          />
+          <div>
+            <ServiceView 
+              service={service}
+              loading={false}
+              error={null}
+              isFreelanceView={false}
+              relatedServices={relatedServices}
+              loadingRelated={loadingRelated}
+              className="animate-in fade-in duration-300"
+            />
+          </div>
         )}
       </div>
     </div>

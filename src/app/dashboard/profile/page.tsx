@@ -250,12 +250,12 @@ export default function ProfilePage() {
     <div className="px-0 py-4">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 px-4">
     <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-2 text-vynal-purple-light dark:text-vynal-text-primary">
+          <h1 className="text-base sm:text-lg md:text-xl font-bold tracking-tight mb-2 text-vynal-purple-light dark:text-vynal-text-primary">
             Mon profil
           </h1>
-          <p className="text-muted-foreground">
-        Gérez vos informations personnelles et préférences
-      </p>
+          <p className="text-[10px] sm:text-xs text-muted-foreground">
+            Gérez vos informations personnelles et préférences
+          </p>
         </div>
         
         <div className="mt-4 sm:mt-0">
@@ -333,10 +333,10 @@ export default function ProfilePage() {
 
           <div className="pt-20 pb-6 px-6">
             <div className="text-center mb-6">
-              <h2 className="text-xl font-bold truncate text-vynal-purple-light dark:text-vynal-text-primary">
+              <h2 className="text-lg font-bold truncate text-vynal-purple-light dark:text-vynal-text-primary">
                 {localProfile.full_name || "Votre nom"}
               </h2>
-              <p className="text-vynal-purple-secondary dark:text-vynal-text-secondary font-medium truncate flex items-center justify-center gap-1">
+              <p className="text-sm text-vynal-purple-secondary dark:text-vynal-text-secondary font-medium truncate flex items-center justify-center gap-1">
                 {localProfile.username ? (
                   <>@{localProfile.username}</>
                 ) : (
@@ -355,50 +355,50 @@ export default function ProfilePage() {
                 </div>
               )}
               
-              <div className="mt-2 flex items-center justify-center gap-1 text-xs text-vynal-accent-primary dark:text-vynal-accent-secondary">
-                <Share2 className="h-3 w-3" />
+              <div className="mt-2 flex items-center justify-center gap-1 text-[8px] sm:text-[10px] text-vynal-accent-primary dark:text-vynal-accent-secondary">
+                <Share2 className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                 <span>Utilisez le bouton en haut à droite pour partager votre profil</span>
               </div>
             </div>
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <h3 className="text-sm font-medium text-vynal-purple-light dark:text-vynal-text-primary flex items-center gap-2">
-                  <Mail className="h-4 w-4 text-vynal-accent-primary" />
+                <h3 className="text-xs font-medium text-vynal-purple-light dark:text-vynal-text-primary flex items-center gap-2">
+                  <Mail className="h-3.5 w-3.5 text-vynal-accent-primary" />
                   Email
                 </h3>
-                <p className="text-sm text-vynal-purple-secondary dark:text-vynal-text-secondary break-all">
+                <p className="text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary break-all">
                   {user?.email}
                 </p>
               </div>
               
               {localProfile.phone && (
                 <div className="space-y-2">
-                  <h3 className="text-sm font-medium text-vynal-purple-light dark:text-vynal-text-primary flex items-center gap-2">
-                    <Phone className="h-4 w-4 text-vynal-accent-primary" />
+                  <h3 className="text-xs font-medium text-vynal-purple-light dark:text-vynal-text-primary flex items-center gap-2">
+                    <Phone className="h-3.5 w-3.5 text-vynal-accent-primary" />
                     Téléphone
                   </h3>
-                  <p className="text-sm text-vynal-purple-secondary dark:text-vynal-text-secondary">
+                  <p className="text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary">
                     {localProfile.phone}
                   </p>
                 </div>
               )}
               
               <div className="space-y-2">
-                <h3 className="text-sm font-medium text-vynal-purple-light dark:text-vynal-text-primary flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-vynal-accent-primary" />
+                <h3 className="text-xs font-medium text-vynal-purple-light dark:text-vynal-text-primary flex items-center gap-2">
+                  <Calendar className="h-3.5 w-3.5 text-vynal-accent-primary" />
                   Membre depuis
                 </h3>
-                <p className="text-sm text-vynal-purple-secondary dark:text-vynal-text-secondary">
+                <p className="text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary">
                   {formatDate(userProfile?.created_at || null)}
-              </p>
-            </div>
+                </p>
+              </div>
 
               <div className="pt-2">
-                <h3 className="text-sm font-medium text-vynal-purple-light dark:text-vynal-text-primary mb-2">
+                <h3 className="text-xs sm:text-sm font-medium text-vynal-purple-light dark:text-vynal-text-primary mb-2">
                   À propos
                 </h3>
-                <p className="text-sm text-vynal-purple-secondary dark:text-vynal-text-secondary break-words">
+                <p className="text-xs sm:text-sm text-vynal-purple-secondary dark:text-vynal-text-secondary break-words">
                   {localProfile.bio || "Aucune biographie renseignée"}
                 </p>
               </div>
@@ -409,7 +409,7 @@ export default function ProfilePage() {
         <div className="md:col-span-8">
           <Card className="border-vynal-border dark:border-vynal-purple-secondary/40 shadow-sm bg-white dark:bg-vynal-purple-dark/20 p-6">
             <div className="flex items-center mb-6">
-              <h2 className="text-xl font-bold text-vynal-purple-light dark:text-vynal-text-primary">
+              <h2 className="text-lg font-bold text-vynal-purple-light dark:text-vynal-text-primary">
                 Modifier vos informations
               </h2>
             </div>
@@ -417,7 +417,7 @@ export default function ProfilePage() {
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid gap-6">
                 <div className="grid gap-2">
-                  <Label htmlFor="full_name" className="text-vynal-purple-light dark:text-vynal-text-primary">
+                  <Label htmlFor="full_name" className="text-xs text-vynal-purple-light dark:text-vynal-text-primary">
                     Nom complet
                   </Label>
                   <Input
@@ -426,21 +426,21 @@ export default function ProfilePage() {
                     value={localProfile.full_name}
                     onChange={handleChange}
                     placeholder="Votre nom complet"
-                    className="border-vynal-border dark:border-vynal-purple-secondary/40 dark:bg-vynal-purple-secondary/10"
+                    className="border-vynal-border dark:border-vynal-purple-secondary/40 dark:bg-vynal-purple-secondary/10 text-[10px] sm:text-xs"
                   />
-                  <p className="text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary/70">
+                  <p className="text-[8px] sm:text-[10px] text-vynal-purple-secondary dark:text-vynal-text-secondary/70">
                     Votre nom réel tel qu'il apparaîtra sur votre profil
                   </p>
                 </div>
 
                 <div className="grid gap-2">
                   <div className="flex justify-between items-center">
-                    <Label htmlFor="username" className="text-vynal-purple-light dark:text-vynal-text-primary">
+                    <Label htmlFor="username" className="text-xs text-vynal-purple-light dark:text-vynal-text-primary">
                       Nom d'utilisateur
                     </Label>
                     {usernameIsSet && (
-                      <div className="flex items-center text-xs text-amber-600 dark:text-amber-400 gap-1">
-                        <Lock size={12} />
+                      <div className="flex items-center text-[8px] sm:text-[10px] text-amber-600 dark:text-amber-400 gap-1">
+                        <Lock size={10} />
                         Non modifiable
                       </div>
                     )}
@@ -453,9 +453,9 @@ export default function ProfilePage() {
                     value={localProfile.username}
                     onChange={handleChange}
                     placeholder="votre_username"
-                      className={`border-vynal-border dark:border-vynal-purple-secondary/40 dark:bg-vynal-purple-secondary/10 ${usernameIsSet ? 'bg-gray-50 dark:bg-vynal-purple-secondary/5 cursor-not-allowed' : ''}`}
-                      disabled={usernameIsSet ? true : undefined}
-                    />
+                    className={`border-vynal-border dark:border-vynal-purple-secondary/40 dark:bg-vynal-purple-secondary/10 text-[10px] sm:text-xs ${usernameIsSet ? 'bg-gray-50 dark:bg-vynal-purple-secondary/5 cursor-not-allowed' : ''}`}
+                    disabled={usernameIsSet ? true : undefined}
+                  />
                     {usernameIsSet && (
                       <div className="absolute top-1/2 right-3 transform -translate-y-1/2">
                         <Lock size={16} className="text-gray-400 dark:text-gray-500" />
@@ -463,7 +463,7 @@ export default function ProfilePage() {
                     )}
                   </div>
                   
-                  <div className="text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary/70 flex flex-col gap-1">
+                  <div className="text-[8px] sm:text-[10px] text-vynal-purple-secondary dark:text-vynal-text-secondary/70 flex flex-col gap-1">
                     <p>Ce nom sera visible par les autres utilisateurs</p>
                     {!usernameIsSet ? (
                       <p className="text-amber-600 dark:text-amber-400 flex items-center gap-1 mt-1">
@@ -475,7 +475,7 @@ export default function ProfilePage() {
                     ) : (
                       <p className="text-vynal-accent-secondary dark:text-vynal-accent-primary flex items-center gap-1 mt-1">
                         <Info size={12} className="flex-shrink-0" />
-                        <span>
+                        <span className="text-[8px] sm:text-[10px]">
                           Pour modifier votre nom d'utilisateur, veuillez contacter le support
                         </span>
                       </p>
@@ -484,7 +484,7 @@ export default function ProfilePage() {
                 </div>
 
                 <div className="grid gap-2">
-                  <Label htmlFor="phone" className="text-vynal-purple-light dark:text-vynal-text-primary">
+                  <Label htmlFor="phone" className="text-xs text-vynal-purple-light dark:text-vynal-text-primary">
                     Téléphone
                   </Label>
                   <Input
@@ -494,15 +494,15 @@ export default function ProfilePage() {
                     value={localProfile.phone}
                     onChange={handleChange}
                     placeholder="+221 77 123 45 67"
-                    className="border-vynal-border dark:border-vynal-purple-secondary/40 dark:bg-vynal-purple-secondary/10"
+                    className="border-vynal-border dark:border-vynal-purple-secondary/40 dark:bg-vynal-purple-secondary/10 text-[10px] sm:text-xs"
                   />
-                  <p className="text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary/70">
+                  <p className="text-[8px] sm:text-[10px] text-vynal-purple-secondary dark:text-vynal-text-secondary/70">
                     Votre numéro de téléphone (facultatif)
                   </p>
                 </div>
 
                 <div className="grid gap-2">
-                  <Label htmlFor="bio" className="text-vynal-purple-light dark:text-vynal-text-primary">
+                  <Label htmlFor="bio" className="text-xs text-vynal-purple-light dark:text-vynal-text-primary">
                     Biographie
                   </Label>
                   <Textarea
@@ -513,9 +513,9 @@ export default function ProfilePage() {
                     placeholder="Parlez un peu de vous..."
                     rows={4}
                     maxLength={150}
-                    className="border-vynal-border dark:border-vynal-purple-secondary/40 dark:bg-vynal-purple-secondary/10 resize-none"
+                    className="border-vynal-border dark:border-vynal-purple-secondary/40 dark:bg-vynal-purple-secondary/10 resize-none text-[10px] sm:text-xs"
                   />
-                  <p className="text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary/70">
+                  <p className="text-[8px] sm:text-[10px] text-vynal-purple-secondary dark:text-vynal-text-secondary/70">
                     Une courte description pour vous présenter aux autres utilisateurs (150 caractères max)
                   </p>
                 </div>

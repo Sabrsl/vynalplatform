@@ -54,7 +54,7 @@ const CONTACT_EMAIL = "support@vynalplatform.com";
 const SocialIcons = memo(() => {
   return (
     <motion.div 
-      className="mt-5 flex space-x-4"
+      className="mt-5 mb-8 md:mb-0 flex space-x-4"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ delay: 0.3, duration: 0.5 }}
@@ -101,7 +101,7 @@ const ContactInfo = memo(() => {
         <Mail className="w-4 h-4 mr-2 text-gray-400 dark:text-vynal-text-secondary flex-shrink-0" strokeWidth={2} />
         <a 
           href={`mailto:${CONTACT_EMAIL}`} 
-          className="text-xs text-gray-400 dark:text-vynal-text-secondary hover:text-gray-600 dark:hover:text-gray-600 transition-colors whitespace-nowrap"
+          className="text-[10px] text-gray-400 dark:text-vynal-text-secondary hover:text-gray-600 dark:hover:text-gray-600 transition-colors whitespace-nowrap"
         >
           {CONTACT_EMAIL}
         </a>
@@ -109,7 +109,7 @@ const ContactInfo = memo(() => {
           {(isHovered || isCopied) && (
             <motion.button
               onClick={copyToClipboard}
-              className={`ml-2 px-1.5 py-0.5 text-[10px] rounded flex items-center gap-1 ${
+              className={`ml-2 px-1.5 py-0.5 text-[9px] rounded flex items-center gap-1 ${
                 isCopied 
                   ? "bg-green-600/20 text-green-400 dark:bg-green-900/40 dark:text-green-400" 
                   : "bg-gray-700 text-gray-300 dark:bg-vynal-purple-secondary/40 dark:text-vynal-text-secondary hover:bg-gray-600 dark:hover:bg-vynal-purple-secondary/60"
@@ -186,11 +186,11 @@ ThemeToggleButton.displayName = 'ThemeToggleButton';
 const LinkGroup = memo(({ section }: { section: typeof FOOTER_LINKS[0] }) => {
   return (
     <div>
-      <h3 className="text-xs font-semibold uppercase tracking-wider text-white dark:text-vynal-text-primary">
+      <h3 className="text-[10px] font-semibold uppercase tracking-wider text-white dark:text-vynal-text-primary">
         {section.title}
       </h3>
       <motion.ul 
-        className="mt-3 space-y-1.5"
+        className="mt-2 space-y-1"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1, transition: { staggerChildren: 0.05 } }}
       >
@@ -203,7 +203,7 @@ const LinkGroup = memo(({ section }: { section: typeof FOOTER_LINKS[0] }) => {
           >
             <Link
               href={link.href}
-              className="text-xs text-gray-400 hover:text-gray-600 dark:text-vynal-text-secondary dark:hover:text-gray-600 transition-colors block py-1"
+              className="text-[10px] text-gray-400 hover:text-gray-600 dark:text-vynal-text-secondary dark:hover:text-gray-600 transition-colors block py-0.5"
             >
               {link.name}
             </Link>
@@ -272,15 +272,16 @@ function Footer() {
               <Image 
                 src="/assets/logo/logo_vynal_platform_simple.webp" 
                 alt="Vynal Platform Logo" 
-                className="h-3 md:h-4 w-auto dark:brightness-110 transition-all duration-300"
-                width={70}
-                height={14}
+                className="h-2.5 md:h-3 w-auto dark:brightness-110 transition-all duration-300 mb-4"
+                width={60}
+                height={12}
                 style={{ height: 'auto' }}
                 priority
               />
             </Link>
-            <p className="mt-3 text-xs text-gray-400 dark:text-vynal-text-secondary">
+            <p className="mt-4 text-[10px] text-gray-400 dark:text-vynal-text-secondary leading-relaxed">
               La plateforme de mise en relation entre freelances et clients pour des projets réussis.
+              <br />
               Des services de qualité à prix fixe.
             </p>
             <SocialIcons />
@@ -308,7 +309,7 @@ function Footer() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <ContactInfo />
             <div className="flex items-center justify-start md:justify-end text-gray-400 dark:text-vynal-text-secondary md:text-right">
-              <span className="text-[10px] opacity-70">&copy; {currentYear} Vynal Platform. Tous droits réservés.</span>
+              <span className="text-[9px] opacity-70">&copy; {currentYear} Vynal Platform. Tous droits réservés.</span>
             </div>
           </div>
         </motion.div>

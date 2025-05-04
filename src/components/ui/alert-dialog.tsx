@@ -2,14 +2,27 @@
 
 import * as React from "react"
 import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog"
-
+import { Button } from "@/components/ui/button"
+import { AlertCircle, ArrowLeft, ArrowRight } from "lucide-react"
+import { Loader } from "@/components/ui/loader"
+import { motion } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button"
 
-const AlertDialog = AlertDialogPrimitive.Root
+interface AlertDialogProps {
+  title: string;
+  description: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+  confirmText?: string;
+  cancelText?: string;
+  isOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  loading?: boolean;
+}
 
+const AlertDialogRoot = AlertDialogPrimitive.Root
 const AlertDialogTrigger = AlertDialogPrimitive.Trigger
-
 const AlertDialogPortal = AlertDialogPrimitive.Portal
 
 const AlertDialogOverlay = React.forwardRef<
@@ -131,8 +144,83 @@ const AlertDialogCancel = React.forwardRef<
 ))
 AlertDialogCancel.displayName = AlertDialogPrimitive.Cancel.displayName
 
+export function AlertDialogComponent({
+  title,
+  description,
+  onConfirm,
+  onCancel,
+  confirmText = "Confirmer",
+  cancelText = "Annuler",
+  isOpen,
+  onOpenChange,
+  loading = false
+}: AlertDialogProps) {
+  return (
+    <>
+      <motion.div 
+        className="bg-gradient-to-b from-vynal-purple-dark to-vynal-purple-darkest p-4 rounded-t-lg border-b border-vynal-purple-secondary/30"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.2 }}
+      >
+        <motion.h2 
+          className="text-lg font-semibold text-vynal-text-primary"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.1 }}
+        >
+          {title}
+        </motion.h2>
+        <motion.p 
+          className="text-sm text-vynal-text-secondary"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.2 }}
+        >
+          {description}
+        </motion.p>
+      </motion.div>
+
+      <motion.div 
+        className="flex justify-between sm:justify-between px-4 py-3 bg-vynal-purple-secondary/10 border-t border-vynal-purple-secondary/30"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.2 }}
+      >
+        <Button
+          onClick={onCancel}
+          variant="ghost"
+          className="text-vynal-text-primary hover:text-vynal-accent-primary hover:bg-vynal-purple-secondary/20"
+          disabled={loading}
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          {cancelText}
+        </Button>
+        
+        <Button 
+          onClick={onConfirm}
+          className="bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-vynal-purple-dark"
+          disabled={loading}
+        >
+          {loading ? (
+            <>
+              <Loader className="mr-2 h-4 w-4 animate-spin" />
+              Traitement...
+            </>
+          ) : (
+            <>
+              {confirmText}
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </>
+          )}
+        </Button>
+      </motion.div>
+    </>
+  );
+}
+
 export {
-  AlertDialog,
+  AlertDialogRoot as AlertDialog,
   AlertDialogPortal,
   AlertDialogOverlay,
   AlertDialogTrigger,

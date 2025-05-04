@@ -3,15 +3,23 @@
 import * as React from "react"
 import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { X } from "lucide-react"
-
+import { Button } from "@/components/ui/button"
+import { AlertCircle, ArrowLeft, ArrowRight } from "lucide-react"
+import { Loader } from "@/components/ui/loader"
+import { motion } from "framer-motion"
 import { cn } from "@/lib/utils"
 
-const Dialog = DialogPrimitive.Root
+interface DialogProps {
+  title: string;
+  description: string;
+  children: React.ReactNode;
+  onClose: () => void;
+  loading?: boolean;
+}
 
+const DialogRoot = DialogPrimitive.Root
 const DialogTrigger = DialogPrimitive.Trigger
-
 const DialogPortal = DialogPrimitive.Portal
-
 const DialogClose = DialogPrimitive.Close
 
 const DialogOverlay = React.forwardRef<
@@ -112,8 +120,83 @@ const DialogDescription = React.forwardRef<
 ))
 DialogDescription.displayName = DialogPrimitive.Description.displayName
 
+export function DialogComponent({
+  title,
+  description,
+  children,
+  onClose,
+  loading = false
+}: DialogProps) {
+  return (
+    <>
+      <motion.div 
+        className="bg-gradient-to-b from-vynal-purple-dark to-vynal-purple-darkest p-4 rounded-t-lg border-b border-vynal-purple-secondary/30"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.2 }}
+      >
+        <motion.h2 
+          className="text-lg font-semibold text-vynal-text-primary"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.1 }}
+        >
+          {title}
+        </motion.h2>
+        <motion.p 
+          className="text-sm text-vynal-text-secondary"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.2 }}
+        >
+          {description}
+        </motion.p>
+      </motion.div>
+
+      <div className="p-4">
+        {children}
+      </div>
+
+      <motion.div 
+        className="flex justify-between sm:justify-between px-4 py-3 bg-vynal-purple-secondary/10 border-t border-vynal-purple-secondary/30"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.2 }}
+      >
+        <Button
+          onClick={onClose}
+          variant="ghost"
+          className="text-vynal-text-primary hover:text-vynal-accent-primary hover:bg-vynal-purple-secondary/20"
+          disabled={loading}
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Fermer
+        </Button>
+        
+        <Button 
+          onClick={onClose}
+          className="bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-vynal-purple-dark"
+          disabled={loading}
+        >
+          {loading ? (
+            <>
+              <Loader className="mr-2 h-4 w-4 animate-spin" />
+              Traitement...
+            </>
+          ) : (
+            <>
+              Fermer
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </>
+          )}
+        </Button>
+      </motion.div>
+    </>
+  );
+}
+
 export {
-  Dialog,
+  DialogRoot as Dialog,
   DialogPortal,
   DialogOverlay,
   DialogClose,
