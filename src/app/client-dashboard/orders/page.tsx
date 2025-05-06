@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { OrderCard } from "@/components/orders/OrderCard";
 import { ClientDashboardPageSkeleton } from "@/components/skeletons/ClientDashboardPageSkeleton";
-import { ShoppingBag, Search, Filter, X, Calendar, Clock, Package, CheckCircle, AlertCircle, ShoppingCart, Euro } from "lucide-react";
+import { ShoppingBag, Search, Filter, X, Calendar, Clock, Package, CheckCircle, AlertCircle, ShoppingCart, ArrowLeft } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -49,7 +49,7 @@ export default function ClientOrdersPage() {
   const { user, loading: authLoading } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("active");
+  const [activeTab, setActiveTab] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [sortBy, setSortBy] = useState("recent");
@@ -95,7 +95,9 @@ export default function ClientOrdersPage() {
       }
       
       // Filtrer par statut
-      if (activeTab === "active") {
+      if (activeTab === "all") {
+        return true;
+      } else if (activeTab === "active") {
         return ['in_progress', 'completed', 'delivered'].includes(order.status);
       } else if (activeTab === "pending") {
         return order.status === 'pending';
@@ -126,12 +128,13 @@ export default function ClientOrdersPage() {
   }, [filteredOrders, sortBy]);
 
   // Optimisation : Calcul mémorisé des compteurs
-  const { activeCount, pendingCount, completedCount, cancelledCount } = useMemo(() => {
+  const { activeCount, pendingCount, completedCount, cancelledCount, totalCount } = useMemo(() => {
     return {
       activeCount: orders.filter(order => ['in_progress', 'completed', 'delivered'].includes(order.status)).length,
       pendingCount: orders.filter(order => order.status === 'pending').length,
       completedCount: orders.filter(order => ['completed', 'delivered'].includes(order.status)).length,
-      cancelledCount: orders.filter(order => order.status === 'cancelled').length
+      cancelledCount: orders.filter(order => order.status === 'cancelled').length,
+      totalCount: orders.length
     };
   }, [orders]);
 
@@ -185,7 +188,7 @@ export default function ClientOrdersPage() {
   const mainCardClasses = "bg-white/30 dark:bg-slate-900/30 backdrop-blur-sm border border-slate-200/30 dark:border-slate-700/30 shadow-sm rounded-lg transition-all duration-200";
   const innerCardClasses = "bg-white/25 dark:bg-slate-800/25 backdrop-blur-sm border border-slate-200/15 dark:border-slate-700/15 rounded-lg transition-all duration-200";
   const badgeClasses = "bg-white/20 dark:bg-slate-800/20 backdrop-blur-sm text-slate-700 dark:text-vynal-text-primary border-slate-200/30 dark:border-slate-700/30 hover:bg-white/30 dark:hover:bg-slate-800/30";
-  const titleClasses = "text-slate-800 dark:text-vynal-text-primary";
+  const titleClasses = "text-[10px] sm:text-xs md:text-[10px] lg:text-[11px] text-slate-800 dark:text-vynal-text-primary";
   const subtitleClasses = "text-slate-600 dark:text-vynal-text-secondary";
   const buttonClasses = "text-[8px] sm:text-[8px] text-slate-700 dark:text-vynal-text-primary hover:bg-slate-100/40 dark:hover:bg-slate-700/40 transition-colors";
   const countClasses = "text-[8px] sm:text-[8px] text-slate-600 dark:text-vynal-text-secondary hover:text-white dark:hover:text-white transition-colors";
@@ -215,7 +218,7 @@ export default function ClientOrdersPage() {
     <div className="container max-w-6xl mx-auto px-4 py-6">
       <div className="flex flex-col space-y-2 md:flex-row md:items-center md:justify-between md:space-y-0 mb-6">
         <div>
-          <h1 className={`text-base sm:text-lg md:text-xl font-bold ${titleClasses} flex items-center`}>
+          <h1 className={`text-base sm:text-lg md:text-2xl font-bold ${titleClasses} flex items-center`}>
             <ShoppingBag className="mr-2 h-4 w-4 sm:h-5 sm:w-5 text-vynal-accent-primary" />
             Mes Commandes
           </h1>
@@ -224,27 +227,35 @@ export default function ClientOrdersPage() {
           </p>
         </div>
         
-        <Link href="/services">
-          <Button className="bg-vynal-accent-primary/90 hover:bg-vynal-accent-primary text-white text-[10px] sm:text-xs shadow-sm transition-all duration-200">
-            Explorer les services
-          </Button>
-        </Link>
+        <div className="flex items-center space-x-2">
+          <Link href="/client-dashboard">
+            <Button variant="ghost" size="sm" className="text-[10px] sm:text-xs">
+              <ArrowLeft className="mr-1 h-3 w-3" />
+              Tableau de bord
+            </Button>
+          </Link>
+          <Link href="/services">
+            <Button className="bg-vynal-accent-primary/90 hover:bg-vynal-accent-primary text-white text-[10px] sm:text-xs shadow-sm transition-all duration-200">
+              Explorer les services
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Recherche et filtres */}
       <div className="mb-4">
-        <div className="flex gap-2 items-center">
+        <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
           <div className="relative flex-1">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-slate-400" />
             <Input
               value={searchQuery}
               onChange={handleSearchChange}
               placeholder="Rechercher une commande..."
-              className="pl-7 h-8 text-[10px] sm:text-xs bg-white/40 dark:bg-slate-800/40 border-slate-200/30 dark:border-slate-700/30 text-slate-800 dark:text-vynal-text-primary focus:ring-1 focus:ring-slate-300/50 dark:focus:ring-slate-600/50"
+              className="pl-7 h-8 text-[10px] sm:text-xs bg-white/40 dark:bg-slate-800/40 border-slate-200/30 dark:border-slate-700/30 text-slate-800 dark:text-vynal-text-primary focus:ring-1 focus:ring-slate-300/50 dark:focus:ring-slate-600/50 w-full"
             />
           </div>
           <Select value={sortBy} onValueChange={setSortBy}>
-            <SelectTrigger className="h-8 w-auto text-[10px] sm:text-xs bg-white/40 dark:bg-slate-800/40 border-slate-200/30 dark:border-slate-700/30">
+            <SelectTrigger className="h-8 w-full sm:w-auto text-[10px] sm:text-xs bg-white/40 dark:bg-slate-800/40 border-slate-200/30 dark:border-slate-700/30">
               <SelectValue placeholder="Trier par" />
             </SelectTrigger>
             <SelectContent>
@@ -259,51 +270,60 @@ export default function ClientOrdersPage() {
 
       {/* Tabs pour filtrer les commandes */}
       <div className="flex justify-center mb-6">
-        <Tabs defaultValue="active" value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="bg-slate-100/70 dark:bg-slate-800/20 p-1 rounded-lg border border-slate-200/50 dark:border-slate-700/20">
+        <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="bg-slate-100/70 dark:bg-slate-800/20 p-1 rounded-lg border border-slate-200/50 dark:border-slate-700/20 w-full flex flex-nowrap overflow-x-auto scrollbar-hide">
+            <TabsTrigger 
+              value="all"
+              className="flex-none whitespace-nowrap data-[state=active]:bg-vynal-accent-primary/30 data-[state=active]:text-vynal-accent-primary dark:data-[state=active]:bg-vynal-accent-primary/5 dark:data-[state=active]:text-vynal-accent-primary/40 data-[state=active]:shadow-sm text-[10px] sm:text-xs text-slate-700 dark:text-slate-300 hover:bg-vynal-accent-primary/10"
+            >
+              Tous
+              <Badge className="ml-2 bg-vynal-accent-primary/20 text-vynal-accent-primary border border-vynal-accent-primary/30 text-[8px] hover:bg-vynal-accent-primary/30">
+                {totalCount}
+              </Badge>
+            </TabsTrigger>
             <TabsTrigger 
               value="active"
-              className="data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-600 dark:data-[state=active]:bg-amber-500/5 dark:data-[state=active]:text-amber-500/40 data-[state=active]:shadow-sm text-[10px] sm:text-xs text-slate-700 dark:text-slate-300"
+              className="flex-none whitespace-nowrap data-[state=active]:bg-amber-500/30 data-[state=active]:text-amber-600 dark:data-[state=active]:bg-amber-500/5 dark:data-[state=active]:text-amber-500/40 data-[state=active]:shadow-sm text-[10px] sm:text-xs text-slate-700 dark:text-slate-300 hover:bg-amber-500/10"
             >
               En cours
-              <Badge className="ml-2 bg-amber-500/20 text-amber-500 border border-amber-500/30 text-[8px]">
+              <Badge className="ml-2 bg-amber-500/20 text-amber-500 border border-amber-500/30 text-[8px] hover:bg-amber-500/30">
                 {activeCount}
               </Badge>
             </TabsTrigger>
             <TabsTrigger 
               value="pending"
-              className="data-[state=active]:bg-slate-500/20 data-[state=active]:text-slate-600 dark:data-[state=active]:bg-slate-500/5 dark:data-[state=active]:text-slate-500/40 data-[state=active]:shadow-sm text-[10px] sm:text-xs text-slate-700 dark:text-slate-300"
+              className="flex-none whitespace-nowrap data-[state=active]:bg-slate-500/30 data-[state=active]:text-slate-600 dark:data-[state=active]:bg-slate-500/5 dark:data-[state=active]:text-slate-500/40 data-[state=active]:shadow-sm text-[10px] sm:text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-500/10"
             >
               En attente
-              <Badge className="ml-2 bg-slate-500/20 text-slate-500 border border-slate-500/30 text-[8px]">
+              <Badge className="ml-2 bg-slate-500/20 text-slate-500 border border-slate-500/30 text-[8px] hover:bg-slate-500/30">
                 {pendingCount}
               </Badge>
             </TabsTrigger>
             <TabsTrigger 
               value="completed"
-              className="data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-600 dark:data-[state=active]:bg-emerald-500/5 dark:data-[state=active]:text-emerald-500/40 data-[state=active]:shadow-sm text-[10px] sm:text-xs text-slate-700 dark:text-slate-300"
+              className="flex-none whitespace-nowrap data-[state=active]:bg-emerald-500/30 data-[state=active]:text-emerald-600 dark:data-[state=active]:bg-emerald-500/5 dark:data-[state=active]:text-emerald-500/40 data-[state=active]:shadow-sm text-[10px] sm:text-xs text-slate-700 dark:text-slate-300 hover:bg-emerald-500/10"
             >
               Terminées
-              <Badge className="ml-2 bg-emerald-500/20 text-emerald-500 border border-emerald-500/30 text-[8px]">
+              <Badge className="ml-2 bg-emerald-500/20 text-emerald-500 border border-emerald-500/30 text-[8px] hover:bg-emerald-500/30">
                 {completedCount}
               </Badge>
             </TabsTrigger>
             <TabsTrigger 
               value="cancelled"
-              className="data-[state=active]:bg-red-500/20 data-[state=active]:text-red-600 dark:data-[state=active]:bg-red-500/5 dark:data-[state=active]:text-red-500/40 data-[state=active]:shadow-sm text-[10px] sm:text-xs text-slate-700 dark:text-slate-300"
+              className="flex-none whitespace-nowrap data-[state=active]:bg-red-500/30 data-[state=active]:text-red-600 dark:data-[state=active]:bg-red-500/5 dark:data-[state=active]:text-red-500/40 data-[state=active]:shadow-sm text-[10px] sm:text-xs text-slate-700 dark:text-slate-300 hover:bg-red-500/10"
             >
               Annulées
-              <Badge className="ml-2 bg-red-500/20 text-red-500 border border-red-500/30 text-[8px]">
+              <Badge className="ml-2 bg-red-500/20 text-red-500 border border-red-500/30 text-[8px] hover:bg-red-500/30">
                 {cancelledCount}
               </Badge>
             </TabsTrigger>
           </TabsList>
-          <TabsContent value="active" className="m-0">
+          <TabsContent value="all" className="m-0">
             <div className="space-y-3">
-              {activeCount === 0 ? (
+              {totalCount === 0 ? (
                 <div className="flex flex-col items-center justify-center py-6 text-center">
                   <div className="rounded-full bg-slate-100/20 dark:bg-slate-800/20 p-3 mb-2">
-                    <ShoppingCart className="h-5 w-5 text-amber-500/60" />
+                    <ShoppingCart className="h-5 w-5 text-vynal-accent-primary/60" />
                   </div>
                   <p className={`text-[10px] sm:text-xs font-medium ${titleClasses}`}>Aucune commande trouvée</p>
                   <p className={`text-[8px] sm:text-[10px] max-w-xs ${subtitleClasses}`}>
@@ -313,14 +333,11 @@ export default function ClientOrdersPage() {
               ) : (
                 <>
                   {paginatedOrders.map((order) => (
-                    order.status === 'in_progress' && (
-                      <div
-                        key={order.id}
-                        className={`p-3 ${innerCardClasses}`}
-                      >
+                    <Link href={`/client-dashboard/orders/${order.id}`} key={order.id} className="block mb-3">
+                      <div className={`p-3 ${innerCardClasses} hover:bg-white/40 dark:hover:bg-slate-800/40 transition-colors cursor-pointer`}>
                         <div className="flex items-start justify-between">
                           <div className="space-y-1">
-                            <p className={`text-[10px] sm:text-[10px] font-medium ${titleClasses}`}>
+                            <p className={`text-[10px] sm:text-[10px] ${titleClasses}`}>
                               {order.service.title}
                             </p>
                             <p className={`text-[8px] sm:text-[8px] ${subtitleClasses}`}>
@@ -331,7 +348,7 @@ export default function ClientOrdersPage() {
                             {getStatusText(order.status)}
                           </Badge>
                         </div>
-                        <div className="flex items-center gap-2 mt-2">
+                        <div className="flex items-center gap-2 mt-2 flex-wrap">
                           <div className="flex items-center gap-1 bg-slate-200/50 dark:bg-slate-800/30 px-1.5 py-0.5 rounded-full">
                             <Calendar className="h-2 w-2 text-slate-500 dark:text-vynal-text-secondary" />
                             <span className={countClasses}>
@@ -345,14 +362,14 @@ export default function ClientOrdersPage() {
                             </span>
                           </div>
                           <div className="flex items-center gap-1 bg-slate-200/50 dark:bg-slate-800/30 px-1.5 py-0.5 rounded-full">
-                            <Euro className="h-2 w-2 text-slate-500 dark:text-vynal-text-secondary" />
-                            <span className={countClasses}>
-                              {order.price.toFixed(2)} €
+                            <span className="text-[8px] sm:text-[8px] text-slate-500 dark:text-vynal-text-secondary">FCFA</span>
+                            <span className={`${countClasses} font-bold`}>
+                              {Math.round(order.price)}
                             </span>
                           </div>
                         </div>
                       </div>
-                    )
+                    </Link>
                   ))}
                   {totalPages > 1 && (
                     <PaginationControls
@@ -382,44 +399,43 @@ export default function ClientOrdersPage() {
                 <>
                   {paginatedOrders.map((order) => (
                     order.status === 'pending' && (
-                      <div
-                        key={order.id}
-                        className={`p-3 ${innerCardClasses}`}
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="space-y-1">
-                            <p className={`text-[10px] sm:text-[10px] font-medium ${titleClasses}`}>
-                              {order.service.title}
-                            </p>
-                            <p className={`text-[8px] sm:text-[8px] ${subtitleClasses}`}>
-                              {order.freelance.full_name}
-                            </p>
+                      <Link href={`/client-dashboard/orders/${order.id}`} key={order.id} className="block mb-3">
+                        <div className={`p-3 ${innerCardClasses} hover:bg-white/40 dark:hover:bg-slate-800/40 transition-colors cursor-pointer`}>
+                          <div className="flex items-start justify-between">
+                            <div className="space-y-1">
+                              <p className={`text-[10px] sm:text-[10px] ${titleClasses}`}>
+                                {order.service.title}
+                              </p>
+                              <p className={`text-[8px] sm:text-[8px] ${subtitleClasses}`}>
+                                {order.freelance.full_name}
+                              </p>
+                            </div>
+                            <Badge className={getStatusBadgeClasses(order.status)}>
+                              {getStatusText(order.status)}
+                            </Badge>
                           </div>
-                          <Badge className={getStatusBadgeClasses(order.status)}>
-                            {getStatusText(order.status)}
-                          </Badge>
+                          <div className="flex items-center gap-2 mt-2 flex-wrap">
+                            <div className="flex items-center gap-1 bg-slate-200/50 dark:bg-slate-800/30 px-1.5 py-0.5 rounded-full">
+                              <Calendar className="h-2 w-2 text-slate-500 dark:text-vynal-text-secondary" />
+                              <span className={countClasses}>
+                                {new Date(order.created_at).toLocaleDateString('fr-FR')}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1 bg-slate-200/50 dark:bg-slate-800/30 px-1.5 py-0.5 rounded-full">
+                              <Clock className="h-2 w-2 text-slate-500 dark:text-vynal-text-secondary" />
+                              <span className={countClasses}>
+                                {order.delivery_time} jours
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1 bg-slate-200/50 dark:bg-slate-800/30 px-1.5 py-0.5 rounded-full">
+                              <span className="text-[8px] sm:text-[8px] text-slate-500 dark:text-vynal-text-secondary">FCFA</span>
+                              <span className={`${countClasses} font-bold`}>
+                                {Math.round(order.price)}
+                              </span>
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2 mt-2">
-                          <div className="flex items-center gap-1 bg-slate-200/50 dark:bg-slate-800/30 px-1.5 py-0.5 rounded-full">
-                            <Calendar className="h-2 w-2 text-slate-500 dark:text-vynal-text-secondary" />
-                            <span className={countClasses}>
-                              {new Date(order.created_at).toLocaleDateString('fr-FR')}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-1 bg-slate-200/50 dark:bg-slate-800/30 px-1.5 py-0.5 rounded-full">
-                            <Clock className="h-2 w-2 text-slate-500 dark:text-vynal-text-secondary" />
-                            <span className={countClasses}>
-                              {order.delivery_time} jours
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-1 bg-slate-200/50 dark:bg-slate-800/30 px-1.5 py-0.5 rounded-full">
-                            <Euro className="h-2 w-2 text-slate-500 dark:text-vynal-text-secondary" />
-                            <span className={countClasses}>
-                              {order.price.toFixed(2)} €
-                            </span>
-                          </div>
-                        </div>
-                      </div>
+                      </Link>
                     )
                   ))}
                   {totalPages > 1 && (
@@ -449,45 +465,44 @@ export default function ClientOrdersPage() {
               ) : (
                 <>
                   {paginatedOrders.map((order) => (
-                    order.status === 'completed' && (
-                      <div
-                        key={order.id}
-                        className={`p-3 ${innerCardClasses}`}
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="space-y-1">
-                            <p className={`text-[10px] sm:text-[10px] font-medium ${titleClasses}`}>
-                              {order.service.title}
-                            </p>
-                            <p className={`text-[8px] sm:text-[8px] ${subtitleClasses}`}>
-                              {order.freelance.full_name}
-                            </p>
+                    ['completed', 'delivered'].includes(order.status) && (
+                      <Link href={`/client-dashboard/orders/${order.id}`} key={order.id} className="block mb-3">
+                        <div className={`p-3 ${innerCardClasses} hover:bg-white/40 dark:hover:bg-slate-800/40 transition-colors cursor-pointer`}>
+                          <div className="flex items-start justify-between">
+                            <div className="space-y-1">
+                              <p className={`text-[10px] sm:text-[10px] ${titleClasses}`}>
+                                {order.service.title}
+                              </p>
+                              <p className={`text-[8px] sm:text-[8px] ${subtitleClasses}`}>
+                                {order.freelance.full_name}
+                              </p>
+                            </div>
+                            <Badge className={getStatusBadgeClasses(order.status)}>
+                              {getStatusText(order.status)}
+                            </Badge>
                           </div>
-                          <Badge className={getStatusBadgeClasses(order.status)}>
-                            {getStatusText(order.status)}
-                          </Badge>
+                          <div className="flex items-center gap-2 mt-2 flex-wrap">
+                            <div className="flex items-center gap-1 bg-slate-200/50 dark:bg-slate-800/30 px-1.5 py-0.5 rounded-full">
+                              <Calendar className="h-2 w-2 text-slate-500 dark:text-vynal-text-secondary" />
+                              <span className={countClasses}>
+                                {new Date(order.created_at).toLocaleDateString('fr-FR')}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1 bg-slate-200/50 dark:bg-slate-800/30 px-1.5 py-0.5 rounded-full">
+                              <Clock className="h-2 w-2 text-slate-500 dark:text-vynal-text-secondary" />
+                              <span className={countClasses}>
+                                {order.delivery_time} jours
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1 bg-slate-200/50 dark:bg-slate-800/30 px-1.5 py-0.5 rounded-full">
+                              <span className="text-[8px] sm:text-[8px] text-slate-500 dark:text-vynal-text-secondary">FCFA</span>
+                              <span className={`${countClasses} font-bold`}>
+                                {Math.round(order.price)}
+                              </span>
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2 mt-2">
-                          <div className="flex items-center gap-1 bg-slate-200/50 dark:bg-slate-800/30 px-1.5 py-0.5 rounded-full">
-                            <Calendar className="h-2 w-2 text-slate-500 dark:text-vynal-text-secondary" />
-                            <span className={countClasses}>
-                              {new Date(order.created_at).toLocaleDateString('fr-FR')}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-1 bg-slate-200/50 dark:bg-slate-800/30 px-1.5 py-0.5 rounded-full">
-                            <Clock className="h-2 w-2 text-slate-500 dark:text-vynal-text-secondary" />
-                            <span className={countClasses}>
-                              {order.delivery_time} jours
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-1 bg-slate-200/50 dark:bg-slate-800/30 px-1.5 py-0.5 rounded-full">
-                            <Euro className="h-2 w-2 text-slate-500 dark:text-vynal-text-secondary" />
-                            <span className={countClasses}>
-                              {order.price.toFixed(2)} €
-                            </span>
-                          </div>
-                        </div>
-                      </div>
+                      </Link>
                     )
                   ))}
                   {totalPages > 1 && (
@@ -518,44 +533,110 @@ export default function ClientOrdersPage() {
                 <>
                   {paginatedOrders.map((order) => (
                     order.status === 'cancelled' && (
-                      <div
-                        key={order.id}
-                        className={`p-3 ${innerCardClasses}`}
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="space-y-1">
-                            <p className={`text-[10px] sm:text-[10px] font-medium ${titleClasses}`}>
-                              {order.service.title}
-                            </p>
-                            <p className={`text-[8px] sm:text-[8px] ${subtitleClasses}`}>
-                              {order.freelance.full_name}
-                            </p>
+                      <Link href={`/client-dashboard/orders/${order.id}`} key={order.id} className="block mb-3">
+                        <div className={`p-3 ${innerCardClasses} hover:bg-white/40 dark:hover:bg-slate-800/40 transition-colors cursor-pointer`}>
+                          <div className="flex items-start justify-between">
+                            <div className="space-y-1">
+                              <p className={`text-[10px] sm:text-[10px] ${titleClasses}`}>
+                                {order.service.title}
+                              </p>
+                              <p className={`text-[8px] sm:text-[8px] ${subtitleClasses}`}>
+                                {order.freelance.full_name}
+                              </p>
+                            </div>
+                            <Badge className={getStatusBadgeClasses(order.status)}>
+                              {getStatusText(order.status)}
+                            </Badge>
                           </div>
-                          <Badge className={getStatusBadgeClasses(order.status)}>
-                            {getStatusText(order.status)}
-                          </Badge>
+                          <div className="flex items-center gap-2 mt-2 flex-wrap">
+                            <div className="flex items-center gap-1 bg-slate-200/50 dark:bg-slate-800/30 px-1.5 py-0.5 rounded-full">
+                              <Calendar className="h-2 w-2 text-slate-500 dark:text-vynal-text-secondary" />
+                              <span className={countClasses}>
+                                {new Date(order.created_at).toLocaleDateString('fr-FR')}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1 bg-slate-200/50 dark:bg-slate-800/30 px-1.5 py-0.5 rounded-full">
+                              <Clock className="h-2 w-2 text-slate-500 dark:text-vynal-text-secondary" />
+                              <span className={countClasses}>
+                                {order.delivery_time} jours
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1 bg-slate-200/50 dark:bg-slate-800/30 px-1.5 py-0.5 rounded-full">
+                              <span className="text-[8px] sm:text-[8px] text-slate-500 dark:text-vynal-text-secondary">FCFA</span>
+                              <span className={`${countClasses} font-bold`}>
+                                {Math.round(order.price)}
+                              </span>
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2 mt-2">
-                          <div className="flex items-center gap-1 bg-slate-200/50 dark:bg-slate-800/30 px-1.5 py-0.5 rounded-full">
-                            <Calendar className="h-2 w-2 text-slate-500 dark:text-vynal-text-secondary" />
-                            <span className={countClasses}>
-                              {new Date(order.created_at).toLocaleDateString('fr-FR')}
-                            </span>
+                      </Link>
+                    )
+                  ))}
+                  {totalPages > 1 && (
+                    <PaginationControls
+                      currentPage={currentPage}
+                      totalPages={totalPages}
+                      onPageChange={handlePageChange}
+                    />
+                  )}
+                </>
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="active" className="m-0">
+            <div className="space-y-3">
+              {activeCount === 0 ? (
+                <div className="flex flex-col items-center justify-center py-6 text-center">
+                  <div className="rounded-full bg-slate-100/20 dark:bg-slate-800/20 p-3 mb-2">
+                    <ShoppingCart className="h-5 w-5 text-amber-500/60" />
+                  </div>
+                  <p className={`text-[10px] sm:text-xs font-medium ${titleClasses}`}>Aucune commande trouvée</p>
+                  <p className={`text-[8px] sm:text-[10px] max-w-xs ${subtitleClasses}`}>
+                    Aucune commande en cours
+                  </p>
+                </div>
+              ) : (
+                <>
+                  {paginatedOrders.map((order) => (
+                    ['in_progress', 'completed', 'delivered'].includes(order.status) && (
+                      <Link href={`/client-dashboard/orders/${order.id}`} key={order.id} className="block mb-3">
+                        <div className={`p-3 ${innerCardClasses} hover:bg-white/40 dark:hover:bg-slate-800/40 transition-colors cursor-pointer`}>
+                          <div className="flex items-start justify-between">
+                            <div className="space-y-1">
+                              <p className={`text-[10px] sm:text-[10px] ${titleClasses}`}>
+                                {order.service.title}
+                              </p>
+                              <p className={`text-[8px] sm:text-[8px] ${subtitleClasses}`}>
+                                {order.freelance.full_name}
+                              </p>
+                            </div>
+                            <Badge className={getStatusBadgeClasses(order.status)}>
+                              {getStatusText(order.status)}
+                            </Badge>
                           </div>
-                          <div className="flex items-center gap-1 bg-slate-200/50 dark:bg-slate-800/30 px-1.5 py-0.5 rounded-full">
-                            <Clock className="h-2 w-2 text-slate-500 dark:text-vynal-text-secondary" />
-                            <span className={countClasses}>
-                              {order.delivery_time} jours
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-1 bg-slate-200/50 dark:bg-slate-800/30 px-1.5 py-0.5 rounded-full">
-                            <Euro className="h-2 w-2 text-slate-500 dark:text-vynal-text-secondary" />
-                            <span className={countClasses}>
-                              {order.price.toFixed(2)} €
-                            </span>
+                          <div className="flex items-center gap-2 mt-2 flex-wrap">
+                            <div className="flex items-center gap-1 bg-slate-200/50 dark:bg-slate-800/30 px-1.5 py-0.5 rounded-full">
+                              <Calendar className="h-2 w-2 text-slate-500 dark:text-vynal-text-secondary" />
+                              <span className={countClasses}>
+                                {new Date(order.created_at).toLocaleDateString('fr-FR')}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1 bg-slate-200/50 dark:bg-slate-800/30 px-1.5 py-0.5 rounded-full">
+                              <Clock className="h-2 w-2 text-slate-500 dark:text-vynal-text-secondary" />
+                              <span className={countClasses}>
+                                {order.delivery_time} jours
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1 bg-slate-200/50 dark:bg-slate-800/30 px-1.5 py-0.5 rounded-full">
+                              <span className="text-[8px] sm:text-[8px] text-slate-500 dark:text-vynal-text-secondary">FCFA</span>
+                              <span className={`${countClasses} font-bold`}>
+                                {Math.round(order.price)}
+                              </span>
+                            </div>
                           </div>
                         </div>
-                      </div>
+                      </Link>
                     )
                   ))}
                   {totalPages > 1 && (

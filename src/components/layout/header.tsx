@@ -704,7 +704,7 @@ function Header() {
       ] : []),
       { name: "Commandes", href: `${dashboardPrefix}/orders`, icon: Briefcase },
       { name: "Messages", href: `${dashboardPrefix}/messages`, icon: MessageSquare },
-      { name: "Wallet", href: `${dashboardPrefix}/wallet`, icon: Wallet },
+      { name: "Wallet", href: `${dashboardPrefix}/payments`, icon: Wallet },
       { name: "Profil", href: `${dashboardPrefix}/profile`, icon: User },
     ];
   }, [
@@ -1001,7 +1001,7 @@ function Header() {
                               <MessageSquare className="h-3 w-3" />
                               <span>Messages</span>
                             </Link>
-                            <Link href={userStatus.isClient ? "/client-dashboard/wallet" : "/dashboard/wallet"} className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs cursor-pointer ${isDark ? 'hover:bg-vynal-purple-secondary/30 text-vynal-text-primary' : 'hover:bg-vynal-purple-100/60 text-vynal-purple-dark'}`}>
+                            <Link href={userStatus.isClient ? "/client-dashboard/payments" : "/dashboard/wallet"} className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs cursor-pointer ${isDark ? 'hover:bg-vynal-purple-secondary/30 text-vynal-text-primary' : 'hover:bg-vynal-purple-100/60 text-vynal-purple-dark'}`}>
                               <Wallet className="h-3 w-3" />
                               <span>Portefeuille</span>
                             </Link>

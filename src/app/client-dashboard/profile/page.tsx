@@ -216,8 +216,11 @@ export default function ClientProfilePage() {
                   className={inputClasses}
                   value={formData.username}
                   onChange={(e) => handleChange(e, 'username')}
-                  disabled={!isEditing}
+                  disabled={true}
                 />
+                <p className="text-[8px] sm:text-[10px] text-amber-600 dark:text-amber-400">
+                  Pour modifier votre nom d'utilisateur, veuillez contacter le support.
+                </p>
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="email" className="text-[10px] sm:text-xs text-slate-900 dark:text-vynal-text-primary">Email</Label>

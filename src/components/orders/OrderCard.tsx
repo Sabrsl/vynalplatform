@@ -7,32 +7,22 @@ import { Eye, MessageSquare, FileCheck, RefreshCw, Clock, CheckCircle, Calendar 
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
+import React from 'react';
+import { formatDate, formatPrice } from '@/lib/utils';
+import { Order } from '@/hooks/useOrders';
+import { OrderStatusBadge } from './OrderStatusBadge';
 
 interface OrderCardProps {
-  order: {
-    id: string;
-    created_at: string;
-    status: 'pending' | 'in_progress' | 'completed' | 'delivered' | 'revision_requested' | 'cancelled';
-    service: {
-      id: string;
-      title: string;
-      price: number;
-    };
-    freelance: {
-      id: string;
-      username: string;
-      full_name: string | null;
-    };
-    client: {
-      id: string;
-      username: string;
-      full_name: string | null;
-    };
-    is_client_view: boolean;
-  };
+  order: Order;
+  className?: string;
+  isFreelance?: boolean;
 }
 
-export function OrderCard({ order }: OrderCardProps) {
+export const OrderCard: React.FC<OrderCardProps> = ({ 
+  order, 
+  className = '', 
+  isFreelance = false 
+}) => {
   const statusColors = {
     pending: "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800/30",
     in_progress: "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800/40",
@@ -81,8 +71,11 @@ export function OrderCard({ order }: OrderCardProps) {
   const createdDate = new Date(order.created_at);
   const timeAgo = formatDistanceToNow(createdDate, { addSuffix: true, locale: fr });
 
+  // Vérifier si c'est une commande de test (ID commençant par "test_")
+  const isTestOrder = order.id.startsWith('test_');
+
   return (
-    <Card className="border border-vynal-purple-secondary/10 shadow-md hover:shadow-lg transition-all duration-300 bg-white dark:bg-vynal-purple-dark/20 overflow-hidden rounded-xl relative">
+    <Card className={`border border-vynal-purple-secondary/10 shadow-md hover:shadow-lg transition-all duration-300 bg-white dark:bg-vynal-purple-dark/20 overflow-hidden rounded-xl relative ${className}`}>
       <div className="absolute inset-0 bg-gradient-to-r from-vynal-accent-primary/5 to-vynal-accent-secondary/5 opacity-30 dark:opacity-20 pointer-events-none"></div>
       <div className="w-full h-1.5 bg-gray-100 dark:bg-vynal-purple-dark/40">
         <div 
@@ -93,11 +86,18 @@ export function OrderCard({ order }: OrderCardProps) {
       <CardContent className="p-3 sm:p-4 md:p-5">
         <div className="flex justify-between items-start">
           <div className="flex-1 min-w-0">
-            <h3 className="font-medium text-vynal-purple-light dark:text-vynal-text-primary text-[10px] sm:text-xs md:text-sm line-clamp-1 group-hover:text-vynal-accent-primary transition-colors">{order.service.title}</h3>
+            <h3 className="font-medium text-vynal-purple-light dark:text-vynal-text-primary text-[10px] sm:text-xs md:text-sm line-clamp-1 group-hover:text-vynal-accent-primary transition-colors">
+              {order.service.title}
+              {isTestOrder && (
+                <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-400">
+                  TEST
+                </span>
+              )}
+            </h3>
             <p className="text-[10px] sm:text-[11px] md:text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary/80 mt-1 sm:mt-1.5">
-              {order.is_client_view ? 
-                `Freelance: ${order.freelance.full_name || order.freelance.username}` : 
-                `Client: ${order.client.full_name || order.client.username}`}
+              {isFreelance ? 
+                `Client: ${order.client.full_name || order.client.username}` : 
+                `Freelance: ${order.freelance.full_name || order.freelance.username}`}
             </p>
             <div className="flex items-center mt-1.5 sm:mt-2 md:mt-3 text-[9px] sm:text-[10px] md:text-xs text-vynal-purple-secondary/70 dark:text-vynal-text-secondary/60">
               <Calendar className="h-2.5 w-2.5 sm:h-3 sm:w-3 md:h-3.5 md:w-3.5 mr-1 sm:mr-1.5 md:mr-2" />
@@ -114,7 +114,7 @@ export function OrderCard({ order }: OrderCardProps) {
               </Badge>
             </div>
             <span className="text-[10px] sm:text-[11px] md:text-xs font-semibold mt-1.5 sm:mt-2 md:mt-2.5 text-vynal-purple-light dark:text-vynal-text-primary">
-              {order.service.price.toFixed(2)} €
+              {formatPrice(order.total_amount ?? order.service.price)}
             </span>
           </div>
         </div>
@@ -126,13 +126,13 @@ export function OrderCard({ order }: OrderCardProps) {
           asChild
           className="text-[8px] sm:text-[10px] md:text-xs h-7 sm:h-8 md:h-9 text-vynal-accent-primary hover:text-vynal-accent-primary/90 hover:bg-vynal-accent-primary/10 dark:text-vynal-accent-primary dark:hover:text-vynal-accent-primary/90 rounded-lg font-medium"
         >
-          <Link href={order.is_client_view ? `/client-dashboard/orders/${order.id}` : `/dashboard/orders/${order.id}`}>
+          <Link href={`/dashboard/orders/${order.id}`}>
             <Eye className="h-3 w-3 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4 mr-1 sm:mr-1.5 md:mr-2" />
             <span className="inline-block">Détails</span>
           </Link>
         </Button>
         
-        {order.status === "delivered" && order.is_client_view && (
+        {order.status === "delivered" && isFreelance && (
           <Button 
             variant="outline" 
             size="sm" 
@@ -146,7 +146,7 @@ export function OrderCard({ order }: OrderCardProps) {
           </Button>
         )}
         
-        {order.status === "delivered" && order.is_client_view && (
+        {order.status === "delivered" && isFreelance && (
           <Button 
             variant="outline" 
             size="sm" 
@@ -166,7 +166,7 @@ export function OrderCard({ order }: OrderCardProps) {
           asChild
           className="text-[8px] sm:text-[10px] md:text-xs h-7 sm:h-8 md:h-9 text-vynal-purple-secondary hover:text-vynal-accent-secondary hover:bg-vynal-accent-secondary/10 dark:text-vynal-text-secondary dark:hover:text-vynal-accent-secondary rounded-lg font-medium"
         >
-          <Link href={order.is_client_view ? `/client-dashboard/messages?orderId=${order.id}` : `/dashboard/messages?orderId=${order.id}`}>
+          <Link href={`/dashboard/messages?orderId=${order.id}`}>
             <MessageSquare className="h-3 w-3 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4 mr-1 sm:mr-1.5 md:mr-2" />
             <span className="inline-block">Message</span>
           </Link>

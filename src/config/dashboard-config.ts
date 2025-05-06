@@ -85,6 +85,7 @@ export const clientDashboardConfig: DashboardConfig = {
   routes: {
     home: '/client-dashboard',
     orders: '/client-dashboard/orders',
+    orderDetails: '/client-dashboard/orders/:id',
     messages: '/client-dashboard/messages',
     disputes: '/client-dashboard/disputes',
     payments: '/client-dashboard/payments',

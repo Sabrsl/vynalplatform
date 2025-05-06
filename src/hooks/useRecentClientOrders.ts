@@ -18,6 +18,7 @@ interface RawOrderData {
   freelance_id?: string;
   client_id: string;
   price: number;
+  delivery_time: number;
 }
 
 /**
@@ -62,7 +63,7 @@ export function useRecentClientOrders(options: UseRecentClientOrdersOptions = {}
       // Requête simplifiée pour éviter les erreurs
       const { data, error } = await supabase
         .from('orders')
-        .select('id, created_at, status, service_id, freelance_id, price')
+        .select('id, created_at, status, service_id, freelance_id, price, delivery_time')
         .eq('client_id', user.id)
         .order('created_at', { ascending: false })
         .limit(limit);
@@ -133,7 +134,8 @@ export function useRecentClientOrders(options: UseRecentClientOrdersOptions = {}
                 freelance: freelanceData as OrderProfile,
                 client: clientData as OrderProfile,
                 is_client_view: true,
-                total_amount: orderBasic.price // Utiliser price au lieu de total_amount
+                total_amount: orderBasic.price,
+                delivery_time: orderBasic.delivery_time
               });
             } catch (err) {
               console.warn("[RecentClientOrders] Erreur enrichissement:", err);

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { 
   ShoppingBag, MessageSquare, Bell, Package, Clock, LayoutDashboard, 
-  ShoppingCart, CheckCircle, Euro, Star, Users, TrendingUp 
+  ShoppingCart, CheckCircle, Euro, Star, Users, TrendingUp, User 
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useUser } from "@/hooks/useUser";
@@ -24,16 +24,29 @@ import { useRecommendedFreelancers } from "@/hooks/useRecommendedFreelancers";
 // Types définis
 interface Order {
   id: string;
-  title: string;
-  freelance: string;
+  created_at: string;
   status: 'pending' | 'in_progress' | 'completed' | 'delivered' | 'revision_requested' | 'cancelled';
-  amount: number;
-  currency: string;
-  currency_symbol: string;
+  service: {
+    id: string;
+    title: string;
+    price: number;
+    description?: string;
+  };
+  freelance: {
+    id: string;
+    username: string;
+    full_name: string;
+    avatar_url?: string;
+  };
+  client: {
+    id: string;
+    username: string;
+    full_name: string;
+    avatar_url?: string;
+  };
+  is_client_view: boolean;
+  total_amount?: number;
   delivery_time: number;
-  requirements?: string;
-  completed_at?: string;
-  delivery?: any;
 }
 
 interface Freelancer {
@@ -111,7 +124,7 @@ export default function ClientDashboardPage() {
   // Classes CSS communes - optimisées pour l'élégance
   const mainCardClasses = "bg-white/30 dark:bg-slate-900/30 backdrop-blur-sm border border-slate-200/30 dark:border-slate-700/30 shadow-sm rounded-lg transition-all duration-200";
   const secondaryCardClasses = "bg-white/20 dark:bg-slate-900/20 backdrop-blur-sm border border-slate-200/20 dark:border-slate-700/20 shadow-none rounded-lg transition-all duration-200";
-  const innerCardClasses = "bg-white/25 dark:bg-slate-800/25 backdrop-blur-sm border border-slate-200/15 dark:border-slate-700/15";
+  const innerCardClasses = "bg-white/25 dark:bg-slate-800/25 backdrop-blur-sm border border-slate-200/30 dark:border-slate-700/40 rounded-lg transition-all duration-200";
   const titleClasses = "text-slate-800 dark:text-vynal-text-primary";
   const subtitleClasses = "text-slate-600 dark:text-vynal-text-secondary";
   const buttonClasses = "text-[8px] sm:text-[8px] text-slate-700 dark:text-vynal-text-primary hover:bg-slate-100/40 dark:hover:bg-slate-700/40 transition-colors";
@@ -182,7 +195,7 @@ export default function ClientDashboardPage() {
               <CardTitle className={`text-[10px] sm:text-xs font-medium ${titleClasses}`}>
                 Dépenses totales
               </CardTitle>
-              <Euro className="h-3 w-3 sm:h-3 sm:w-3 text-blue-500" />
+              <span className="text-[10px] sm:text-xs font-semibold text-blue-500">₣</span>
             </CardHeader>
             <CardContent className="p-0 pt-1 sm:pt-1">
               <div className="text-lg sm:text-xl font-bold text-red-600 dark:text-red-400">{formatCurrency(stats.totalSpent)}</div>
@@ -240,35 +253,35 @@ export default function ClientDashboardPage() {
           <CardContent className="p-3 sm:p-4">
             <div className="space-y-2 sm:space-y-3">
               {recentOrders.map((order) => (
-                <div
-                  key={order.id}
-                  className={`flex items-center justify-between p-2 sm:p-3 rounded-lg ${innerCardClasses}`}
-                >
-                  <div className="space-y-1">
-                    <p className={`text-[10px] sm:text-[10px] font-medium ${titleClasses}`}>
-                      {order.service.title}
-                    </p>
-                    <p className={`text-[8px] sm:text-[8px] ${subtitleClasses}`}>
-                      {order.freelance.full_name}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge
-                      variant={order.status === "in_progress" ? "default" : order.status === "completed" ? "secondary" : "destructive"}
-                      className={getStatusBadgeClasses(order.status)}
-                    >
-                      {getStatusText(order.status)}
-                    </Badge>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className={buttonClasses}
-                      asChild
-                    >
-                      <Link href={`/client-dashboard/orders/${order.id}`}>Voir</Link>
-                    </Button>
-                  </div>
-                </div>
+                <Card className={`${mainCardClasses} cursor-pointer transition-all duration-300 hover:shadow-md group hover:border-vynal-accent-primary/20`} key={order.id}>
+                  <Link href={`/client-dashboard/orders/${order.id}`}>
+                    <CardContent className="p-2.5 sm:p-3">
+                      <div className="flex flex-col">
+                        <div className="flex items-start justify-between">
+                          <h3 className="font-medium text-[10px] sm:text-xs md:text-[10px] lg:text-[11px] text-slate-800 dark:text-vynal-text-primary group-hover:text-vynal-accent-primary transition-colors line-clamp-1 pr-1">
+                            {order.service?.title || "Commande sans titre"}
+                          </h3>
+                          <Badge variant="outline" className={getStatusBadgeClasses(order.status)}>
+                            {getStatusText(order.status)}
+                          </Badge>
+                        </div>
+                        <div className="mt-1.5 flex items-center text-[8px] sm:text-[10px] text-slate-600 dark:text-vynal-text-secondary">
+                          <User className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1 opacity-70" />
+                          <span>{typeof order.freelance === 'string' ? order.freelance : order.freelance?.full_name || "Freelance"}</span>
+                        </div>
+                        <div className="flex items-center justify-between mt-2">
+                          <span className="text-[8px] sm:text-[10px] font-medium text-vynal-accent-primary">
+                            {order.total_amount} FCFA
+                          </span>
+                          <div className="flex items-center text-[8px] sm:text-[10px] text-slate-500 dark:text-vynal-text-secondary/70">
+                            <Clock className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1 opacity-70" />
+                            <span>{order.delivery_time} {order.delivery_time > 1 ? 'jours' : 'jour'}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Link>
+                </Card>
               ))}
             </div>
           </CardContent>
@@ -305,7 +318,7 @@ export default function ClientDashboardPage() {
                   className={`p-3 rounded-lg ${innerCardClasses}`}
                 >
                   <div className="flex items-center gap-2 sm:gap-3 mb-2">
-                    <Avatar className="h-10 w-10 ring-1 ring-slate-200/30 dark:ring-slate-700/30">
+                    <Avatar className="h-8 w-8 ring-1 ring-slate-200/30 dark:ring-slate-700/30">
                       <AvatarImage src={freelancer.avatar_url || ''} alt={freelancer.full_name || 'Freelance'} className="object-cover" />
                       <AvatarFallback className="bg-slate-100/50 dark:bg-slate-800/50 text-slate-900 dark:text-vynal-text-primary">
                         {(freelancer.full_name || freelancer.username || 'F').charAt(0)}
@@ -314,34 +327,34 @@ export default function ClientDashboardPage() {
                     <div className="flex-1">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1">
-                          <p className={`text-[10px] sm:text-[10px] font-medium ${titleClasses}`}>
+                          <p className={`text-[9px] sm:text-[9px] font-medium ${titleClasses}`}>
                             {freelancer.full_name || freelancer.username || 'Anonyme'}
                           </p>
                           {freelancer.is_certified && (
-                            <Badge className="text-[6px] sm:text-[6px] bg-vynal-accent-primary/20 text-vynal-accent-primary border border-vynal-accent-primary/30 hover:bg-vynal-accent-primary/25 dark:bg-vynal-accent-primary/10 dark:text-vynal-accent-primary dark:border-vynal-accent-primary/20 dark:hover:bg-vynal-accent-primary/15 px-1 h-3">
+                            <Badge className="text-[6px] sm:text-[6px] bg-vynal-accent-primary/20 text-vynal-accent-primary border border-vynal-accent-primary/30 hover:bg-vynal-accent-primary/25 dark:bg-vynal-accent-primary/10 dark:text-vynal-accent-primary dark:border-vynal-accent-primary/20 dark:hover:bg-vynal-accent-primary/15 px-1 h-2.5">
                               Expert
                             </Badge>
                           )}
                         </div>
                       </div>
-                      <p className={`text-[8px] sm:text-[8px] ${subtitleClasses}`}>
+                      <p className={`text-[7px] sm:text-[7px] ${subtitleClasses}`}>
                         {freelancer.specialty || 'Divers'}
                       </p>
                     </div>
                   </div>
                   
-                  <div className="flex items-center justify-between mt-2">
+                  <div className="flex items-center justify-between mt-1.5">
                     <div className="flex items-center gap-2">
                       <div className="flex items-center gap-2">
                         <div className="flex items-center gap-1 bg-yellow-500/20 text-yellow-600 border border-yellow-500/30 hover:bg-yellow-500/25 dark:bg-yellow-500/10 dark:text-yellow-500 dark:border-yellow-500/20 dark:hover:bg-yellow-500/15 px-1.5 py-0.5 rounded-full">
-                          <Star className="h-2 w-2" />
-                          <span className={`text-[8px] sm:text-[8px] font-medium ${titleClasses}`}>
+                          <Star className="h-1.5 w-1.5" />
+                          <span className={`text-[7px] sm:text-[7px] font-medium ${titleClasses}`}>
                             {freelancer.rating.toFixed(1)}
                           </span>
                         </div>
                         <div className="flex items-center gap-1 bg-emerald-500/20 text-emerald-600 border border-emerald-500/30 hover:bg-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-500 dark:border-emerald-500/20 dark:hover:bg-emerald-500/15 px-1.5 py-0.5 rounded-full">
-                          <CheckCircle className="h-2 w-2" />
-                          <span className={`text-[8px] sm:text-[8px] ${subtitleClasses}`}>
+                          <CheckCircle className="h-1.5 w-1.5" />
+                          <span className={`text-[7px] sm:text-[7px] ${subtitleClasses}`}>
                             {freelancer.completed_projects}
                           </span>
                         </div>
@@ -350,12 +363,12 @@ export default function ClientDashboardPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className={`${buttonClasses} h-5 border-slate-200/20 dark:border-slate-700/20`}
+                      className={`${buttonClasses} h-4 border-slate-200/20 dark:border-slate-700/20`}
                       asChild
                     >
                       <Link href={`/freelancers/${freelancer.id}`}>Profil</Link>
                     </Button>
-                </div>
+                  </div>
                 </div>
               ))}
               </div>

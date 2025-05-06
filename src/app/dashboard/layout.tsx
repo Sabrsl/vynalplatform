@@ -17,7 +17,8 @@ import {
   AlertTriangle,
   CreditCard,
   BookOpen,
-  Loader
+  Loader,
+  Menu
 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -168,6 +169,7 @@ const UserProfile = memo(({ user, signOut }: {
         </div>
         <div className="ml-2 flex-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 overflow-hidden">
           <p className="text-[8px] sm:text-[9px] font-medium text-slate-800 dark:text-vynal-text-primary">{user?.user_metadata?.name || "Utilisateur"}</p>
+          <p className="text-[6px] sm:text-[7px] text-slate-500 truncate dark:text-vynal-text-secondary">{user?.email || ""}</p>
         </div>
         <button 
           onClick={signOut} 
@@ -287,9 +289,9 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-white dark:bg-vynal-purple-dark">
-      {/* Sidebar */}
-      <div className="w-16 md:w-20 h-screen border-r border-slate-100 dark:border-vynal-purple-secondary/20 bg-white dark:bg-vynal-purple-dark/30 hover:md:w-60 group transition-all duration-300 overflow-hidden flex flex-col justify-between">
+    <div className="flex min-h-screen bg-white dark:bg-vynal-purple-dark">
+      {/* Sidebar - Hidden on mobile */}
+      <aside className="hidden md:block w-16 md:w-20 h-screen border-r border-slate-100 dark:border-vynal-purple-secondary/20 bg-white dark:bg-vynal-purple-dark/30 hover:md:w-60 group transition-all duration-300 overflow-hidden flex flex-col justify-between">
         <div className="flex-1 flex flex-col">
           <Logo />
           <MainNavigation 
@@ -299,12 +301,12 @@ export default function DashboardLayout({
           />
         </div>
         <UserProfile user={user} signOut={signOut} />
-      </div>
+      </aside>
 
       {/* Main content */}
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-gray-50 dark:bg-vynal-purple-dark">
+      <main className="flex-1 w-full md:w-[calc(100%-4rem)] lg:w-[calc(100%-5rem)] overflow-y-auto p-4 sm:p-6 bg-gray-50 dark:bg-vynal-purple-dark">
         {children}
-      </div>
+      </main>
     </div>
   );
 }

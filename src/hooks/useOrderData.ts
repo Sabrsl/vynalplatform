@@ -11,6 +11,7 @@ interface OrderData {
   paymentData: PaymentData;
   isTestMode: boolean;
   orderId?: string;
+  orderNumber?: string;
   testPaymentSuccess?: boolean;
   error?: string | null;
   paymentProcessing: boolean;

@@ -75,15 +75,15 @@ export default function ClientDisputesPage() {
 
   // Optimisation : Helper pour les classes de badge selon le statut
   const getStatusBadgeClasses = useCallback((status: 'open' | 'resolved' | 'closed') => {
-    const baseClasses = "text-[8px] sm:text-[8px] border hover:text-white dark:hover:text-white transition-colors";
+    const baseClasses = "text-[8px] sm:text-[8px] border transition-colors";
     
     switch(status) {
       case 'open':
-        return cn(baseClasses, "bg-amber-500/10 text-amber-500 border-amber-500/20");
+        return cn(baseClasses, "bg-amber-500/20 text-amber-600 border-amber-500/30 hover:bg-amber-500/25 dark:bg-amber-500/10 dark:text-amber-500 dark:border-amber-500/20 dark:hover:bg-amber-500/15");
       case 'resolved':
-        return cn(baseClasses, "bg-emerald-500/10 text-emerald-500 border-emerald-500/20");
+        return cn(baseClasses, "bg-emerald-500/20 text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-500 dark:border-emerald-500/20 dark:hover:bg-emerald-500/15");
       case 'closed':
-        return cn(baseClasses, "bg-slate-500/10 text-slate-500 border-slate-500/20");
+        return cn(baseClasses, "bg-slate-500/20 text-slate-600 border-slate-500/30 hover:bg-slate-500/25 dark:bg-slate-500/10 dark:text-slate-500 dark:border-slate-500/20 dark:hover:bg-slate-500/15");
       default:
         return baseClasses;
     }

@@ -9,7 +9,8 @@ import {
   ChevronLeft, 
   Clock, 
   CreditCard, 
-  Lock
+  Lock,
+  CheckCircle
 } from "lucide-react";
 import { useOrderData } from "@/hooks/useOrderData";
 import Image from "next/image";
@@ -20,12 +21,27 @@ import { PaymentMethodType } from "@/lib/constants/payment";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { MultiStepLoader } from "@/components/ui/multi-step-loader";
+
+// États de chargement personnalisés pour le paiement
+const paymentLoadingStates = [
+  { text: "Initialisation du paiement..." },
+  { text: "Vérification de vos informations..." },
+  { text: "Sécurisation de la transaction..." },
+  { text: "Connexion au service de paiement..." },
+  { text: "Traitement de votre paiement..." },
+  { text: "Préparation de votre commande..." },
+  { text: "Enregistrement des détails..." },
+  { text: "Finalisation de la transaction..." },
+];
 
 export default function UnifiedCheckoutPage({ params }: { params: { serviceId: string } }) {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const serviceId = params.serviceId;
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPaymentLoader, setShowPaymentLoader] = useState(false);
+  const [paymentDuration, setPaymentDuration] = useState(15000); // 15 secondes pour le processus complet
 
   // Payment method states
   const [cardDetails, setCardDetails] = useState({
@@ -68,6 +84,13 @@ export default function UnifiedCheckoutPage({ params }: { params: { serviceId: s
 
   const handleMethodSelect = (method: PaymentMethodType) => {
     if (isLoading) return;
+    
+    // Si l'utilisateur clique sur la méthode déjà sélectionnée, on la désélectionne
+    if (orderData.selectedPaymentMethod === method) {
+      setOrderData({ ...orderData, selectedPaymentMethod: undefined, error: null });
+      return;
+    }
+    
     setOrderData({ ...orderData, selectedPaymentMethod: method, error: null });
     
     // Reset other payment fields
@@ -154,19 +177,76 @@ export default function UnifiedCheckoutPage({ params }: { params: { serviceId: s
       }
     }
 
+    // Démarrer les indicateurs de chargement
     setIsLoading(true);
     setIsSubmitting(true);
+    setShowPaymentLoader(true);
     
     try {
+      const startTime = Date.now();
+      const supabase = createClientComponentClient();
+      
+      // Générer le numéro de commande une seule fois
+      const orderNumber = `CMD-${Date.now()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
+      
       if (orderData.isTestMode) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        const testOrderId = `test_${Date.now()}`;
+        // Créer une commande de test réelle dans la base de données
+        const { data: order, error: orderError } = await supabase
+          .from('orders')
+          .insert({
+            service_id: serviceId,
+            client_id: user.id,
+            freelance_id: service?.profiles?.id,
+            requirements: `[TEST] ${orderData.requirements}`,
+            status: 'pending',
+            price: service?.price || 0,
+            delivery_time: service?.delivery_time || 3,
+            order_number: orderNumber
+          })
+          .select('id, order_number')
+          .single();
+
+        if (orderError) {
+          console.error("Erreur lors de la création de la commande de test:", orderError);
+          throw new Error("Erreur lors de la création de la commande de test");
+        }
+
+        console.log("Commande créée avec succès:", { id: order.id, order_number: order.order_number });
+
+        // Créer une entrée de paiement fictif
+        const { error: processPaymentError } = await supabase
+          .from('payments')
+          .insert({
+            order_id: order.id, // Utiliser l'ID généré par Supabase
+            client_id: user.id,
+            freelance_id: service?.profiles?.id,
+            amount: service?.price || 0,
+            status: 'pending',
+            payment_method: `TEST_${orderData.selectedPaymentMethod}`
+          });
+
+        if (processPaymentError) {
+          console.error("Erreur lors de la création du paiement de test:", processPaymentError);
+        }
+
+        // Préparer les données avant la redirection
         setOrderData({ 
           ...orderData,
-          orderId: testOrderId,
+          orderId: order.id,
+          orderNumber: order.order_number,
           testPaymentSuccess: true,
           error: null
         });
+        
+        // Attendre que l'animation soit terminée
+        const elapsedTime = Date.now() - startTime;
+        const remainingTime = Math.max(0, paymentDuration - elapsedTime);
+        
+        if (remainingTime > 0) {
+          await new Promise(resolve => setTimeout(resolve, remainingTime));
+        }
+        
+        // Redirection vers la page de confirmation
         router.push(`/order/${serviceId}/summary`);
       } else {
         // Payment data validation
@@ -175,10 +255,9 @@ export default function UnifiedCheckoutPage({ params }: { params: { serviceId: s
           setOrderData({ ...orderData, error: validationError });
           setIsLoading(false);
           setIsSubmitting(false);
+          setShowPaymentLoader(false);
           return;
         }
-
-        const supabase = createClientComponentClient();
         
         // Create order
         const { data: order, error: orderError } = await supabase
@@ -190,14 +269,18 @@ export default function UnifiedCheckoutPage({ params }: { params: { serviceId: s
             requirements: orderData.requirements,
             status: 'pending',
             price: service?.price || 0,
-            delivery_time: service?.delivery_time || 3
+            delivery_time: service?.delivery_time || 3,
+            order_number: orderNumber
           })
-          .select()
+          .select('id, order_number')
           .single();
 
         if (orderError) {
+          console.error("Erreur lors de la création de la commande:", orderError);
           throw new Error("Erreur lors de la création de la commande");
         }
+
+        console.log("Commande créée avec succès:", { id: order.id, order_number: order.order_number });
 
         // Process payment
         const { error: processPaymentError } = await supabase
@@ -215,12 +298,24 @@ export default function UnifiedCheckoutPage({ params }: { params: { serviceId: s
           throw new Error("Erreur lors du traitement du paiement");
         }
 
+        // Préparer les données avant la redirection
         setOrderData({ 
           ...orderData,
           orderId: order.id,
+          orderNumber: order.order_number,
           testPaymentSuccess: false,
           error: null
         });
+        
+        // Attendre que l'animation soit terminée
+        const elapsedTime = Date.now() - startTime;
+        const remainingTime = Math.max(0, paymentDuration - elapsedTime);
+        
+        if (remainingTime > 0) {
+          await new Promise(resolve => setTimeout(resolve, remainingTime));
+        }
+        
+        // Redirection vers la page de confirmation
         router.push(`/order/${serviceId}/summary`);
       }
     } catch (err) {
@@ -230,18 +325,24 @@ export default function UnifiedCheckoutPage({ params }: { params: { serviceId: s
         error: err instanceof Error ? err.message : "Une erreur est survenue",
         testPaymentSuccess: false
       });
-    } finally {
       setIsLoading(false);
       setIsSubmitting(false);
+      setShowPaymentLoader(false);
     }
+  };
+
+  const handleCancelPayment = () => {
+    setShowPaymentLoader(false);
+    setIsSubmitting(false);
+    setIsLoading(false);
   };
 
   if (authLoading || loadingService) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-vynal-purple-dark">
+      <div className="min-h-screen flex items-center justify-center bg-slate-50/70 dark:bg-vynal-purple-dark/30">
         <div className="animate-pulse flex flex-col items-center">
           <div className="w-12 h-12 rounded-full border-2 border-transparent border-t-vynal-accent-primary border-l-vynal-accent-primary animate-spin"></div>
-          <p className="mt-4 text-sm text-gray-600 dark:text-vynal-text-secondary">Chargement...</p>
+          <p className="mt-4 text-sm text-slate-600 dark:text-vynal-text-secondary">Chargement...</p>
         </div>
       </div>
     );
@@ -252,93 +353,366 @@ export default function UnifiedCheckoutPage({ params }: { params: { serviceId: s
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-vynal-purple-dark py-8 px-4 sm:px-6">
-      {/* Header simple */}
-      <div className="max-w-4xl mx-auto mb-8">
+    <div className="min-h-screen bg-slate-50/70 dark:bg-vynal-purple-dark/30 py-8 px-4 sm:px-6 font-poppins">
+      {/* Loader du paiement */}
+      <MultiStepLoader 
+        loadingStates={paymentLoadingStates} 
+        loading={showPaymentLoader} 
+        duration={1800}
+        totalDuration={paymentDuration}
+      />
+
+      {/* Back button */}
+      <div className="max-w-4xl mx-auto mb-4">
         <button 
           onClick={handleBack}
-          className="inline-flex items-center text-gray-600 dark:text-vynal-text-secondary hover:text-vynal-accent-primary transition-colors text-sm"
+          className="inline-flex items-center text-slate-600 dark:text-vynal-text-secondary hover:text-vynal-accent-primary transition-colors text-[10px] sm:text-xs font-poppins"
         >
-          <ChevronLeft className="h-4 w-4 mr-1" />
+          <ChevronLeft className="h-3 w-3 mr-1" />
           <span>Retour</span>
         </button>
       </div>
 
-      {/* Main content */}
+      {/* Main content - Stripe-like layout */}
       <div className="max-w-4xl mx-auto">
-        <div className="bg-white dark:bg-vynal-purple-dark/70 shadow-sm rounded-xl overflow-hidden">
-          {/* Header with secure badge */}
-          <div className="px-6 py-5 border-b border-gray-100 dark:border-vynal-purple-secondary/10 flex justify-between items-center">
-            <h1 className="text-xl font-semibold text-gray-900 dark:text-vynal-text-primary">Finaliser votre commande</h1>
-            <div className="flex items-center text-xs text-gray-500 dark:text-vynal-text-secondary">
-              <Lock className="h-3.5 w-3.5 mr-1 text-vynal-accent-primary" />
-              <span>Paiement sécurisé</span>
+        <div className="flex flex-col md:flex-row gap-8 items-start">
+          
+          {/* Left column - Order summary */}
+          <div className="w-full md:w-2/5 lg:w-1/3 md:sticky md:top-8">
+            <div className="bg-white dark:bg-vynal-purple-dark shadow-sm rounded-xl p-5 border border-slate-100 dark:border-vynal-purple-secondary/20">
+              {/* TEST MODE badge */}
+              {orderData.isTestMode && (
+                <div className="flex items-center mb-4 p-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-700/20">
+                  <span className="text-[8px] sm:text-[10px] font-medium text-amber-600 dark:text-amber-500 uppercase tracking-wider">Mode test</span>
+                </div>
+              )}
+              
+              {/* Merchant Info */}
+              <div className="mb-4">
+                <h2 className="text-[10px] sm:text-xs font-semibold text-slate-800 dark:text-vynal-text-primary mb-1">
+                  Payer {service?.profiles?.display_name || "Prestataire"}
+                </h2>
+                <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
+                  {formatPrice(service?.price || 0)}
+                </h1>
+              </div>
+              
+              {/* Service details */}
+              <div className="space-y-3 pb-4 mb-4 border-b border-slate-100 dark:border-vynal-purple-secondary/20">
+                {service?.images && service.images.length > 0 ? (
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-md overflow-hidden relative flex-shrink-0">
+                      <Image 
+                        src={service.images[0]} 
+                        alt={service.title || "Service"}
+                        fill
+                        sizes="40px"
+                        className="object-cover"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-[10px] sm:text-xs font-medium text-slate-800 dark:text-vynal-text-primary truncate">
+                        {service?.title || "Service"}
+                      </h3>
+                      <div className="flex items-center mt-1">
+                        <span className="text-[7px] sm:text-[9px] text-slate-500 dark:text-vynal-text-secondary">
+                          {formatPrice(service?.price || 0)}
+                        </span>
+                        {service?.delivery_time && (
+                          <>
+                            <span className="mx-1 text-slate-300 dark:text-vynal-purple-secondary/40">•</span>
+                            <Clock className="h-2 w-2 text-slate-400 mr-1" />
+                            <span className="text-[7px] sm:text-[9px] text-slate-500 dark:text-vynal-text-secondary">
+                              {service.delivery_time} jour(s)
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+              
+              {/* Price breakdown */}
+              <div className="space-y-2 pt-1 pb-4 border-b border-slate-100 dark:border-vynal-purple-secondary/20">
+                <div className="flex justify-between">
+                  <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-vynal-text-secondary">Prix du service</span>
+                  <span className="text-[9px] sm:text-[10px] text-slate-800 dark:text-vynal-text-primary">{formatPrice(service?.price || 0)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-vynal-text-secondary">Frais de service</span>
+                  <span className="text-[9px] sm:text-[10px] text-green-600 dark:text-green-500">Inclus</span>
+                </div>
+              </div>
+              
+              {/* Total */}
+              <div className="pt-4 flex justify-between items-center">
+                <span className="text-[10px] sm:text-xs font-medium text-slate-800 dark:text-vynal-text-primary">Total</span>
+                <span className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">{formatPrice(service?.price || 0)}</span>
+              </div>
+              
+              {/* Security badge */}
+              <div className="mt-6 flex items-center justify-center">
+                <div className="flex items-center space-x-1">
+                  <Lock className="h-3 w-3 text-vynal-accent-primary" />
+                  <span className="text-[7px] sm:text-[8px] text-slate-400 dark:text-vynal-text-secondary">Paiement sécurisé</span>
+                </div>
+              </div>
             </div>
           </div>
-
-          {/* Error alert */}
-          {orderData.error && (
-            <div className="mx-6 mt-4 bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 rounded-lg p-3 text-sm text-red-600 dark:text-red-400 flex items-start">
-              <AlertCircle className="h-4 w-4 mt-0.5 mr-2 flex-shrink-0" />
-              <p>{orderData.error}</p>
-            </div>
-          )}
           
-          <div className="p-6">
-            {/* Grid layout */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {/* Left column (2/3 width) - Order details & Payment */}
-              <div className="lg:col-span-2 space-y-8">
-                {/* Description section */}
-                <div className="space-y-4">
-                  <h2 className="text-sm font-medium text-gray-700 dark:text-vynal-text-secondary">Description de vos besoins</h2>
+          {/* Right column - Payment form */}
+          <div className="flex-1 w-full">
+            <div className="bg-white dark:bg-vynal-purple-dark/20 shadow-sm rounded-xl overflow-hidden border border-slate-100 dark:border-vynal-purple-secondary/40">
+              {/* Description section */}
+              <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-vynal-purple-secondary/40">
+                <div className="space-y-2 sm:space-y-3">
+                  <h2 className="text-xs sm:text-sm font-medium text-slate-800 dark:text-vynal-text-primary">Description de votre besoin</h2>
                   <Textarea
                     placeholder="Décrivez en détail ce que vous souhaitez obtenir..."
-                    className="h-24 text-sm bg-transparent border-gray-200 dark:border-vynal-purple-secondary/30 rounded-lg resize-none focus:ring-1 focus:ring-vynal-accent-primary focus:border-vynal-accent-primary"
+                    className="h-20 sm:h-24 text-[10px] sm:text-sm bg-transparent border-slate-200 dark:border-vynal-purple-secondary/40 rounded-lg resize-none focus:ring-1 focus:ring-vynal-accent-primary focus:border-vynal-accent-primary"
                     value={orderData.requirements}
                     onChange={(e) => setOrderData({ ...orderData, requirements: e.target.value, error: null })}
                   />
+                  <p className="text-[7px] sm:text-[9px] text-slate-500 dark:text-vynal-text-secondary">
+                    Une description détaillée nous permettra de mieux comprendre vos besoins et de vous offrir un service de qualité.
+                  </p>
                 </div>
-
-                {/* Payment methods */}
-                <div className="space-y-4">
-                  <h2 className="text-sm font-medium text-gray-700 dark:text-vynal-text-secondary">Méthode de paiement</h2>
-                  
-                  {/* Card selector */}
-                  <div 
-                    onClick={() => handleMethodSelect("card")}
-                    className={`p-4 border rounded-lg cursor-pointer transition-all ${
-                      orderData.selectedPaymentMethod === "card" 
-                        ? "border-vynal-accent-primary bg-vynal-accent-primary/5 dark:bg-vynal-purple-secondary/20" 
-                        : "border-gray-200 dark:border-vynal-purple-secondary/30 hover:border-vynal-accent-primary"
+              </div>
+              
+              {/* Payment methods */}
+              <div className="p-4 sm:p-5 space-y-4 sm:space-y-5">
+                <h2 className="text-xs sm:text-sm font-medium text-slate-800 dark:text-vynal-text-primary">Payer par</h2>
+                
+                {/* Error alert */}
+                {orderData.error && (
+                  <div className="bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 rounded-lg p-2 sm:p-3 text-[9px] sm:text-xs text-red-600 dark:text-red-400 flex items-start">
+                    <AlertCircle className="h-3 w-3 mt-0.5 mr-2 flex-shrink0 text-vynal-accent-primary" />
+                    <p>{orderData.error}</p>
+                  </div>
+                )}
+                
+                {/* Payment method buttons */}
+                <div className="grid grid-cols-3 gap-2 sm:gap-3 mt-3 sm:mt-4">
+                  {/* Wave Button */}
+                  <button 
+                    onClick={() => handleMethodSelect("wave")} 
+                    className={`py-2.5 sm:py-3 px-3 sm:px-4 rounded-md flex items-center justify-center transition-all ${
+                      orderData.selectedPaymentMethod === "wave"
+                        ? "bg-vynal-accent-primary text-white"
+                        : "bg-slate-100 hover:bg-slate-200 dark:bg-vynal-purple-secondary/20 dark:hover:bg-vynal-purple-secondary/30 text-slate-700 dark:text-vynal-text-secondary"
                     }`}
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-8 h-5 flex items-center">
-                          <CreditCard className="h-5 w-5 text-gray-600 dark:text-vynal-text-secondary" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-gray-900 dark:text-vynal-text-primary">Carte bancaire</p>
-                        </div>
-                      </div>
-                      <div className="flex space-x-2">
-                        <Image src="/images/payment/visa.svg" alt="Visa" width={28} height={18} className="h-5" />
-                        <Image src="/images/payment/mastercard.svg" alt="Mastercard" width={28} height={18} className="h-5" />
-                      </div>
+                    <Image src="/assets/partners/logo_wave_.webp" alt="Wave" width={52} height={52} className="h-6 w-6 sm:h-8 sm:w-8 mr-1.5 sm:mr-2" />
+                    <span className="text-[10px] sm:text-xs font-medium">Wave</span>
+                  </button>
+                  
+                  {/* Orange Money Button */}
+                  <button 
+                    onClick={() => handleMethodSelect("orange-money")} 
+                    className={`py-2.5 sm:py-3 px-3 sm:px-4 rounded-md flex items-center justify-center transition-all ${
+                      orderData.selectedPaymentMethod === "orange-money"
+                        ? "bg-vynal-accent-primary text-white"
+                        : "bg-slate-100 hover:bg-slate-200 dark:bg-vynal-purple-secondary/20 dark:hover:bg-vynal-purple-secondary/30 text-slate-700 dark:text-vynal-text-secondary"
+                    }`}
+                  >
+                    <Image src="/assets/partners/om_logo_.webp" alt="Orange Money" width={52} height={92} className="h-6 w-6 sm:h-8 sm:w-8 mr-1.5 sm:mr-2" />
+                    <span className="text-[10px] sm:text-xs font-medium">Orange</span>
+                  </button>
+                  
+                  {/* PayPal Button */}
+                  <button 
+                    onClick={() => handleMethodSelect("paypal")} 
+                    className={`py-2.5 sm:py-3 px-3 sm:px-4 rounded-md flex items-center justify-center transition-all ${
+                      orderData.selectedPaymentMethod === "paypal"
+                        ? "bg-vynal-accent-primary text-white"
+                        : "bg-slate-100 hover:bg-slate-200 dark:bg-vynal-purple-secondary/20 dark:hover:bg-vynal-purple-secondary/30 text-slate-700 dark:text-vynal-text-secondary"
+                    }`}
+                  >
+                    <Image src="/images/payment/paypal.svg" alt="PayPal" width={32} height={32} className="h-6 w-6 sm:h-8 sm:w-8 mr-1.5 sm:mr-2" />
+                    <span className="text-[10px] sm:text-xs font-medium">PayPal</span>
+                  </button>
+                </div>
+                
+                {/* Wave form */}
+                {orderData.selectedPaymentMethod === "wave" && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="mt-3 sm:mt-4 p-3 sm:p-4 bg-slate-50 dark:bg-vynal-purple-dark/20 rounded-md border border-slate-200 dark:border-vynal-purple-secondary/40"
+                  >
+                    <div className="flex items-center mb-2 sm:mb-3">
+                      <Image 
+                        src="/assets/partners/logo_wave_.webp" 
+                        alt="Wave" 
+                        width={20} 
+                        height={20}
+                        className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2"
+                      />
+                      <h3 className="text-[10px] sm:text-xs font-medium text-slate-800 dark:text-vynal-text-primary">
+                        Wave
+                      </h3>
                     </div>
-
-                    {/* Card form */}
-                    {orderData.selectedPaymentMethod === "card" && (
-                      <motion.div 
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: "auto", opacity: 1 }}
-                        transition={{ duration: 0.2 }}
-                        className="mt-4 pt-4 border-t border-gray-100 dark:border-vynal-purple-secondary/20 overflow-hidden"
-                      >
-                        <div className="space-y-4">
-                          <div>
-                            <label htmlFor="card-number" className="text-xs text-gray-600 dark:text-vynal-text-secondary block mb-1">Numéro de carte</label>
+                    
+                    <div>
+                      <label htmlFor="wave-number" className="text-[9px] sm:text-[10px] text-slate-600 dark:text-vynal-text-secondary block mb-1">
+                        Numéro de téléphone
+                      </label>
+                      <Input
+                        id="wave-number"
+                        type="tel"
+                        placeholder="77 123 45 67"
+                        value={mobileNumber}
+                        onChange={(e) => setMobileNumber(e.target.value)}
+                        className="h-9 sm:h-10 text-[10px] sm:text-sm bg-white dark:bg-vynal-purple-dark/40 border-slate-200 dark:border-vynal-purple-secondary/40 rounded-md"
+                      />
+                      <p className="mt-1.5 sm:mt-2 text-[7px] sm:text-[9px] text-slate-500 dark:text-vynal-text-secondary">
+                        Vous recevrez un code sur votre téléphone pour valider le paiement.
+                      </p>
+                    </div>
+                  </motion.div>
+                )}
+                
+                {/* Orange Money form */}
+                {orderData.selectedPaymentMethod === "orange-money" && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="mt-3 sm:mt-4 p-3 sm:p-4 bg-slate-50 dark:bg-vynal-purple-dark/20 rounded-md border border-slate-200 dark:border-vynal-purple-secondary/40"
+                  >
+                    <div className="flex items-center mb-2 sm:mb-3">
+                      <Image 
+                        src="/assets/partners/om_logo_.webp" 
+                        alt="Orange Money" 
+                        width={40} 
+                        height={40}
+                        className="h-8 w-8 sm:h-10 sm:w-10 mr-1.5 sm:mr-2"
+                      />
+                      <h3 className="text-[10px] sm:text-xs font-medium text-slate-800 dark:text-vynal-text-primary">
+                        Orange Money
+                      </h3>
+                    </div>
+                    
+                    <div>
+                      <label htmlFor="orange-number" className="text-[9px] sm:text-[10px] text-slate-600 dark:text-vynal-text-secondary block mb-1">
+                        Numéro de téléphone
+                      </label>
+                      <Input
+                        id="orange-number"
+                        type="tel"
+                        placeholder="77 123 45 67"
+                        value={mobileNumber}
+                        onChange={(e) => setMobileNumber(e.target.value)}
+                        className="h-9 sm:h-10 text-[10px] sm:text-sm bg-white dark:bg-vynal-purple-dark/40 border-slate-200 dark:border-vynal-purple-secondary/40 rounded-md"
+                      />
+                      <p className="mt-1.5 sm:mt-2 text-[7px] sm:text-[9px] text-slate-500 dark:text-vynal-text-secondary">
+                        Vous recevrez un code sur votre téléphone pour valider le paiement.
+                      </p>
+                    </div>
+                  </motion.div>
+                )}
+                
+                {/* PayPal form */}
+                {orderData.selectedPaymentMethod === "paypal" && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="mt-3 sm:mt-4 p-3 sm:p-4 bg-slate-50 dark:bg-vynal-purple-dark/20 rounded-md border border-slate-200 dark:border-vynal-purple-secondary/40"
+                  >
+                    <div className="flex items-center mb-2 sm:mb-3">
+                      <Image 
+                        src="/images/payment/paypal.svg" 
+                        alt="PayPal" 
+                        width={20} 
+                        height={20}
+                        className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2"
+                      />
+                      <h3 className="text-[10px] sm:text-xs font-medium text-slate-800 dark:text-vynal-text-primary">
+                        PayPal
+                      </h3>
+                    </div>
+                    
+                    <div>
+                      <label htmlFor="paypal-email" className="text-[9px] sm:text-[10px] text-slate-600 dark:text-vynal-text-secondary block mb-1">
+                        Email PayPal
+                      </label>
+                      <Input
+                        id="paypal-email"
+                        type="email"
+                        placeholder="exemple@email.com"
+                        value={paypalEmail}
+                        onChange={(e) => setPaypalEmail(e.target.value)}
+                        className="h-9 sm:h-10 text-[10px] sm:text-sm bg-white dark:bg-vynal-purple-dark/40 border-slate-200 dark:border-vynal-purple-secondary/40 rounded-md"
+                      />
+                      <p className="mt-1.5 sm:mt-2 text-[7px] sm:text-[9px] text-slate-500 dark:text-vynal-text-secondary">
+                        Vous serez redirigé vers PayPal pour finaliser votre paiement.
+                      </p>
+                    </div>
+                  </motion.div>
+                )}
+                
+                {/* Or separator */}
+                <div className="relative flex items-center py-3 sm:py-4 mt-1 sm:mt-2">
+                  <div className="flex-grow border-t border-slate-200 dark:border-vynal-purple-secondary/40"></div>
+                  <span className="flex-shrink mx-2 sm:mx-3 text-[8px] sm:text-[9px] text-slate-400 dark:text-vynal-text-secondary">Ou payer par carte</span>
+                  <div className="flex-grow border-t border-slate-200 dark:border-vynal-purple-secondary/40"></div>
+                </div>
+                
+                {/* Card payment section - collapsible */}
+                <div
+                  onClick={(e) => {
+                    if (e.target === e.currentTarget || e.target === e.currentTarget.firstElementChild) {
+                      handleMethodSelect("card");
+                    }
+                  }}
+                  className="border border-slate-200 dark:border-vynal-purple-secondary/40 rounded-md overflow-hidden cursor-pointer"
+                >
+                  <div className={`p-2.5 sm:p-3 flex items-center justify-between ${
+                    orderData.selectedPaymentMethod === "card" 
+                      ? "bg-vynal-accent-primary/5 dark:bg-vynal-purple-secondary/20 border-vynal-accent-primary" 
+                      : "bg-slate-50 dark:bg-vynal-purple-dark/40"
+                  }`}>
+                    <div className="flex items-center">
+                      <CreditCard className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2 text-vynal-accent-primary" />
+                      <span className="text-[10px] sm:text-xs font-medium text-slate-800 dark:text-vynal-text-primary">Carte bancaire</span>
+                    </div>
+                    <div className="flex items-center">
+                      <Image src="/images/payment/visa.svg" alt="Visa" width={24} height={16} className="h-3 sm:h-4" />
+                      <Image src="/images/payment/mastercard.svg" alt="Mastercard" width={24} height={16} className="h-3 sm:h-4 ml-0.5 sm:ml-1" />
+                      <Image src="/images/payment/amex.svg" alt="American Express" width={24} height={16} className="h-3 sm:h-4 ml-0.5 sm:ml-1" />
+                    </div>
+                  </div>
+                  
+                  {/* Card form - expanded only when selected */}
+                  {orderData.selectedPaymentMethod === "card" && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      transition={{ duration: 0.3 }}
+                      className="border-t border-slate-200 dark:border-vynal-purple-secondary/40 p-4"
+                      onClick={(e) => e.stopPropagation()} // Empêche la propagation du clic aux éléments parents
+                    >
+                      <div className="space-y-4">
+                        {/* Email */}
+                        <div>
+                          <label htmlFor="email" className="text-[9px] sm:text-[10px] text-slate-600 dark:text-vynal-text-secondary block mb-1">E-mail</label>
+                          <Input
+                            id="email"
+                            type="email"
+                            placeholder="email@exemple.com"
+                            className="h-10 text-xs sm:text-sm bg-transparent border-slate-200 dark:border-vynal-purple-secondary/40 rounded-md"
+                            value={user?.email || ""}
+                            disabled
+                          />
+                        </div>
+                        
+                        {/* Card number */}
+                        <div>
+                          <label htmlFor="card-number" className="text-[9px] sm:text-[10px] text-slate-600 dark:text-vynal-text-secondary block mb-1">Numéro de carte</label>
+                          <div className="relative">
                             <Input
                               id="card-number"
                               name="number"
@@ -349,197 +723,115 @@ export default function UnifiedCheckoutPage({ params }: { params: { serviceId: s
                                 setCardDetails(prev => ({ ...prev, number: formatted }));
                               }}
                               maxLength={19}
-                              className="h-10 text-sm bg-transparent border-gray-200 dark:border-vynal-purple-secondary/30 rounded-md"
+                              className="h-10 text-xs sm:text-sm bg-transparent border-slate-200 dark:border-vynal-purple-secondary/40 rounded-md pr-10"
                             />
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                              <div className="flex">
+                                <Image src="/images/payment/visa.svg" alt="Visa" width={16} height={10} className="h-3.5 opacity-50" />
+                              </div>
+                            </div>
                           </div>
-                          
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <label htmlFor="card-name" className="text-xs text-gray-600 dark:text-vynal-text-secondary block mb-1">Nom sur la carte</label>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                          {/* Cardholder name */}
+                          <div>
+                            <label htmlFor="card-name" className="text-[9px] sm:text-[10px] text-slate-600 dark:text-vynal-text-secondary block mb-1">Nom sur la carte</label>
+                            <div className="relative">
                               <Input
                                 id="card-name"
                                 name="name"
-                                placeholder="JEAN DUPONT"
+                                placeholder="Georges Ibrahima GUEYE"
                                 value={cardDetails.name}
-                                onChange={handleCardInputChange}
-                                className="h-10 text-sm bg-transparent border-gray-200 dark:border-vynal-purple-secondary/30 rounded-md"
+                                onChange={(e) => {
+                                  setCardDetails(prev => ({ ...prev, name: e.target.value.toUpperCase() }));
+                                }}
+                                className="h-10 text-xs sm:text-sm bg-transparent border-slate-200 dark:border-vynal-purple-secondary/40 rounded-md pr-9"
                               />
-                            </div>
-                            
-                            <div className="grid grid-cols-2 gap-2">
-                              <div>
-                                <label htmlFor="card-expiry" className="text-xs text-gray-600 dark:text-vynal-text-secondary block mb-1">Expiration</label>
-                                <Input
-                                  id="card-expiry"
-                                  name="expiry"
-                                  placeholder="MM/AA"
-                                  value={cardDetails.expiry}
-                                  onChange={(e) => {
-                                    const formatted = formatExpiry(e.target.value);
-                                    setCardDetails(prev => ({ ...prev, expiry: formatted }));
-                                  }}
-                                  maxLength={5}
-                                  className="h-10 text-sm bg-transparent border-gray-200 dark:border-vynal-purple-secondary/30 rounded-md"
-                                />
-                              </div>
-                              <div>
-                                <label htmlFor="card-cvc" className="text-xs text-gray-600 dark:text-vynal-text-secondary block mb-1">CVC</label>
-                                <Input
-                                  id="card-cvc"
-                                  name="cvc"
-                                  placeholder="123"
-                                  value={cardDetails.cvc}
-                                  onChange={(e) => {
-                                    const formatted = formatCVC(e.target.value);
-                                    setCardDetails(prev => ({ ...prev, cvc: formatted }));
-                                  }}
-                                  maxLength={3}
-                                  className="h-10 text-sm bg-transparent border-gray-200 dark:border-vynal-purple-secondary/30 rounded-md"
-                                />
+                              <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className="opacity-50">
+                                  <path d="M8 8C9.65685 8 11 6.65685 11 5C11 3.34315 9.65685 2 8 2C6.34315 2 5 3.34315 5 5C5 6.65685 6.34315 8 8 8Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.5"/>
+                                  <path d="M13 14C13 11.2386 10.7614 9 8 9C5.23858 9 3 11.2386 3 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.5"/>
+                                </svg>
                               </div>
                             </div>
                           </div>
-                        </div>
-                      </motion.div>
-                    )}
-                  </div>
-                  
-                  {/* PayPal selector */}
-                  <div 
-                    onClick={() => handleMethodSelect("paypal")}
-                    className={`p-4 border rounded-lg cursor-pointer transition-all ${
-                      orderData.selectedPaymentMethod === "paypal" 
-                        ? "border-vynal-accent-primary bg-vynal-accent-primary/5 dark:bg-vynal-purple-secondary/20" 
-                        : "border-gray-200 dark:border-vynal-purple-secondary/30 hover:border-vynal-accent-primary"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-8 h-5 flex items-center">
-                          <Image src="/images/payment/paypal.svg" alt="PayPal" width={20} height={20} />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-gray-900 dark:text-vynal-text-primary">PayPal</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* PayPal form */}
-                    {orderData.selectedPaymentMethod === "paypal" && (
-                      <motion.div 
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: "auto", opacity: 1 }}
-                        transition={{ duration: 0.2 }}
-                        className="mt-4 pt-4 border-t border-gray-100 dark:border-vynal-purple-secondary/20 overflow-hidden"
-                      >
-                        <div>
-                          <label htmlFor="paypal-email" className="text-xs text-gray-600 dark:text-vynal-text-secondary block mb-1">Email PayPal</label>
-                          <Input
-                            id="paypal-email"
-                            type="email"
-                            placeholder="exemple@email.com"
-                            value={paypalEmail}
-                            onChange={(e) => setPaypalEmail(e.target.value)}
-                            className="h-10 text-sm bg-transparent border-gray-200 dark:border-vynal-purple-secondary/30 rounded-md"
-                          />
-                          <p className="mt-2 text-xs text-gray-500 dark:text-vynal-text-secondary">Vous serez redirigé vers PayPal pour finaliser votre paiement.</p>
-                        </div>
-                      </motion.div>
-                    )}
-                  </div>
-
-                  {/* Mobile money selector (Wave + Orange Money) */}
-                  <div className="flex gap-4">
-                    {/* Wave */}
-                    <div 
-                      onClick={() => handleMethodSelect("wave")}
-                      className={`flex-1 p-4 border rounded-lg cursor-pointer transition-all ${
-                        orderData.selectedPaymentMethod === "wave" 
-                          ? "border-vynal-accent-primary bg-vynal-accent-primary/5 dark:bg-vynal-purple-secondary/20" 
-                          : "border-gray-200 dark:border-vynal-purple-secondary/30 hover:border-vynal-accent-primary"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-8 h-5 flex items-center">
-                            <Image src="/images/payment/wave.svg" alt="Wave" width={20} height={20} />
-                          </div>
+                          
+                          {/* Expiry date */}
                           <div>
-                            <p className="text-sm font-medium text-gray-900 dark:text-vynal-text-primary">Wave</p>
+                            <label htmlFor="card-expiry" className="text-[9px] sm:text-[10px] text-slate-600 dark:text-vynal-text-secondary block mb-1">Date d'expiration</label>
+                            <div className="relative">
+                              <Input
+                                id="card-expiry"
+                                name="expiry"
+                                placeholder="MM/AA"
+                                value={cardDetails.expiry}
+                                onChange={(e) => {
+                                  const formatted = formatExpiry(e.target.value);
+                                  setCardDetails(prev => ({ ...prev, expiry: formatted }));
+                                }}
+                                maxLength={5}
+                                className="h-10 text-xs sm:text-sm bg-transparent border-slate-200 dark:border-vynal-purple-secondary/40 rounded-md pr-9"
+                              />
+                              <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className="opacity-50">
+                                  <rect x="2" y="3" width="12" height="11" rx="2" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.5"/>
+                                  <path d="M2 6H14M5 2V4M11 2V4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-opacity="0.5"/>
+                                  <path d="M4 9H6M8 9H10M12 9H14M4 12H6M8 12H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-opacity="0.5"/>
+                                </svg>
+                              </div>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </div>
-
-                    {/* Orange Money */}
-                    <div 
-                      onClick={() => handleMethodSelect("orange-money")}
-                      className={`flex-1 p-4 border rounded-lg cursor-pointer transition-all ${
-                        orderData.selectedPaymentMethod === "orange-money" 
-                          ? "border-vynal-accent-primary bg-vynal-accent-primary/5 dark:bg-vynal-purple-secondary/20" 
-                          : "border-gray-200 dark:border-vynal-purple-secondary/30 hover:border-vynal-accent-primary"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-8 h-5 flex items-center">
-                            <Image src="/images/payment/orange-money.svg" alt="Orange Money" width={20} height={20} />
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-gray-900 dark:text-vynal-text-primary">Orange Money</p>
+                        
+                        {/* CVC */}
+                        <div>
+                          <label htmlFor="card-cvc" className="text-[9px] sm:text-[10px] text-slate-600 dark:text-vynal-text-secondary block mb-1">CVC</label>
+                          <div className="relative">
+                            <Input
+                              id="card-cvc"
+                              name="cvc"
+                              placeholder="123"
+                              value={cardDetails.cvc}
+                              onChange={(e) => {
+                                const formatted = formatCVC(e.target.value);
+                                setCardDetails(prev => ({ ...prev, cvc: formatted }));
+                              }}
+                              maxLength={3}
+                              className="h-10 text-xs sm:text-sm bg-transparent border-slate-200 dark:border-vynal-purple-secondary/40 rounded-md pr-9"
+                            />
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className="opacity-50">
+                                <rect x="1" y="1" width="14" height="14" rx="2" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.5"/>
+                                <path d="M4 4H12M4 8H12M4 12H8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-opacity="0.5"/>
+                              </svg>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Mobile payment form (shared between Wave and Orange Money) */}
-                  {(orderData.selectedPaymentMethod === "wave" || orderData.selectedPaymentMethod === "orange-money") && (
-                    <motion.div 
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: "auto", opacity: 1 }}
-                      transition={{ duration: 0.2 }}
-                      className="mt-2 p-4 border border-gray-200 dark:border-vynal-purple-secondary/30 rounded-lg overflow-hidden"
-                    >
-                      <div>
-                        <label htmlFor="mobile-number" className="text-xs text-gray-600 dark:text-vynal-text-secondary block mb-1">
-                          Numéro {orderData.selectedPaymentMethod === "wave" ? "Wave" : "Orange Money"}
-                        </label>
-                        <Input
-                          id="mobile-number"
-                          type="tel"
-                          placeholder="77 123 45 67"
-                          value={mobileNumber}
-                          onChange={(e) => setMobileNumber(e.target.value)}
-                          className="h-10 text-sm bg-transparent border-gray-200 dark:border-vynal-purple-secondary/30 rounded-md"
-                        />
-                        <p className="mt-2 text-xs text-gray-500 dark:text-vynal-text-secondary">
-                          Vous recevrez un code sur votre téléphone pour valider le paiement.
-                        </p>
                       </div>
                     </motion.div>
                   )}
                 </div>
-
-                {/* Test mode toggle (simple version) */}
-                <div className="flex items-center space-x-2">
+                
+                {/* Test mode toggle with minimalist styling */}
+                <div className="flex items-center mt-4 sm:mt-6 py-1.5 sm:py-2">
                   <input
                     type="checkbox"
                     id="test-mode"
                     checked={orderData.isTestMode}
                     onChange={() => setOrderData({ ...orderData, isTestMode: !orderData.isTestMode })}
-                    className="h-4 w-4 text-vynal-accent-primary rounded border-gray-300 focus:ring-vynal-accent-primary"
+                    className="h-2.5 w-2.5 sm:h-4 sm:w-4 text-vynal-accent-primary rounded border-slate-300 dark:border-vynal-purple-secondary/40 focus:ring-vynal-accent-primary"
                   />
-                  <label htmlFor="test-mode" className="text-xs text-gray-500 dark:text-vynal-text-secondary cursor-pointer">
+                  <label htmlFor="test-mode" className="ml-1.5 sm:ml-2 text-[7px] sm:text-[10px] text-slate-500 dark:text-vynal-text-secondary cursor-pointer">
                     Mode test (pas de paiement réel)
                   </label>
                 </div>
-
+                
                 {/* Pay button */}
                 <button
                   onClick={handlePlaceOrder}
                   disabled={isSubmitting || !orderData.requirements || !orderData.selectedPaymentMethod}
-                  className="w-full h-12 bg-vynal-accent-primary hover:bg-vynal-accent-secondary disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-white font-medium rounded-lg text-sm"
+                  className="w-full h-11 mt-3 bg-vynal-accent-primary hover:bg-vynal-accent-secondary disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-white dark:text-vynal-text-primary font-medium rounded-md text-base sm:text-lg"
                 >
                   {isSubmitting ? (
                     <span className="flex items-center justify-center">
@@ -548,90 +840,30 @@ export default function UnifiedCheckoutPage({ params }: { params: { serviceId: s
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
                       Traitement en cours...
-                    </span>
+                    </span> 
                   ) : (
                     `Payer ${formatPrice(service?.price || 0)}`
                   )}
                 </button>
-              </div>
 
-              {/* Right column (1/3 width) - Order summary */}
-              <div className="bg-gray-50 dark:bg-vynal-purple-secondary/10 p-6 rounded-lg">
-                <h2 className="text-sm font-medium text-gray-900 dark:text-vynal-text-primary mb-4">Résumé de la commande</h2>
-                
-                {/* Service information */}
-                <div className="flex items-start space-x-3 pb-4 border-b border-gray-200 dark:border-vynal-purple-secondary/20">
-                  <div className="w-12 h-12 rounded-md bg-gray-200 dark:bg-vynal-purple-secondary/20 overflow-hidden relative flex-shrink-0">
-                    {service?.images && service.images.length > 0 ? (
-                      <Image 
-                        src={service.images[0]} 
-                        alt={service.title || "Service"}
-                        fill
-                        sizes="48px"
-                        className="object-cover"
-                      />
-                    ) : null}
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-900 dark:text-vynal-text-primary line-clamp-2">
-                      {service?.title || "Service"}
-                    </h3>
-                    <div className="flex items-center mt-1 text-xs text-gray-500 dark:text-vynal-text-secondary">
-                      <Clock className="h-3 w-3 mr-1" />
-                      <span>Livraison en {service?.delivery_time || 3} jour(s)</span>
-                    </div>
-                  </div>
+                {/* Stripe logo */}
+                <div className="flex items-center justify-center mt-4 space-x-1">
+                  <span className="text-[7px] sm:text-[8px] text-slate-400 dark:text-vynal-text-secondary">Propulsé par</span>
+                  <Image 
+                    src="/assets/partners/logo_stripe.webp" 
+                    alt="Stripe" 
+                    width={40} 
+                    height={16}
+                    className="h-4 opacity-60"
+                  />
                 </div>
                 
-                {/* Price breakdown */}
-                <div className="mt-4 space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-xs text-gray-500 dark:text-vynal-text-secondary">Prix du service</span>
-                    <span className="text-xs text-gray-900 dark:text-vynal-text-primary">{formatPrice(service?.price || 0)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-xs text-gray-500 dark:text-vynal-text-secondary">Frais de service</span>
-                    <span className="text-xs text-green-600 dark:text-green-500">Inclus</span>
-                  </div>
-                  <div className="pt-2 mt-2 border-t border-gray-200 dark:border-vynal-purple-secondary/20 flex justify-between">
-                    <span className="text-sm font-medium text-gray-900 dark:text-vynal-text-primary">Total</span>
-                    <span className="text-sm font-bold text-vynal-accent-primary">{formatPrice(service?.price || 0)}</span>
-                  </div>
-                </div>
-                
-                {/* Security badge */}
-                <div className="mt-6 flex items-center justify-center p-3 bg-white dark:bg-vynal-purple-dark/40 rounded-lg border border-gray-200 dark:border-vynal-purple-secondary/20">
-                  <div className="flex items-center space-x-2">
-                    <Shield className="h-4 w-4 text-vynal-accent-primary" />
-                    <span className="text-xs text-gray-600 dark:text-vynal-text-secondary">Paiement sécurisé par SSL</span>
-                  </div>
-                </div>
-                
-                {/* Payment methods */}
-                <div className="mt-4">
-                  <div className="flex items-center justify-center space-x-2">
-                    <Image src="/images/payment/visa.svg" alt="Visa" width={32} height={20} className="h-5" />
-                    <Image src="/images/payment/mastercard.svg" alt="Mastercard" width={32} height={20} className="h-5" />
-                    <Image src="/images/payment/paypal.svg" alt="PayPal" width={32} height={20} className="h-5" />
-                    <span className="text-xs text-gray-400 dark:text-gray-500">+2</span>
-                  </div>
-                </div>
-                
-                {/* Support link */}
-                <div className="mt-4 text-center">
-                  <Link href="/contact" className="text-xs text-vynal-accent-primary hover:text-vynal-accent-secondary">
-                    Besoin d'aide ?
-                  </Link>
-                </div>
+                {/* Terms and conditions */}
+                <p className="text-[7px] sm:text-[8px] text-center text-slate-500 dark:text-vynal-text-secondary mt-3">
+                  En finalisant votre commande, vous acceptez nos <Link href="/terms-of-service" className="text-vynal-accent-primary hover:underline">conditions générales</Link> et notre <Link href="/privacy-policy" className="text-vynal-accent-primary hover:underline">politique de confidentialité</Link>
+                </p>
               </div>
             </div>
-          </div>
-          
-          {/* Footer */}
-          <div className="px-6 py-4 border-t border-gray-100 dark:border-vynal-purple-secondary/10 text-center">
-            <p className="text-xs text-gray-500 dark:text-vynal-text-secondary">
-              En finalisant votre commande, vous acceptez nos <Link href="/terms-of-service" className="text-vynal-accent-primary hover:text-vynal-accent-secondary">conditions générales</Link> et notre <Link href="/privacy-policy" className="text-vynal-accent-primary hover:text-vynal-accent-secondary">politique de confidentialité</Link>
-            </p>
           </div>
         </div>
       </div>

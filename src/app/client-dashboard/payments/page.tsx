@@ -298,19 +298,19 @@ export default function ClientPaymentsPage() {
                 <TabsList className="bg-slate-100/70 dark:bg-slate-800/20 p-1 rounded-lg border border-slate-200/50 dark:border-slate-700/20">
                   <TabsTrigger 
                     value="all"
-                    className="text-[10px] sm:text-xs data-[state=active]:bg-vynal-accent-primary/10 data-[state=active]:text-vynal-accent-primary dark:data-[state=active]:bg-vynal-accent-primary/20 dark:data-[state=active]:text-vynal-accent-primary data-[state=active]:shadow-sm text-slate-700 dark:text-slate-300"
+                    className="text-[10px] sm:text-xs data-[state=active]:bg-vynal-accent-primary/30 data-[state=active]:text-vynal-accent-primary dark:data-[state=active]:bg-vynal-accent-primary/5 dark:data-[state=active]:text-vynal-accent-primary/40 data-[state=active]:shadow-sm text-slate-700 dark:text-slate-300 hover:bg-vynal-accent-primary/10"
                   >
                     Toutes
                   </TabsTrigger>
                   <TabsTrigger 
                     value="payments"
-                    className="text-[10px] sm:text-xs data-[state=active]:bg-vynal-accent-primary/10 data-[state=active]:text-vynal-accent-primary dark:data-[state=active]:bg-vynal-accent-primary/20 dark:data-[state=active]:text-vynal-accent-primary data-[state=active]:shadow-sm text-slate-700 dark:text-slate-300"
+                    className="text-[10px] sm:text-xs data-[state=active]:bg-emerald-500/30 data-[state=active]:text-emerald-600 dark:data-[state=active]:bg-emerald-500/5 dark:data-[state=active]:text-emerald-500/40 data-[state=active]:shadow-sm text-slate-700 dark:text-slate-300 hover:bg-emerald-500/10"
                   >
                     Paiements
                   </TabsTrigger>
                   <TabsTrigger 
                     value="refunds"
-                    className="text-[10px] sm:text-xs data-[state=active]:bg-vynal-accent-primary/10 data-[state=active]:text-vynal-accent-primary dark:data-[state=active]:bg-vynal-accent-primary/20 dark:data-[state=active]:text-vynal-accent-primary data-[state=active]:shadow-sm text-slate-700 dark:text-slate-300"
+                    className="text-[10px] sm:text-xs data-[state=active]:bg-amber-500/30 data-[state=active]:text-amber-600 dark:data-[state=active]:bg-amber-500/5 dark:data-[state=active]:text-amber-500/40 data-[state=active]:shadow-sm text-slate-700 dark:text-slate-300 hover:bg-amber-500/10"
                   >
                     Remboursements
                   </TabsTrigger>

@@ -35,6 +35,7 @@ export interface Order {
   client: OrderProfile;
   is_client_view: boolean;
   total_amount?: number;
+  delivery_time: number;
 }
 
 export interface OrderStats {
@@ -335,7 +336,8 @@ export function useOrders(options: UseOrdersOptions = {}) {
             freelance: order.freelance,
             client: order.profiles,
             is_client_view: !isFreelance,
-            total_amount: order.price
+            total_amount: order.price,
+            delivery_time: order.delivery_time
           }));
           
           setOrders(transformedOrders);

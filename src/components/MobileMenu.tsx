@@ -213,10 +213,10 @@ const AuthenticatedMenuContent = memo(({
                 isNavigating={isNavigating}
               />
               <NavItem 
-                href={`${dashboardPrefix}/wallet`} 
+                href={`${dashboardPrefix}/payments`} 
                 icon={CreditCard} 
                 label="Paiements" 
-                isActive={isActive(`${dashboardPrefix}/wallet`)}
+                isActive={isActive(`${dashboardPrefix}/payments`)}
                 onClick={navItemCallbacks.wallet}
                 isNavigating={isNavigating}
               />
@@ -500,7 +500,7 @@ export default function MobileMenu({ isOpen, onClose, user, activePath, setActiv
       orders: () => { setActivePath(`${dashboardPrefix}/orders`); onClose(); router.push(`${dashboardPrefix}/orders`); },
       messages: () => { setActivePath(`${dashboardPrefix}/messages`); onClose(); router.push(`${dashboardPrefix}/messages`); },
       disputes: () => { setActivePath(`${dashboardPrefix}/disputes`); onClose(); router.push(`${dashboardPrefix}/disputes`); },
-      wallet: () => { setActivePath(`${dashboardPrefix}/wallet`); onClose(); router.push(`${dashboardPrefix}/wallet`); },
+      wallet: () => { setActivePath(`${dashboardPrefix}/payments`); onClose(); router.push(`${dashboardPrefix}/payments`); },
       services: () => { setActivePath(`${dashboardPrefix}/services`); onClose(); router.push(`${dashboardPrefix}/services`); },
       stats: () => { setActivePath(`${dashboardPrefix}/stats`); onClose(); router.push(`${dashboardPrefix}/stats`); },
       certifications: () => { setActivePath(`${dashboardPrefix}/certifications`); onClose(); router.push(`${dashboardPrefix}/certifications`); },

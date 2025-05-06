@@ -506,13 +506,14 @@ export function OrderSidebar({
             </Button>
           )}
           
-          {/* Bouton pour annuler une commande - disponible pour les statuts pending et in_progress */}
-          {isFreelance && (order.status === "pending" || order.status === "in_progress") && (
+          {/* Bouton pour annuler une commande - toujours visible mais désactivé selon les conditions */}
+          {isFreelance && (
             <Button 
               variant="outline" 
               className="w-full border-red-400 text-red-600 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-900/30 dark:hover:text-red-300"
               onClick={handleCancelOrder}
-              disabled={isProcessing}
+              disabled={isProcessing || order.status !== "pending"}
+              title={order.status !== "pending" ? "Vous ne pouvez annuler la commande qu'avant de l'accepter" : ""}
             >
               {isProcessing ? (
                 <Loader className="h-4 w-4 mr-1.5 animate-spin" />
