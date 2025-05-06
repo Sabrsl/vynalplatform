@@ -11,11 +11,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, AlertCircle, CheckCircle, Loader, Wallet, BanknoteIcon } from "lucide-react";
 import { PaymentMethodCard } from "@/components/orders/PaymentMethodCard";
-import { PAYMENT_METHODS, PaymentMethodType } from "@/lib/constants/payment";
+import { PAYMENT_METHODS, PaymentMethodType, PaymentMethod } from "@/lib/constants/payment";
 import { CURRENCY } from "@/lib/constants";
 import { useUser } from "@/hooks/useUser";
 import Image from 'next/image';
-import { MOCK_WALLET, MOCK_WITHDRAWAL_METHODS } from "@/lib/mock/data";
 
 export default function WithdrawPage() {
   const { user, loading: authLoading } = useAuth();
@@ -40,14 +39,13 @@ export default function WithdrawPage() {
   const fetchWallet = async () => {
     setLoading(true);
     try {
-      // Simuler un appel API
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Utilisez les données fictives pour la démo
-      setWallet(MOCK_WALLET);
+      // TODO: Remplacer par un appel API réel
+      const response = await fetch('/api/wallet');
+      const data = await response.json();
+      setWallet(data);
       
       // Sélectionner la méthode par défaut si elle existe
-      const defaultMethod = MOCK_WALLET.saved_methods.find((m: { is_default: boolean; type: string }) => m.is_default);
+      const defaultMethod = data.saved_methods?.find((m: { is_default: boolean; type: string }) => m.is_default);
       if (defaultMethod) {
         setSelectedMethod(defaultMethod.type);
       }
@@ -396,7 +394,7 @@ export default function WithdrawPage() {
               </Label>
               
               <div className="grid grid-cols-1 gap-2 mt-2 sm:grid-cols-2 sm:gap-3">
-                {MOCK_WITHDRAWAL_METHODS.map((method) => (
+                {PAYMENT_METHODS.map((method: PaymentMethod) => (
                   <button
                     key={method.id}
                     type="button"

@@ -228,17 +228,18 @@ export function OrderMessagesTab({ order, isFreelance }: { order: Order; isFreel
   // Convertir les messages existants au format attendu
   const initialMessages = useMemo(() => (order.messages || []).map(msg => ({
     id: msg.id,
-    created_at: msg.created_at || msg.timestamp || new Date().toISOString(),
+    created_at: msg.created_at || new Date().toISOString(),
     order_id: order.id,
     sender_id: msg.sender_id,
     content: msg.content,
-    read: msg.is_read !== undefined ? msg.is_read : false,
+    read: msg.read,
     conversation_id: null,
+    sender: msg.sender,
     attachment_url: msg.attachment_url || null,
     attachment_type: msg.attachment_type || null,
     attachment_name: msg.attachment_name || null,
-    is_typing: msg.is_typing || false
-  })), [order.id, order.messages]);
+    is_typing: false
+  })), [order.messages, order.id]);
 
   // États du composant
   const [newMessage, setNewMessage] = useState("");

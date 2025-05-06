@@ -144,4 +144,21 @@ export function formatFileSize(bytes: number): string {
   const i = Math.floor(Math.log(bytes) / Math.log(1024));
   
   return `${parseFloat((bytes / Math.pow(1024, i)).toFixed(2))} ${sizes[i]}`;
+}
+
+/**
+ * Formater une heure à partir d'une date
+ * @param dateString Chaîne de date ISO à formater
+ * @returns L'heure formatée (ex: 14:30)
+ */
+export function formatTime(dateString: string): string {
+  if (!dateString) return '';
+  
+  const date = new Date(dateString);
+  
+  // Vérifier si la date est valide
+  if (isNaN(date.getTime())) return '';
+  
+  // Formater l'heure (HH:MM)
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 } 

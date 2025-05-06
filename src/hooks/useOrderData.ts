@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { toast as hotToast } from "react-hot-toast";
-import { service as demoService } from "@/data/service";
 import { PaymentData, PaymentMethodType, validatePaymentData } from "@/lib/constants/payment";
 
 interface OrderData {
@@ -24,21 +23,20 @@ export function useOrderData(serviceId: string) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [orderData, setOrderData] = useState<OrderData>({
-    requirements: "",
-    deliveryDate: "",
+    requirements: '',
+    deliveryDate: '',
     files: null,
-    selectedPaymentMethod: "card",
+    selectedPaymentMethod: 'card',
     paymentData: {
-      cardNumber: "",
-      cardHolder: "",
-      expiryDate: "",
-      cvv: "",
-      paypalEmail: "",
-      phoneNumber: "",
-      mobileOperator: "orange-money"
+      cardNumber: '',
+      cardHolder: '',
+      expiryDate: '',
+      cvv: '',
+      paypalEmail: '',
+      phoneNumber: '',
+      mobileOperator: 'orange-money'
     },
     isTestMode: false,
-    error: null,
     paymentProcessing: false,
     paymentSuccess: false
   });
@@ -161,7 +159,7 @@ export function useOrderData(serviceId: string) {
   }, [saveOrderData]);
 
   return {
-    service: service || demoService,
+    service,
     loadingService,
     isLoading,
     error,

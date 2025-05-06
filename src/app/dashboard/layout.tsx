@@ -16,7 +16,8 @@ import {
   HelpCircle,
   AlertTriangle,
   CreditCard,
-  BookOpen
+  BookOpen,
+  Loader
 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -24,6 +25,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useUserNotifications } from "@/hooks/useUserNotifications";
 import NotificationBadge from "@/components/ui/notification-badge";
 import { NavigationLoadingState } from "@/app/providers";
+import { useUser } from "@/hooks/useUser";
 
 // Mémoriser les icônes par path pour éviter les re-créations
 const NAV_ICONS = {
@@ -197,12 +199,14 @@ const Logo = memo(() => (
 
 Logo.displayName = 'Logo';
 
+// Composant principal optimisé
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   const { user, loading, signOut } = useAuth();
+  const { profile, isClient, isFreelance } = useUser();
   const router = useRouter();
   const pathname = usePathname();
   
@@ -242,45 +246,65 @@ export default function DashboardLayout({
     };
   }, [user?.id, refreshNotifications]);
 
-  // Redirection si non connecté - optimisé
+  // Redirection vers l'authentification si non connecté
   useEffect(() => {
     if (loading) return;
     
     if (!user) {
       router.push("/auth/login");
     }
-  }, [loading, user, router]);
+  }, [user, loading, router]);
 
-  // Mettre à jour le chemin actif dans l'état global - une seule fois au chargement
+  // Vérification du rôle et redirection vers le bon tableau de bord
   useEffect(() => {
-    NavigationLoadingState.setActivePath(pathname || "/dashboard");
-  }, [pathname]);
+    if (loading || !profile) return;
+    
+    // Si l'utilisateur est un client mais essaie d'accéder au tableau de bord freelance
+    if (isClient && pathname?.startsWith('/dashboard')) {
+      console.log("Client détecté accédant au tableau de bord freelance - redirection vers /client-dashboard");
+      router.push('/client-dashboard');
+    }
+    
+    // Si l'utilisateur est un freelance mais essaie d'accéder au tableau de bord client
+    if (isFreelance && pathname?.startsWith('/client-dashboard')) {
+      console.log("Freelance détecté accédant au tableau de bord client - redirection vers /dashboard");
+      router.push('/dashboard');
+    }
+  }, [isClient, isFreelance, loading, pathname, profile, router]);
+
+  // Loading state - optimisé
+  if (loading || !user) {
+    return (
+      <div className="grid h-screen place-items-center bg-slate-50 dark:bg-vynal-purple-dark">
+        <div className="flex flex-col items-center gap-4">
+          <div className="bg-gradient-to-br from-purple-600 to-violet-700 h-6 w-6 rounded-lg flex items-center justify-center shadow-md shadow-purple-200/40 dark:from-vynal-accent-primary dark:to-vynal-accent-secondary dark:shadow-vynal-accent-primary/20">
+            <span className="text-white font-bold text-xs dark:text-vynal-text-primary">VY</span>
+          </div>
+          <Loader className="h-6 w-6 animate-spin text-vynal-purple-dark dark:text-vynal-accent-primary" />
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex flex-col md:flex-row min-h-screen bg-slate-50/70 dark:bg-vynal-purple-dark/30">
-      {/* Sidebar - Desktop avec effet de survol - Cachée sur mobile */}
-      <aside className="group w-10 sm:w-12 hover:w-48 sm:hover:w-56 transition-all duration-300 ease-in-out bg-white shadow-md shadow-slate-200/50 hidden md:flex md:flex-col z-30 dark:bg-vynal-purple-dark dark:shadow-vynal-purple-secondary/10">
-        <Logo />
-        
-        <div className="flex-1 overflow-y-auto overflow-x-hidden py-3 px-2 custom-scrollbar no-scrollbar">
+    <div className="flex h-screen overflow-hidden bg-white dark:bg-vynal-purple-dark">
+      {/* Sidebar */}
+      <div className="w-16 md:w-20 h-screen border-r border-slate-100 dark:border-vynal-purple-secondary/20 bg-white dark:bg-vynal-purple-dark/30 hover:md:w-60 group transition-all duration-300 overflow-hidden flex flex-col justify-between">
+        <div className="flex-1 flex flex-col">
+          <Logo />
           <MainNavigation 
-            totalUnreadCount={totalUnreadCount}
+            totalUnreadCount={totalUnreadCount} 
             handleNavClick={handleNavClick}
             signOut={signOut}
           />
         </div>
-        
         <UserProfile user={user} signOut={signOut} />
-      </aside>
-      
-      {/* Contenu principal */}
-      <main className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
-        {/* Suppression complète du header mobile */}
-        {/* Contenu de la page */}
-        <div className="p-4">
-          {children}
-        </div>
-      </main>
+      </div>
+
+      {/* Main content */}
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-gray-50 dark:bg-vynal-purple-dark">
+        {children}
+      </div>
     </div>
   );
 }

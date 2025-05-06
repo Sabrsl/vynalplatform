@@ -58,6 +58,7 @@ fix_admin_direct.sql
 !src/lib/supabase/transactions.ts
 !src/types/supabase/notifications.types.ts
 !src/types/supabase/messages.types.ts
+migrations/
 
 # Logs
 logs/

@@ -1,1220 +1,567 @@
 import { create } from 'zustand';
-import { supabase } from '@/lib/supabase/client';
-import type { Database } from '@/types/database';
-import { StateCreator } from 'zustand';
-import { UserProfile } from '@/hooks/useUser';
-import { validateMessage } from '@/lib/message-validation';
-import { measure, PerformanceEventType } from '@/lib/performance/metrics';
-import { 
-  compressMessageData, 
-  compressConversationData, 
-  shouldCompressMessages 
-} from '@/lib/optimizations/compression';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { Message, OrderMessage, DirectMessage, PartialMessage } from '@/types/messages';
+import { Conversation, ConversationParticipant } from '@/components/messaging/messaging-types';
+import { supabase, channelManager } from '@/lib/supabase/client';
 
-export type Message = Database['public']['Tables']['messages']['Row'] & {
-  sender?: UserProfile;
-  order_id?: string;
-};
+// Créer une instance de supabase
+// const supabase = createClientComponentClient(); // Commenté car nous utilisons maintenant l'instance partagée
 
-export type ConversationParticipant = UserProfile & {
-  unread_count: number;
-  online?: boolean;
-  last_seen?: string | null;
-};
+interface LastMessage {
+  id: string;
+  content: string;
+  created_at: string;
+  sender_id: string;
+  read: boolean;
+  attachment_url: string | null;
+  attachment_type: string | null;
+}
 
-export type Conversation = Database['public']['Tables']['conversations']['Row'] & {
-  participants: ConversationParticipant[];
-  last_message?: {
-    content: string;
-    created_at: string;
-    sender_id: string;
-  };
-  // Champs optionnels pour les conversations de commandes
-  order_id?: string;
-  service_title?: string;
-};
-
-type OrderResponse = {
+interface ConversationData {
   id: string;
   created_at: string;
   updated_at: string;
-  client_id: string;
-  freelance_id: string;
-  services: { title: string }[];
-  profiles: UserProfile;
-};
+  last_message_time: string;
+  status: string;
+  last_message: LastMessage | null;
+}
 
-type MessagingState = {
+interface Participation {
+  id: string;
+  unread_count: number;
+  last_read_message_id: string | null;
+  conversation: ConversationData;
+}
+
+interface ParticipantData {
+  participant: ConversationParticipant;
+}
+
+interface MessagingState {
   conversations: Conversation[];
+  currentConversation: Conversation | null;
   activeConversation: Conversation | null;
   messages: Message[];
+  unreadCounts: Record<string, number>;
+  onlineUsers: Set<string>;
+  isTyping: Record<string, boolean>;
+  loading: boolean;
   isLoading: boolean;
   error: string | null;
-  isTyping: { [userId: string]: boolean };
-  fetchConversations: (userId: string) => Promise<Conversation[] | undefined>;
+  fetchConversations: (userId: string) => Promise<Conversation[]>;
   fetchMessages: (conversationId: string) => Promise<Message[]>;
-  sendMessage: (conversationId: string, senderId: string, content: string, attachmentUrl?: string, attachmentType?: string, attachmentName?: string) => Promise<Message | null>;
-  createConversation: (participants: string[], initialMessage?: string) => Promise<string | null>;
-  markAsRead: (conversationId: string, userId: string) => Promise<void>;
-  setIsTyping: (conversationId: string, userId: string, isTyping: boolean) => Promise<void>;
   setupRealtimeSubscriptions: (userId: string) => () => void;
-  clearError: () => void;
+  createConversation: (participantIds: string[]) => Promise<string | null>;
+  sendMessage: (conversationId: string, senderId: string, content: string, attachmentUrl?: string, attachmentType?: string, attachmentName?: string) => Promise<void>;
+  markMessagesAsRead: (conversationId: string, userId: string) => Promise<void>;
   markSpecificMessagesAsRead: (conversationId: string, userId: string, messageIds: string[]) => Promise<void>;
+  setIsTyping: (conversationId: string, userId: string, isTyping: boolean) => Promise<void>;
   setMessages: (messages: Message[]) => void;
-};
+  setCurrentConversation: (conversation: Conversation | null) => void;
+  setActiveConversation: (conversation: Conversation | null) => void;
+  setConversations: (conversations: Conversation[]) => void;
+  addMessage: (message: Message) => void;
+  updateMessage: (messageId: string, updates: Partial<Message>) => void;
+  deleteMessage: (messageId: string) => void;
+  clearMessages: () => void;
+}
 
-export const useMessagingStore = create<MessagingState>(
-  ((set, get) => ({
+export const useMessagingStore = create<MessagingState>((set, get) => ({
     conversations: [],
+  currentConversation: null,
     activeConversation: null,
     messages: [],
+  unreadCounts: {},
+  onlineUsers: new Set(),
+  isTyping: {},
+  loading: false,
     isLoading: false,
     error: null,
-    isTyping: {},
 
     fetchConversations: async (userId: string) => {
-      return measure(
-        PerformanceEventType.CONVERSATIONS_LOAD,
-        async () => {
-          set({ isLoading: true, error: null });
-          try {
-            console.log("Récupération des conversations pour l'utilisateur:", userId);
-            
-            // Vérifier que l'ID est valide
-            if (!userId) {
-              console.error("ID utilisateur non valide");
-              set({ error: "ID utilisateur non valide", isLoading: false });
-              return;
-            }
-            
-            // Vérifier que l'utilisateur est bien authentifié
-            const { data: userSession } = await supabase.auth.getSession();
-            const sessionUserId = userSession?.session?.user?.id;
-            
-            if (!sessionUserId) {
-              console.error("Utilisateur non authentifié");
-              set({ error: "Vous devez être connecté pour accéder aux conversations", isLoading: false });
-              return;
-            }
-            
-            // Vérifier que l'ID demandé correspond à l'utilisateur authentifié
-            if (userId !== sessionUserId) {
-              console.error("Tentative d'accès aux conversations d'un autre utilisateur");
-              set({ error: "Vous n'êtes pas autorisé à voir ces conversations", isLoading: false });
-              return;
-            }
-            
-            console.log("Authentification vérifiée, récupération des conversations...");
-            
-            // CORRECTION: Utiliser une requête plus simple et robuste pour éviter les erreurs 500
-            try {
-              // D'abord vérifier si la table de messages est accessible
-              const healthCheck = await supabase
-                .from('messages')
-                .select('count', { count: 'exact', head: true })
-                .limit(1);
-              
-              if (healthCheck.error) {
-                console.error("Erreur lors de la vérification de la table messages:", healthCheck.error);
-                set({ error: "La base de données est temporairement indisponible", isLoading: false, conversations: [] });
-                return;
-              }
-            } catch (innerError) {
-              console.error("Erreur de connexion à la base de données:", innerError);
-              set({ error: "Impossible de se connecter à la base de données", isLoading: false, conversations: [] });
-              return;
-            }
-            
-            // Récupérer le rôle de l'utilisateur courant
-            const { data: userData, error: userError } = await supabase
-              .from('profiles')
-              .select('role')
-              .eq('id', userId)
-              .single();
-            
-            if (userError) {
-              console.error("Erreur lors de la récupération du rôle de l'utilisateur:", userError);
-            }
-            
-            const userRole = userData?.role;
-            console.log(`Rôle de l'utilisateur actuel: ${userRole}`);
-            
-            const isFreelance = userRole === 'freelance';
-            
-            // Récupérer les messages de commandes si utilisateur est un freelance
-            let orderConversations: Conversation[] = [];
-            
-            if (isFreelance) {
-              console.log("Recherche de messages de commandes pour le freelance...");
-              try {
-                // Récupérer les commandes où l'utilisateur est le freelance
-                const { data: ordersData, error: ordersError } = await supabase
-                  .from('orders')
-                  .select(`
-                    id,
-                    created_at,
-                    updated_at,
-                    client_id,
-                    freelance_id,
-                    services(title),
-                    profiles!orders_client_id_fkey(id, username, full_name, avatar_url, role)
-                  `)
-                  .eq('freelance_id', userId) as { data: OrderResponse[] | null, error: any };
-                
-                if (ordersError) {
-                  console.error("Erreur lors de la récupération des commandes:", ordersError);
-                } else if (ordersData && ordersData.length > 0) {
-                  console.log(`${ordersData.length} commandes trouvées pour le freelance`);
-                  
-                  // Pour chaque commande, récupérer le dernier message
-                  for (const order of ordersData) {
-                    // Vérifier s'il y a des messages pour cette commande
-                    const { data: orderMessages, error: messagesError } = await supabase
-                      .from('messages')
-                      .select('id, content, created_at, sender_id, read')
-                      .eq('order_id', order.id)
-                      .order('created_at', { ascending: false })
-                      .limit(1);
-                      
-                    if (messagesError) {
-                      console.error(`Erreur lors de la récupération des messages pour la commande ${order.id}:`, messagesError);
-                      continue;
-                    }
-                    
-                    if (orderMessages && orderMessages.length > 0) {
-                      const lastMessage = orderMessages[0];
-                      
-                      // Compter les messages non lus
-                      const { count: unreadCount, error: countError } = await supabase
-                        .from('messages')
-                        .select('id', { count: 'exact' })
-                        .eq('order_id', order.id)
-                        .eq('read', false)
-                        .neq('sender_id', userId);
-                        
-                      if (countError) {
-                        console.error(`Erreur lors du comptage des messages non lus pour la commande ${order.id}:`, countError);
-                      }
-                      
-                      // Créer une "pseudo-conversation" pour cette commande
-                      // Préparer un participant qui correspond à la définition de ConversationParticipant
-                      const clientProfile: ConversationParticipant = {
-                        id: (order.profiles as any)?.id || '',
-                        username: (order.profiles as any)?.username || '',
-                        full_name: (order.profiles as any)?.full_name || '',
-                        avatar_url: (order.profiles as any)?.avatar_url || '',
-                        role: ((order.profiles as any)?.role) || 'client',
-                        email: '',
-                        bio: '',
-                        created_at: order.created_at || new Date().toISOString(),
-                        updated_at: order.updated_at || new Date().toISOString(),
-                        last_seen: null,
-                        unread_count: unreadCount || 0,
-                        online: false,
-                        verification_level: 0,
-                        phone: null
-                      };
-                      
-                      const orderConversation: Conversation = {
-                        id: `order-${order.id}`, // ID unique pour cette "conversation de commande"
-                        created_at: order.created_at,
-                        updated_at: order.updated_at,
-                        last_message_id: lastMessage.id,
-                        last_message_time: lastMessage.created_at,
-                        participants: [clientProfile],
-                        last_message: {
-                          content: lastMessage.content,
-                          created_at: lastMessage.created_at,
-                          sender_id: lastMessage.sender_id
-                        },
-                        order_id: order.id, // Ajout d'un champ pour identifier que c'est une commande
-                        service_title: Array.isArray(order.services) && order.services[0] ? order.services[0].title : 'Commande' // Titre du service pour l'affichage
-                      };
-                      
-                      orderConversations.push(orderConversation);
-                    }
-                  }
-                  
-                  console.log(`${orderConversations.length} conversations de commandes créées`);
-                }
-              } catch (orderError) {
-                console.error("Erreur lors de la récupération des commandes:", orderError);
-              }
-            }
-            
-            // Approche simplifiée: récupérer les conversations à partir des participants avec jointure
-            const { data, error } = await supabase
-              .from('conversation_participants')
-              .select(`
-                conversation_id,
-                unread_count,
-                conversations:conversation_id (
-                  id, 
-                  created_at, 
-                  updated_at, 
-                  last_message_id,
-                  last_message_time
-                )
-              `)
-              .eq('participant_id', userId);
-            
-            if (error) {
-              console.error("Erreur lors de la récupération des conversations:", error);
-              set({ error: `Erreur de récupération des conversations: ${error.message}`, isLoading: false, conversations: [] });
-              return;
-            }
-            
-            if (!data || data.length === 0) {
-              console.log("Aucune conversation trouvée pour l'utilisateur");
-              
-              // Si on a des conversations de commandes mais pas de conversations normales
-              if (orderConversations.length > 0) {
-                console.log("Retour des conversations de commandes uniquement");
-                set({ conversations: orderConversations, isLoading: false });
-                return orderConversations;
-              }
-              
-              set({ conversations: [], isLoading: false });
-              return;
-            }
-            
-            console.log(`${data.length} conversations trouvées pour l'utilisateur:`, data);
-            
-            // Récupérer les IDs de conversations valides
-            const validConversations = data.filter(item => item.conversations);
-            const conversationIds = validConversations.map(item => item.conversation_id);
-            
-            if (conversationIds.length === 0) {
-              console.log("Aucune conversation valide trouvée");
-              
-              // Si on a des conversations de commandes mais pas de conversations normales
-              if (orderConversations.length > 0) {
-                console.log("Retour des conversations de commandes uniquement");
-                set({ conversations: orderConversations, isLoading: false });
-                return orderConversations;
-              }
-              
-              set({ conversations: [], isLoading: false });
-              return;
-            }
-            
-            console.log("Liste des IDs de conversations valides:", conversationIds);
-            
-            // Récupérer tous les participants pour ces conversations
-            const { data: allParticipantsData, error: participantsError } = await supabase
-              .from('conversation_participants')
-              .select(`
-                conversation_id,
-                unread_count,
-                profiles:participant_id (
-                  id,
-                  username,
-                  full_name,
-                  avatar_url,
-                  bio,
-                  role,
-                  email,
-                  created_at,
-                  updated_at,
-                  last_seen
-                )
-              `)
-              .in('conversation_id', conversationIds);
-            
-            if (participantsError) {
-              console.error("Erreur lors de la récupération des participants:", participantsError);
-              throw new Error(`Erreur de récupération des participants: ${participantsError.message}`);
-            }
-            
-            if (!allParticipantsData || allParticipantsData.length === 0) {
-              console.error("Aucun participant trouvé pour les conversations");
-              throw new Error("Erreur de données: participants manquants");
-            }
-            
-            console.log(`${allParticipantsData.length} participants trouvés au total`);
-            
-            // Récupérer les derniers messages
-            const lastMessageIds = validConversations
-              .filter(conv => (conv.conversations as any)?.last_message_id)
-              .map(conv => (conv.conversations as any).last_message_id);
-              
-            let lastMessages: Record<string, any> = {};
-            
-            if (lastMessageIds.length > 0) {
-              const { data: messagesData, error: messagesError } = await supabase
-                .from('messages')
-                .select('id, content, created_at, sender_id')
-                .in('id', lastMessageIds);
-                
-              if (messagesError) {
-                console.error("Erreur lors de la récupération des derniers messages:", messagesError);
-              } else if (messagesData) {
-                messagesData.forEach(msg => {
-                  lastMessages[msg.id] = msg;
-                });
-              }
-            }
-            
-            // Construire les objets Conversation
-            const processedConversations: Conversation[] = validConversations.map(convItem => {
-              const conv = convItem.conversations as any;
-              
-              // Regrouper les participants par conversation
-              const participants = allParticipantsData
-                .filter(p => p.conversation_id === convItem.conversation_id)
-                .map(p => {
-                  const profile = Array.isArray(p.profiles) ? p.profiles[0] as UserProfile : p.profiles as UserProfile;
-                  
-                  // Vérifier si l'utilisateur est en ligne (actif dans les 2 dernières minutes)
-                  const isOnline = (lastSeen: any): boolean => {
-                    if (!lastSeen) return false;
-                    
-                    try {
-                      const now = new Date();
-                      const lastSeenDate = new Date(lastSeen);
-                      const twoMinutesAgo = new Date(now.getTime() - 2 * 60 * 1000);
-                      
-                      return lastSeenDate >= twoMinutesAgo;
-                    } catch (error) {
-                      console.error('Erreur lors de la vérification du statut en ligne:', error);
-                      return false;
-                    }
-                  };
+    set({ loading: true, isLoading: true, error: null });
+    try {
+      const { data: participations, error: partError } = await supabase
+        .from('conversation_participants')
+        .select(`
+          id,
+          unread_count,
+          last_read_message_id,
+          conversation:conversation_id (
+            id,
+            created_at,
+            updated_at,
+            last_message_time,
+            status,
+            messages!conversation_id (
+              id,
+              content,
+              created_at,
+              sender_id,
+              read,
+              attachment_url,
+              attachment_type
+            )
+          )
+        `)
+        .eq('participant_id', userId)
+        .order('conversation(last_message_time)', { ascending: false });
 
-                  return {
-                    ...profile,
-                    unread_count: profile.id === userId ? p.unread_count : 0,
-                    online: isOnline(profile.last_seen)
-                  } as ConversationParticipant;
-                });
-                
-              // Récupérer le dernier message
-              const lastMessage = conv.last_message_id 
-                ? lastMessages[conv.last_message_id] 
-                : undefined;
-                
-              return {
-                id: conv.id,
-                created_at: conv.created_at,
-                updated_at: conv.updated_at,
-                last_message_id: conv.last_message_id,
-                last_message_time: conv.last_message_time,
-                participants,
-                last_message: lastMessage
-              } as Conversation;
-            });
-            
-            // Combiner les conversations régulières avec les conversations de commandes
-            let combinedConversations = [...processedConversations, ...orderConversations];
-            
-            // Ne pas filtrer par rôle pour les freelances pour s'assurer qu'ils voient tous leurs messages
-            // Pour les clients, on peut toujours filtrer pour ne montrer que les conversations avec des freelances
-            if (userRole) {
-              if (userRole === 'freelance') {
-                // Les freelances doivent voir toutes leurs conversations
-                console.log(`Utilisateur freelance: affichage de toutes les ${combinedConversations.length} conversations`);
-                
-                // Trier par date du dernier message
-                combinedConversations.sort((a, b) => {
-                  const aTime = a.last_message_time || a.updated_at || a.created_at;
-                  const bTime = b.last_message_time || b.updated_at || b.created_at;
-                  return new Date(bTime).getTime() - new Date(aTime).getTime();
-                });
-                
-                set({ conversations: combinedConversations, isLoading: false });
-                return combinedConversations;
-              } else {
-                // Pour les clients, on filtre comme avant
-                const compatibleRole = 'freelance'; // Les clients ne voient que les conversations avec des freelances
-                
-                const filteredConversations = combinedConversations.filter(conversation => {
-                  // Si c'est une conversation de commande, l'inclure automatiquement
-                  if ('order_id' in conversation) return true;
-                  
-                  // Trouver l'autre participant (autre que l'utilisateur actuel)
-                  const otherParticipant = conversation.participants.find(p => p.id !== userId);
-                  // Vérifier si l'autre participant a le rôle compatible
-                  return otherParticipant?.role === compatibleRole;
-                });
-                
-                console.log(`${filteredConversations.length}/${combinedConversations.length} conversations filtrées par rôle pour client`);
-                set({ conversations: filteredConversations, isLoading: false });
-                return filteredConversations;
-              }
-            }
+      if (partError) throw partError;
+      if (!participations) return [];
 
-            // Si pas de filtrage par rôle (erreur ou rôle non défini), on garde toutes les conversations
-            console.log(`${combinedConversations.length} conversations traitées avec succès`);
-            set({ conversations: combinedConversations, isLoading: false });
+      const conversationsWithParticipants = await Promise.all(
+        participations.map(async (participation: any) => {
+          // Récupérer les participants de la conversation
+          const { data: participants, error: partListError } = await supabase
+            .from('conversation_participants')
+            .select(`
+              participant:participant_id (
+                id,
+                username,
+                full_name,
+                avatar_url,
+                last_seen
+              )
+            `)
+            .eq('conversation_id', participation.conversation.id)
+            .neq('participant_id', userId);
 
-            if (combinedConversations.length > 10) {
-              // Compresser les données si trop nombreuses
-              const compressedData = compressConversationData(combinedConversations);
-              set({ conversations: compressedData as Conversation[], isLoading: false });
+          if (partListError) throw partListError;
+
+          // Récupérer le dernier message en triant par date décroissante
+          const lastMessage = participation.conversation.messages
+            ?.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0] || null;
+
+          return {
+            ...participation,
+            conversation: {
+              ...participation.conversation,
+              last_message: lastMessage,
+              participants: participants?.map((p: any) => ({
+                id: p.participant.id,
+                username: p.participant.username || "Utilisateur",
+                full_name: p.participant.full_name || "Utilisateur",
+                avatar_url: p.participant.avatar_url,
+                last_seen: p.participant.last_seen || null,
+                unread_count: participation.unread_count
+              })) || []
             }
-            
-            return combinedConversations;
-          } catch (err: any) {
-            console.error('Erreur détaillée lors de la récupération des conversations:', err);
-            set({ 
-              error: `Impossible de récupérer les conversations: ${err.message || 'Erreur inconnue'}`, 
-              isLoading: false,
-              conversations: []
-            });
-            throw err;
-          }
-        },
-        { userId }
+          };
+        })
       );
-    },
+
+      const formattedConversations: Conversation[] = conversationsWithParticipants.map(participation => ({
+        id: participation.conversation.id,
+        created_at: participation.conversation.created_at,
+        updated_at: participation.conversation.updated_at,
+        status: participation.conversation.status,
+        last_message_id: participation.conversation.last_message?.id || null,
+        last_message_time: participation.conversation.last_message_time,
+        participants: participation.conversation.participants,
+        last_message: participation.conversation.last_message ? {
+          id: participation.conversation.last_message.id,
+          content: participation.conversation.last_message.content,
+          created_at: participation.conversation.last_message.created_at,
+          sender_id: participation.conversation.last_message.sender_id
+        } : undefined
+      }));
+
+      set({ conversations: formattedConversations, loading: false, isLoading: false });
+      return formattedConversations;
+    } catch (error) {
+      console.error("Erreur lors de la récupération des conversations:", error);
+      set({ error: error instanceof Error ? error.message : 'Failed to fetch conversations' });
+      return [];
+    }
+  },
 
     fetchMessages: async (conversationId: string) => {
-      return measure(
-        PerformanceEventType.MESSAGES_LOAD,
-        async () => {
-          set({ isLoading: true, error: null });
-          try {
-            console.log(`Récupération des messages pour la conversation ${conversationId}...`);
-            
-            if (!conversationId) {
-              console.error("ID de conversation non valide");
-              throw new Error("ID de conversation non valide");
-            }
-            
-            // 1. Vérifier si l'utilisateur a accès à cette conversation
-            const { data: userSession } = await supabase.auth.getSession();
-            const userId = userSession?.session?.user?.id;
-            
-            if (!userId) {
-              console.error("Utilisateur non authentifié");
-              throw new Error("Vous devez être connecté pour accéder aux messages");
-            }
-            
-            console.log(`Vérification des permissions pour l'utilisateur ${userId}...`);
-            
-            // Si c'est une conversation de commande, vérifier directement l'accès à la commande
-            if (conversationId.startsWith('order-')) {
-              const orderId = conversationId.replace('order-', '');
-              const { data: orderData, error: orderError } = await supabase
-                .from('orders')
-                .select(`
-                  id,
-                  created_at,
-                  updated_at,
-                  client_id,
-                  freelance_id,
-                  services(title),
-                  profiles!orders_client_id_fkey(
-                    id,
-                    username,
-                    full_name,
-                    avatar_url,
-                    bio,
-                    role,
-                    email,
-                    created_at,
-                    updated_at,
-                    verification_level,
-                    last_seen,
-                    phone
-                  )
-                `)
-                .eq('id', orderId)
-                .single();
-                
-              if (orderError) {
-                console.error("Erreur lors de la vérification de l'accès à la commande:", orderError);
-                throw new Error(`Permission refusée: ${orderError.message}`);
-              }
-              
-              if (!orderData || (orderData.freelance_id !== userId && orderData.client_id !== userId)) {
-                console.error("L'utilisateur n'a pas accès à cette commande");
-                throw new Error("Vous n'avez pas accès à cette commande");
-              }
-            } else {
-              // Pour les conversations normales, vérifier via conversation_participants
-              const { data: participantCheck, error: participantError } = await supabase
-                .from('conversation_participants')
-                .select('conversation_id')
-                .eq('conversation_id', conversationId)
-                .eq('participant_id', userId)
-                .maybeSingle();
-              
-              if (participantError) {
-                console.error("Erreur lors de la vérification des permissions:", participantError);
-                throw new Error(`Permission refusée: ${participantError.message}`);
-              }
-              
-              if (!participantCheck) {
-                console.error("L'utilisateur n'a pas accès à cette conversation");
-                throw new Error("Vous n'avez pas accès à cette conversation");
-              }
-            }
-            
-            console.log("Accès vérifié, récupération des messages...");
-            
-            // Récupérer les messages avec les informations de l'expéditeur
-            const { data, error } = await supabase
-              .from('messages')
-              .select(`
-                *,
-                profiles:sender_id (
-                  id,
-                  username,
-                  full_name,
-                  avatar_url,
-                  bio,
-                  role,
-                  email,
-                  created_at,
-                  updated_at,
-                  verification_level,
-                  last_seen,
-                  phone
-                )
-              `)
-              .eq(conversationId.startsWith('order-') ? 'order_id' : 'conversation_id', 
-                  conversationId.startsWith('order-') ? conversationId.replace('order-', '') : conversationId)
-              .order('created_at', { ascending: true });
+    set({ loading: true, error: null });
+    try {
+      const { data: messages, error } = await supabase
+        .from('messages')
+        .select(`
+          *,
+          sender:sender_id (
+            id,
+            username,
+            full_name,
+            avatar_url,
+            role
+          )
+        `)
+        .eq('conversation_id', conversationId)
+        .order('created_at', { ascending: true });
 
-            if (error) {
-              console.error("Erreur lors de la récupération des messages:", error);
-              throw error;
-            }
-            
-            console.log(`${data?.length || 0} messages récupérés avec succès`);
+      if (error) throw error;
 
-            // Transformer les messages pour inclure les informations de l'expéditeur
-            const messages = data.map((msg: any) => {
-              // Créer un objet message avec les informations de base
-              const message: Message = {
-                id: msg.id,
-                sender_id: msg.sender_id,
-                content: msg.content,
-                created_at: msg.created_at,
-                read: msg.read,
-                attachment_url: msg.attachment_url,
-                attachment_type: msg.attachment_type,
-                attachment_name: msg.attachment_name,
-                conversation_id: msg.conversation_id,
-                order_id: msg.order_id,
-                is_typing: false,
-                sender: msg.profiles ? {
-                  id: msg.profiles.id,
-                  username: msg.profiles.username,
-                  full_name: msg.profiles.full_name,
-                  avatar_url: msg.profiles.avatar_url,
-                  bio: msg.profiles.bio,
-                  role: msg.profiles.role,
-                  email: msg.profiles.email,
-                  created_at: msg.profiles.created_at,
-                  updated_at: msg.profiles.updated_at,
-                  verification_level: msg.profiles.verification_level,
-                  last_seen: msg.profiles.last_seen,
-                  phone: msg.profiles.phone
-                } : undefined
-              };
-
-              return message;
-            });
-
-            // Mettre à jour la conversation active avant de mettre à jour les messages
-            const { conversations } = get();
-            let activeConversation = conversations.find((c: Conversation) => c.id === conversationId);
-            
-            if (!activeConversation) {
-              console.log("Conversation non trouvée dans la liste, création d'une nouvelle conversation...");
-              if (conversationId.startsWith('order-')) {
-                const orderId = conversationId.replace('order-', '');
-                const { data: orderData } = await supabase
-                  .from('orders')
-                  .select(`
-                    id,
-                    created_at,
-                    updated_at,
-                    client_id,
-                    freelance_id,
-                    services(title),
-                    profiles!orders_client_id_fkey(
-                      id,
-                      username,
-                      full_name,
-                      avatar_url,
-                      bio,
-                      role,
-                      email,
-                      created_at,
-                      updated_at,
-                      verification_level,
-                      last_seen,
-                      phone
-                    )
-                  `)
-                  .eq('id', orderId)
-                  .single();
-                  
-                if (orderData) {
-                  const clientProfile = orderData.profiles as unknown as UserProfile;
-                  activeConversation = {
-                    id: conversationId,
-                    created_at: orderData.created_at,
-                    updated_at: orderData.updated_at,
-                    last_message_id: null,
-                    last_message_time: null,
-                    participants: [
-                      {
-                        ...clientProfile,
-                        unread_count: 0,
-                        online: false,
-                        last_seen: null
-                      }
-                    ],
-                    order_id: orderId,
-                    service_title: orderData.services?.[0]?.title || 'Commande'
-                  } as Conversation;
-                }
-              }
-            }
-
-            if (activeConversation) {
-              // Mettre à jour le dernier message de la conversation
-              const lastMessage = messages[messages.length - 1];
-              if (lastMessage) {
-                activeConversation.last_message = {
-                  content: lastMessage.content,
-                  created_at: lastMessage.created_at,
-                  sender_id: lastMessage.sender_id
-                };
-              }
-              
-              set({ activeConversation });
-            }
-
-            // Mettre à jour les messages
-            if (shouldCompressMessages(messages, 30)) {
-              const compressedMessages = compressMessageData(messages);
-              set({ messages: compressedMessages as Message[], isLoading: false });
-            } else {
-              set({ messages, isLoading: false });
-            }
-
-            return messages;
-          } catch (err: any) {
-            console.error('Erreur détaillée lors de la récupération des messages:', err);
-            set({ 
-              error: `Impossible de récupérer les messages: ${err.message || 'Erreur inconnue'}`, 
-              isLoading: false 
-            });
-            throw err;
-          }
-        },
-        { conversationId }
-      );
-    },
-
-    sendMessage: async (
-      conversationId: string, 
-      senderId: string, 
-      content: string, 
-      attachmentUrl?: string, 
-      attachmentType?: string, 
-      attachmentName?: string
-    ) => {
-      return measure(
-        PerformanceEventType.MESSAGE_SEND,
-        async () => {
-          set({ isLoading: true, error: null });
-          try {
-            console.log(`Envoi d'un message dans la conversation ${conversationId} par ${senderId}`);
-            
-            // Déterminer si c'est une conversation de commande
-            const isOrderConversation = conversationId.startsWith('order-');
-            const actualConversationId = isOrderConversation ? conversationId.replace('order-', '') : conversationId;
-            
-            // Créer un nouveau message
-            console.log("Insertion du message dans la base de données...");
-            const messageData: {
-              sender_id: string;
-              content: string;
-              read: boolean;
-              attachment_url: string | null;
-              attachment_type: string | null;
-              attachment_name: string | null;
-              is_typing: boolean;
-              conversation_id?: string;
-              order_id?: string;
-            } = {
-              sender_id: senderId,
-              content,
-              read: false,
-              attachment_url: attachmentUrl || null,
-              attachment_type: attachmentType || null,
-              attachment_name: attachmentName || null,
-              is_typing: false
-            };
-
-            // Ajouter le bon champ d'ID selon le type de conversation
-            if (isOrderConversation) {
-              messageData.order_id = actualConversationId;
-            } else {
-              messageData.conversation_id = actualConversationId;
-            }
-
-            // Insérer le message et récupérer les détails complets
-            const { data, error } = await supabase
-              .from('messages')
-              .insert(messageData)
-              .select(`
-                *,
-                profiles:sender_id (
-                  id,
-                  username,
-                  full_name,
-                  avatar_url,
-                  bio,
-                  role,
-                  email,
-                  created_at,
-                  updated_at,
-                  verification_level,
-                  last_seen,
-                  phone
-                )
-              `)
-              .single();
-
-            if (error) {
-              console.error("Erreur lors de l'insertion du message:", error);
-              throw error;
-            }
-            
-            console.log("Message inséré avec succès:", data);
-
-            // Mettre à jour le dernier message de la conversation
-            if (!isOrderConversation) {
-              console.log("Mise à jour du dernier message de la conversation...");
-              const { error: updateError } = await supabase
-                .from('conversations')
-                .update({
-                  last_message_id: data.id,
-                  last_message_time: data.created_at,
-                  updated_at: new Date().toISOString()
-                })
-                .eq('id', conversationId);
-                
-              if (updateError) {
-                console.error("Erreur lors de la mise à jour du dernier message:", updateError);
-              } else {
-                console.log("Dernier message mis à jour avec succès");
-              }
-            }
-
-            // Mettre à jour les compteurs de messages non lus
-            console.log("Mise à jour des compteurs de messages non lus...");
-            try {
-              if (isOrderConversation) {
-                // Pour les commandes, on met à jour directement le compteur
-                const { error: updateError } = await supabase
-                  .from('messages')
-                  .update({ read: false })
-                  .eq('order_id', actualConversationId)
-                  .neq('sender_id', senderId);
-                  
-                if (updateError) {
-                  console.error("Erreur lors de la mise à jour des compteurs de commande:", updateError);
-                }
-              } else {
-                await supabase.rpc('increment_unread_count', {
-                  p_conversation_id: conversationId,
-                  p_sender_id: senderId
-                });
-              }
-              console.log("Compteurs de messages non lus mis à jour");
-            } catch (incrementError) {
-              console.error("Erreur lors de la mise à jour des compteurs:", incrementError);
-            }
-
-            // Créer le nouveau message avec les informations de l'expéditeur
-            const newMessage: Message = {
-              ...data,
-              sender: data.profiles
-            };
-
-            // Mettre à jour l'état local avec le nouveau message
-            set((state: MessagingState) => ({
-              messages: [...state.messages, newMessage],
-              isLoading: false
-            }));
-            
-            // Rafraîchir la liste des conversations pour mettre à jour les compteurs
-            await get().fetchConversations(senderId);
-            
-            console.log("Message envoyé avec succès");
-            
-            return newMessage;
-          } catch (err) {
-            console.error('Erreur détaillée lors de l\'envoi du message:', err);
-            set({ error: 'Impossible d\'envoyer le message', isLoading: false });
-            throw err;
-          }
-        },
-        { conversationId, senderId, messageSize: content.length, hasAttachment: !!attachmentUrl }
-      );
-    },
-
-    createConversation: async (participants: string[], initialMessage?: string) => {
-      set({ isLoading: true, error: null });
-      try {
-        console.log("Début de création de conversation entre:", participants);
-        console.log("Message initial (avant validation):", initialMessage);
-
-        if (!initialMessage || initialMessage.trim() === '') {
-          console.error("Message initial requis");
-          throw new Error("Un message initial est requis pour créer une conversation");
-        }
-        
-        // Validation supplémentaire des ID de participants
-        if (!Array.isArray(participants) || participants.length < 2) {
-          console.error("Au moins deux participants sont requis");
-          throw new Error("Au moins deux participants sont requis pour une conversation");
-        }
-        
-        const uuidRegex = /^[0-9a-fA-F-]{36}$/;
-        for (const participantId of participants) {
-          if (!uuidRegex.test(participantId)) {
-            console.error("ID de participant invalide:", participantId);
-            throw new Error("ID de participant invalide");
-          }
-        }
-
-        // Vérification de l'authentification actuelle
-        const { data: sessionData } = await supabase.auth.getSession();
-        if (!sessionData?.session?.user?.id) {
-          console.error("Utilisateur non authentifié");
-          throw new Error("Vous devez être connecté pour créer une conversation");
-        }
-        
-        const currentUserId = sessionData.session.user.id;
-        if (!participants.includes(currentUserId)) {
-          console.error("L'utilisateur actuel doit être un participant");
-          throw new Error("Vous devez être l'un des participants de la conversation");
-        }
-
-        // Validation du contenu du message côté store (doublon de sécurité)
-        console.log("Validation du message dans createConversation...");
-        const validationResult = validateMessage(initialMessage.trim(), {
-          maxLength: 5000,
-          minLength: 1,
-          censorInsteadOfBlock: true,
-          allowQuotedWords: true,
-          allowLowSeverityWords: true,
-          respectRecommendedActions: true
-        });
-        
-        console.log("Résultat de validation dans store:", validationResult);
-        
-        // Si la validation échoue, ne pas créer la conversation
-        if (!validationResult.isValid) {
-          const errMsg = validationResult.errors.join(', ');
-          console.error("Validation du message échouée dans le store:", errMsg);
-          throw new Error(errMsg);
-        }
-        
-        // Utiliser le message potentiellement censuré
-        let finalMessageText = validationResult.message;
-        
-        // Si le message a été censuré, ajouter un marqueur spécial
-        if (validationResult.censored) {
-          finalMessageText += " [Ce message a été modéré automatiquement]";
-          console.log("Message censuré dans le store:", finalMessageText);
-        }
-
-        // Utiliser la fonction RPC pour créer la conversation en une seule transaction
-        console.log("Appel de la fonction RPC create_conversation_with_message");
-        console.log("Message à envoyer (après validation):", finalMessageText.trim());
-        
-        const { data, error } = await supabase.rpc('create_conversation_with_message', {
-          p_participants: participants,
-          p_initial_message: finalMessageText.trim(),
-          p_sender_id: currentUserId // Utiliser l'ID de l'utilisateur actuel comme expéditeur
-        });
-
-        if (error) {
-          console.error("Erreur lors de l'appel à create_conversation_with_message:", error);
-          throw new Error(`Erreur lors de la création de la conversation: ${error.message}`);
-        }
-
-        const conversationId = data;
-        console.log("Conversation créée avec succès via RPC, ID:", conversationId);
-
-        // Récupérer les conversations mises à jour
-        console.log("Mise à jour de la liste des conversations...");
-        await get().fetchConversations(currentUserId);
-        console.log("Liste des conversations mise à jour");
-
-        set({ isLoading: false });
-        return conversationId;
-      } catch (err) {
-        console.error('Erreur détaillée lors de la création de la conversation:', err);
-        const errorMessage = err instanceof Error ? err.message : 'Impossible de créer la conversation';
-        set({ error: errorMessage, isLoading: false });
-        return null;
-      }
-    },
-
-    markAsRead: async (conversationId: string, userId: string) => {
-      set({ isLoading: true, error: null });
-      try {
-        console.log(`Marquage des messages comme lus pour la conversation ${conversationId}`);
-        
-        // Utiliser la fonction RPC pour marquer les messages comme lus en une seule transaction
-        const { error } = await supabase.rpc('mark_messages_as_read', {
-          p_conversation_id: conversationId,
-          p_user_id: userId
-        });
-        
-        if (error) {
-          console.error("Erreur lors du marquage des messages comme lus:", error);
-          throw error;
-        }
-        
-        console.log("Messages marqués comme lus avec succès");
-        
-        // Mettre à jour l'état local
-        set((state: MessagingState) => {
-          // Mettre à jour le compteur de messages non lus dans les conversations
-          const updatedConversations = state.conversations.map((conv: Conversation) => {
-            if (conv.id === conversationId) {
-              const updatedParticipants = conv.participants.map((p: any) => 
-                p.id === userId ? { ...p, unread_count: 0 } : p
-              );
-              return { ...conv, participants: updatedParticipants };
-            }
-            return conv;
-          });
-          
-          // Mettre à jour le flag "read" de tous les messages dans l'état
-          const updatedMessages = state.messages.map((msg: Message) => 
-            msg.conversation_id === conversationId && msg.sender_id !== userId
-              ? { ...msg, read: true }
-              : msg
-          );
-          
-          return { 
-            conversations: updatedConversations,
-            messages: updatedMessages,
-            isLoading: false
+      // S'assurer que chaque message a les informations de l'expéditeur
+      const messagesWithSenders = messages?.map(message => {
+        // Si les informations d'expéditeur sont manquantes, utiliser un objet par défaut
+        if (!message.sender) {
+          console.warn(`Sender information missing for message: ${message.id}`);
+          message.sender = {
+            id: message.sender_id,
+            username: 'Utilisateur inconnu',
+            full_name: 'Utilisateur inconnu',
+            avatar_url: null,
+            role: 'client' // Utiliser une valeur de rôle valide conforme à la contrainte
           };
-        });
-        
-        console.log("État local mis à jour pour refléter les messages lus");
-      } catch (err) {
-        console.error('Erreur détaillée lors du marquage des messages comme lus:', err);
-        set({ isLoading: false });
+        }
+        return message;
+      }) || [];
+
+      set({ messages: messagesWithSenders as Message[] });
+      return messagesWithSenders as Message[];
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : 'Failed to fetch messages' });
+      return [];
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  sendMessage: async (conversationId: string, senderId: string, content: string, attachmentUrl?: string, attachmentType?: string, attachmentName?: string) => {
+    try {
+      const messageData: PartialMessage = {
+        content,
+        sender_id: senderId,
+        conversation_id: conversationId,
+        is_typing: false,
+        read: false,
+        created_at: new Date().toISOString(),
+      };
+
+      // Ajouter les pièces jointes si nécessaire
+      if (attachmentUrl) {
+        messageData.attachment_url = attachmentUrl;
+        messageData.attachment_type = attachmentType || null;
+        messageData.attachment_name = attachmentName || null;
       }
-    },
-    
-    // Nouvelle fonction pour marquer uniquement des messages spécifiques comme lus
+
+      const { data, error } = await supabase
+        .from('messages')
+        .insert([messageData])
+        .select()
+        .single();
+
+      if (error) {
+        console.error("Erreur lors de l'envoi du message:", error);
+        throw error;
+      }
+
+      get().addMessage(data as Message);
+    } catch (error) {
+      console.error("Erreur lors de l'envoi du message:", error);
+      set({ error: error instanceof Error ? error.message : 'Failed to send message' });
+    }
+  },
+
+  markMessagesAsRead: async (conversationId: string, userId: string) => {
+    try {
+      const { error } = await supabase.rpc('mark_messages_as_read', {
+        p_conversation_id: conversationId,
+        p_user_id: userId
+      });
+
+      if (error) throw error;
+
+      set(state => ({
+        ...state,
+        messages: state.messages.map(msg => 
+          msg.conversation_id === conversationId && !msg.read
+            ? { ...msg, read: true }
+            : msg
+        )
+      }));
+    } catch (error) {
+      console.error('Error marking messages as read:', error);
+    }
+  },
+
     markSpecificMessagesAsRead: async (conversationId: string, userId: string, messageIds: string[]) => {
-      if (!messageIds || messageIds.length === 0) return;
-      
-      try {
-        console.log(`Marquage de ${messageIds.length} messages spécifiques comme lus`);
-        
-        // Extraire l'ID de commande si c'est une conversation de commande
-        const actualConversationId = conversationId.startsWith('order-') 
-          ? conversationId.replace('order-', '') 
-          : conversationId;
-        
-        // Mise à jour en base de données
+    try {
         const { error } = await supabase
           .from('messages')
           .update({ read: true })
           .in('id', messageIds)
-          .eq(conversationId.startsWith('order-') ? 'order_id' : 'conversation_id', actualConversationId)
-          .neq('sender_id', userId);  // Ne pas marquer les messages envoyés par l'utilisateur
-          
-        if (error) {
-          console.error("Erreur lors du marquage des messages spécifiques comme lus:", error);
-          return;
-        }
-        
-        // Mise à jour de l'état local
-        set((state: MessagingState) => {
-          const updatedMessages = state.messages.map((msg: Message) => 
-            messageIds.includes(msg.id) ? { ...msg, read: true } : msg
-          );
-          
-          // Recalculer le nombre de messages non lus pour cette conversation
-          const unreadMessages = updatedMessages.filter(
-            msg => (msg.conversation_id === conversationId || msg.order_id === actualConversationId) && 
-                  msg.sender_id !== userId && 
-                  !msg.read
-          ).length;
-          
-          // Mettre à jour le compteur dans les participants de la conversation
-          const updatedConversations = state.conversations.map((conv: Conversation) => {
-            if (conv.id === conversationId) {
-              const updatedParticipants = conv.participants.map((p: any) => 
-                p.id === userId ? { ...p, unread_count: unreadMessages } : p
-              );
-              return { ...conv, participants: updatedParticipants };
-            }
-            return conv;
-          });
-          
-          return { 
-            messages: updatedMessages,
-            conversations: updatedConversations
-          };
-        });
-        
-      } catch (err) {
-        console.error('Erreur lors du marquage des messages spécifiques comme lus:', err);
+        .eq('conversation_id', conversationId)
+        .eq('read', false);
+
+      if (error) throw error;
+
+      set((state) => ({
+        messages: state.messages.map((msg) => {
+          if (messageIds.includes(msg.id)) {
+            return { ...msg, read: true };
+          }
+          return msg;
+        })
+      }));
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : 'Failed to mark specific messages as read' });
       }
     },
 
     setIsTyping: async (conversationId: string, userId: string, isTyping: boolean) => {
       try {
-        // Mettre à jour l'état local uniquement
-        set((state: MessagingState) => ({
-          isTyping: { ...state.isTyping, [userId]: isTyping }
+        // Mise à jour de l'état local immédiatement
+        set((state) => ({
+          isTyping: { ...state.isTyping, [userId]: isTyping },
         }));
-
-        // Au lieu d'insérer un message, utilisons un canal en temps réel pour signaler l'activité de frappe
-        await supabase.channel('typing-channel')
-          .send({
-            type: 'broadcast',
-            event: 'typing',
-            payload: { 
-              conversation_id: conversationId, 
-              user_id: userId, 
-              is_typing: isTyping 
-            }
-          });
         
-        // Si l'utilisateur ne tape plus, réinitialiser après un court délai
-        if (!isTyping) {
-          setTimeout(() => {
-            set((state: MessagingState) => {
-              // Vérifier si l'état n'a pas été modifié entre-temps
-              if (state.isTyping[userId] === isTyping) {
-                return { isTyping: { ...state.isTyping, [userId]: false } };
-              }
-              return state;
+        if (isTyping) {
+          // D'abord, supprimer tout message "typing" existant pour être sûr
+          await supabase
+            .from('messages')
+            .delete()
+            .match({ 
+              conversation_id: conversationId, 
+              sender_id: userId, 
+              is_typing: true 
             });
-          }, 500);
+          
+          // Puis insérer un nouveau message "typing"
+          const { data, error } = await supabase
+            .from('messages')
+            .insert({
+              conversation_id: conversationId,
+              sender_id: userId,
+              content: '', // Message vide pour le typing
+              is_typing: true,
+              created_at: new Date().toISOString()
+            });
+
+          if (error) throw error;
+        } else {
+          // Supprimer le message "en train d'écrire" quand l'utilisateur arrête de taper
+          const { error } = await supabase
+            .from('messages')
+            .delete()
+            .match({ 
+              conversation_id: conversationId, 
+              sender_id: userId, 
+              is_typing: true 
+            });
+
+          if (error) throw error;
         }
-      } catch (err) {
-        console.error('Erreur lors de la mise à jour du statut de frappe:', err);
+      } catch (error) {
+        console.error('Error setting typing status:', error);
+        set({ error: error instanceof Error ? error.message : 'Failed to update typing status' });
       }
     },
 
-    setupRealtimeSubscriptions: (userId: string) => {
-      // Abonnement aux changements de messages
-      const messagesSubscription = supabase
-        .channel('messages-channel')
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'messages'
-          },
-          async (payload: any) => {
-            const { new: newMessage } = payload;
-            const { activeConversation, messages } = get();
+  setMessages: (messages) => {
+    set({ messages });
+  },
 
-            // Créer un objet message complet avec les informations de l'expéditeur
-            const messageData = {
-              ...newMessage,
-              sender: newMessage.profiles
-            };
+  setCurrentConversation: (conversation) => {
+    set({ currentConversation: conversation });
+  },
 
-            // Vérifier si le message est pour la conversation active
-            const isForActiveConversation = 
-              (activeConversation?.id === newMessage.conversation_id) || 
-              (activeConversation?.id === `order-${newMessage.order_id}`);
-            
-            if (isForActiveConversation) {
-              // Éviter les doublons
-              if (!messages.some((m: Message) => m.id === newMessage.id)) {
-                console.log("Ajout du nouveau message à la conversation active:", messageData.id);
-                set((state: MessagingState) => ({
-                  messages: [...state.messages, { ...messageData, sender: messageData.profiles }]
-                }));
-              }
+  setActiveConversation: (conversation) => {
+    set({ activeConversation: conversation });
+  },
+
+  setConversations: (conversations) => {
+    set({ conversations });
+  },
+
+  addMessage: (message) => {
+    set((state) => ({
+      messages: [...state.messages, message as Message],
+    }));
+  },
+
+  updateMessage: (messageId, updates) => {
+    set((state) => ({
+      messages: state.messages.map((msg) => {
+        if (msg.id === messageId) {
+          return { ...msg, ...updates } as Message;
+        }
+        return msg;
+      })
+    }));
+  },
+
+  deleteMessage: (messageId) => {
+    set((state) => ({
+      messages: state.messages.filter((msg) => msg.id !== messageId),
+    }));
+  },
+
+  clearMessages: () => {
+    set({ messages: [] });
+  },
+
+  setupRealtimeSubscriptions: (userId: string) => {
+    // Nettoyer d'abord les canaux existants pour cet utilisateur
+    const userChannelPrefix = `messages-for-user-${userId}`;
+    Array.from(channelManager.activeChannels.keys())
+      .filter(name => name.startsWith(userChannelPrefix))
+      .forEach(name => channelManager.removeChannel(name));
+    
+    // Fonction pour gérer les mises à jour de conversation
+    const handleConversationUpdate = async (payload: any) => {
+      try {
+        const { new: participant } = payload;
+        if (!participant) return;
+
+        // Récupérer les détails de la conversation
+        const { data: conversation } = await supabase
+          .from('conversations')
+          .select('*')
+          .eq('id', participant.conversation_id)
+          .single();
+
+        if (conversation) {
+          // Mettre à jour l'état des conversations
+          set((state) => {
+            const existingConversation = state.conversations.find(c => c.id === conversation.id);
+            if (existingConversation) {
+              return {
+                conversations: state.conversations.map(c => 
+                  c.id === conversation.id ? { ...c, ...conversation } : c
+                )
+              };
+            } else {
+              return {
+                conversations: [...state.conversations, conversation]
+              };
             }
+          });
+        }
+      } catch (error) {
+        console.error("Erreur lors de la mise à jour de la conversation:", error);
+      }
+    };
 
-            // Mettre à jour la liste des conversations immédiatement
-            console.log("Mise à jour de la liste des conversations suite à un nouveau message");
-            const updatedConversations = await get().fetchConversations(userId);
-            
-            // S'assurer que les conversations sont bien mises à jour dans le store
-            if (updatedConversations) {
-              set((state: MessagingState) => ({
-                conversations: updatedConversations
-              }));
-            }
-          }
-        )
-        .subscribe();
+    // Fonction pour vérifier et gérer les nouveaux messages
+    const checkAndHandleNewMessage = async (message: any, userId: string) => {
+      try {
+        if (!message || message.sender_id === userId) return;
 
-      // Abonnement aux indicateurs de frappe
-      const typingSubscription = supabase
-        .channel('typing-channel')
-        .on('broadcast', { event: 'typing' }, (payload) => {
-          const { user_id, is_typing } = payload.payload as { user_id: string, is_typing: boolean };
-          
-          // Mettre à jour l'état local
-          set((state: MessagingState) => ({
-            isTyping: { ...state.isTyping, [user_id]: is_typing }
-          }));
-          
-          // Réinitialiser après un délai si l'utilisateur est en train d'écrire
-          if (is_typing) {
-            setTimeout(() => {
-              set((state: MessagingState) => {
-                // Seulement réinitialiser si l'état est toujours "en train d'écrire"
-                if (state.isTyping[user_id]) {
-                  return { isTyping: { ...state.isTyping, [user_id]: false } };
-                }
-                return state;
-              });
-            }, 3000);
+        // Vérifier si l'utilisateur est participant à cette conversation
+        if (message.conversation_id) {
+          const { data: participations } = await supabase
+            .from('conversation_participants')
+            .select('conversation_id')
+            .eq('participant_id', userId)
+            .eq('conversation_id', message.conversation_id)
+            .limit(1);
+
+          if (participations && participations.length > 0) {
+            // L'utilisateur est participant à cette conversation
+            get().addMessage(message as Message);
           }
+        }
+      } catch (error) {
+        console.error("Erreur lors de la vérification du nouveau message:", error);
+      }
+    };
+
+    // Fonction pour gérer les mises à jour de statut des messages
+    const handleMessageStatusUpdate = (message: any) => {
+      try {
+        if (!message) return;
+        get().updateMessage(message.id, { read: message.read });
+      } catch (error) {
+        console.error("Erreur lors de la mise à jour du statut du message:", error);
+      }
+    };
+
+    // S'abonner aux nouvelles conversations où l'utilisateur est participant
+    const conversationsSubscription = supabase
+      .channel('conversation-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'conversation_participants',
+          filter: `participant_id=eq.${userId}`
+        },
+        (payload) => handleConversationUpdate(payload)
+      )
+      .subscribe();
+
+    // S'abonner aux nouveaux messages dans toutes les conversations de l'utilisateur
+    const messagesSubscription = supabase
+      .channel('message-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages'
+        },
+        (payload) => {
+          // Vérifier si le message appartient à une conversation de l'utilisateur
+          checkAndHandleNewMessage(payload.new, userId);
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'messages',
+          filter: `read=eq.true`
+        },
+        (payload) => handleMessageStatusUpdate(payload.new)
+      )
+      .subscribe();
+
+    // Enregistrer les canaux dans le gestionnaire
+    channelManager.registerChannel('conversation-updates', conversationsSubscription);
+    channelManager.registerChannel('message-updates', messagesSubscription);
+
+    // Fonction de nettoyage
+    return () => {
+      channelManager.removeChannel('conversation-updates');
+      channelManager.removeChannel('message-updates');
+    };
+  },
+
+  createConversation: async (participantIds: string[]) => {
+    try {
+      // Créer une nouvelle conversation
+      const { data: conversation, error } = await supabase
+        .from('conversations')
+        .insert({
+          status: 'active',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         })
-        .subscribe();
+        .select()
+        .single();
 
-      // Abonnement aux changements de conversation
-      const conversationsSubscription = supabase
-        .channel('conversations-channel')
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'conversations'
-          },
-          () => {
-            // Actualiser la liste des conversations
-            get().fetchConversations(userId);
-          }
-        )
-        .subscribe();
+      if (error) throw error;
+      if (!conversation) throw new Error('Échec de la création de la conversation');
 
-      // Retourner une fonction de nettoyage pour les abonnements
-      return () => {
-        supabase.removeChannel(messagesSubscription);
-        supabase.removeChannel(typingSubscription);
-        supabase.removeChannel(conversationsSubscription);
-      };
-    },
+      // Ajouter les participants
+      const participants = participantIds.map(id => ({
+        conversation_id: conversation.id,
+        participant_id: id,
+        created_at: new Date().toISOString(),
+        unread_count: 0
+      }));
 
-    clearError: () => {
-      set({ error: null });
-    },
+      const { error: participantError } = await supabase
+        .from('conversation_participants')
+        .insert(participants);
 
-    setMessages: (messages: Message[]) => set({ messages }),
-  })) as StateCreator<MessagingState>
-); 
+      if (participantError) throw participantError;
+
+      // Mettre à jour l'état
+      get().fetchConversations(participantIds[0]);
+      
+      return conversation.id;
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : 'Failed to create conversation' });
+      return null;
+    }
+  },
+})); 

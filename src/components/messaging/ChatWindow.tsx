@@ -5,8 +5,11 @@ import { Paperclip, Send, ArrowLeft, MoreVertical, Image, FileText, X, Smile, Ch
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Textarea } from "@/components/ui/textarea";
-import { Conversation as BaseConversation, Message, useMessagingStore } from '@/lib/stores/useMessagingStore';
-import { formatDistanceToNow, formatDate, formatFileSize } from '@/lib/utils';
+import { useMessagingStore } from '@/lib/stores/useMessagingStore';
+import { Message } from '@/types/messages';
+import { formatDistanceToNow } from 'date-fns';
+import { fr } from 'date-fns/locale';
+import { formatDate, formatFileSize } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import MessageBubble from './MessageBubble';
 import { supabase } from '@/lib/supabase/client';
@@ -19,6 +22,10 @@ import { FileIcon } from '@/components/ui/icons/FileIcon';
 import { SendHorizontal } from 'lucide-react';
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 import { UserProfile } from '@/hooks/useUser';
+import { Conversation as BaseConversation } from '@/components/messaging/messaging-types';
+import EnhancedAvatar from '@/components/ui/enhanced-avatar';
+import { useUnreadMessages } from '@/hooks/useUnreadMessages';
+import { UnreadBadge } from '@/components/ui/UnreadBadge';
 
 // Extension du type Conversation pour inclure other_user et order_id
 interface Conversation extends BaseConversation {
@@ -29,8 +36,8 @@ interface Conversation extends BaseConversation {
     email?: string;
     unread_count?: number;
   };
-  order_id?: string; // ID de commande pour les conversations de commande
-  service_title?: string; // Titre du service pour les conversations de commande
+  order_id?: string | null;
+  service_title?: string;
 }
 
 interface ChatWindowProps {
@@ -49,12 +56,31 @@ const getInitials = (name: string): string => {
     .substring(0, 2);
 };
 
+// Fonction pour normaliser les données de l'expéditeur dans le format attendu
+const normalizeSender = (sender: any): UserProfile | { id: string, username: string, full_name?: string, avatar_url?: string } => {
+  if (!sender) return { id: 'unknown', username: 'Utilisateur' };
+  
+  if ('role' in sender && 'created_at' in sender) {
+    // C'est déjà un UserProfile
+    return sender as UserProfile;
+  }
+  
+  // Créer un objet conforme au format attendu
+  return {
+    id: sender.id,
+    username: sender.username || 'Utilisateur',
+    full_name: sender.full_name || undefined,
+    avatar_url: sender.avatar_url || undefined
+  };
+};
+
 const ChatWindow: React.FC<ChatWindowProps> = ({ 
   conversation, 
   onBack,
   isFreelance = false
 }) => {
   const { user } = useAuth();
+  const { unreadCounts, markAsRead: markConversationAsRead } = useUnreadMessages(user?.id);
   const [messageText, setMessageText] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [attachments, setAttachments] = useState<{url: string, type: string, name: string}[]>([]);
@@ -72,6 +98,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const [showNotificationDialog, setShowNotificationDialog] = useState(false);
   const [loadMoreVisible, setLoadMoreVisible] = useState(false);
   const [attachment, setAttachment] = useState<{name: string, size: number} | null>(null);
+  const [conversationTitle, setConversationTitle] = useState<string>("");
   const MESSAGES_PER_PAGE = 20;
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -82,12 +109,13 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const markAsReadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const userScrolledUpRef = useRef<boolean>(false);
   const notificationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const scrollDebounceRef = useRef<boolean>(false);
   
   const { 
     messages,
     isTyping,
     sendMessage,
-    markAsRead,
+    markMessagesAsRead,
     markSpecificMessagesAsRead,
     setIsTyping: updateTypingStatus,
     setMessages
@@ -103,6 +131,58 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   
   // Obtenir le nombre de messages non lus dans cette conversation
   const unreadCount = otherParticipant?.unread_count || 0;
+
+  // Fonction pour récupérer des informations supplémentaires sur l'autre participant si nécessaire
+  const getParticipantDetails = useCallback(() => {
+    if (!conversation?.participants || conversation.participants.length === 0) {
+      return null;
+    }
+    
+    // Trouver l'autre participant (celui qui n'est pas l'utilisateur actuel)
+    const participant = conversation.participants.find(p => p.id !== user?.id);
+    
+    // Si l'autre participant n'a pas toutes ses informations, essayer de les obtenir
+    if (participant && (!participant.avatar_url || !participant.full_name)) {
+      console.log("Informations manquantes pour l'autre participant, tentative de récupération...");
+      
+      // Essayer de récupérer plus d'informations à partir de la base de données
+      (async () => {
+        try {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('id, username, full_name, avatar_url')
+            .eq('id', participant.id)
+            .single();
+            
+          if (profile) {
+            // Mettre à jour le participant localement
+            Object.assign(participant, {
+              username: profile.username || participant.username,
+              full_name: profile.full_name || participant.full_name,
+              avatar_url: profile.avatar_url || participant.avatar_url
+            });
+            
+            // Forcer une mise à jour du composant
+            setConversationTitle(profile.full_name || profile.username || "Discussion");
+          }
+        } catch (error) {
+          console.error("Erreur lors de la récupération du profil:", error);
+        }
+      })();
+    }
+    
+    return participant;
+  }, [conversation?.participants, user?.id]);
+
+  // Obtenir et utiliser les informations détaillées de l'autre participant
+  const participantDetails = getParticipantDetails();
+  
+  // Définir le titre de la conversation basé sur l'autre participant
+  useEffect(() => {
+    if (otherParticipant) {
+      setConversationTitle(otherParticipant.full_name || otherParticipant.username || "Discussion");
+    }
+  }, [otherParticipant]);
 
   // Initialiser les messages visibles
   useEffect(() => {
@@ -122,6 +202,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const checkVisibleMessages = useCallback(() => {
     if (!user) return;
     
+    // Accumuler les IDs pour n'effectuer qu'une seule mise à jour
     const unreadVisibleMessageIds = visibleMessages
       .filter((msg: Message) => !msg.read && msg.sender_id !== user.id)
       .map((msg: Message) => msg.id);
@@ -136,6 +217,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     }
     
     if (unreadVisibleMessageIds.length > 0 && user.id) {
+      // Regrouper les opérations de marquage pour éviter les reflows multiples
       markAsReadTimeoutRef.current = setTimeout(() => {
         markSpecificMessagesAsRead(conversation.id, user.id, unreadVisibleMessageIds);
       }, 1000);
@@ -168,6 +250,29 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     }, 10);
   }, [hasMoreMessages, isLoadingMore, messages, page]);
 
+  // Utiliser Virtuoso pour gérer le scroll
+  const handleVirtuosoScroll = useCallback((e: any) => {
+    // Utiliser un debounce simple pour réduire les reflows forcés
+    if (!scrollDebounceRef.current) {
+      scrollDebounceRef.current = true;
+      
+      // Exécuter le code de défilement dans requestAnimationFrame
+      requestAnimationFrame(() => {
+        if (e.scrollTop < 50 && hasMoreMessages && !isLoadingMore) {
+          loadMoreMessages();
+        }
+        
+        // Vérifier les messages visibles
+        checkVisibleMessages();
+        
+        // Réinitialiser après un délai
+        setTimeout(() => {
+          scrollDebounceRef.current = false;
+        }, 100);
+      });
+    }
+  }, [loadMoreMessages, hasMoreMessages, isLoadingMore, checkVisibleMessages]);
+
   // Gérer le scroll vers le haut pour charger plus de messages
   const handleScroll = useCallback(() => {
     // Charger plus de messages si on approche du haut
@@ -178,18 +283,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     // Vérifier quels messages sont visibles lors du défilement
     checkVisibleMessages();
   }, [loadMoreMessages, hasMoreMessages, isLoadingMore, checkVisibleMessages]);
-
-  // Utiliser Virtuoso pour gérer le scroll
-  const handleVirtuosoScroll = useCallback((e: any) => {
-    if (e.scrollTop < 50 && hasMoreMessages && !isLoadingMore) {
-      loadMoreMessages();
-    }
-    checkVisibleMessages();
-  }, [loadMoreMessages, hasMoreMessages, isLoadingMore, checkVisibleMessages]);
-
+  
   // Utiliser le hook simplement - il ignore automatiquement les pages de messagerie
   usePreventScrollReset();
-
+  
   // Scroll vers le bas quand de nouveaux messages arrivent
   useEffect(() => {
     // Ne pas défiler automatiquement lors du chargement d'anciens messages
@@ -203,33 +300,16 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       const isNewMessageFromUser = messages[messages.length - 1]?.sender_id === user?.id;
       
       if ((lastVisibleMessageId === lastMessageId && !userScrolledUpRef.current) || isNewMessageFromUser) {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        // Utiliser requestAnimationFrame pour réduire les reflows
+        requestAnimationFrame(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        });
       }
     }
     
     // Vérifier les messages visibles après le rendu des messages
     setTimeout(checkVisibleMessages, 100);
   }, [visibleMessages, messages, checkVisibleMessages, isLoadingMore, user?.id]);
-
-  // Marquer les messages comme lus lors du montage du composant uniquement s'il y a un grand nombre de messages non lus
-  useEffect(() => {
-    if (user?.id && unreadCount > 10) {
-      // Marquer tous les messages comme lus seulement s'il y a beaucoup de messages non lus
-      // Cela évite de surcharger le serveur avec des requêtes inutiles
-      markAsRead(conversation.id, user.id);
-    } else {
-      // Sinon, vérifier quels messages sont visibles et les marquer comme lus
-      setTimeout(checkVisibleMessages, 100);
-    }
-    
-    return () => {
-      // Nettoyer le timeout lors du démontage
-      if (markAsReadTimeoutRef.current) {
-        clearTimeout(markAsReadTimeoutRef.current);
-        markAsReadTimeoutRef.current = null;
-      }
-    };
-  }, [conversation.id, markAsRead, user, unreadCount, checkVisibleMessages]);
 
   // Mettre à jour le statut "last_seen" quand l'utilisateur est actif sur le chat
   useEffect(() => {
@@ -360,12 +440,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   // Valider si un message peut être envoyé
   const canSend = messageText.trim().length > 0 || attachments.length > 0;
 
-  // Convertir la fonction markAsRead pour être utilisable comme un handler d'événement
+  // Mettre à jour la fonction handleMarkAsRead
   const handleMarkAsRead = useCallback(() => {
     if (user?.id && conversation?.id) {
-      markAsRead(conversation.id, user.id);
+      markMessagesAsRead(conversation.id, user.id);
     }
-  }, [user, conversation, markAsRead]);
+  }, [user, conversation, markMessagesAsRead]);
 
   // Modifier la fonction removeAttachment pour être compatible avec un handler d'événement
   const handleRemoveAttachment = useCallback(() => {
@@ -608,79 +688,75 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const removeAttachment = (index: number) => {
     setAttachments(prev => prev.filter((_, i) => i !== index));
   };
-  
+
+  // Mettre à jour l'appel dans useEffect
+  useEffect(() => {
+    if (user?.id && unreadCount > 10) {
+      markMessagesAsRead(conversation.id, user.id);
+    } else {
+      setTimeout(checkVisibleMessages, 100);
+    }
+    
+    return () => {
+      if (markAsReadTimeoutRef.current) {
+        clearTimeout(markAsReadTimeoutRef.current);
+        markAsReadTimeoutRef.current = null;
+      }
+    };
+  }, [conversation.id, user?.id, unreadCount, checkVisibleMessages, markMessagesAsRead]);
+
   return (
     <div className="flex flex-col h-full bg-white dark:bg-gray-950">
-      {/* En-tête de la conversation avec l'avatar et le nom */}
-      <div className="flex items-center px-3 py-2 border-b border-gray-200 dark:border-gray-800 bg-gradient-to-r from-pink-600 to-purple-600 text-white">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={onBack}
-          className="md:hidden mr-2 text-white hover:bg-white/20"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          
-        <div className="flex items-center flex-1">
-          <div className="relative">
-            <Avatar className="h-10 w-10 border-2 border-white">
-              <AvatarImage 
-                src={otherParticipant?.avatar_url || ''} 
-                alt={otherParticipant?.full_name || 'Contact'}
-                onError={() => setHeaderAvatarError(true)}
-                className="object-cover"
-              />
-              <AvatarFallback className="bg-gradient-to-br from-indigo-400 to-purple-500 text-white">
-                {getInitials(otherParticipant?.full_name || otherParticipant?.username || 'User')}
-            </AvatarFallback>
-          </Avatar>
-            <UserStatusIndicator 
-              isOnline={otherParticipant?.online || false} 
-              className="absolute bottom-0 right-0 border-2 border-white"
+      {/* Header avec le nom du participant */}
+      <div className="border-b p-4 flex items-center justify-between bg-white dark:bg-gray-950 dark:border-gray-800">
+        <div className="flex items-center space-x-3">
+          {otherParticipant && otherParticipant.avatar_url ? (
+            <EnhancedAvatar 
+              src={otherParticipant.avatar_url} 
+              alt={otherParticipant.full_name || otherParticipant.username || ""}
+              fallback={(otherParticipant.full_name || otherParticipant.username || '?') as string}
+              className="h-10 w-10"
+              onError={() => setHeaderAvatarError(true)}
             />
-          </div>
-          
-          <div className="ml-3 overflow-hidden">
-            <h2 className="text-sm font-semibold truncate">
-              {otherParticipant?.full_name || otherParticipant?.username || 'Contact'}
-            </h2>
-            {isOtherParticipantTyping ? (
-              <p className="text-xs text-white/80">En train d'écrire...</p>
-            ) : otherParticipant?.last_seen ? (
-              <p className="text-xs text-white/80">
-                {formatDistanceToNow(new Date(otherParticipant.last_seen))}
-              </p>
-            ) : (
-              <p className="text-xs text-white/80">
-                {otherParticipant?.online ? 'En ligne' : 'Hors ligne'}
-              </p>
-            )}
+          ) : (
+            <Avatar className="h-10 w-10">
+              <AvatarFallback>{conversationTitle.substring(0, 2).toUpperCase()}</AvatarFallback>
+            </Avatar>
+          )}
+          <div>
+            <h2 className="text-lg font-semibold">{conversationTitle}</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              {otherParticipant?.last_seen 
+                ? `Vu ${formatDistanceToNow(new Date(otherParticipant.last_seen), { addSuffix: true, locale: fr })}` 
+                : 'Hors ligne'}
+            </p>
           </div>
         </div>
-        
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button 
-              variant="ghost" 
-              size="icon"
-              className="ml-2 text-white hover:bg-white/20 h-7 w-7"
-            >
-              <MoreVertical className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuItem className="cursor-pointer flex items-center gap-2 text-xs">
-              <MessageSquare className="h-3 w-3" />
-              <span>Marquer comme non lu</span>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="cursor-pointer text-red-500 flex items-center gap-2 text-xs">
-              <Trash className="h-3 w-3" />
-              <span>Supprimer la conversation</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="flex items-center space-x-2">
+          <UnreadBadge count={unreadCounts.byConversation[conversation.id] || 0} />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button 
+                variant="ghost" 
+                size="icon"
+                className="ml-2 text-white hover:bg-white/20 h-7 w-7"
+              >
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem className="cursor-pointer flex items-center gap-2 text-xs">
+                <MessageSquare className="h-3 w-3" />
+                <span>Marquer comme non lu</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="cursor-pointer text-red-500 flex items-center gap-2 text-xs">
+                <Trash className="h-3 w-3" />
+                <span>Supprimer la conversation</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
       
       {/* Zone des messages avec virtualisation pour optimiser les performances */}
@@ -759,16 +835,14 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               {isOtherParticipantTyping && (
                 <div className="flex items-start mb-2 animate-fade-in">
                   <div className="flex items-end">
-                    <Avatar className="h-6 w-6 mr-2">
-                      <AvatarImage 
-                        src={otherParticipant?.avatar_url || ''} 
-                        alt={otherParticipant?.full_name || 'Contact'} 
-                        onError={() => setTypingAvatarError(true)}
-                      />
-                      <AvatarFallback className="bg-indigo-100 text-indigo-800 text-xs">
-                        {getInitials(otherParticipant?.full_name || otherParticipant?.username || 'User')}
-                      </AvatarFallback>
-                    </Avatar>
+                    <EnhancedAvatar
+                      src={otherParticipant?.avatar_url || ''} 
+                      alt={otherParticipant?.full_name || 'Contact'}
+                      fallback={getInitials(otherParticipant?.full_name || otherParticipant?.username || 'User')}
+                      className="h-6 w-6 mr-2"
+                      fallbackClassName="bg-indigo-100 text-indigo-800 text-xs"
+                      onError={() => setTypingAvatarError(true)}
+                    />
                     <div className="bg-white dark:bg-gray-800 rounded-2xl px-3 py-1 shadow-sm flex items-center">
                       <div className="flex space-x-1">
                         <span className="bg-vynal-purple-secondary/30 rounded-full h-1.5 w-1.5 animate-bounce" style={{ animationDelay: '0s' }}></span>
@@ -808,21 +882,18 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           // Obtenir les informations de l'expéditeur
           const sender = message.sender || (isCurrentUser ? {
             id: user?.id || '',
-            username: user?.user_metadata?.username || null,
-            full_name: user?.user_metadata?.full_name || null,
-            avatar_url: user?.user_metadata?.avatar_url || null,
-            email: user?.email || null,
-            role: user?.user_metadata?.role || null,
-            created_at: user?.created_at || '',
-            updated_at: user?.updated_at || '',
-            bio: null,
-            verification_level: null,
-            last_seen: null,
-            phone: null
-          } as UserProfile : otherParticipant);
+            username: user?.user_metadata?.username || 'Vous',
+            full_name: user?.user_metadata?.full_name,
+            avatar_url: user?.user_metadata?.avatar_url,
+          } : {
+            id: otherParticipant?.id || '',
+            username: otherParticipant?.username || 'Utilisateur',
+            full_name: otherParticipant?.full_name,
+            avatar_url: otherParticipant?.avatar_url
+          });
           
           // Vérifier si le message est valide avant de le rendre
-          if (!sender) {
+          if (!sender.id) {
             console.error("Informations de l'expéditeur manquantes:", message);
             return null;
           }
@@ -837,7 +908,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                 key={messageKey}
                 message={{
                   ...message,
-                  sender: sender
+                  sender
                 }}
                 isCurrentUser={isCurrentUser}
                 showAvatar={showAvatar}

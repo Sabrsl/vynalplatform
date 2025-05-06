@@ -4,10 +4,11 @@ import React, { useState } from 'react';
 import { Search, MessagesSquare } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Conversation } from '@/lib/stores/useMessagingStore';
+import { Conversation } from '@/components/messaging/messaging-types';
 import { formatDistanceToNow } from '@/lib/utils';
 import UserStatusIndicator from './UserStatusIndicator';
 import { useAuth } from '@/hooks/useAuth';
+import EnhancedAvatar from '@/components/ui/enhanced-avatar';
 
 interface ConversationListProps {
   conversations: Conversation[];
@@ -15,13 +16,16 @@ interface ConversationListProps {
   onSelectConversation: (id: string) => void;
   onNewConversation?: () => void;
   isFreelance?: boolean;
+  showOrderConversations?: boolean;
 }
 
 // Fonction pour obtenir les initiales d'un nom
 const getInitials = (name: string): string => {
+  if (!name || name === '') return 'U';
+  
   return name
     .split(' ')
-    .map(part => part[0])
+    .map(part => part && part.length > 0 ? part[0] : '')
     .join('')
     .toUpperCase()
     .substring(0, 2);
@@ -32,22 +36,25 @@ const ConversationList: React.FC<ConversationListProps> = ({
   activeConversationId,
   onSelectConversation,
   onNewConversation,
-  isFreelance = false
+  isFreelance = false,
+  showOrderConversations = true
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const { user } = useAuth();
   
   // Filtrer les conversations en fonction du terme de recherche
-  const filteredConversations = searchTerm.trim() 
-    ? conversations.filter(conversation => {
-        const otherParticipant = conversation.participants.find(
-          p => p.id !== user?.id
-        );
-        
-        const participantName = otherParticipant?.full_name || otherParticipant?.username || '';
-        return participantName.toLowerCase().includes(searchTerm.toLowerCase());
-      })
-    : conversations;
+  const filteredConversations = conversations
+    .filter(conversation => {
+      // Filtrer par le terme de recherche
+      if (!searchTerm.trim()) return true;
+      
+      const otherParticipant = conversation.participants.find(
+        p => p.id !== user?.id
+      );
+      
+      const participantName = otherParticipant?.full_name || otherParticipant?.username || '';
+      return participantName.toLowerCase().includes(searchTerm.toLowerCase());
+    });
   
   return (
     <div className="flex flex-col h-full bg-white dark:bg-gray-950">
@@ -55,7 +62,13 @@ const ConversationList: React.FC<ConversationListProps> = ({
       <div className="p-3 border-b border-gray-200 dark:border-gray-800 bg-gradient-to-r from-pink-600 to-purple-600 text-white">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-semibold">
-            {isFreelance ? "" : "Freelances"}
+            {isFreelance 
+              ? (showOrderConversations === true 
+                  ? "Tous les messages" 
+                  : showOrderConversations ? "Messages de commandes" : "Messages directs")
+              : (showOrderConversations === true 
+                  ? "Tous les freelances" 
+                  : showOrderConversations ? "Commandes" : "Freelances")}
           </h2>
         </div>
         
@@ -110,6 +123,11 @@ const ConversationList: React.FC<ConversationListProps> = ({
                 ? `${lastMessageContent.substring(0, 35)}...`
                 : lastMessageContent;
               
+              // Vérifier que l'autre participant a bien un nom et un avatar
+              const participantName = otherParticipant?.full_name || otherParticipant?.username || 'Contact';
+              const avatarUrl = otherParticipant?.avatar_url || '';
+              const isOnline = Boolean(otherParticipant?.last_seen && new Date(otherParticipant.last_seen).getTime() > Date.now() - 300000);
+              
               return (
                 <li 
                   key={conversation.id}
@@ -122,18 +140,17 @@ const ConversationList: React.FC<ConversationListProps> = ({
                   <div className="flex items-center p-3">
                     {/* Avatar avec indicateur de statut */}
                     <div className="relative flex-shrink-0">
-                      <Avatar className="h-10 w-10 border border-gray-200 dark:border-gray-700">
-                        <AvatarImage 
-                          src={otherParticipant?.avatar_url || ''} 
-                          alt={otherParticipant?.full_name || otherParticipant?.username || 'Contact'} 
-                        />
-                        <AvatarFallback className="bg-gradient-to-br from-pink-400 to-purple-500 text-white">
-                          {getInitials(otherParticipant?.full_name || otherParticipant?.username || 'U')}
-                        </AvatarFallback>
-                      </Avatar>
+                      <EnhancedAvatar 
+                        src={avatarUrl} 
+                        alt={participantName}
+                        fallback={participantName}
+                        className="h-10 w-10 border border-gray-200 dark:border-gray-700"
+                        fallbackClassName="bg-gradient-to-br from-pink-400 to-purple-500 text-white"
+                        onError={() => console.log(`Failed to load avatar for ${participantName}`)}
+                      />
                       
                       <UserStatusIndicator 
-                        isOnline={otherParticipant?.online || false} 
+                        isOnline={isOnline}
                         className="absolute bottom-0 right-0 border-2 border-white dark:border-gray-950"
                       />
                     </div>
@@ -142,7 +159,7 @@ const ConversationList: React.FC<ConversationListProps> = ({
                     <div className="ml-3 min-w-0 flex-1">
                       <div className="flex justify-between items-center">
                         <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
-                          {otherParticipant?.full_name || otherParticipant?.username || 'Contact'}
+                          {participantName}
                         </h3>
                         <span className="text-xs text-gray-500 dark:text-gray-400 ml-2 whitespace-nowrap">
                           {formattedTime}

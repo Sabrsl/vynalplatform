@@ -37,7 +37,7 @@ const NewConversationDialog: React.FC<NewConversationDialogProps> = ({
   
   const { user } = useAuth();
   const { profile } = useUser();
-  const { createConversation, isLoading } = useMessagingStore();
+  const { createConversation, isLoading, sendMessage } = useMessagingStore();
   
   const handleSearch = useCallback(async () => {
     if (!searchQuery.trim() || !profile) return;
@@ -86,13 +86,15 @@ const NewConversationDialog: React.FC<NewConversationDialogProps> = ({
     
     try {
       // Créer une conversation avec un message initial
-      const conversationId = await createConversation(
-        [user.id, selectedUser.id],
-        message.trim()
-      );
+      const conversationId = await createConversation([user.id, selectedUser.id]);
       
-      if (conversationId && onConversationCreated) {
-        onConversationCreated(conversationId);
+      if (conversationId) {
+        // Envoyer le message initial
+        await sendMessage(conversationId, user.id, message.trim());
+        
+        if (onConversationCreated) {
+          onConversationCreated(conversationId);
+        }
       }
       
       // Fermer le dialogue

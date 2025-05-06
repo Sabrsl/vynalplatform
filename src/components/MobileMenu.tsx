@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { useRouter } from 'next/navigation';
 import { useLogout } from '@/hooks/useLogout';
 import { NavigationLoadingState } from '@/app/providers';
+import { useUser } from '@/hooks/useUser';
 
 import { 
   X,
@@ -107,6 +108,8 @@ const MobileMenuHeader = memo(({
   navigateToHome: (e: React.MouseEvent) => void;
 }) => {
   const { theme } = useTheme();
+  const { profile } = useUser();
+  const isClient = profile?.role === 'client';
   const isDark = theme === 'dark';
   
   return (
@@ -124,7 +127,9 @@ const MobileMenuHeader = memo(({
         >
           <h1 className="text-xs font-bold text-vynal-purple-light dark:text-vynal-text-primary">Vynal Platform</h1>
           {user && (
-            <p className="text-[9px] text-vynal-purple-secondary dark:text-vynal-text-secondary">Espace Freelance</p>
+            <p className="text-[9px] text-vynal-purple-secondary dark:text-vynal-text-secondary">
+              {isClient ? "Espace Client" : "Espace Freelance"}
+            </p>
           )}
         </div>
       </div>
@@ -157,6 +162,9 @@ const AuthenticatedMenuContent = memo(({
   handleSignOut: () => void;
 }) => {
   const { theme } = useTheme();
+  const { profile } = useUser();
+  const isClient = profile?.role === 'client';
+  const dashboardPrefix = isClient ? '/client-dashboard' : '/dashboard';
   const isDark = theme === 'dark';
   
   return (
@@ -172,83 +180,85 @@ const AuthenticatedMenuContent = memo(({
             </p>
             <div>
               <NavItem 
-                href="/dashboard" 
+                href={dashboardPrefix} 
                 icon={Home} 
                 label="Tableau de bord" 
-                isActive={isActive("/dashboard")}
+                isActive={isActive(dashboardPrefix)}
                 onClick={navItemCallbacks.dashboard}
                 isNavigating={isNavigating}
               />
               <NavItem 
-                href="/dashboard/orders" 
+                href={`${dashboardPrefix}/orders`} 
                 icon={ShoppingBag} 
                 label="Commandes reçues" 
-                isActive={isActive("/dashboard/orders")}
+                isActive={isActive(`${dashboardPrefix}/orders`)}
                 onClick={navItemCallbacks.orders}
                 isNavigating={isNavigating}
               />
               <NavItem 
-                href="/dashboard/messages" 
+                href={`${dashboardPrefix}/messages`} 
                 icon={MessageSquare} 
                 label="Messages" 
-                isActive={isActive("/dashboard/messages")}
+                isActive={isActive(`${dashboardPrefix}/messages`)}
                 onClick={navItemCallbacks.messages}
                 isNavigating={isNavigating}
                 badgeCount={totalUnreadCount}
               />
               <NavItem 
-                href="/dashboard/disputes" 
+                href={`${dashboardPrefix}/disputes`} 
                 icon={AlertTriangle} 
                 label="Litiges" 
-                isActive={isActive("/dashboard/disputes")}
+                isActive={isActive(`${dashboardPrefix}/disputes`)}
                 onClick={navItemCallbacks.disputes}
                 isNavigating={isNavigating}
               />
               <NavItem 
-                href="/dashboard/wallet" 
+                href={`${dashboardPrefix}/wallet`} 
                 icon={CreditCard} 
                 label="Paiements" 
-                isActive={isActive("/dashboard/wallet")}
+                isActive={isActive(`${dashboardPrefix}/wallet`)}
                 onClick={navItemCallbacks.wallet}
                 isNavigating={isNavigating}
               />
             </div>
           </div>
           
-          {/* Section services */}
-          <div>
-            <p className={`px-2 text-[10px] font-semibold uppercase mb-1 mt-4 ${
-              isDark ? "text-vynal-text-secondary" : "text-vynal-purple-400"
-            }`}>
-              Services
-            </p>
+          {/* Section services - Afficher uniquement pour les freelances */}
+          {!isClient && (
             <div>
-              <NavItem 
-                href="/dashboard/services" 
-                icon={FileText} 
-                label="Mes services" 
-                isActive={isActive("/dashboard/services")}
-                onClick={navItemCallbacks.services}
-                isNavigating={isNavigating}
-              />
-              <NavItem 
-                href="/dashboard/stats" 
-                icon={BarChart2} 
-                label="Statistiques" 
-                isActive={isActive("/dashboard/stats")}
-                onClick={navItemCallbacks.stats}
-                isNavigating={isNavigating}
-              />
-              <NavItem 
-                href="/dashboard/certifications" 
-                icon={Award} 
-                label="Certifications" 
-                isActive={isActive("/dashboard/certifications")}
-                onClick={navItemCallbacks.certifications}
-                isNavigating={isNavigating}
-              />
+              <p className={`px-2 text-[10px] font-semibold uppercase mb-1 mt-4 ${
+                isDark ? "text-vynal-text-secondary" : "text-vynal-purple-400"
+              }`}>
+                Services
+              </p>
+              <div>
+                <NavItem 
+                  href={`${dashboardPrefix}/services`} 
+                  icon={FileText} 
+                  label="Mes services" 
+                  isActive={isActive(`${dashboardPrefix}/services`)}
+                  onClick={navItemCallbacks.services}
+                  isNavigating={isNavigating}
+                />
+                <NavItem 
+                  href={`${dashboardPrefix}/stats`} 
+                  icon={BarChart2} 
+                  label="Statistiques" 
+                  isActive={isActive(`${dashboardPrefix}/stats`)}
+                  onClick={navItemCallbacks.stats}
+                  isNavigating={isNavigating}
+                />
+                <NavItem 
+                  href={`${dashboardPrefix}/certifications`} 
+                  icon={Award} 
+                  label="Certifications" 
+                  isActive={isActive(`${dashboardPrefix}/certifications`)}
+                  onClick={navItemCallbacks.certifications}
+                  isNavigating={isNavigating}
+                />
+              </div>
             </div>
-          </div>
+          )}
           
           {/* Section profil et configuration */}
           <div>
@@ -259,18 +269,18 @@ const AuthenticatedMenuContent = memo(({
             </p>
             <div>
               <NavItem 
-                href="/dashboard/profile" 
+                href={`${dashboardPrefix}/profile`} 
                 icon={UserIcon} 
                 label="Mon profil" 
-                isActive={isActive("/dashboard/profile")}
+                isActive={isActive(`${dashboardPrefix}/profile`)}
                 onClick={navItemCallbacks.profile}
                 isNavigating={isNavigating}
               />
               <NavItem 
-                href="/dashboard/settings" 
+                href={`${dashboardPrefix}/settings`} 
                 icon={Settings} 
                 label="Paramètres" 
-                isActive={isActive("/dashboard/settings")}
+                isActive={isActive(`${dashboardPrefix}/settings`)}
                 onClick={navItemCallbacks.settings}
                 isNavigating={isNavigating}
               />
@@ -421,8 +431,13 @@ export default function MobileMenu({ isOpen, onClose, user, activePath, setActiv
   const { theme } = useTheme();
   const { signOut } = useAuth();
   const { logout } = useLogout();
+  const { profile } = useUser();
+  const isClient = profile?.role === 'client';
   const isDark = theme === 'dark';
   const router = useRouter();
+  
+  // Préfixe de chemin pour le dashboard en fonction du rôle utilisateur
+  const dashboardPrefix = isClient ? '/client-dashboard' : '/dashboard';
   
   // Notifications non lues - optimisé avec useMemo pour éviter les recalculs
   const { totalUnreadCount } = useUserNotifications(user?.id);
@@ -481,18 +496,18 @@ export default function MobileMenu({ isOpen, onClose, user, activePath, setActiv
   // Mémoriser les callbacks de clic pour chaque item du menu
   const navItemCallbacks = useMemo(() => {
     return {
-      dashboard: () => { setActivePath("/dashboard"); onClose(); },
-      orders: () => { setActivePath("/dashboard/orders"); onClose(); },
-      messages: () => { setActivePath("/dashboard/messages"); onClose(); },
-      disputes: () => { setActivePath("/dashboard/disputes"); onClose(); },
-      wallet: () => { setActivePath("/dashboard/wallet"); onClose(); },
-      services: () => { setActivePath("/dashboard/services"); onClose(); },
-      stats: () => { setActivePath("/dashboard/stats"); onClose(); },
-      certifications: () => { setActivePath("/dashboard/certifications"); onClose(); },
-      profile: () => { setActivePath("/dashboard/profile"); onClose(); },
-      settings: () => { setActivePath("/dashboard/settings"); onClose(); }
+      dashboard: () => { setActivePath(dashboardPrefix); onClose(); router.push(dashboardPrefix); },
+      orders: () => { setActivePath(`${dashboardPrefix}/orders`); onClose(); router.push(`${dashboardPrefix}/orders`); },
+      messages: () => { setActivePath(`${dashboardPrefix}/messages`); onClose(); router.push(`${dashboardPrefix}/messages`); },
+      disputes: () => { setActivePath(`${dashboardPrefix}/disputes`); onClose(); router.push(`${dashboardPrefix}/disputes`); },
+      wallet: () => { setActivePath(`${dashboardPrefix}/wallet`); onClose(); router.push(`${dashboardPrefix}/wallet`); },
+      services: () => { setActivePath(`${dashboardPrefix}/services`); onClose(); router.push(`${dashboardPrefix}/services`); },
+      stats: () => { setActivePath(`${dashboardPrefix}/stats`); onClose(); router.push(`${dashboardPrefix}/stats`); },
+      certifications: () => { setActivePath(`${dashboardPrefix}/certifications`); onClose(); router.push(`${dashboardPrefix}/certifications`); },
+      profile: () => { setActivePath(`${dashboardPrefix}/profile`); onClose(); router.push(`${dashboardPrefix}/profile`); },
+      settings: () => { setActivePath(`${dashboardPrefix}/settings`); onClose(); router.push(`${dashboardPrefix}/settings`); }
     };
-  }, [setActivePath, onClose]);
+  }, [setActivePath, onClose, router, dashboardPrefix]);
   
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>

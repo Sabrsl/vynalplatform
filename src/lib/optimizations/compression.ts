@@ -3,7 +3,45 @@
  * des messages et améliorer les performances
  */
 
-import { Message, Conversation } from '@/lib/stores/useMessagingStore';
+interface Message {
+  id: string;
+  conversation_id?: string;
+  content: string;
+  created_at: string;
+  sender_id: string;
+  read: boolean;
+  sender?: {
+    id: string;
+    username: string | null;
+    full_name: string | null;
+    avatar_url: string | null;
+  };
+  attachment_url?: string | null;
+  attachment_type?: string | null;
+  attachment_name?: string | null;
+}
+
+interface Conversation {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  last_message_id: string | null;
+  last_message_time: string | null;
+  participants: Array<{
+    id: string;
+    username: string | null;
+    full_name: string | null;
+    avatar_url: string | null;
+    unread_count: number;
+    last_seen?: string | null;
+    role?: string | null;
+  }>;
+  last_message?: {
+    content: string;
+    created_at: string;
+    sender_id: string;
+  };
+}
 
 // Type pour les messages compressés
 export type CompressedMessage = {
@@ -37,7 +75,6 @@ export type CompressedConversation = {
     full_name: string | null;
     avatar_url: string | null;
     role?: string | null;
-    online?: boolean;
     last_seen?: string | null;
     unread_count: number;
   }[];
@@ -102,7 +139,6 @@ export function compressConversationData(conversations: Conversation[]): Compres
       full_name: p.full_name,
       avatar_url: p.avatar_url,
       role: p.role,
-      online: p.online,
       last_seen: p.last_seen,
       unread_count: p.unread_count
     })),

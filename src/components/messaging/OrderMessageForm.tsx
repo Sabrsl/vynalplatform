@@ -9,6 +9,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { validateMessage } from '@/lib/message-validation';
 import { uploadOrderMessageAttachment } from '@/lib/supabase/file-upload';
+import { OrderMessage } from '@/types/messages';
 
 interface OrderMessageFormProps {
   orderId: string;

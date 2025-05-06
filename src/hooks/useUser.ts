@@ -7,19 +7,41 @@ import { PostgrestError } from '@supabase/supabase-js';
 // Type pour le profil utilisateur
 export interface UserProfile {
   id: string;
+  created_at: string;
+  updated_at: string;
   username: string | null;
   full_name: string | null;
   avatar_url: string | null;
-  email: string | null;
-  role: 'client' | 'freelance' | 'admin' | null;
-  created_at: string;
-  updated_at: string;
   bio: string | null;
-  verification_level: number | null;
+  role: 'client' | 'freelance' | 'admin';
+  email: string | null;
   last_seen: string | null;
+  verification_level: number | null;
+  verified_at: string | null;
   phone: string | null;
-  is_certified?: boolean | null;
-  certification_type?: 'standard' | 'premium' | 'expert' | null;
+  last_data_download: string | null;
+  last_profile_pdf_download: string | null;
+  is_admin: boolean | null;
+  is_suspended: boolean | null;
+  is_active: boolean | null;
+  is_certified: boolean | null;
+  certified_at: string | null;
+  certification_type: 'standard' | 'premium' | 'expert' | null;
+  user_settings?: {
+    theme: string;
+    language: string;
+    notifications: {
+      email: boolean;
+      push: boolean;
+      orderUpdates: boolean;
+      messages: boolean;
+      marketing: boolean;
+    };
+    security: {
+      twoFactor: boolean;
+      emailVerification: boolean;
+    };
+  };
 }
 
 interface UpdateProfileResult {
@@ -338,19 +360,28 @@ export function useUser(): UseUserResult {
         // Si le rôle est déjà dans user_metadata, créer un profil temporaire
         // pendant le chargement des données complètes
         if (user.user_metadata?.role) {
-          const tempProfile = {
+          const tempProfile: UserProfile = {
             id: user.id,
             username: user.user_metadata?.username || null,
             full_name: user.user_metadata?.full_name || null,
             avatar_url: user.user_metadata?.avatar_url || null,
             email: user.email || null,
-            role: user.user_metadata.role as any,
+            role: user.user_metadata.role as 'client' | 'freelance' | 'admin',
             created_at: user.created_at,
             updated_at: user.updated_at || user.created_at,
             bio: user.user_metadata?.bio || null,
             verification_level: user.user_metadata?.verification_level || null,
             last_seen: null,
-            phone: user.user_metadata?.phone || null
+            phone: user.user_metadata?.phone || null,
+            verified_at: null,
+            last_data_download: null,
+            last_profile_pdf_download: null,
+            is_admin: user.user_metadata?.role === 'admin' || false,
+            is_suspended: false,
+            is_active: true,
+            is_certified: false,
+            certified_at: null,
+            certification_type: null
           };
           
           setProfile(tempProfile);

@@ -1,54 +1,123 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ShoppingBag, MessageSquare, Bell, Package, Clock } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { 
+  ShoppingBag, MessageSquare, Bell, Package, Clock, LayoutDashboard, 
+  ShoppingCart, CheckCircle, Euro, Star, Users, TrendingUp 
+} from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useUser } from "@/hooks/useUser";
 import { Loader } from "@/components/ui/loader";
 import Link from "next/link";
 import { ClientDashboardPageSkeleton } from "@/components/skeletons/ClientDashboardPageSkeleton";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { cn } from "@/lib/utils";
+import { CURRENCY } from "@/lib/constants";
+import { formatCurrency } from "@/lib/utils/format";
+import { useClientStats } from "@/hooks/useClientStats";
+import { useRecentClientOrders } from "@/hooks/useRecentClientOrders";
+import { useRecommendedFreelancers } from "@/hooks/useRecommendedFreelancers";
+
+// Types définis
+interface Order {
+  id: string;
+  title: string;
+  freelance: string;
+  status: 'pending' | 'in_progress' | 'completed' | 'delivered' | 'revision_requested' | 'cancelled';
+  amount: number;
+  currency: string;
+  currency_symbol: string;
+  delivery_time: number;
+  requirements?: string;
+  completed_at?: string;
+  delivery?: any;
+}
+
+interface Freelancer {
+  id: string;
+  name: string;
+  avatar: string;
+  specialty: string;
+  rating: number;
+  isExpert: boolean;
+  completedProjects: number;
+  reviews: number;
+}
+
+interface Stats {
+  activeOrders: number;
+  unreadMessages: number;
+  pendingDeliveries: number;
+  completedOrders: number;
+  totalSpent: number;
+}
 
 export default function ClientDashboardPage() {
   const { user } = useAuth();
-  const { profile, loading } = useUser();
-  const [stats, setStats] = useState({
-    activeOrders: 0,
-    unreadMessages: 0,
-    pendingDeliveries: 0,
-    completedOrders: 0
-  });
-  const [loadingStats, setLoadingStats] = useState(true);
+  const { profile, loading: profileLoading } = useUser();
+  
+  // Utiliser les nouveaux hooks
+  const { stats, loading: statsLoading } = useClientStats();
+  const { recentOrders, loading: ordersLoading } = useRecentClientOrders({ limit: 3 });
+  const { freelancers, loading: freelancersLoading } = useRecommendedFreelancers({ limit: 3 });
+  
+  // Variable isLoading unique
+  const isLoading = profileLoading || statsLoading || ordersLoading || freelancersLoading;
 
-  // Simuler le chargement des statistiques
-  useEffect(() => {
-    const loadStats = async () => {
-      // Ici, vous chargeriez les vraies données depuis votre API
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Données fictives pour la démo
-      setStats({
-        activeOrders: 2,
-        unreadMessages: 5,
-        pendingDeliveries: 1,
-        completedOrders: 8
-      });
-      
-      setLoadingStats(false);
-    };
+  // Helper pour les classes de badges
+  const getStatusBadgeClasses = useCallback((status: Order['status']) => {
+    const baseClasses = "text-[8px] sm:text-[8px] border transition-colors";
     
-    loadStats();
+    switch(status) {
+      case "in_progress":
+        return cn(baseClasses, "bg-amber-500/20 text-amber-600 border-amber-500/30 hover:bg-amber-500/25 dark:bg-amber-500/10 dark:text-amber-500 dark:border-amber-500/20 dark:hover:bg-amber-500/15");
+      case "completed":
+      case "delivered":
+        return cn(baseClasses, "bg-emerald-500/20 text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-500 dark:border-emerald-500/20 dark:hover:bg-emerald-500/15");
+      case "pending":
+        return cn(baseClasses, "bg-slate-500/20 text-slate-600 border-slate-500/30 hover:bg-slate-500/25 dark:bg-slate-500/10 dark:text-slate-500 dark:border-slate-500/20 dark:hover:bg-slate-500/15");
+      case "revision_requested":
+        return cn(baseClasses, "bg-blue-500/20 text-blue-600 border-blue-500/30 hover:bg-blue-500/25 dark:bg-blue-500/10 dark:text-blue-500 dark:border-blue-500/20 dark:hover:bg-blue-500/15");
+      case "cancelled":
+        return cn(baseClasses, "bg-red-500/20 text-red-600 border-red-500/30 hover:bg-red-500/25 dark:bg-red-500/10 dark:text-red-500 dark:border-red-500/20 dark:hover:bg-red-500/15");
+      default:
+        return baseClasses;
+    }
   }, []);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader size="lg" variant="primary" className="mx-auto" />
-      </div>
-    );
-  }
+  // Helper pour le texte du statut
+  const getStatusText = useCallback((status: Order['status']) => {
+    switch(status) {
+      case "in_progress":
+        return "En cours";
+      case "completed":
+        return "Terminée";
+      case "delivered":
+        return "Livrée";
+      case "pending":
+        return "En attente";
+      case "revision_requested":
+        return "Révision demandée";
+      case "cancelled":
+        return "Annulée";
+      default:
+        return status;
+    }
+  }, []);
 
-  if (loadingStats) {
+  // Classes CSS communes - optimisées pour l'élégance
+  const mainCardClasses = "bg-white/30 dark:bg-slate-900/30 backdrop-blur-sm border border-slate-200/30 dark:border-slate-700/30 shadow-sm rounded-lg transition-all duration-200";
+  const secondaryCardClasses = "bg-white/20 dark:bg-slate-900/20 backdrop-blur-sm border border-slate-200/20 dark:border-slate-700/20 shadow-none rounded-lg transition-all duration-200";
+  const innerCardClasses = "bg-white/25 dark:bg-slate-800/25 backdrop-blur-sm border border-slate-200/15 dark:border-slate-700/15";
+  const titleClasses = "text-slate-800 dark:text-vynal-text-primary";
+  const subtitleClasses = "text-slate-600 dark:text-vynal-text-secondary";
+  const buttonClasses = "text-[8px] sm:text-[8px] text-slate-700 dark:text-vynal-text-primary hover:bg-slate-100/40 dark:hover:bg-slate-700/40 transition-colors";
+  
+  // Loading skeleton
+  if (isLoading) {
     return <ClientDashboardPageSkeleton />;
   }
 
@@ -56,143 +125,240 @@ export default function ClientDashboardPage() {
 
   return (
     <div className="container max-w-6xl mx-auto px-4 py-6">
-      <div className="flex flex-col space-y-1 mb-6">
-        <div className="flex items-center space-x-1">
-          <span className="text-lg font-semibold text-slate-600 dark:text-slate-300">Bienvenue,</span>
-          <span className="text-lg font-bold text-indigo-600 dark:text-indigo-400">{userName}</span>
-          <span className="animate-bounce inline-block">👋</span>
+      {/* En-tête du tableau de bord */}
+      <div className="flex flex-col space-y-2 md:flex-row md:items-center md:justify-between md:space-y-0 mb-6">
+        <div>
+          <h1 className={`text-base sm:text-lg md:text-xl font-bold ${titleClasses} flex items-center`}>
+            <LayoutDashboard className="mr-2 h-4 w-4 sm:h-5 sm:w-5 text-vynal-accent-primary" />
+            Tableau de bord
+          </h1>
+          <p className={`text-[10px] sm:text-xs ${subtitleClasses}`}>
+            Bienvenue, {userName}
+          </p>
         </div>
-        <p className="text-sm text-slate-500 dark:text-slate-400">
-          Voici votre activité sur la plateforme
-        </p>
       </div>
 
-      {/* Statistiques */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <Card className="bg-gradient-to-br from-indigo-50 to-white border border-indigo-100 dark:from-indigo-900/20 dark:to-transparent dark:border-indigo-900/30">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-indigo-600 dark:text-indigo-400 mb-1">Commandes actives</p>
-              <p className="text-2xl font-bold text-indigo-700 dark:text-indigo-300">
-                {stats.activeOrders}
+      <div className="grid gap-6">
+        {/* Statistiques - cartes principales */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <Card className={`${mainCardClasses} p-2 sm:p-3`}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 p-0">
+              <CardTitle className={`text-[10px] sm:text-xs font-medium ${titleClasses}`}>
+                Commandes en cours
+              </CardTitle>
+              <ShoppingCart className="h-3 w-3 sm:h-3 sm:w-3 text-amber-500" />
+            </CardHeader>
+            <CardContent className="p-0 pt-1 sm:pt-1">
+              <div className={`text-lg sm:text-xl font-bold text-amber-600 dark:text-amber-400`}>{stats.activeOrders}</div>
+              <p className={`text-[8px] sm:text-[10px] ${subtitleClasses}`}>
+                <span className="flex items-center">
+                  <TrendingUp className="h-2 w-2 mr-1 text-amber-500" />
+                  Commandes actives
+                </span>
               </p>
-            </div>
-            <div className="p-3 rounded-full bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400">
-              <ShoppingBag className="h-5 w-5" />
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
 
-        <Card className="bg-gradient-to-br from-emerald-50 to-white border border-emerald-100 dark:from-emerald-900/20 dark:to-transparent dark:border-emerald-900/30">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400 mb-1">Livraisons en attente</p>
-              <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">
-                {stats.pendingDeliveries}
+          <Card className={`${mainCardClasses} p-2 sm:p-3`}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 p-0">
+              <CardTitle className={`text-[10px] sm:text-xs font-medium ${titleClasses}`}>
+                Commandes terminées
+              </CardTitle>
+              <CheckCircle className="h-3 w-3 sm:h-3 sm:w-3 text-emerald-500" />
+            </CardHeader>
+            <CardContent className="p-0 pt-1 sm:pt-1">
+              <div className="text-lg sm:text-xl font-bold text-green-600 dark:text-green-400">{stats.completedOrders}</div>
+              <p className={`text-[8px] sm:text-[10px] ${subtitleClasses}`}>
+                <span className="flex items-center">
+                  <TrendingUp className="h-2 w-2 mr-1 text-emerald-500" />
+                  Livrées avec succès
+                </span>
               </p>
-            </div>
-            <div className="p-3 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400">
-              <Package className="h-5 w-5" />
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
 
-        <Card className="bg-gradient-to-br from-amber-50 to-white border border-amber-100 dark:from-amber-900/20 dark:to-transparent dark:border-amber-900/30">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-amber-600 dark:text-amber-400 mb-1">Messages non lus</p>
-              <p className="text-2xl font-bold text-amber-700 dark:text-amber-300">
-                {stats.unreadMessages}
+          <Card className={`${mainCardClasses} p-2 sm:p-3`}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 p-0">
+              <CardTitle className={`text-[10px] sm:text-xs font-medium ${titleClasses}`}>
+                Dépenses totales
+              </CardTitle>
+              <Euro className="h-3 w-3 sm:h-3 sm:w-3 text-blue-500" />
+            </CardHeader>
+            <CardContent className="p-0 pt-1 sm:pt-1">
+              <div className="text-lg sm:text-xl font-bold text-red-600 dark:text-red-400">{formatCurrency(stats.totalSpent)}</div>
+              <p className={`text-[8px] sm:text-[10px] ${subtitleClasses}`}>
+                <span className="flex items-center">
+                  <TrendingUp className="h-2 w-2 mr-1 text-emerald-500" />
+                  Investissement total
+                </span>
               </p>
-            </div>
-            <div className="p-3 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400">
-              <MessageSquare className="h-5 w-5" />
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
 
-        <Card className="bg-gradient-to-br from-violet-50 to-white border border-violet-100 dark:from-violet-900/20 dark:to-transparent dark:border-violet-900/30">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-violet-600 dark:text-violet-400 mb-1">Commandes terminées</p>
-              <p className="text-2xl font-bold text-violet-700 dark:text-violet-300">
-                {stats.completedOrders}
+          <Card className={`${mainCardClasses} p-2 sm:p-3`}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 p-0">
+              <CardTitle className={`text-[10px] sm:text-xs font-medium ${titleClasses}`}>
+                Messages non lus
+              </CardTitle>
+              <MessageSquare className="h-3 w-3 sm:h-3 sm:w-3 text-amber-500" />
+            </CardHeader>
+            <CardContent className="p-0 pt-1 sm:pt-1">
+              <div className={`text-lg sm:text-xl font-bold ${titleClasses}`}>{stats.unreadMessages}</div>
+              <p className={`text-[8px] sm:text-[10px] ${subtitleClasses}`}>
+                <span className="flex items-center">
+                  <Bell className="h-2 w-2 mr-1 text-amber-500" />
+                  Nouvelles notifications
+                </span>
               </p>
-            </div>
-            <div className="p-3 rounded-full bg-violet-100 dark:bg-violet-900/40 text-violet-600 dark:text-violet-400">
-              <Bell className="h-5 w-5" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+            </CardContent>
+          </Card>
+        </div>
 
-      {/* Liens rapides */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Actions rapides</CardTitle>
+        {/* Commandes récentes - conteneur principal avec sous-conteneurs */}
+        <Card className={mainCardClasses}>
+          <CardHeader className="p-3 sm:p-4 border-b border-slate-200/10 dark:border-slate-700/10">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className={`text-sm sm:text-sm md:text-base flex items-center ${titleClasses}`}>
+                  <ShoppingCart className="mr-2 h-3 w-3 sm:h-3 sm:w-3 text-vynal-accent-primary" />
+                  Commandes récentes
+                </CardTitle>
+                <CardDescription className={`text-[10px] sm:text-[10px] ${subtitleClasses}`}>
+                  Vos {recentOrders.length} commandes les plus récentes
+                </CardDescription>
+              </div>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className={buttonClasses}
+                asChild
+              >
+                <Link href="/client-dashboard/orders">Voir tout</Link>
+              </Button>
+            </div>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <Link 
-                href="/services" 
-                className="bg-indigo-50 hover:bg-indigo-100 p-3 rounded-lg flex items-center gap-2 transition-colors dark:bg-indigo-900/20 dark:hover:bg-indigo-900/30"
-              >
-                <ShoppingBag className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
-                <span className="text-sm font-medium text-indigo-700 dark:text-indigo-300">Explorer les services</span>
-              </Link>
-              
-              <Link 
-                href="/client-dashboard/orders" 
-                className="bg-emerald-50 hover:bg-emerald-100 p-3 rounded-lg flex items-center gap-2 transition-colors dark:bg-emerald-900/20 dark:hover:bg-emerald-900/30"
-              >
-                <Package className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-                <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300">Gérer mes commandes</span>
-              </Link>
-              
-              <Link 
-                href="/client-dashboard/messages" 
-                className="bg-amber-50 hover:bg-amber-100 p-3 rounded-lg flex items-center gap-2 transition-colors dark:bg-amber-900/20 dark:hover:bg-amber-900/30"
-              >
-                <MessageSquare className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-                <span className="text-sm font-medium text-amber-700 dark:text-amber-300">Voir mes messages</span>
-              </Link>
-              
-              <Link 
-                href="/client-dashboard/payments" 
-                className="bg-violet-50 hover:bg-violet-100 p-3 rounded-lg flex items-center gap-2 transition-colors dark:bg-violet-900/20 dark:hover:bg-violet-900/30"
-              >
-                <Bell className="h-5 w-5 text-violet-600 dark:text-violet-400" />
-                <span className="text-sm font-medium text-violet-700 dark:text-violet-300">Gérer mes paiements</span>
-              </Link>
+          <CardContent className="p-3 sm:p-4">
+            <div className="space-y-2 sm:space-y-3">
+              {recentOrders.map((order) => (
+                <div
+                  key={order.id}
+                  className={`flex items-center justify-between p-2 sm:p-3 rounded-lg ${innerCardClasses}`}
+                >
+                  <div className="space-y-1">
+                    <p className={`text-[10px] sm:text-[10px] font-medium ${titleClasses}`}>
+                      {order.service.title}
+                    </p>
+                    <p className={`text-[8px] sm:text-[8px] ${subtitleClasses}`}>
+                      {order.freelance.full_name}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge
+                      variant={order.status === "in_progress" ? "default" : order.status === "completed" ? "secondary" : "destructive"}
+                      className={getStatusBadgeClasses(order.status)}
+                    >
+                      {getStatusText(order.status)}
+                    </Badge>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={buttonClasses}
+                      asChild
+                    >
+                      <Link href={`/client-dashboard/orders/${order.id}`}>Voir</Link>
+                    </Button>
+                  </div>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
         
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Commandes récentes</CardTitle>
+        {/* Freelances recommandés - conteneur principal avec sous-conteneurs */}
+        <Card className={mainCardClasses}>
+          <CardHeader className="p-3 sm:p-4 border-b border-slate-200/10 dark:border-slate-700/10">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className={`text-sm sm:text-sm md:text-base flex items-center ${titleClasses}`}>
+                  <Users className="mr-2 h-3 w-3 sm:h-3 sm:w-3 text-vynal-accent-primary" />
+                  Freelances recommandés
+                </CardTitle>
+                <CardDescription className={`text-[10px] sm:text-[10px] ${subtitleClasses}`}>
+                  Nos meilleurs freelances certifiés et évalués
+                </CardDescription>
+              </div>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className={buttonClasses}
+                asChild
+              >
+                <Link href="/services">Explorer</Link>
+              </Button>
+            </div>
           </CardHeader>
-          <CardContent>
-            {stats.activeOrders > 0 ? (
-              <div className="space-y-3">
-                <div className="border-l-2 border-indigo-400 pl-3 py-2">
-                  <p className="text-sm font-medium">Développement d'un site web</p>
-                  <p className="text-xs text-slate-500">Status: En cours</p>
+          <CardContent className="p-3 sm:p-4">
+            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+              {freelancers.map((freelancer) => (
+                <div
+                  key={freelancer.id}
+                  className={`p-3 rounded-lg ${innerCardClasses}`}
+                >
+                  <div className="flex items-center gap-2 sm:gap-3 mb-2">
+                    <Avatar className="h-10 w-10 ring-1 ring-slate-200/30 dark:ring-slate-700/30">
+                      <AvatarImage src={freelancer.avatar_url || ''} alt={freelancer.full_name || 'Freelance'} className="object-cover" />
+                      <AvatarFallback className="bg-slate-100/50 dark:bg-slate-800/50 text-slate-900 dark:text-vynal-text-primary">
+                        {(freelancer.full_name || freelancer.username || 'F').charAt(0)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1">
+                          <p className={`text-[10px] sm:text-[10px] font-medium ${titleClasses}`}>
+                            {freelancer.full_name || freelancer.username || 'Anonyme'}
+                          </p>
+                          {freelancer.is_certified && (
+                            <Badge className="text-[6px] sm:text-[6px] bg-vynal-accent-primary/20 text-vynal-accent-primary border border-vynal-accent-primary/30 hover:bg-vynal-accent-primary/25 dark:bg-vynal-accent-primary/10 dark:text-vynal-accent-primary dark:border-vynal-accent-primary/20 dark:hover:bg-vynal-accent-primary/15 px-1 h-3">
+                              Expert
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                      <p className={`text-[8px] sm:text-[8px] ${subtitleClasses}`}>
+                        {freelancer.specialty || 'Divers'}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center justify-between mt-2">
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1 bg-yellow-500/20 text-yellow-600 border border-yellow-500/30 hover:bg-yellow-500/25 dark:bg-yellow-500/10 dark:text-yellow-500 dark:border-yellow-500/20 dark:hover:bg-yellow-500/15 px-1.5 py-0.5 rounded-full">
+                          <Star className="h-2 w-2" />
+                          <span className={`text-[8px] sm:text-[8px] font-medium ${titleClasses}`}>
+                            {freelancer.rating.toFixed(1)}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1 bg-emerald-500/20 text-emerald-600 border border-emerald-500/30 hover:bg-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-500 dark:border-emerald-500/20 dark:hover:bg-emerald-500/15 px-1.5 py-0.5 rounded-full">
+                          <CheckCircle className="h-2 w-2" />
+                          <span className={`text-[8px] sm:text-[8px] ${subtitleClasses}`}>
+                            {freelancer.completed_projects}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className={`${buttonClasses} h-5 border-slate-200/20 dark:border-slate-700/20`}
+                      asChild
+                    >
+                      <Link href={`/freelancers/${freelancer.id}`}>Profil</Link>
+                    </Button>
                 </div>
-                <div className="border-l-2 border-amber-400 pl-3 py-2">
-                  <p className="text-sm font-medium">Conception logo</p>
-                  <p className="text-xs text-slate-500">Status: En attente de validation</p>
                 </div>
+              ))}
               </div>
-            ) : (
-              <div className="text-center py-6">
-                <p className="text-sm text-slate-500">Aucune commande active</p>
-                <Link href="/services" className="text-xs text-indigo-600 hover:underline mt-2 inline-block">
-                  Explorer les services
-                </Link>
-              </div>
-            )}
           </CardContent>
         </Card>
       </div>

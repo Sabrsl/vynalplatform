@@ -20,7 +20,7 @@ import { OrderSidebar } from "@/components/orders/OrderSidebar";
 import { OrderMessagesTab } from "./OrderMessagesTab";
 import { OrderFilesTab } from "@/components/orders/OrderFilesTab";
 import { OrderTimelineTab } from "@/components/orders/OrderTimelineTab";
-import { OrderReviewsTab } from "@/components/orders/OrderReviewsTab";
+import OrderReviewsTab from "@/components/orders/OrderReviewsTab";
 
 import {
   FileCheck,

@@ -19,6 +19,7 @@ interface MessagingDialogProps {
   buttonVariant?: 'default' | 'outline' | 'secondary' | 'ghost';
   className?: string;
   size?: 'default' | 'sm' | 'lg' | 'icon';
+  onConversationCreated?: (conversationId: string) => void;
 }
 
 const MessagingDialog = ({
@@ -26,7 +27,8 @@ const MessagingDialog = ({
   freelanceName,
   buttonVariant = 'default',
   className = '',
-  size
+  size,
+  onConversationCreated
 }: MessagingDialogProps) => {
   const [showModal, setShowModal] = useState(false);
   const [message, setMessage] = useState('');
@@ -35,7 +37,7 @@ const MessagingDialog = ({
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   
-  const { createConversation, isLoading, error: storeError } = useMessagingStore();
+  const { createConversation, isLoading, error: storeError, sendMessage } = useMessagingStore();
   
   // Effet pour gérer les erreurs du store
   useEffect(() => {
@@ -118,10 +120,16 @@ const MessagingDialog = ({
       }
       
       // Envoyer message
-      const conversationId = await createConversation(
-        [user.id, freelanceId],
-        validationResult.message
-      );
+      const conversationId = await createConversation([user.id, freelanceId]);
+      
+      if (conversationId) {
+        // Envoyer le message initial
+        await sendMessage(conversationId, user.id, validationResult.message);
+        
+        if (onConversationCreated) {
+          onConversationCreated(conversationId);
+        }
+      }
       
       // Succès
       setShowModal(false);

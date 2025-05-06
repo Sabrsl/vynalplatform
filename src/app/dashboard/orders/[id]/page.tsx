@@ -99,10 +99,16 @@ export default function OrderDetailPage() {
         if (!messagesError && messages) {
           orderData.messages = messages.map(msg => ({
             id: msg.id,
+            conversation_id: msg.conversation_id,
+            order_id: msg.order_id,
             sender_id: msg.sender_id,
+            sender: msg.sender,
             content: msg.content,
-            timestamp: msg.created_at,
-            is_read: msg.read
+            created_at: msg.created_at,
+            updated_at: msg.updated_at,
+            is_read: msg.is_read,
+            read: msg.read,
+            is_typing: msg.is_typing
           }));
         }
         

@@ -2,7 +2,6 @@ import { useState, useCallback } from 'react';
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { toast } from 'react-hot-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { processMockPayment } from '../payment/mockPayment';
 
 interface PaymentProps {
   serviceId: string;
@@ -125,51 +124,40 @@ export function useVynalPayment() {
         throw new Error(`Erreur lors de la récupération du wallet: ${walletError.message}`);
       }
 
-      // 2. Procéder au paiement simulé
-      const { success, orderId } = await processMockPayment({
-        serviceId,
-        clientId: user.id,
-        freelanceId,
-        amount,
-        requirements: requirements ?? '',
-        deliveryTime: deliveryTime ?? 0
-      });
+      // Simuler le traitement du paiement
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
-      if (!success) {
-        throw new Error("Le paiement a échoué");
-      }
+      // Créer la transaction
+      const { data: transaction, error: transactionError } = await supabase
+        .from('transactions')
+        .insert({
+          wallet_id: walletData.id,
+          amount,
+          type: 'payment',
+          description: `Paiement pour service #${serviceId}`,
+          status: 'completed',
+          service_id: serviceId,
+          client_id: user.id,
+          freelance_id: freelanceId,
+          currency: 'XOF',
+          currency_symbol: 'FCFA'
+        })
+        .select()
+        .single();
 
-      // 3. Créer la transaction avec plusieurs tentatives
-      const transactionData = {
-        wallet_id: walletData.id,
-        amount,
-        type: 'payment',
-        description: `Paiement pour service #${serviceId}`,
-        status: 'completed',
-        service_id: serviceId,
-        client_id: user.id,
-        freelance_id: freelanceId,
-        order_id: orderId,
-        currency: 'XOF',
-        currency_symbol: 'FCFA'
-      };
-
-      const { success: transSuccess, id: transactionId, error: transError } = 
-        await createTransaction(transactionData);
-
-      if (!transSuccess) {
-        throw new Error(`Erreur lors de la création de la transaction: ${transError}`);
+      if (transactionError) {
+        throw new Error(`Erreur lors de la création de la transaction: ${transactionError.message}`);
       }
 
       // 4. Mettre à jour le statut et retourner les données
       setPaymentData({
         status: 'success',
-        transactionId,
-        orderId
+        transactionId: transaction.id,
+        orderId: transaction.order_id
       });
 
       toast.success("Paiement effectué avec succès!");
-      return { success: true, transactionId, orderId };
+      return { success: true, transactionId: transaction.id, orderId: transaction.order_id };
 
     } catch (error) {
       console.error("Erreur de paiement:", error);

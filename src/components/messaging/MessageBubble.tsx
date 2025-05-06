@@ -1,15 +1,25 @@
 "use client";
 
-import React from 'react';
-import { formatDate } from '@/lib/utils';
-import { Message } from '@/lib/stores/useMessagingStore';
-import { Check, CheckCheck } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { formatDate, formatTime } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Check, CheckCheck, AlertTriangle } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
+import { fr } from 'date-fns/locale';
 import { FileIcon } from '@/components/ui/icons/FileIcon';
 import Image from 'next/image';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { getProfileImage } from '@/lib/utils/get-profile-image';
+import { Message } from '@/types/messages';
+import { useAuth } from '@/hooks/useAuth';
+import { UserProfile } from '@/hooks/useUser';
+import EnhancedAvatar from '@/components/ui/enhanced-avatar';
 
 interface MessageBubbleProps {
-  message: Message;
+  message: Omit<Message, 'sender'> & { 
+    sender?: any 
+  };
   isCurrentUser: boolean;
   isFreelance?: boolean;
   showAvatar?: boolean;
@@ -46,6 +56,45 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   previousMessage,
   nextMessage
 }) => {
+  const [messageState, setMessageState] = useState<'sent' | 'delivered' | 'read' | 'error'>('sent');
+  const [hover, setHover] = useState(false);
+  const [avatarError, setAvatarError] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(
+    message.sender?.avatar_url || otherParticipant?.avatar_url || null
+  );
+  const isMobile = useMediaQuery('(max-width: 768px)');
+  
+  // Récupérer l'image de profil si elle est manquante
+  useEffect(() => {
+    const fetchProfileImage = async () => {
+      if (!avatarUrl && !avatarError && message.sender?.id) {
+        try {
+          const profileImage = await getProfileImage(message.sender.id);
+          if (profileImage) {
+            setAvatarUrl(profileImage);
+          }
+        } catch (error) {
+          console.error("Erreur lors du chargement de l'image de profil:", error);
+          setAvatarError(true);
+        }
+      }
+    };
+    
+    fetchProfileImage();
+  }, [avatarUrl, avatarError, message.sender?.id]);
+  
+  // Déterminer l'état du message
+  useEffect(() => {
+    // Pour le moment, nous utiliserons seulement l'état "lu" car c'est la seule propriété
+    // garantie d'exister sur le type Message
+    if (message.read) {
+      setMessageState('read');
+    } else {
+      // Par défaut, considérer comme envoyé
+      setMessageState('sent');
+    }
+  }, [message.read]);
+  
   const messageDate = new Date(message.created_at);
   const formattedTime = messageDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   
@@ -93,6 +142,13 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   // Utiliser les informations de l'expéditeur du message si disponibles
   const senderInfo = message.sender || otherParticipant;
   
+  const formattedDate = message.created_at
+    ? formatDistanceToNow(new Date(message.created_at), { addSuffix: true, locale: fr })
+    : '';
+  
+  const senderName = message.sender?.full_name || message.sender?.username || otherParticipant?.full_name || otherParticipant?.username || 'Utilisateur';
+  const initials = getInitials(senderName).substring(0, 2);
+  
   return (
     <>
       {/* Séparateur de date si nécessaire */}
@@ -109,15 +165,14 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         {/* Avatar (seulement pour les messages reçus et le premier d'un groupe) */}
         {!isCurrentUser && showAvatar && (
           <div className="flex-shrink-0 mr-2 self-end">
-            <Avatar className="h-6 w-6">
-              <AvatarImage 
-                src={senderInfo?.avatar_url || ''} 
-                alt={senderInfo?.full_name || 'Contact'} 
-              />
-              <AvatarFallback className="bg-indigo-100 text-indigo-700 text-xs">
-                {getInitials(senderInfo?.full_name || senderInfo?.username || 'User')}
-              </AvatarFallback>
-            </Avatar>
+            <EnhancedAvatar 
+              src={avatarUrl} 
+              alt={senderName}
+              fallback={initials}
+              className="h-8 w-8"
+              fallbackClassName="bg-gradient-to-br from-indigo-400 to-purple-500 text-white text-xs"
+              onError={() => setAvatarError(true)}
+            />
           </div>
         )}
         
@@ -176,11 +231,34 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           <div className={`flex items-center justify-end mt-0.5 space-x-1 text-[10px] ${
             isCurrentUser ? 'text-white/70' : 'text-gray-500 dark:text-gray-400'
           }`}>
-            <span>{formattedTime}</span>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="text-gray-500 dark:text-gray-400 text-[10px]">
+                    {formattedTime}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent className="text-xs">
+                  {formattedDate}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            
             {isCurrentUser && (
-              message.read ? 
-                <CheckCheck className="h-3 w-3 ml-0.5" /> : 
-                <Check className="h-3 w-3 ml-0.5" />
+              <span className="ml-1 flex items-center text-gray-500 dark:text-gray-400">
+                {messageState === 'error' && (
+                  <AlertTriangle className="h-3 w-3 text-red-500" />
+                )}
+                {messageState === 'sent' && (
+                  <Check className="h-3 w-3" />
+                )}
+                {messageState === 'delivered' && (
+                  <CheckCheck className="h-3 w-3" />
+                )}
+                {messageState === 'read' && (
+                  <CheckCheck className="h-3 w-3 text-green-500" />
+                )}
+              </span>
             )}
           </div>
         </div>

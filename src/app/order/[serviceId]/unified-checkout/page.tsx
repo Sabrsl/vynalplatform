@@ -16,10 +16,10 @@ import Image from "next/image";
 import { formatPrice } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { processMockPayment } from "@/lib/payment/mockPayment";
 import { PaymentMethodType } from "@/lib/constants/payment";
 import { motion } from "framer-motion";
 import Link from "next/link";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
 export default function UnifiedCheckoutPage({ params }: { params: { serviceId: string } }) {
   const router = useRouter();
@@ -170,34 +170,58 @@ export default function UnifiedCheckoutPage({ params }: { params: { serviceId: s
         router.push(`/order/${serviceId}/summary`);
       } else {
         // Payment data validation
-        const paymentError = validatePayment();
-        if (paymentError) {
-          setOrderData({ ...orderData, error: paymentError });
+        const validationError = validatePayment();
+        if (validationError) {
+          setOrderData({ ...orderData, error: validationError });
           setIsLoading(false);
           setIsSubmitting(false);
           return;
         }
 
-        const result = await processMockPayment({
-          serviceId,
-          clientId: user.id,
-          freelanceId: service?.profiles?.id,
-          amount: service?.price || 0,
-          requirements: orderData.requirements,
-          deliveryTime: service?.delivery_time || 3
-        });
+        const supabase = createClientComponentClient();
+        
+        // Create order
+        const { data: order, error: orderError } = await supabase
+          .from('orders')
+          .insert({
+            service_id: serviceId,
+            client_id: user.id,
+            freelance_id: service?.profiles?.id,
+            requirements: orderData.requirements,
+            status: 'pending',
+            price: service?.price || 0,
+            delivery_time: service?.delivery_time || 3
+          })
+          .select()
+          .single();
 
-        if (result.success) {
-          setOrderData({ 
-            ...orderData,
-            orderId: result.orderId,
-            testPaymentSuccess: false,
-            error: null
-          });
-          router.push(`/order/${serviceId}/summary`);
-        } else {
-          throw new Error(result.error || "Erreur lors du paiement");
+        if (orderError) {
+          throw new Error("Erreur lors de la création de la commande");
         }
+
+        // Process payment
+        const { error: processPaymentError } = await supabase
+          .from('payments')
+          .insert({
+            order_id: order.id,
+            client_id: user.id,
+            freelance_id: service?.profiles?.id,
+            amount: service?.price || 0,
+            status: 'pending',
+            payment_method: orderData.selectedPaymentMethod
+          });
+
+        if (processPaymentError) {
+          throw new Error("Erreur lors du traitement du paiement");
+        }
+
+        setOrderData({ 
+          ...orderData,
+          orderId: order.id,
+          testPaymentSuccess: false,
+          error: null
+        });
+        router.push(`/order/${serviceId}/summary`);
       }
     } catch (err) {
       console.error("Erreur lors du paiement:", err);

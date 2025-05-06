@@ -32,8 +32,6 @@ export const useNotificationStore = create<NotificationState>(
     fetchNotifications: async (userId: string) => {
       set({ isLoading: true, error: null });
       try {
-        console.log("Récupération des notifications pour l'utilisateur:", userId);
-        
         if (!userId) {
           console.error("ID utilisateur non valide");
           throw new Error("ID utilisateur non valide");
@@ -65,8 +63,6 @@ export const useNotificationStore = create<NotificationState>(
           throw new Error(`Erreur de récupération des notifications: ${error.message}`);
         }
         
-        console.log(`${data?.length || 0} notifications récupérées`);
-        
         // Calculer le nombre de notifications non lues
         const unreadCount = data?.filter(notif => !notif.read).length || 0;
         
@@ -86,8 +82,6 @@ export const useNotificationStore = create<NotificationState>(
     
     createNotification: async (notification) => {
       try {
-        console.log("Création d'une nouvelle notification:", notification);
-        
         const { data, error } = await supabase
           .from('notifications')
           .insert({
@@ -101,8 +95,6 @@ export const useNotificationStore = create<NotificationState>(
           console.error("Erreur lors de la création de la notification:", error);
           throw error;
         }
-        
-        console.log("Notification créée avec succès:", data);
         
         // Si c'est pour l'utilisateur actuel, mettre à jour le store
         const { data: userSession } = await supabase.auth.getSession();
@@ -158,8 +150,6 @@ export const useNotificationStore = create<NotificationState>(
         const truncatedContent = content.length > 50 ? `${content.substring(0, 47)}...` : content;
         
         // Créer une notification pour tous les utilisateurs (freelances et clients)
-        console.log(`Création de notification pour ${isFreelance ? 'freelance' : 'client'}`);
-        
         await get().createNotification({
           user_id: userId,
           type: 'message',
@@ -178,8 +168,6 @@ export const useNotificationStore = create<NotificationState>(
     
     markAsRead: async (notificationId: string) => {
       try {
-        console.log(`Marquage de la notification ${notificationId} comme lue`);
-        
         const { error } = await supabase
           .from('notifications')
           .update({ read: true })
@@ -211,8 +199,6 @@ export const useNotificationStore = create<NotificationState>(
     
     markAllAsRead: async (userId: string) => {
       try {
-        console.log(`Marquage de toutes les notifications de l'utilisateur ${userId} comme lues`);
-        
         const { error } = await supabase
           .from('notifications')
           .update({ read: true })

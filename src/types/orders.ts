@@ -1,19 +1,6 @@
-export type OrderStatus = "pending" | "in_progress" | "completed" | "delivered" | "revision_requested" | "cancelled" | "in_dispute";
+import { OrderMessage } from './messages';
 
-export interface OrderMessage {
-  id: string;
-  sender_id: string;
-  content: string;
-  timestamp: string;
-  is_read: boolean;
-  created_at?: string;
-  read?: boolean;
-  attachment_url?: string;
-  attachment_type?: string;
-  attachment_name?: string;
-  is_typing?: boolean;
-  order_id?: string;
-}
+export type OrderStatus = "pending" | "in_progress" | "completed" | "delivered" | "revision_requested" | "cancelled" | "in_dispute";
 
 export interface OrderFile {
   id: string;
