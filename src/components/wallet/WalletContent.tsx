@@ -5,14 +5,18 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useUser } from "@/hooks/useUser";
 import { useTransactions } from "@/hooks/useTransactions";
 import { formatCurrency } from "@/lib/utils/format";
-import { cn } from "@/lib/utils";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RefreshCw, ArrowDown, ArrowUp, Wallet, Calendar, SearchIcon } from "lucide-react";
 import { TransactionsList } from "@/components/transactions/TransactionsList";
 import { debounce } from "lodash";
+import { WalletStatCard } from "./WalletStatCard";
+import { FREELANCE_ROUTES } from "@/config/routes";
+
+// Minimum de solde requis pour retirer des fonds
+const MIN_WITHDRAWAL_AMOUNT = 2000;
 
 export default function WalletContent() {
   const { profile } = useUser();
@@ -33,6 +37,9 @@ export default function WalletContent() {
   
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isNavigating, setIsNavigating] = useState(false);
+  
+  // Vérifier si le retrait est possible
+  const canWithdraw = Boolean(wallet && wallet.balance >= MIN_WITHDRAWAL_AMOUNT);
   
   // Handle search input with debouncing
   const handleSearchChange = useCallback((term: string) => {
@@ -62,7 +69,7 @@ export default function WalletContent() {
   const handleWithdrawalNavigation = () => {
     if (!profile) return;
     setIsNavigating(true);
-    router.push("/dashboard/wallet/withdraw");
+    router.push(FREELANCE_ROUTES.WITHDRAW);
   };
   
   // Trigger a refresh when the component mounts
@@ -86,9 +93,9 @@ export default function WalletContent() {
   }
   
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-content="loaded">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
-        <h1 className="text-base sm:text-lg md:text-xl font-bold text-vynal-purple-light dark:text-vynal-text-primary">Wallet</h1>
+        <h1 className="text-base sm:text-lg md:text-xl font-bold text-vynal-purple-light dark:text-vynal-text-primary">Portefeuille</h1>
         <div className="flex gap-2">
           <Button
             variant="outline"
@@ -102,7 +109,7 @@ export default function WalletContent() {
           </Button>
           <Button 
             onClick={handleWithdrawalNavigation} 
-            disabled={isNavigating || !wallet || wallet.balance < 2000}
+            disabled={isNavigating || !canWithdraw}
             className="text-[10px] bg-slate-700 hover:bg-slate-800 dark:bg-vynal-accent-primary dark:hover:bg-vynal-accent-secondary text-white"
           >
             {isNavigating ? "Redirection..." : "Retirer des fonds"}
@@ -112,92 +119,49 @@ export default function WalletContent() {
       
       {/* Wallet Info Cards */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4 mb-4">
-        <Card className="rounded-2xl border border-vynal-purple-secondary/10 bg-gradient-to-br from-white to-blue-50/50 dark:from-vynal-purple-dark/50 dark:to-blue-900/20 shadow-sm hover:shadow-md transition-all duration-300">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 px-3 pt-3 sm:px-4 sm:pt-4">
-            <CardDescription className="text-[10px] sm:text-xs font-medium text-vynal-purple-light dark:text-vynal-text-primary">
-              Solde disponible
-            </CardDescription>
-            <div className="p-1.5 rounded-full bg-gradient-to-tr from-blue-200/80 to-blue-100/80 shadow-sm dark:from-blue-900/20 dark:to-blue-800/20">
-              <Wallet className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-blue-600 dark:text-blue-400" />
-            </div>
-          </CardHeader>
-          <CardContent className="px-3 pb-3 sm:px-4 sm:pb-4">
-            {isRefreshing || !wallet ? (
-              <div className="h-6 w-28 bg-vynal-purple-secondary/30 rounded-md animate-pulse"></div>
-            ) : (
-              <div className="text-sm sm:text-base font-bold text-blue-600 dark:text-blue-400">{formatCurrency(wallet.balance)}</div>
-            )}
-          </CardContent>
-          <CardFooter className="px-3 pb-3 sm:px-4 sm:pb-4">
-            <Button 
-              onClick={handleWithdrawalNavigation} 
-              disabled={isNavigating || !wallet || wallet.balance < 2000}
-              className="hidden sm:block w-full h-7 text-[10px] bg-gradient-to-r from-vynal-accent-primary to-vynal-accent-secondary hover:from-vynal-accent-secondary hover:to-vynal-accent-primary text-white rounded-xl"
-            >
-              {isNavigating ? "Redirection..." : "Effectuer un retrait"}
-            </Button>
-          </CardFooter>
-        </Card>
+        {/* Solde disponible */}
+        <div className="col-span-1">
+          <WalletStatCard
+            title="Solde disponible"
+            value={wallet ? formatCurrency(wallet.balance) : 0}
+            icon={Wallet}
+            isLoading={isRefreshing || !wallet}
+            variant="blue"
+          />
+        </div>
 
-        <Card className="rounded-2xl border border-vynal-purple-secondary/10 bg-gradient-to-br from-white to-amber-50/50 dark:from-vynal-purple-dark/50 dark:to-amber-900/20 shadow-sm hover:shadow-md transition-all duration-300">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 px-3 pt-3 sm:px-4 sm:pt-4">
-            <CardDescription className="text-[10px] sm:text-xs font-medium text-vynal-purple-light dark:text-vynal-text-primary">
-              En attente
-            </CardDescription>
-            <div className="p-1.5 rounded-full bg-gradient-to-tr from-amber-200/80 to-amber-100/80 shadow-sm dark:from-amber-900/20 dark:to-amber-800/20">
-              <Calendar className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-amber-600 dark:text-amber-400" />
-            </div>
-          </CardHeader>
-          <CardContent className="px-3 pb-3 sm:px-4 sm:pb-4">
-            {isRefreshing || !wallet ? (
-              <div className="h-6 w-28 bg-vynal-purple-secondary/30 rounded-md animate-pulse"></div>
-            ) : (
-              <div className="text-sm sm:text-base font-bold text-amber-600 dark:text-amber-400">
-                {formatCurrency(wallet.pending_balance)}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        {/* En attente */}
+        <div className="col-span-1">
+          <WalletStatCard
+            title="En attente"
+            value={wallet ? formatCurrency(wallet.pending_balance) : 0}
+            icon={Calendar}
+            isLoading={isRefreshing || !wallet}
+            variant="amber"
+          />
+        </div>
 
-        <Card className="rounded-2xl border border-vynal-purple-secondary/10 bg-gradient-to-br from-white to-green-50/50 dark:from-vynal-purple-dark/50 dark:to-green-900/20 shadow-sm hover:shadow-md transition-all duration-300">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 px-3 pt-3 sm:px-4 sm:pt-4">
-            <CardDescription className="text-[10px] sm:text-xs font-medium text-vynal-purple-light dark:text-vynal-text-primary">
-              Total des gains
-            </CardDescription>
-            <div className="p-1.5 rounded-full bg-gradient-to-tr from-green-200/80 to-green-100/80 shadow-sm dark:from-green-900/20 dark:to-green-800/20">
-              <ArrowDown className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-green-600 dark:text-green-400" />
-            </div>
-          </CardHeader>
-          <CardContent className="px-3 pb-3 sm:px-4 sm:pb-4">
-            {isRefreshing || !wallet ? (
-              <div className="h-6 w-28 bg-vynal-purple-secondary/30 rounded-md animate-pulse"></div>
-            ) : (
-              <div className="text-sm sm:text-base font-bold text-green-600 dark:text-green-400">
-                {formatCurrency(wallet.total_earnings)}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        {/* Total des gains */}
+        <div className="col-span-1">
+          <WalletStatCard
+            title="Total des gains"
+            value={wallet ? formatCurrency(wallet.total_earnings) : 0}
+            icon={ArrowDown}
+            isLoading={isRefreshing || !wallet}
+            variant="green"
+          />
+        </div>
 
-        <Card className="rounded-2xl border border-vynal-purple-secondary/10 bg-gradient-to-br from-white to-red-50/50 dark:from-vynal-purple-dark/50 dark:to-red-900/20 shadow-sm hover:shadow-md transition-all duration-300">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 px-3 pt-3 sm:px-4 sm:pt-4">
-            <CardDescription className="text-[10px] sm:text-xs font-medium text-vynal-purple-light dark:text-vynal-text-primary">
-              Total des retraits
-            </CardDescription>
-            <div className="p-1.5 rounded-full bg-gradient-to-tr from-red-200/80 to-red-100/80 shadow-sm dark:from-red-900/20 dark:to-red-800/20">
-              <ArrowUp className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-red-600 dark:text-red-400" />
-            </div>
-          </CardHeader>
-          <CardContent className="px-3 pb-3 sm:px-4 sm:pb-4">
-            {isRefreshing || !wallet ? (
-              <div className="h-6 w-28 bg-vynal-purple-secondary/30 rounded-md animate-pulse"></div>
-            ) : (
-              <div className="text-sm sm:text-base font-bold text-red-600 dark:text-red-400">
-                {formatCurrency(wallet.total_withdrawals)}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        {/* Total des retraits */}
+        <div className="col-span-1">
+          <WalletStatCard
+            title="Total des retraits"
+            value={wallet ? formatCurrency(wallet.total_withdrawals) : 0}
+            icon={ArrowUp}
+            isLoading={isRefreshing || !wallet}
+            variant="red"
+          />
+        </div>
       </div>
       
       {/* Transactions List */}
@@ -245,6 +209,14 @@ export default function WalletContent() {
           </Tabs>
         </CardContent>
       </Card>
+      
+      {/* Message d'information sur les retraits */}
+      {!canWithdraw && wallet && (
+        <div className="text-[10px] sm:text-xs text-slate-500 dark:text-vynal-text-secondary/80 text-center">
+          Vous devez avoir un solde minimum de {formatCurrency(MIN_WITHDRAWAL_AMOUNT)} pour effectuer un retrait. 
+          Votre solde actuel est de {formatCurrency(wallet.balance)}.
+        </div>
+      )}
     </div>
   );
 } 

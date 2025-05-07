@@ -701,109 +701,111 @@ function ServicesPageContent() {
   
   // JSX - Structure simplifiée
   return (
-    <div className="min-h-screen bg-white dark:bg-vynal-purple-dark">
+    <div className="min-h-screen bg-white dark:bg-vynal-purple-dark animate-in fade-in duration-300">
       {/* Hero Section */}
-      <HeroSection 
-        totalCount={totalCount}
-        categories={sortedCategories}
-        selectedCategory={selectedCategory}
-        getSubcategoriesCount={(categoryId) => getSubcategoriesByCategoryId(categoryId).length}
-      />
-
-      {/* Navigation bar */}
-      <NavigationBar 
-        activeCategory={activeCategory} 
-        activeSubcategory={activeSubcategory}
-        isRefreshing={isRefreshing}
-        servicesLoading={servicesLoading}
-        refreshData={refreshData}
-        togglePaginationMode={togglePaginationMode}
-        isLoadMoreMode={isLoadMoreMode}
-        viewMode={viewMode}
-        setViewMode={setViewMode}
-      />
-
-      {/* Subcategories section */}
-      {activeCategory && activeSubcategories.length > 0 && (
-        <section className="bg-white dark:bg-vynal-purple-dark/80 border-y border-gray-200 dark:border-vynal-purple-secondary/30 shadow-sm">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <SubcategoriesGrid 
-              subcategories={activeSubcategories}
-              selectedSubcategory={selectedSubcategory}
-              category={activeCategory}
-            />
-          </div>
-        </section>
-      )}
-
-      {/* Main content */}
-      <div className="container mx-auto px-4 py-12">
-        {/* Results header */}
-        <ResultsHeader 
-          searchQuery={searchQuery}
-          activeSubcategory={activeSubcategory}
-          activeCategory={activeCategory}
+      <main data-content="loaded">
+        <HeroSection 
           totalCount={totalCount}
-          currentPage={currentPage}
-          totalPages={totalPages}
+          categories={sortedCategories}
+          selectedCategory={selectedCategory}
+          getSubcategoriesCount={(categoryId) => getSubcategoriesByCategoryId(categoryId).length}
         />
-        
-        {/* Error messages */}
-        <ErrorDisplay 
-          connectionError={connectionError}
-          servicesError={servicesError}
+
+        {/* Navigation bar */}
+        <NavigationBar 
+          activeCategory={activeCategory} 
+          activeSubcategory={activeSubcategory}
+          isRefreshing={isRefreshing}
+          servicesLoading={servicesLoading}
           refreshData={refreshData}
+          togglePaginationMode={togglePaginationMode}
+          isLoadMoreMode={isLoadMoreMode}
+          viewMode={viewMode}
+          setViewMode={setViewMode}
         />
-        
-        {/* Services loading and results */}
-        <AnimatePresence mode="wait">
-          {servicesLoading && !isLoadMoreMode ? (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              key="loading"
-              transition={{ duration: 0.2 }}
-            >
-              <ServiceSkeletonLoader 
-                count={12}
-                showShimmer={true}
-                className="mb-4"
+
+        {/* Subcategories section */}
+        {activeCategory && activeSubcategories.length > 0 && (
+          <section className="bg-white dark:bg-vynal-purple-dark/80 border-y border-gray-200 dark:border-vynal-purple-secondary/30 shadow-sm">
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
+              <SubcategoriesGrid 
+                subcategories={activeSubcategories}
+                selectedSubcategory={selectedSubcategory}
+                category={activeCategory}
               />
-            </motion.div>
-          ) : (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              key="results"
-              transition={{ duration: 0.2 }}
-              className="w-full"
-            >
-              {services.length === 0 ? (
-                <div className="py-8">
-                  <ServiceSkeletonLoader 
-                    count={12}
-                    showShimmer={true}
-                    className="mb-4"
-                  />
-                </div>
-              ) : (
-                <ServicesGrid 
-                  services={services}
-                  currentPage={currentPage}
-                  totalPages={totalPages}
-                  servicesError={servicesError}
-                  isLoadMoreMode={isLoadMoreMode}
-                  servicesLoading={servicesLoading}
-                  handlePageChange={handlePageChange}
-                  handleLoadMore={handleLoadMore}
+            </div>
+          </section>
+        )}
+
+        {/* Main content */}
+        <div className="container mx-auto px-4 py-12">
+          {/* Results header */}
+          <ResultsHeader 
+            searchQuery={searchQuery}
+            activeSubcategory={activeSubcategory}
+            activeCategory={activeCategory}
+            totalCount={totalCount}
+            currentPage={currentPage}
+            totalPages={totalPages}
+          />
+          
+          {/* Error messages */}
+          <ErrorDisplay 
+            connectionError={connectionError}
+            servicesError={servicesError}
+            refreshData={refreshData}
+          />
+          
+          {/* Services loading and results */}
+          <AnimatePresence mode="wait">
+            {servicesLoading && !isLoadMoreMode ? (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                key="loading"
+                transition={{ duration: 0.2 }}
+              >
+                <ServiceSkeletonLoader 
+                  count={12}
+                  showShimmer={true}
+                  className="mb-4"
                 />
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                key="results"
+                transition={{ duration: 0.2 }}
+                className="w-full"
+              >
+                {services.length === 0 ? (
+                  <div className="py-8">
+                    <ServiceSkeletonLoader 
+                      count={12}
+                      showShimmer={true}
+                      className="mb-4"
+                    />
+                  </div>
+                ) : (
+                  <ServicesGrid 
+                    services={services}
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    servicesError={servicesError}
+                    isLoadMoreMode={isLoadMoreMode}
+                    servicesLoading={servicesLoading}
+                    handlePageChange={handlePageChange}
+                    handleLoadMore={handleLoadMore}
+                  />
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </main>
 
       {/* Stats footer */}
       <StatsSection statsData={STATS_DATA} />

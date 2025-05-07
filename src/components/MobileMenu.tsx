@@ -14,6 +14,7 @@ import { useRouter } from 'next/navigation';
 import { useLogout } from '@/hooks/useLogout';
 import { NavigationLoadingState } from '@/app/providers';
 import { useUser } from '@/hooks/useUser';
+import { PUBLIC_ROUTES, AUTH_ROUTES, CLIENT_ROUTES, FREELANCE_ROUTES } from '@/config/routes';
 
 import { 
   X,
@@ -164,7 +165,7 @@ const AuthenticatedMenuContent = memo(({
   const { theme } = useTheme();
   const { profile } = useUser();
   const isClient = profile?.role === 'client';
-  const dashboardPrefix = isClient ? '/client-dashboard' : '/dashboard';
+  const dashboardPrefix = isClient ? CLIENT_ROUTES.DASHBOARD : FREELANCE_ROUTES.DASHBOARD;
   const isDark = theme === 'dark';
   
   return (
@@ -341,7 +342,7 @@ const UnauthenticatedMenuContent = memo(({
         <Button 
           variant="default" 
           className="w-full py-2 h-auto text-sm relative overflow-hidden bg-gradient-to-r from-vynal-accent-primary to-vynal-accent-secondary hover:from-vynal-accent-primary/95 hover:to-vynal-accent-secondary/95 shadow hover:shadow-md transition-all"
-          onClick={() => navigateAndClose('/auth/login')}
+          onClick={() => navigateAndClose(AUTH_ROUTES.LOGIN)}
         >
           <div className="absolute inset-0 bg-white/5 rounded-full w-full h-full transform scale-0 hover:scale-100 transition-transform duration-300"></div>
           <UserIcon className="h-3.5 w-3.5 mr-2 opacity-80" />
@@ -351,7 +352,7 @@ const UnauthenticatedMenuContent = memo(({
         <Button 
           variant="outline" 
           className="w-full py-2 h-auto text-sm border-vynal-purple-secondary/20 hover:border-vynal-accent-primary/40 hover:bg-vynal-purple-secondary/5 transition-colors"
-          onClick={() => navigateAndClose('/auth/signup')}
+          onClick={() => navigateAndClose(AUTH_ROUTES.REGISTER)}
         >
           <UserPlus className="h-3.5 w-3.5 mr-2 opacity-80" />
           <span>S'inscrire</span>
@@ -366,7 +367,7 @@ const UnauthenticatedMenuContent = memo(({
             <Button 
               variant="ghost" 
               className="flex flex-col items-center py-3 px-2 text-xs group hover:bg-vynal-purple-secondary/5 transition-colors rounded-lg h-auto"
-              onClick={() => navigateAndClose('/how-it-works')}
+              onClick={() => navigateAndClose(PUBLIC_ROUTES.HOW_IT_WORKS)}
             >
               <div className="mb-1 h-7 w-7 rounded-full bg-vynal-purple-secondary/10 flex items-center justify-center group-hover:bg-vynal-purple-secondary/20 transition-colors">
                 <HelpCircle className="h-3 w-3 text-vynal-accent-primary" />
@@ -377,7 +378,7 @@ const UnauthenticatedMenuContent = memo(({
             <Button 
               variant="ghost" 
               className="flex flex-col items-center py-3 px-2 text-xs group hover:bg-vynal-purple-secondary/5 transition-colors rounded-lg h-auto"
-              onClick={() => navigateAndClose('/services')}
+              onClick={() => navigateAndClose(PUBLIC_ROUTES.SERVICES)}
             >
               <div className="mb-1 h-7 w-7 rounded-full bg-vynal-purple-secondary/10 flex items-center justify-center group-hover:bg-vynal-purple-secondary/20 transition-colors">
                 <Briefcase className="h-3 w-3 text-vynal-accent-primary" />
@@ -396,7 +397,7 @@ const UnauthenticatedMenuContent = memo(({
               variant="ghost" 
               size="sm"
               className="h-8 w-8 p-0 rounded-full flex items-center justify-center text-vynal-text-secondary/70 hover:text-vynal-accent-primary"
-              onClick={() => navigateAndClose('/about')}
+              onClick={() => navigateAndClose(PUBLIC_ROUTES.ABOUT)}
             >
               <MessageCircle className="h-3.5 w-3.5" />
             </Button>
@@ -404,7 +405,7 @@ const UnauthenticatedMenuContent = memo(({
               variant="ghost" 
               size="sm"
               className="h-8 w-8 p-0 rounded-full flex items-center justify-center text-vynal-text-secondary/70 hover:text-vynal-accent-primary"
-              onClick={() => navigateAndClose('/contact')}
+              onClick={() => navigateAndClose(PUBLIC_ROUTES.CONTACT)}
             >
               <HelpCircle className="h-3.5 w-3.5" />
             </Button>
@@ -437,7 +438,7 @@ export default function MobileMenu({ isOpen, onClose, user, activePath, setActiv
   const router = useRouter();
   
   // Préfixe de chemin pour le dashboard en fonction du rôle utilisateur
-  const dashboardPrefix = isClient ? '/client-dashboard' : '/dashboard';
+  const dashboardPrefix = isClient ? CLIENT_ROUTES.DASHBOARD : FREELANCE_ROUTES.DASHBOARD;
   
   // Notifications non lues - optimisé avec useMemo pour éviter les recalculs
   const { totalUnreadCount } = useUserNotifications(user?.id);
@@ -467,7 +468,7 @@ export default function MobileMenu({ isOpen, onClose, user, activePath, setActiv
   const navigateToHome = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     onClose();
-    router.push('/');
+    router.push(PUBLIC_ROUTES.HOME);
   }, [onClose, router]);
   
   // Empêcher le scroll du body quand le menu est ouvert
@@ -494,20 +495,56 @@ export default function MobileMenu({ isOpen, onClose, user, activePath, setActiv
   }, [isOpen]);
 
   // Mémoriser les callbacks de clic pour chaque item du menu
-  const navItemCallbacks = useMemo(() => {
-    return {
+  const navItemCallbacks: Record<string, () => void> = useMemo(() => {
+    const callbacks: Record<string, () => void> = {
       dashboard: () => { setActivePath(dashboardPrefix); onClose(); router.push(dashboardPrefix); },
-      orders: () => { setActivePath(`${dashboardPrefix}/orders`); onClose(); router.push(`${dashboardPrefix}/orders`); },
-      messages: () => { setActivePath(`${dashboardPrefix}/messages`); onClose(); router.push(`${dashboardPrefix}/messages`); },
-      disputes: () => { setActivePath(`${dashboardPrefix}/disputes`); onClose(); router.push(`${dashboardPrefix}/disputes`); },
-      wallet: () => { setActivePath(`${dashboardPrefix}/payments`); onClose(); router.push(`${dashboardPrefix}/payments`); },
-      services: () => { setActivePath(`${dashboardPrefix}/services`); onClose(); router.push(`${dashboardPrefix}/services`); },
-      stats: () => { setActivePath(`${dashboardPrefix}/stats`); onClose(); router.push(`${dashboardPrefix}/stats`); },
-      certifications: () => { setActivePath(`${dashboardPrefix}/certifications`); onClose(); router.push(`${dashboardPrefix}/certifications`); },
-      profile: () => { setActivePath(`${dashboardPrefix}/profile`); onClose(); router.push(`${dashboardPrefix}/profile`); },
-      settings: () => { setActivePath(`${dashboardPrefix}/settings`); onClose(); router.push(`${dashboardPrefix}/settings`); }
+      orders: () => { 
+        const ordersRoute = isClient ? CLIENT_ROUTES.ORDERS : FREELANCE_ROUTES.ORDERS;
+        setActivePath(ordersRoute); onClose(); router.push(ordersRoute); 
+      },
+      messages: () => { 
+        const messagesRoute = isClient ? CLIENT_ROUTES.MESSAGES : FREELANCE_ROUTES.MESSAGES;
+        setActivePath(messagesRoute); onClose(); router.push(messagesRoute); 
+      },
+      disputes: () => { 
+        const disputesRoute = isClient ? CLIENT_ROUTES.DISPUTES : FREELANCE_ROUTES.DISPUTES;
+        setActivePath(disputesRoute); onClose(); router.push(disputesRoute); 
+      },
+      wallet: () => { 
+        const walletRoute = isClient ? CLIENT_ROUTES.PAYMENTS : FREELANCE_ROUTES.WALLET;
+        setActivePath(walletRoute); onClose(); router.push(walletRoute); 
+      },
+      profile: () => { 
+        const profileRoute = isClient ? CLIENT_ROUTES.PROFILE : FREELANCE_ROUTES.PROFILE;
+        setActivePath(profileRoute); onClose(); router.push(profileRoute); 
+      },
+      settings: () => { 
+        const settingsRoute = isClient ? CLIENT_ROUTES.SETTINGS : FREELANCE_ROUTES.SETTINGS;
+        setActivePath(settingsRoute); onClose(); router.push(settingsRoute); 
+      }
     };
-  }, [setActivePath, onClose, router, dashboardPrefix]);
+    
+    // Ajouter les callbacks spécifiques aux freelances si l'utilisateur est un freelance
+    if (!isClient) {
+      callbacks.services = () => { 
+        setActivePath(FREELANCE_ROUTES.SERVICES); 
+        onClose(); 
+        router.push(FREELANCE_ROUTES.SERVICES); 
+      };
+      callbacks.stats = () => { 
+        setActivePath(FREELANCE_ROUTES.STATS); 
+        onClose(); 
+        router.push(FREELANCE_ROUTES.STATS); 
+      };
+      callbacks.certifications = () => { 
+        setActivePath(FREELANCE_ROUTES.CERTIFICATIONS); 
+        onClose(); 
+        router.push(FREELANCE_ROUTES.CERTIFICATIONS); 
+      };
+    }
+    
+    return callbacks;
+  }, [setActivePath, onClose, router, isClient, dashboardPrefix]);
   
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>

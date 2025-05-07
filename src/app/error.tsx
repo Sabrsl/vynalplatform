@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { RefreshCcw, HomeIcon } from "lucide-react";
+import { PUBLIC_ROUTES } from "@/config/routes";
 
 export default function Error({
   error,
@@ -29,7 +30,7 @@ export default function Error({
         </p>
         <div className="flex flex-col sm:flex-row justify-center gap-4">
           <Link
-            href="/"
+            href={PUBLIC_ROUTES.HOME}
             className="inline-flex items-center justify-center gap-2 bg-indigo-600 text-white py-3 px-6 rounded-md font-medium hover:bg-indigo-700 transition-colors"
           >
             <HomeIcon className="h-4 w-4" />

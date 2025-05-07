@@ -6,36 +6,38 @@ import Image from "next/image";
 import { Facebook, Twitter, Instagram, Linkedin, Mail, Moon, Sun, ClipboardCopy, Check } from "lucide-react";
 import { useTheme } from "next-themes";
 import { motion, AnimatePresence } from "framer-motion";
+import { FREELANCE_ROUTES, CLIENT_ROUTES, PUBLIC_ROUTES } from "@/config/routes";
 
 // Données du footer mémorisées en dehors du composant pour éviter les recréations inutiles
 const FOOTER_LINKS = [
   {
     title: "Services",
     links: [
-      { name: "Développement Web & Mobile", href: "/services?category=developpement-web-mobile" },
-      { name: "Design Graphique", href: "/services?category=design-graphique" },
-      { name: "Marketing Digital", href: "/services?category=marketing-digital" },
-      { name: "Rédaction & Traduction", href: "/services?category=redaction-traduction" },
-      { name: "Vidéo & Audio", href: "/services?category=video-audio" },
-      { name: "Informatique & Réseaux", href: "/services?category=informatique-reseaux" },
-      { name: "Tous les services", href: "/services" },
+      { name: "Développement Web & Mobile", href: `${PUBLIC_ROUTES.SERVICES}?category=developpement-web-mobile` },
+      { name: "Design Graphique", href: `${PUBLIC_ROUTES.SERVICES}?category=design-graphique` },
+      { name: "Marketing Digital", href: `${PUBLIC_ROUTES.SERVICES}?category=marketing-digital` },
+      { name: "Rédaction & Traduction", href: `${PUBLIC_ROUTES.SERVICES}?category=redaction-traduction` },
+      { name: "Vidéo & Audio", href: `${PUBLIC_ROUTES.SERVICES}?category=video-audio` },
+      { name: "Informatique & Réseaux", href: `${PUBLIC_ROUTES.SERVICES}?category=informatique-reseaux` },
+      { name: "Tous les services", href: PUBLIC_ROUTES.SERVICES },
     ],
   },
   {
     title: "Entreprise",
     links: [
-      { name: "À propos", href: "/about" },
-      { name: "Comment ça marche", href: "/how-it-works" },
+      { name: "À propos", href: PUBLIC_ROUTES.ABOUT },
+      { name: "Comment ça marche", href: PUBLIC_ROUTES.HOW_IT_WORKS },
       { name: "Carrières", href: "/careers" },
-      { name: "Contact", href: "/contact" },
-      { name: "FAQ", href: "/faq" },
+      { name: "Devenir Freelance", href: "/devenir-freelance" },
+      { name: "Contact", href: PUBLIC_ROUTES.CONTACT },
+      { name: "FAQ", href: PUBLIC_ROUTES.FAQ },
     ],
   },
   {
     title: "Légal",
     links: [
-      { name: "Conditions d'utilisation", href: "/terms-of-service" },
-      { name: "Politique de confidentialité", href: "/privacy-policy" },
+      { name: "Conditions d'utilisation", href: PUBLIC_ROUTES.TERMS_OF_SERVICE },
+      { name: "Politique de confidentialité", href: PUBLIC_ROUTES.PRIVACY_POLICY },
       { name: "Code de conduite", href: "/code-of-conduct" },
     ],
   },
@@ -268,7 +270,7 @@ function Footer() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
           >
-            <Link href="/">
+            <Link href={PUBLIC_ROUTES.HOME}>
               <Image 
                 src="/assets/logo/logo_vynal_platform_simple.webp" 
                 alt="Vynal Platform Logo" 
@@ -309,7 +311,10 @@ function Footer() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <ContactInfo />
             <div className="flex items-center justify-start md:justify-end text-gray-400 dark:text-vynal-text-secondary md:text-right">
-              <span className="text-[9px] opacity-70">&copy; {currentYear} Vynal Platform. Tous droits réservés.</span>
+              <span className="text-[9px] opacity-70">
+                &copy; {currentYear} Vynal Platform. Tous droits réservés.
+                <span className="ml-2 inline-flex items-center px-1 py-0.5 rounded text-[8px] font-medium bg-vynal-purple-light/10 text-vynal-purple-light dark:bg-vynal-accent-primary/10 dark:text-vynal-accent-primary">v1.2.0</span>
+              </span>
             </div>
           </div>
         </motion.div>

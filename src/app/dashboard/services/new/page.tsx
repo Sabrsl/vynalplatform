@@ -43,14 +43,26 @@ export default function NewServicePage() {
   const [activeServicesCount, setActiveServicesCount] = useState<number | null>(null);
   const [checkingServices, setCheckingServices] = useState(true);
   
+  // État séparé pour la partie saisie par l'utilisateur (sans le préfixe)
+  const [userTitleInput, setUserTitleInput] = useState("");
+  
   const [formData, setFormData] = useState({
-    title: "",
+    title: "Je vais ",
     description: "",
     price: "",
     delivery_time: "",
     category_id: "",
     subcategory_id: "",
     active: true,
+  });
+  
+  const [descriptionFields, setDescriptionFields] = useState({
+    intro: "",
+    service: "",
+    deliverables: "",
+    requirements: "",
+    timing: "",
+    exclusions: ""
   });
   
   const [subcategoriesForSelected, setSubcategoriesForSelected] = useState<Subcategory[]>([]);
@@ -163,8 +175,63 @@ export default function NewServicePage() {
     }
   }, [formData.category_id, formData.subcategory_id, subcategories]);
   
+  const handleDescriptionChange = (field: string, value: string) => {
+    setDescriptionFields(prev => {
+      const newFields = { ...prev, [field]: value };
+      
+      // Construire la description complète
+      const fullDescription = `Introduction : 
+${newFields.intro}
+
+📝 Description du service : 
+${newFields.service}
+
+🎯 Ce que vous obtiendrez : 
+${newFields.deliverables}
+
+🛠️ Ce dont j'ai besoin de vous : 
+${newFields.requirements}
+
+⏱️ Délais et révisions : 
+${newFields.timing}
+
+❌ Ce qui n'est pas inclus : 
+${newFields.exclusions}`;
+
+      // Mettre à jour la description dans formData
+      setFormData(prev => ({ ...prev, description: fullDescription }));
+      
+      return newFields;
+    });
+  };
+  
+  // Fonction pour vérifier la longueur de la description du service
+  const getServiceDescriptionLength = () => {
+    return descriptionFields.service.length;
+  };
+
+  // Fonction pour vérifier si la description du service est valide
+  const isServiceDescriptionValid = () => {
+    return getServiceDescriptionLength() >= 1000;
+  };
+  
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
+    
+    // Cas spécial pour le champ titre
+    if (name === "title") {
+      setUserTitleInput(value);
+      setFormData(prev => ({ ...prev, title: "Je vais " + value }));
+      return;
+    }
+    
+    // Cas spécial pour les champs de description
+    if (name.startsWith("description_")) {
+      const field = name.replace("description_", "");
+      handleDescriptionChange(field, value);
+      return;
+    }
+    
     setFormData(prev => ({ ...prev, [name]: value }));
   };
   
@@ -186,8 +253,13 @@ export default function NewServicePage() {
     
     try {
       // Validation des champs obligatoires
-      if (!formData.title.trim()) {
+      if (!formData.title.trim() || formData.title.trim() === "Je vais") {
         throw new Error("Le titre est obligatoire");
+      }
+      
+      // Vérifier que le titre a du contenu après "Je vais "
+      if (userTitleInput.trim().length === 0) {
+        throw new Error("Veuillez compléter le titre après \"Je vais\"");
       }
       
       if (formData.title.trim().length < 10) {
@@ -198,12 +270,13 @@ export default function NewServicePage() {
         throw new Error("La description est obligatoire");
       }
       
-      if (formData.description.trim().length < 3000) {
-        throw new Error("La description doit contenir au moins 3000 caractères pour bien décrire votre service");
+      // Vérifier uniquement la longueur de la description du service
+      if (getServiceDescriptionLength() < 1000) {
+        throw new Error("La description du service doit contenir au moins 1000 caractères");
       }
       
-      if (formData.description.trim().length > 10000) {
-        throw new Error("La description ne doit pas dépasser 10000 caractères");
+      if (getServiceDescriptionLength() > 10000) {
+        throw new Error("La description du service ne doit pas dépasser 10000 caractères");
       }
       
       if (!formData.category_id) {
@@ -269,8 +342,14 @@ export default function NewServicePage() {
       // Générer un slug à partir du titre
       const slug = slugify(formData.title);
       
+      // Vérifier que le titre commence par "Je vais "
+      const prefix = "Je vais ";
+      const title = formData.title.startsWith(prefix) 
+        ? formData.title 
+        : prefix + formData.title.replace(prefix, "");
+      
       const result = await createService({
-        title: formData.title,
+        title: title,
         description: formData.description,
         price: price,
         delivery_time: delivery_time,
@@ -345,37 +424,156 @@ export default function NewServicePage() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="title" className="text-[10px] sm:text-xs text-vynal-purple-dark dark:text-vynal-text-primary">Titre du service *</Label>
-                <Input
-                  id="title"
-                  name="title"
-                  value={formData.title}
-                  onChange={handleChange}
-                  placeholder="Ex: Je vais créer un logo professionnel pour votre entreprise"
-                  maxLength={100}
-                  required
-                  className="text-[10px] sm:text-xs text-vynal-purple-dark dark:text-vynal-text-primary"
-                />
+                <div className="relative">
+                  <div className="absolute left-0 top-0 bottom-0 bg-slate-100 dark:bg-slate-800 px-2 flex items-center rounded-l-md border-r border-slate-200 dark:border-slate-700 pointer-events-none">
+                    <span className="text-[10px] sm:text-xs text-vynal-purple-dark/80 dark:text-vynal-text-secondary font-medium">Je vais</span>
+                  </div>
+                  <Input
+                    id="title"
+                    name="title"
+                    value={userTitleInput}
+                    onChange={handleChange}
+                    placeholder="créer un logo professionnel pour votre entreprise"
+                    maxLength={93} // 100 - 7 ("Je vais" + espace)
+                    required
+                    className="text-[10px] sm:text-xs text-vynal-purple-dark dark:text-vynal-text-primary pl-20"
+                  />
+                </div>
                 <p className="text-[8px] sm:text-[10px] text-vynal-purple-dark/80 dark:text-vynal-text-secondary">
-                  {formData.title.length}/100 caractères
+                  {(formData.title.length)}/100 caractères (commence toujours par "Je vais")
                 </p>
               </div>
               
               <div className="space-y-2">
                 <Label htmlFor="description" className="text-[10px] sm:text-xs text-vynal-purple-dark dark:text-vynal-text-primary">Description *</Label>
-                <Textarea
-                  id="description"
-                  name="description"
-                  value={formData.description}
-                  onChange={handleChange}
-                  placeholder="Décrivez en détail ce que vous proposez, vos compétences, le process, etc."
-                  rows={8}
-                  maxLength={10000}
-                  required
-                  className="text-[10px] sm:text-xs text-vynal-purple-dark dark:text-vynal-text-primary"
-                />
-                <p className="text-[8px] sm:text-[10px] text-vynal-purple-dark/80 dark:text-vynal-text-secondary">
-                  {formData.description.length}/10000 caractères (minimum 3000 caractères requis)
-                </p>
+                <div className="rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 p-3 space-y-4">
+                  {/* Présentation et Expertise */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <div className="h-4 w-4 rounded-full bg-vynal-accent-primary/10 flex items-center justify-center">
+                        <span className="text-[10px] text-vynal-accent-primary">1</span>
+                      </div>
+                      <h4 className="text-[10px] sm:text-xs font-medium text-slate-800 dark:text-vynal-text-primary">Présentation et Expertise</h4>
+                    </div>
+                    <div className="space-y-2 pl-6">
+                      <Textarea
+                        id="description_intro"
+                        name="description_intro"
+                        value={descriptionFields.intro}
+                        onChange={handleChange}
+                        placeholder="Présentez-vous et votre expertise en quelques phrases"
+                        rows={2}
+                        className="text-[10px] sm:text-xs text-vynal-purple-dark dark:text-vynal-text-primary"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Description du Service */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <div className="h-4 w-4 rounded-full bg-vynal-accent-primary/10 flex items-center justify-center">
+                        <span className="text-[10px] text-vynal-accent-primary">2</span>
+                      </div>
+                      <h4 className="text-[10px] sm:text-xs font-medium text-slate-800 dark:text-vynal-text-primary">📝 Description du service</h4>
+                    </div>
+                    <div className="space-y-2 pl-6">
+                      <Textarea
+                        id="description_service"
+                        name="description_service"
+                        value={descriptionFields.service}
+                        onChange={handleChange}
+                        placeholder="Détaillez précisément ce que vous proposez"
+                        rows={3}
+                        className={`text-[10px] sm:text-xs text-vynal-purple-dark dark:text-vynal-text-primary ${
+                          !isServiceDescriptionValid() && descriptionFields.service.length > 0
+                            ? 'border-red-300 dark:border-red-800'
+                            : ''
+                        }`}
+                      />
+                      <p className="text-[8px] sm:text-[10px] text-vynal-purple-dark/80 dark:text-vynal-text-secondary">
+                        {getServiceDescriptionLength()}/10000 caractères (minimum 1000 caractères requis)
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Livrables et Résultats */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <div className="h-4 w-4 rounded-full bg-vynal-accent-primary/10 flex items-center justify-center">
+                        <span className="text-[10px] text-vynal-accent-primary">3</span>
+                      </div>
+                      <h4 className="text-[10px] sm:text-xs font-medium text-slate-800 dark:text-vynal-text-primary">🎯 Ce que vous obtiendrez</h4>
+                    </div>
+                    <div className="space-y-2 pl-6">
+                      <Textarea
+                        id="description_deliverables"
+                        name="description_deliverables"
+                        value={descriptionFields.deliverables}
+                        onChange={handleChange}
+                        placeholder="Liste des livrables et résultats concrets"
+                        rows={3}
+                        className="text-[10px] sm:text-xs text-vynal-purple-dark dark:text-vynal-text-primary"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Conditions et Prérequis */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <div className="h-4 w-4 rounded-full bg-vynal-accent-primary/10 flex items-center justify-center">
+                        <span className="text-[10px] text-vynal-accent-primary">4</span>
+                      </div>
+                      <h4 className="text-[10px] sm:text-xs font-medium text-slate-800 dark:text-vynal-text-primary">Conditions et Prérequis</h4>
+                    </div>
+                    <div className="space-y-3 pl-6">
+                      <div className="space-y-2">
+                        <h5 className="text-[10px] sm:text-xs font-medium text-slate-700 dark:text-slate-300">🛠️ Ce dont j'ai besoin de vous</h5>
+                        <Textarea
+                          id="description_requirements"
+                          name="description_requirements"
+                          value={descriptionFields.requirements}
+                          onChange={handleChange}
+                          placeholder="Informations et documents nécessaires"
+                          rows={2}
+                          className="text-[10px] sm:text-xs text-vynal-purple-dark dark:text-vynal-text-primary"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <h5 className="text-[10px] sm:text-xs font-medium text-slate-700 dark:text-slate-300">⏱️ Délais et révisions</h5>
+                        <Textarea
+                          id="description_timing"
+                          name="description_timing"
+                          value={descriptionFields.timing}
+                          onChange={handleChange}
+                          placeholder="Temps de livraison et nombre de révisions incluses"
+                          rows={2}
+                          className="text-[10px] sm:text-xs text-vynal-purple-dark dark:text-vynal-text-primary"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Limites du Service */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <div className="h-4 w-4 rounded-full bg-vynal-accent-primary/10 flex items-center justify-center">
+                        <span className="text-[10px] text-vynal-accent-primary">5</span>
+                      </div>
+                      <h4 className="text-[10px] sm:text-xs font-medium text-slate-800 dark:text-vynal-text-primary">❌ Ce qui n'est pas inclus</h4>
+                    </div>
+                    <div className="space-y-2 pl-6">
+                      <Textarea
+                        id="description_exclusions"
+                        name="description_exclusions"
+                        value={descriptionFields.exclusions}
+                        onChange={handleChange}
+                        placeholder="Précisez les limites de votre service"
+                        rows={2}
+                        className="text-[10px] sm:text-xs text-vynal-purple-dark dark:text-vynal-text-primary"
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
               
               <div className="grid grid-cols-2 gap-4">

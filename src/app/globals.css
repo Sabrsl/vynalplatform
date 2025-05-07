@@ -117,18 +117,30 @@
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 
-  /* Appliquer le fond en fonction du thème */
+  /* Base styles */
   html, body {
     min-height: 100vh;
   }
 
-  /* Désactiver le zoom sur les inputs pour mobile */
-  input, select, textarea {
+  /* Fonts & text sizing */
+  h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-poppins);
+    font-weight: 600;
+  }
+
+  p, button, .btn, input, select, textarea {
+    font-family: var(--font-poppins);
+  }
+  
+  button, .btn {
+    font-weight: 500;
+  }
+  
+  input, select, textarea {
     font-size: 16px; /* Taille minimum pour éviter le zoom sur iOS */
   }
 
-  /* Créer un élément fixe pour le dégradé de fond */
+  /* Background gradient */
   body::before {
     content: '';
     position: fixed;
@@ -139,60 +151,36 @@
     transition-duration: 300ms;
   }
 
-  /* Mode clair */
   :root body::before {
     background: linear-gradient(180deg, #f9f7ff 0%, #ffffff 100%);
   }
 
-  /* Mode sombre */
   .dark body::before {
     background: linear-gradient(180deg, #100422 0%, #0e0021 100%);
     background-size: 100% 100%;
     background-attachment: fixed;
   }
 
-  /* Style des titres avec Poppins */
-  h1, h2, h3, h4, h5, h6 {
-    font-family: var(--font-poppins);
-    font-weight: 600;
-  }
-
-  p {
-    font-family: var(--font-poppins);
-  }
-  
-  /* Style spécifique pour les boutons */
-  button, .btn {
-    font-family: var(--font-poppins);
-    font-weight: 500;
-  }
-  
-  /* Éléments d'interface utilisateur */
-  input, select, textarea {
-    font-family: var(--font-poppins);
-  }
-
-  /* Masquer les barres de défilement sur mobile */
+  /* Scrollbar styles - Mobile */
   @media (max-width: 768px) {
     * {
-      scrollbar-width: none !important;  /* Firefox */
-      -ms-overflow-style: none !important;  /* IE and Edge */
+      scrollbar-width: none !important;
+      -ms-overflow-style: none !important;
     }
     
     *::-webkit-scrollbar {
-      display: none !important;  /* Chrome, Safari, Opera */
+      display: none !important;
     }
   }
   
-  /* Style de barre de défilement personnalisée pour PC */
+  /* Scrollbar styles - Desktop */
   @media (min-width: 769px) {
     html {
-      scrollbar-width: thin; /* Firefox */
-      scrollbar-color: rgba(var(--vynal-purple-primary-rgb, 148, 85, 211), 0.5) transparent; /* Firefox */
+      scrollbar-width: thin;
+      scrollbar-color: rgba(var(--vynal-purple-primary-rgb, 148, 85, 211), 0.5) transparent;
     }
     
     body {
-      /* Réactiver explicitement la barre de défilement sur PC */
       -ms-overflow-style: auto;
       scrollbar-width: thin;
     }
@@ -217,7 +205,6 @@
       background-color: rgba(var(--vynal-purple-primary-rgb, 148, 85, 211), 0.7);
     }
     
-    /* Style spécifique pour le mode sombre */
     .dark ::-webkit-scrollbar-thumb {
       background-color: rgba(var(--vynal-accent-primary-rgb, 255, 102, 178), 0.5);
     }
@@ -226,7 +213,6 @@
       background-color: rgba(var(--vynal-accent-primary-rgb, 255, 102, 178), 0.7);
     }
     
-    /* Réactiver explicitement la barre de défilement pour les conteneurs qui utilisent .no-scrollbar */
     .no-scrollbar {
       -ms-overflow-style: auto !important;
       scrollbar-width: thin !important;
@@ -238,9 +224,9 @@
   }
 }
 
-/* Animations pour ShadCN/UI */
+/* Animations et utilités */
 @layer utilities {
-  /* Animations existantes */
+  /* Animations */
   .animate-fade-in {
     animation: fadeIn 0.5s ease-in-out;
   }
@@ -253,77 +239,45 @@
     animation: bounceIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   }
 
-  /* Animations pour ShadCN/UI */
   .animate-in {
     animation-duration: 0.3s;
     animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
     animation-fill-mode: forwards;
   }
 
-  .fade-in {
-    animation-name: fadeIn;
-  }
+  .fade-in { animation-name: fadeIn; }
+  .fade-out { animation-name: fadeOut; }
+  .slide-in-from-top { animation-name: slideInFromTop; }
+  .slide-in-from-bottom { animation-name: slideInFromBottom; }
+  .slide-out-to-top { animation-name: slideOutToTop; }
+  .slide-out-to-bottom { animation-name: slideOutToBottom; }
+  .slide-in-from-left { animation-name: slideInFromLeft; }
+  .slide-in-from-right { animation-name: slideInFromRight; }
+  .slide-out-to-left { animation-name: slideOutToLeft; }
+  .slide-out-to-right { animation-name: slideOutToRight; }
 
-  .fade-out {
-    animation-name: fadeOut;
-  }
-  
-  .slide-in-from-top {
-    animation-name: slideInFromTop;
-  }
-  
-  .slide-in-from-bottom {
-    animation-name: slideInFromBottom;
-  }
-  
-  .slide-out-to-top {
-    animation-name: slideOutToTop;
-  }
-  
-  .slide-out-to-bottom {
-    animation-name: slideOutToBottom;
-  }
-
-  .slide-in-from-left {
-    animation-name: slideInFromLeft;
-  }
-
-  .slide-in-from-right {
-    animation-name: slideInFromRight;
-  }
-
-  .slide-out-to-left {
-    animation-name: slideOutToLeft;
-  }
-
-  .slide-out-to-right {
-    animation-name: slideOutToRight;
-  }
-
-  /* Masquer la barre de défilement tout en gardant la fonctionnalité */
+  /* Scrollbar utilities */
   .scrollbar-hide {
-    -ms-overflow-style: none;  /* IE and Edge */
-    scrollbar-width: none;     /* Firefox */
+    -ms-overflow-style: none;
+    scrollbar-width: none;
   }
   
   .scrollbar-hide::-webkit-scrollbar {
-    display: none;             /* Chrome, Safari and Opera */
+    display: none;
   }
   
-  /* Masquer les scrollbars pour les éléments avec la classe .no-scrollbar */
   .no-scrollbar {
-    -ms-overflow-style: none;  /* IE and Edge */
-    scrollbar-width: none;  /* Firefox */
+    -ms-overflow-style: none;
+    scrollbar-width: none;
   }
   
   .no-scrollbar::-webkit-scrollbar {
-    display: none;  /* Chrome, Safari, Opera */
+    display: none;
   }
 
-  /* Consolidated scrollbar styles */
   .scrollbar-custom {
-    scrollbar-width: thin;  /* Firefox */
-    -ms-overflow-style: auto;  /* IE and Edge */
+    scrollbar-width: thin;
+    -ms-overflow-style: auto;
   }
 
   .scrollbar-custom::-webkit-scrollbar {
@@ -343,7 +297,6 @@
     background-color: rgba(148, 163, 184, 0.4);
   }
 
-  /* Remove duplicate classes since we now have .scrollbar-custom */
   .scrollbar-thin {
     scrollbar-width: thin;
   }
@@ -361,132 +314,62 @@
     border-radius: 20px;
   }
 
-  /* Animation classes pour Tooltip et autres composants */
-  .fade-in-0 {
-    opacity: 0;
-  }
+  /* Animation states */
+  .fade-in-0 { opacity: 0; }
+  .fade-in-100 { opacity: 1; }
+  .zoom-in-95 { transform: scale(0.95); }
+  .zoom-in-100 { transform: scale(1); }
+  .slide-in-from-top-2 { transform: translateY(-0.5rem); }
+  .slide-in-from-bottom-2 { transform: translateY(0.5rem); }
+  .slide-in-from-left-2 { transform: translateX(-0.5rem); }
+  .slide-in-from-right-2 { transform: translateX(0.5rem); }
   
-  .fade-in-100 {
-    opacity: 1;
-  }
-  
-  .zoom-in-95 {
-    transform: scale(0.95);
-  }
-  
-  .zoom-in-100 {
-    transform: scale(1);
-  }
-  
-  .slide-in-from-top-2 {
-    transform: translateY(-0.5rem);
-  }
-  
-  .slide-in-from-bottom-2 {
-    transform: translateY(0.5rem);
-  }
-  
-  .slide-in-from-left-2 {
-    transform: translateX(-0.5rem);
-  }
-  
-  .slide-in-from-right-2 {
-    transform: translateX(0.5rem);
-  }
-  
-  .data-\[state\=closed\]\:animate-out {
-    animation-name: fade-out;
-  }
-  
-  .data-\[state\=closed\]\:fade-out-0 {
-    animation-name: fade-out;
-  }
-  
-  .data-\[state\=closed\]\:zoom-out-95 {
-    animation-name: zoom-out;
-  }
+  .data-\[state\=closed\]\:animate-out { animation-name: fade-out; }
+  .data-\[state\=closed\]\:fade-out-0 { animation-name: fade-out; }
+  .data-\[state\=closed\]\:zoom-out-95 { animation-name: zoom-out; }
   
   @keyframes fade-out {
-    to {
-      opacity: 0;
-    }
+    to { opacity: 0; }
   }
   
   @keyframes zoom-out {
-    to {
-      transform: scale(0.95);
-    }
+    to { transform: scale(0.95); }
   }
 
-  /* Styles spécifiques pour les textes dans ServiceView */
-  .prose {
-    color: var(--vynal-text-primary);
-  }
+  /* Text styles */
+  .prose { color: var(--vynal-text-primary); }
+  .dark .prose { color: var(--vynal-text-primary); }
   
-  .dark .prose {
-    color: var(--vynal-text-primary);
-  }
+  .vynal-service-text { color: var(--vynal-text-primary) !important; }
+  .dark .vynal-service-text { color: var(--vynal-text-secondary) !important; }
   
-  /* Style pour les textes dans ServiceView qui doivent être en violet profond */
-  .vynal-service-text {
-    color: var(--vynal-text-primary) !important;
-  }
-  
-  .dark .vynal-service-text {
-    color: var(--vynal-text-secondary) !important;
-  }
-  
-  /* Textes de livraison, support, etc. avec la couleur principale */
   .lg\:space-y-2 li span, 
-  .flex-col span {
-    color: var(--vynal-text-primary) !important;
-  }
+  .flex-col span { color: var(--vynal-text-primary) !important; }
   
   .dark .lg\:space-y-2 li span, 
-  .dark .flex-col span {
-    color: var(--vynal-text-secondary) !important;
-  }
+  .dark .flex-col span { color: var(--vynal-text-secondary) !important; }
   
-  /* Texte secondaire pour le prix et les sous-titres */
   h2 + p.text-xs,
   p.text-sm.ml-7,
-  p.text-xs.group-hover\:text-vynal-text-secondary {
-    color: var(--vynal-text-secondary) !important;
-  }
+  p.text-xs.group-hover\:text-vynal-text-secondary { color: var(--vynal-text-secondary) !important; }
   
   .dark h2 + p.text-xs,
   .dark p.text-sm.ml-7,
-  .dark p.text-xs.group-hover\:text-vynal-text-secondary {
-    color: var(--vynal-text-secondary) !important;
-  }
+  .dark p.text-xs.group-hover\:text-vynal-text-secondary { color: var(--vynal-text-secondary) !important; }
   
-  /* Prix en rose en mode dark */
-  .dark .price-value {
-    color: var(--vynal-accent-primary) !important;
-  }
-  
-  /* Règle spécifique pour les prix dans les cards de services */
-  .dark .flex-col span.price-value {
-    color: var(--vynal-accent-primary) !important;
-  }
+  .dark .price-value { color: var(--vynal-accent-primary) !important; }
+  .dark .flex-col span.price-value { color: var(--vynal-accent-primary) !important; }
 }
 
+/* Keyframes */
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @keyframes fadeOut {
-  from {
-    opacity: 1;
-  }
-  to {
-    opacity: 0;
-  }
+  from { opacity: 1; }
+  to { opacity: 0; }
 }
 
 @keyframes slideUp {
@@ -515,87 +398,49 @@
 }
 
 @keyframes slideInFromTop {
-  from {
-    transform: translateY(-100%);
-  }
-  to {
-    transform: translateY(0);
-  }
+  from { transform: translateY(-100%); }
+  to { transform: translateY(0); }
 }
 
 @keyframes slideInFromBottom {
-  from {
-    transform: translateY(100%);
-  }
-  to {
-    transform: translateY(0);
-  }
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
 }
 
 @keyframes slideOutToTop {
-  from {
-    transform: translateY(0);
-  }
-  to {
-    transform: translateY(-100%);
-  }
+  from { transform: translateY(0); }
+  to { transform: translateY(-100%); }
 }
 
 @keyframes slideOutToBottom {
-  from {
-    transform: translateY(0);
-  }
-  to {
-    transform: translateY(100%);
-  }
+  from { transform: translateY(0); }
+  to { transform: translateY(100%); }
 }
 
 @keyframes slideInFromLeft {
-  from {
-    transform: translateX(-100%);
-  }
-  to {
-    transform: translateX(0);
-  }
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
 }
 
 @keyframes slideInFromRight {
-  from {
-    transform: translateX(100%);
-  }
-  to {
-    transform: translateX(0);
-  }
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
 }
 
 @keyframes slideOutToLeft {
-  from {
-    transform: translateX(0);
-  }
-  to {
-    transform: translateX(-100%);
-  }
+  from { transform: translateX(0); }
+  to { transform: translateX(-100%); }
 }
 
 @keyframes slideOutToRight {
-  from {
-    transform: translateX(0);
-  }
-  to {
-    transform: translateX(100%);
-  }
+  from { transform: translateX(0); }
+  to { transform: translateX(100%); }
 }
 
 @keyframes gradient-x {
-  0% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: 0% 50%;
-  }
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
 .animate-gradient-x {
@@ -606,7 +451,7 @@
   background-size: 200% 100%;
 }
 
-/* Styles pour les termes recherchés mis en évidence */
+/* Mark styling */
 mark {
   background-color: rgba(var(--vynal-accent-primary-rgb), 0.3);
   color: inherit;
@@ -621,9 +466,9 @@ mark:hover {
   background-color: rgba(var(--vynal-accent-primary-rgb), 0.5);
 }
 
-/* Nouvelles classes utilitaires pour les composants communs */
+/* Component styles */
 @layer components {
-  /* Boutons primaires */
+  /* Button styles */
   .btn-vynal-primary {
     font-weight: 500;
     box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
@@ -655,7 +500,7 @@ mark:hover {
     background-color: var(--vynal-accent-secondary);
   }
   
-  /* Boutons secondaires avec contour */
+  /* Outline buttons */
   .btn-vynal-outline {
     transition-property: color, background-color, border-color;
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
@@ -680,7 +525,7 @@ mark:hover {
     background-color: rgba(42, 12, 87, 0.2);
   }
   
-  /* Cartes */
+  /* Card styles */
   .card-vynal {
     overflow: hidden;
     border-width: 1px;
@@ -699,7 +544,7 @@ mark:hover {
     backdrop-filter: blur(4px);
   }
   
-  /* Textes */
+  /* Text styles */
   .text-vynal-title {
     color: #2C1A4C;
   }
@@ -716,7 +561,7 @@ mark:hover {
     color: var(--vynal-text-secondary);
   }
   
-  /* Icônes */
+  /* Icon styles */
   .icon-vynal {
     color: #2C1A4C;
   }
@@ -726,7 +571,7 @@ mark:hover {
   }
 }
 
-/* Classe pour forcer la couleur du texte des boutons en mode light */
+/* Force white text */
 .force-white-text, .force-white-text span {
   color: white !important;
 } 

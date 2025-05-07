@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, CheckCircle2, Download, ExternalLink, Star, Info } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import FreelancePricingCalculator from "@/components/calculators/FreelancePricingCalculator";
+import { FREELANCE_ROUTES, AUTH_ROUTES, PUBLIC_ROUTES } from "@/config/routes";
 
 export default function FreelanceGuidePage() {
   return (
@@ -44,7 +45,7 @@ export default function FreelanceGuidePage() {
                   <Download className="mr-2 h-4 w-4" /> Télécharger ce guide (PDF)
                 </Button>
                 <Button variant="outline" className="border-vynal-purple-secondary/50 text-vynal-text-primary hover:bg-vynal-purple-secondary/20">
-                  <Link href="/dashboard/services/new">Créer mon premier service</Link>
+                  <Link href={`${FREELANCE_ROUTES.SERVICES}/new`}>Créer mon premier service</Link>
                 </Button>
               </div>
             </div>
@@ -420,10 +421,10 @@ export default function FreelanceGuidePage() {
                     </p>
                     <div className="flex flex-col sm:flex-row gap-4">
                       <Button className="bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-vynal-purple-dark">
-                        <Link href="/auth/signup">Créer un compte gratuit</Link>
+                        <Link href={AUTH_ROUTES.REGISTER}>Créer un compte gratuit</Link>
                       </Button>
                       <Button variant="outline" className="border-vynal-purple-secondary/50 text-vynal-text-primary hover:bg-vynal-purple-secondary/20">
-                        <Link href="/dashboard/services/new">Publier mon premier service</Link>
+                        <Link href={`${FREELANCE_ROUTES.SERVICES}/new`}>Publier mon premier service</Link>
                       </Button>
                     </div>
                   </div>

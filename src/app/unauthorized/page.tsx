@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Lock, ArrowLeft, LogIn } from "lucide-react";
+import { AUTH_ROUTES } from "@/config/routes";
 
 export default function Unauthorized() {
   return (
@@ -21,7 +22,7 @@ export default function Unauthorized() {
         </p>
         <div className="flex flex-col sm:flex-row justify-center gap-4">
           <Link
-            href="/auth/login"
+            href={AUTH_ROUTES.LOGIN}
             className="inline-flex items-center justify-center gap-2 bg-indigo-600 text-white py-3 px-6 rounded-md font-medium hover:bg-indigo-700 transition-colors"
           >
             <LogIn className="h-4 w-4" />

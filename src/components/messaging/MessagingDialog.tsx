@@ -12,6 +12,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ShieldAlert } from 'lucide-react';
 import { validateMessage } from '@/lib/message-validation';
 import { Loader } from '@/components/ui/loader';
+import { FREELANCE_ROUTES, CLIENT_ROUTES } from "@/config/routes";
 
 interface MessagingDialogProps {
   freelanceId: string;
@@ -142,7 +143,7 @@ const MessagingDialog = ({
       
       // Redirection
       setTimeout(() => {
-        router.push(`/dashboard/messages?conversation=${conversationId}`);
+        router.push(`${FREELANCE_ROUTES.MESSAGES}?conversation=${conversationId}`);
       }, 500);
       
     } catch (err: any) {

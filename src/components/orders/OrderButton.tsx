@@ -45,7 +45,7 @@ export function OrderButton({
     // Vérifier si l'utilisateur est connecté
     if (!user && !authLoading) {
       hotToast.error("Vous devez être connecté pour commander");
-      router.push("/sign-in");
+      router.push(`/auth/login?redirectTo=/order/${serviceId}/unified-checkout`);
       return;
     }
     

@@ -27,20 +27,21 @@ import { useUserNotifications } from "@/hooks/useUserNotifications";
 import NotificationBadge from "@/components/ui/notification-badge";
 import { NavigationLoadingState } from "@/app/providers";
 import { useUser } from "@/hooks/useUser";
+import { FREELANCE_ROUTES, AUTH_ROUTES } from "@/config/routes";
 
 // Mémoriser les icônes par path pour éviter les re-créations
 const NAV_ICONS = {
-  "/dashboard": Home,
-  "/dashboard/orders": ShoppingBag,
-  "/dashboard/messages": MessageSquare,
-  "/dashboard/disputes": AlertTriangle,
-  "/dashboard/wallet": CreditCard,
-  "/dashboard/services": FileText,
-  "/dashboard/stats": BarChart2,
-  "/dashboard/certifications": Award,
-  "/dashboard/profile": User,
-  "/dashboard/settings": Settings,
-  "/dashboard/help": HelpCircle
+  [FREELANCE_ROUTES.DASHBOARD]: Home,
+  [FREELANCE_ROUTES.ORDERS]: ShoppingBag,
+  [FREELANCE_ROUTES.MESSAGES]: MessageSquare,
+  [FREELANCE_ROUTES.DISPUTES]: AlertTriangle,
+  [FREELANCE_ROUTES.WALLET]: CreditCard,
+  [FREELANCE_ROUTES.SERVICES]: FileText,
+  [FREELANCE_ROUTES.STATS]: BarChart2,
+  [FREELANCE_ROUTES.CERTIFICATIONS]: Award,
+  [FREELANCE_ROUTES.PROFILE]: User,
+  [FREELANCE_ROUTES.SETTINGS]: Settings,
+  [FREELANCE_ROUTES.HELP]: HelpCircle
 };
 
 // Composant memoïsé pour les éléments de navigation
@@ -109,29 +110,29 @@ const MainNavigation = memo(({ totalUnreadCount, handleNavClick, signOut }: {
   <nav className="space-y-5">
     {/* Éléments essentiels */}
     <NavGroup title="Principal">
-      <NavItem href="/dashboard" icon={NAV_ICONS["/dashboard"]} label="Tableau de bord" onClick={handleNavClick} />
-      <NavItem href="/dashboard/orders" icon={NAV_ICONS["/dashboard/orders"]} label="Commandes reçues" onClick={handleNavClick} />
-      <NavItem href="/dashboard/messages" icon={NAV_ICONS["/dashboard/messages"]} label="Messages" badgeCount={totalUnreadCount} onClick={handleNavClick} />
-      <NavItem href="/dashboard/disputes" icon={NAV_ICONS["/dashboard/disputes"]} label="Litiges" onClick={handleNavClick} />
-      <NavItem href="/dashboard/wallet" icon={NAV_ICONS["/dashboard/wallet"]} label="Paiements" onClick={handleNavClick} />
+      <NavItem href={FREELANCE_ROUTES.DASHBOARD} icon={NAV_ICONS[FREELANCE_ROUTES.DASHBOARD]} label="Tableau de bord" onClick={handleNavClick} />
+      <NavItem href={FREELANCE_ROUTES.ORDERS} icon={NAV_ICONS[FREELANCE_ROUTES.ORDERS]} label="Commandes reçues" onClick={handleNavClick} />
+      <NavItem href={FREELANCE_ROUTES.MESSAGES} icon={NAV_ICONS[FREELANCE_ROUTES.MESSAGES]} label="Messages" badgeCount={totalUnreadCount} onClick={handleNavClick} />
+      <NavItem href={FREELANCE_ROUTES.DISPUTES} icon={NAV_ICONS[FREELANCE_ROUTES.DISPUTES]} label="Litiges" onClick={handleNavClick} />
+      <NavItem href={FREELANCE_ROUTES.WALLET} icon={NAV_ICONS[FREELANCE_ROUTES.WALLET]} label="Paiements" onClick={handleNavClick} />
     </NavGroup>
     
     {/* Section pour Freelance uniquement */}
     <NavGroup title="Services">
-      <NavItem href="/dashboard/services" icon={NAV_ICONS["/dashboard/services"]} label="Mes services" onClick={handleNavClick} />
-      <NavItem href="/dashboard/stats" icon={NAV_ICONS["/dashboard/stats"]} label="Statistiques" onClick={handleNavClick} />
-      <NavItem href="/dashboard/certifications" icon={NAV_ICONS["/dashboard/certifications"]} label="Certifications" onClick={handleNavClick} />
+      <NavItem href={FREELANCE_ROUTES.SERVICES} icon={NAV_ICONS[FREELANCE_ROUTES.SERVICES]} label="Mes services" onClick={handleNavClick} />
+      <NavItem href={FREELANCE_ROUTES.STATS} icon={NAV_ICONS[FREELANCE_ROUTES.STATS]} label="Statistiques" onClick={handleNavClick} />
+      <NavItem href={FREELANCE_ROUTES.CERTIFICATIONS} icon={NAV_ICONS[FREELANCE_ROUTES.CERTIFICATIONS]} label="Certifications" onClick={handleNavClick} />
     </NavGroup>
     
     {/* Section profil et configuration */}
     <NavGroup title="Paramètres">
-      <NavItem href="/dashboard/profile" icon={NAV_ICONS["/dashboard/profile"]} label="Mon profil" onClick={handleNavClick} />
-      <NavItem href="/dashboard/settings" icon={NAV_ICONS["/dashboard/settings"]} label="Paramètres" onClick={handleNavClick} />
+      <NavItem href={FREELANCE_ROUTES.PROFILE} icon={NAV_ICONS[FREELANCE_ROUTES.PROFILE]} label="Mon profil" onClick={handleNavClick} />
+      <NavItem href={FREELANCE_ROUTES.SETTINGS} icon={NAV_ICONS[FREELANCE_ROUTES.SETTINGS]} label="Paramètres" onClick={handleNavClick} />
     </NavGroup>
     
     {/* Aide et ressources */}
     <NavGroup title="Ressources">
-      <NavItem href="/dashboard/help" icon={NAV_ICONS["/dashboard/help"]} label="Aide" onClick={handleNavClick} />
+      <NavItem href={FREELANCE_ROUTES.HELP} icon={NAV_ICONS[FREELANCE_ROUTES.HELP]} label="Aide" onClick={handleNavClick} />
     </NavGroup>
     
     {/* Bouton de déconnexion */}
@@ -212,8 +213,15 @@ export default function DashboardLayout({
   const router = useRouter();
   const pathname = usePathname();
   
+  // Optimisation : mémoriser les informations utilisateur
+  const userInfo = useMemo(() => ({ 
+    userId: user?.id,
+    isClient,
+    isFreelance
+  }), [user?.id, isClient, isFreelance]);
+  
   // Notifications non lues - optimisé
-  const { totalUnreadCount, refresh: refreshNotifications } = useUserNotifications(user?.id);
+  const { totalUnreadCount, refresh: refreshNotifications } = useUserNotifications(userInfo.userId);
 
   // Gestionnaire unifié pour la navigation
   const handleNavClick = useCallback((e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
@@ -233,7 +241,7 @@ export default function DashboardLayout({
   // Détection de visibilité d'onglet pour rafraîchir les notifications
   useEffect(() => {
     // Ne rien faire si l'utilisateur n'est pas connecté
-    if (!user?.id) return;
+    if (!userInfo.userId) return;
     
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
@@ -246,14 +254,14 @@ export default function DashboardLayout({
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [user?.id, refreshNotifications]);
+  }, [userInfo.userId, refreshNotifications]);
 
   // Redirection vers l'authentification si non connecté
   useEffect(() => {
     if (loading) return;
     
     if (!user) {
-      router.push("/auth/login");
+      router.push(AUTH_ROUTES.LOGIN);
     }
   }, [user, loading, router]);
 
@@ -262,17 +270,15 @@ export default function DashboardLayout({
     if (loading || !profile) return;
     
     // Si l'utilisateur est un client mais essaie d'accéder au tableau de bord freelance
-    if (isClient && pathname?.startsWith('/dashboard')) {
-      console.log("Client détecté accédant au tableau de bord freelance - redirection vers /client-dashboard");
+    if (userInfo.isClient && pathname?.startsWith('/dashboard')) {
       router.push('/client-dashboard');
     }
     
     // Si l'utilisateur est un freelance mais essaie d'accéder au tableau de bord client
-    if (isFreelance && pathname?.startsWith('/client-dashboard')) {
-      console.log("Freelance détecté accédant au tableau de bord client - redirection vers /dashboard");
+    if (userInfo.isFreelance && pathname?.startsWith('/client-dashboard')) {
       router.push('/dashboard');
     }
-  }, [isClient, isFreelance, loading, pathname, profile, router]);
+  }, [userInfo.isClient, userInfo.isFreelance, loading, pathname, profile, router]);
 
   // Loading state - optimisé
   if (loading || !user) {
@@ -304,7 +310,7 @@ export default function DashboardLayout({
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 w-full md:w-[calc(100%-4rem)] lg:w-[calc(100%-5rem)] overflow-y-auto p-4 sm:p-6 bg-gray-50 dark:bg-vynal-purple-dark">
+      <main className="flex-1 w-full md:w-[calc(100%-4rem)] lg:w-[calc(100%-5rem)] overflow-y-auto p-4 sm:p-6 bg-gray-50 dark:bg-vynal-purple-dark" data-content="loaded">
         {children}
       </main>
     </div>

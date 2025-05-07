@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase/client';
 import type { Database } from '@/types/database';
 import { StateCreator } from 'zustand';
 import { eventEmitter, EVENTS, type NotificationEvent } from '@/lib/utils/events';
+import { FREELANCE_ROUTES, CLIENT_ROUTES } from "@/config/routes";
 
 export type Notification = Database['public']['Tables']['notifications']['Row'];
 
@@ -154,7 +155,7 @@ export const useNotificationStore = create<NotificationState>(
           user_id: userId,
           type: 'message',
           content: `${senderName}: ${truncatedContent}`,
-          link: `/dashboard/messages?conversation=${conversationId}`,
+          link: `${FREELANCE_ROUTES.MESSAGES}?conversation=${conversationId}`,
           metadata: JSON.stringify({
             conversation_id: conversationId,
             sender_id: senderId,

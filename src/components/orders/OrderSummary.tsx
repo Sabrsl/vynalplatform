@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Loader } from "@/components/ui/loader";
 import { Separator } from "@/components/ui/separator";
 import { PaymentMethodType } from "@/lib/constants/payment";
+import { FREELANCE_ROUTES, CLIENT_ROUTES } from "@/config/routes";
 
 interface OrderSummaryProps {
   service: {
@@ -73,7 +74,7 @@ export function OrderSummary({
   
   const handleViewOrders = () => {
     try {
-      router.push('/dashboard/orders');
+      router.push(FREELANCE_ROUTES.ORDERS);
       onClose();
     } catch (error) {
       console.error("Erreur lors de la redirection vers les commandes:", error);

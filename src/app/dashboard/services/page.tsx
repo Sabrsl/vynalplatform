@@ -37,6 +37,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { ServicesPageSkeleton } from "@/components/skeletons/ServicesPageSkeleton";
+import { ServiceRulesModal } from "@/components/services/ServiceRulesModal";
 
 // Performance optimizations - Dynamic imports
 import dynamic from 'next/dynamic';
@@ -1018,6 +1019,17 @@ export default function ServicesPage() {
     }
   }, [router]);
 
+  const [isRulesModalOpen, setIsRulesModalOpen] = useState(false);
+
+  const handleCreateService = () => {
+    setIsRulesModalOpen(true);
+  };
+
+  const handleAcceptRules = () => {
+    setIsRulesModalOpen(false);
+    router.push("/dashboard/services/new");
+  };
+
   // Display skeleton during initial loading
   if (loading && !isRefreshing) {
     return <ServicesPageSkeleton />;
@@ -1037,7 +1049,7 @@ export default function ServicesPage() {
           {services.length > 0 && (
             <div className="w-full sm:w-auto flex justify-center sm:justify-end">
               <Button 
-                onClick={() => router.push("/dashboard/services/new")} 
+                onClick={handleCreateService} 
                 className="w-full sm:w-auto text-xs sm:text-sm bg-gradient-to-r from-vynal-accent-primary to-vynal-accent-secondary hover:from-vynal-accent-primary/90 hover:to-vynal-accent-secondary/90 dark:from-vynal-accent-primary dark:to-vynal-accent-secondary dark:hover:from-vynal-accent-primary/90 dark:hover:to-vynal-accent-secondary/90 transition-all duration-300 shadow-sm hover:shadow-md"
                 disabled={!loading && profile !== null && profile !== undefined && profile.role === 'freelance' && (!profile.is_certified || profile.certification_type !== 'expert') && activeServicesCount >= 6}
                 title={!loading && profile !== null && profile !== undefined && profile.role === 'freelance' && (!profile.is_certified || profile.certification_type !== 'expert') && activeServicesCount >= 6 ? 
@@ -1153,7 +1165,7 @@ export default function ServicesPage() {
             <h3 className="text-lg sm:text-xl font-bold text-slate-800 dark:text-slate-200 mb-2 sm:mb-4 text-center">Vous n'avez pas encore de services</h3>
             <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mb-5 sm:mb-6 text-center max-w-md">Créez votre premier service pour mettre en valeur vos compétences</p>
             <Button 
-              onClick={() => router.push("/dashboard/services/new")} 
+              onClick={handleCreateService} 
               className="w-full sm:w-auto text-xs sm:text-sm bg-gradient-to-r from-vynal-accent-primary to-vynal-accent-secondary hover:from-vynal-accent-primary/90 hover:to-vynal-accent-secondary/90 dark:from-vynal-accent-primary dark:to-vynal-accent-secondary dark:hover:from-vynal-accent-primary/90 dark:hover:to-vynal-accent-secondary/90 transition-all duration-300 shadow-sm hover:shadow-md"
               disabled={!loading && profile !== null && profile !== undefined && profile.role === 'freelance' && (!profile.is_certified || profile.certification_type !== 'expert') && activeServicesCount >= 6}
               title={!loading && profile !== null && profile !== undefined && profile.role === 'freelance' && (!profile.is_certified || profile.certification_type !== 'expert') && activeServicesCount >= 6 ? 
@@ -1342,6 +1354,12 @@ export default function ServicesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ServiceRulesModal 
+        isOpen={isRulesModalOpen}
+        onClose={() => setIsRulesModalOpen(false)}
+        onAccept={handleAcceptRules}
+      />
     </div>
   );
 } 

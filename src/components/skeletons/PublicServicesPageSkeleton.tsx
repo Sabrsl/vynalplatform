@@ -3,7 +3,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export function PublicServicesPageSkeleton() {
   return (
-    <div className="min-h-screen bg-white dark:bg-vynal-purple-dark">
+    <div className="fixed inset-0 z-[9999] bg-white dark:bg-vynal-purple-dark animate-in fade-in duration-300">
       {/* Hero Section */}
       <section className="bg-gradient-to-b from-vynal-purple-dark to-vynal-purple-darkest py-8 lg:py-14 relative">
         <div className="container mx-auto px-4 relative z-10">

@@ -9,12 +9,12 @@ export default function LoginPage() {
   const searchParams = useSearchParams();
   // Mémoriser le chemin de redirection pour éviter les recalculs inutiles
   const redirect = useMemo(() => 
-    searchParams.get('redirect') || '/dashboard', 
+    searchParams.get('redirectTo') || '/dashboard', 
     [searchParams]
   );
   
   return (
-    <AuthLayout title="Connexion">
+    <AuthLayout title="Vynal Platform">
       <LoginForm redirectPath={redirect} />
     </AuthLayout>
   );

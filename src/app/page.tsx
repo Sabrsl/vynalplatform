@@ -13,6 +13,7 @@ import { useCategories } from '@/hooks/useCategories';
 import { findBestCategoryMatch } from '@/lib/search/searchService';
 import { useAuth } from "@/hooks/useAuth";
 import { useUser } from "@/hooks/useUser";
+import { PUBLIC_ROUTES, AUTH_ROUTES } from "@/config/routes";
 
 export default function Home() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -29,14 +30,14 @@ export default function Home() {
       setIsSearching(true);
       
       // Rediriger directement vers la page de recherche avec le terme de recherche
-      router.push(`/services?search=${encodeURIComponent(searchQuery.trim())}`);
+      router.push(`${PUBLIC_ROUTES.SERVICES}?search=${encodeURIComponent(searchQuery.trim())}`);
     }
   };
 
   // Fonction pour gérer les clics sur les catégories
   const handleCategoryClick = (categorySlug: string) => {
     // Rediriger simplement vers la catégorie sans chercher à atteindre les sous-catégories
-    router.push(`/services?category=${categorySlug}`);
+    router.push(`${PUBLIC_ROUTES.SERVICES}?category=${categorySlug}`);
   };
 
   useEffect(() => {
@@ -78,12 +79,12 @@ export default function Home() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
               <Link 
-                href="/services" 
+                href={PUBLIC_ROUTES.SERVICES} 
                 className="bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-vynal-purple-dark py-3 px-6 rounded-md font-medium flex items-center gap-2 transition-all shadow-md"
               >
                 Explorer les services <ArrowRight size={18} />
               </Link>
-              <BorderBeamButton href="/auth/signup?role=freelance" className="force-white-text">
+              <BorderBeamButton href="/devenir-freelance" className="force-white-text">
                 Devenir freelance
               </BorderBeamButton>
             </div>
@@ -102,7 +103,7 @@ export default function Home() {
                   />
                 </div>
                 <div className="flex flex-wrap gap-2 mb-4">
-                  <Link href="/services?category=developpement-web-mobile" 
+                  <Link href={`${PUBLIC_ROUTES.SERVICES}?category=developpement-web-mobile`} 
                     className="bg-white dark:bg-vynal-purple-dark/90 text-vynal-title dark:text-vynal-text-primary text-sm py-1 px-3 rounded-full border border-gray-200 dark:border-vynal-accent-primary/20 hover:bg-gray-50 dark:hover:bg-vynal-purple-dark/80 transition-all"
                     onClick={(e) => {
                       e.preventDefault();
@@ -110,7 +111,7 @@ export default function Home() {
                     }}>
                     Développement Web & Mobile
                   </Link>
-                  <Link href="/services?category=design-graphique" 
+                  <Link href={`${PUBLIC_ROUTES.SERVICES}?category=design-graphique`} 
                     className="bg-white dark:bg-vynal-purple-dark/90 text-vynal-title dark:text-vynal-text-primary text-sm py-1 px-3 rounded-full border border-gray-200 dark:border-vynal-accent-primary/20 hover:bg-gray-50 dark:hover:bg-vynal-purple-dark/80 transition-all"
                     onClick={(e) => {
                       e.preventDefault();
@@ -118,7 +119,7 @@ export default function Home() {
                     }}>
                     Design Graphique
                   </Link>
-                  <Link href="/services?category=marketing-digital" 
+                  <Link href={`${PUBLIC_ROUTES.SERVICES}?category=marketing-digital`} 
                     className="bg-white dark:bg-vynal-purple-dark/90 text-vynal-title dark:text-vynal-text-primary text-sm py-1 px-3 rounded-full border border-gray-200 dark:border-vynal-accent-primary/20 hover:bg-gray-50 dark:hover:bg-vynal-purple-dark/80 transition-all"
                     onClick={(e) => {
                       e.preventDefault();
@@ -126,7 +127,7 @@ export default function Home() {
                     }}>
                     Marketing Digital
                   </Link>
-                  <Link href="/services?category=agriculture-elevage" 
+                  <Link href={`${PUBLIC_ROUTES.SERVICES}?category=agriculture-elevage`}
                     className="bg-white dark:bg-vynal-purple-dark/90 text-vynal-title dark:text-vynal-text-primary text-sm py-1 px-3 rounded-full border border-gray-200 dark:border-vynal-accent-primary/20 hover:bg-gray-50 dark:hover:bg-vynal-purple-dark/80 transition-all"
                     onClick={(e) => {
                       e.preventDefault();
@@ -134,7 +135,7 @@ export default function Home() {
                     }}>
                     Agriculture & Élevage
                   </Link>
-                  <Link href="/services?category=informatique-reseaux" 
+                  <Link href={`${PUBLIC_ROUTES.SERVICES}?category=informatique-reseaux`}
                     className="bg-white dark:bg-vynal-purple-dark/90 text-vynal-title dark:text-vynal-text-primary text-sm py-1 px-3 rounded-full border border-gray-200 dark:border-vynal-accent-primary/20 hover:bg-gray-50 dark:hover:bg-vynal-purple-dark/80 transition-all"
                     onClick={(e) => {
                       e.preventDefault();
@@ -142,7 +143,7 @@ export default function Home() {
                     }}>
                     Informatique & Réseaux
                   </Link>
-                  <Link href="/services?category=sante-bien-etre" 
+                  <Link href={`${PUBLIC_ROUTES.SERVICES}?category=sante-bien-etre`}
                     className="bg-white dark:bg-vynal-purple-dark/90 text-vynal-title dark:text-vynal-text-primary text-sm py-1 px-3 rounded-full border border-gray-200 dark:border-vynal-accent-primary/20 hover:bg-gray-50 dark:hover:bg-vynal-purple-dark/80 transition-all"
                     onClick={(e) => {
                       e.preventDefault();
@@ -230,12 +231,12 @@ export default function Home() {
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <Link 
-              href="/auth/signup?role=client" 
+              href={`${AUTH_ROUTES.REGISTER}?role=client`}
               className="bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-vynal-purple-dark py-3 px-8 rounded-md font-medium transition-all shadow-md"
             >
               S'inscrire comme client
             </Link>
-            <BorderBeamButton href="/auth/signup?role=freelance" className="force-white-text">
+            <BorderBeamButton href="/devenir-freelance" className="force-white-text">
               S'inscrire comme freelance
             </BorderBeamButton>
           </div>

@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: false,
+  swcMinify: true,
   images: {
     remotePatterns: [
       {
@@ -37,6 +38,9 @@ const nextConfig = {
         hostname: 'lh3.googleusercontent.com',
       }
     ],
+    formats: ['image/avif', 'image/webp'],
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
   },
   // Désactiver la génération statique pour les pages qui utilisent useSearchParams
   // et d'autres API uniquement disponibles côté client
@@ -45,17 +49,20 @@ const nextConfig = {
     missingSuspenseWithCSRBailout: false,
     // Améliorer la stabilité du serveur de développement
     serverComponentsExternalPackages: ['@next/react-dev-overlay'],
+    optimisticClientCache: true,
   },
   output: 'standalone',
   // Augmenter la taille limite des pages pour éviter les problèmes de mémoire
   compiler: {
     // Réduire la taille du bundle en développement
-    removeConsole: process.env.NODE_ENV === 'production',
+    removeConsole: process.env.NODE_ENV === 'production' ? {
+      exclude: ['error', 'warn'],
+    } : false,
   },
   // Désactiver la vérification des modules pour permettre des fallbacks
   transpilePackages: ['next'],
-  // Augmenter la mémoire allouée au processus de build
-  webpack: (config, { isServer }) => {
+  // Optimisation webpack
+  webpack: (config, { dev, isServer }) => {
     // Optimisation pour éviter les erreurs de module manquant
     config.resolve.fallback = {
       ...config.resolve.fallback,
@@ -64,7 +71,52 @@ const nextConfig = {
       tls: false,
     };
     
+    // Optimisations supplémentaires pour la production
+    if (!dev && !isServer) {
+      // Améliorer le fractionnement du code
+      config.optimization.splitChunks = {
+        chunks: 'all',
+        maxInitialRequests: 25,
+        minSize: 20000,
+        cacheGroups: {
+          defaultVendors: {
+            test: /[\\/]node_modules[\\/]/,
+            priority: -10,
+            reuseExistingChunk: true,
+          },
+          default: {
+            minChunks: 2,
+            priority: -20,
+            reuseExistingChunk: true,
+          },
+        },
+      };
+    }
+    
     return config;
+  },
+  // Optimisation des headers pour le cache et la sécurité
+  async headers() {
+    return [
+      {
+        source: '/fonts/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+      {
+        source: '/images/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+    ];
   },
   // Ajout d'éventuelles redirections ou rewrites ici si nécessaire
   // redirects: async () => { return [] },

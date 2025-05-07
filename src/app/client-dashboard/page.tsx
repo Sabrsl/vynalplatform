@@ -137,7 +137,7 @@ export default function ClientDashboardPage() {
   const userName = profile?.full_name || profile?.username || user?.user_metadata?.name || "Client";
 
   return (
-    <div className="container max-w-6xl mx-auto px-4 py-6">
+    <div className="container max-w-6xl mx-auto px-4 py-6" data-content="loaded">
       {/* En-tête du tableau de bord */}
       <div className="flex flex-col space-y-2 md:flex-row md:items-center md:justify-between md:space-y-0 mb-6">
         <div>

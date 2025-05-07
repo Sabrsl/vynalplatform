@@ -7,6 +7,7 @@ import { useUser } from "@/hooks/useUser";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { eventEmitter, EVENTS } from "@/lib/utils/events";
+import { FREELANCE_ROUTES, CLIENT_ROUTES } from "@/config/routes";
 
 // Interface pour les données des notifications - adaptée du modèle Order du projet
 interface PendingOrderNotification {
@@ -149,7 +150,7 @@ export function OrderNotificationProvider({
                 <Button
                   variant="link"
                   size="sm"
-                  onClick={() => router.push(`/dashboard/orders/${latestOrder.id}`)}
+                  onClick={() => router.push(`${FREELANCE_ROUTES.ORDERS}/${latestOrder.id}`)}
                   className="p-0 h-auto font-normal"
                 >
                   Voir
@@ -307,7 +308,7 @@ export function OrderNotificationProvider({
                   <Button
                     variant="link"
                     size="sm"
-                    onClick={() => router.push(`/dashboard/orders/${orderData.id}`)}
+                    onClick={() => router.push(`${FREELANCE_ROUTES.ORDERS}/${orderData.id}`)}
                     className="p-0 h-auto font-normal"
                   >
                     Voir

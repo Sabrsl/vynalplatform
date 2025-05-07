@@ -10,6 +10,7 @@ import { ArrowLeft } from 'lucide-react';
 export default function PageTransition() {
   const pathname = usePathname();
   const [loading, setLoading] = useState(false);
+  const [contentLoaded, setContentLoaded] = useState(false);
 
   // Réinitialise l'état de chargement lorsque la navigation se termine (changement de chemin)
   // Reset loading state when navigation completes (path changes)
@@ -17,22 +18,48 @@ export default function PageTransition() {
     if (loading) {
       // Gérer différemment les pages de service pour éviter les superpositions
       if (pathname?.includes('/services/') && pathname !== '/services') {
-        // Désactiver immédiatement le skeleton pour les pages de service
-        setLoading(false);
-        return;
+        // Désactiver le skeleton après un délai pour les pages de service
+        const timer = setTimeout(() => {
+          setLoading(false);
+        }, 600);
+        return () => clearTimeout(timer);
       }
       
       // Attend un peu avant de masquer pour éviter un flash
       // Wait a bit before hiding to prevent flash
       const timer = setTimeout(() => {
-        // Si le chemin est celui d'une page de détail de service, masquons immédiatement
-        // Si non, appliquons le délai standard
-        const delay = 300;
-        setTimeout(() => setLoading(false), delay);
-      }, 300);
+        // Si le contenu est chargé, on peut masquer le skeleton
+        if (contentLoaded) {
+          setLoading(false);
+        } else {
+          // Sinon on attend encore un peu et on vérifie à nouveau
+          setTimeout(() => setLoading(false), 400);
+        }
+      }, 450);
       return () => clearTimeout(timer);
     }
-  }, [pathname, loading]);
+  }, [pathname, loading, contentLoaded]);
+
+  // Détecte lorsque le contenu est chargé
+  useEffect(() => {
+    if (!loading) return;
+
+    const checkContent = () => {
+      const mainContent = document.querySelector('main');
+      if (mainContent && mainContent.children.length > 0) {
+        setContentLoaded(true);
+      }
+    };
+
+    // Vérifier immédiatement puis à intervalles courts
+    checkContent();
+    const interval = setInterval(checkContent, 100);
+
+    return () => {
+      clearInterval(interval);
+      setContentLoaded(false);
+    };
+  }, [loading]);
 
   // Gère les clics sur les liens avec une détection optimisée
   // Handle link clicks with optimized detection
@@ -66,6 +93,7 @@ export default function PageTransition() {
     
     // Affiche l'état de chargement immédiatement au clic, avant que la navigation ne se produise
     // Show loading state immediately on click, before the actual navigation happens
+    setContentLoaded(false);
     setLoading(true);
   }, []);
 
@@ -79,12 +107,14 @@ export default function PageTransition() {
     
     // Affiche le chargement immédiatement pour les boutons de navigation
     // Show loading immediately for navigation buttons
+    setContentLoaded(false);
     setLoading(true);
   }, []);
 
   // Gère les événements de navigation programmatique
   // Handle programmatic navigation events
   const handleManualNavigation = useCallback(() => {
+    setContentLoaded(false);
     setLoading(true);
   }, []);
 
@@ -263,7 +293,7 @@ export default function PageTransition() {
 
   // Utilisons un fond complètement opaque pour éviter tout problème de transparence
   return (
-    <div className="absolute inset-0 z-[9999] bg-white dark:bg-vynal-purple-dark flex flex-col items-center justify-start pt-20 animate-in fade-in duration-300" data-testid="page-transition">
+    <div className="absolute inset-0 z-[9999] bg-white dark:bg-vynal-purple-dark flex flex-col items-center justify-start pt-20 animate-in fade-in duration-500" data-testid="page-transition">
       <div className="container mx-auto px-4 max-w-5xl">
         {renderSkeleton()}
       </div>

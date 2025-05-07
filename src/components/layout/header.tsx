@@ -35,6 +35,7 @@ import { useTheme } from "next-themes";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuGroup, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import Image from "next/image";
 import { debounce } from "lodash";
+import { FREELANCE_ROUTES, CLIENT_ROUTES, AUTH_ROUTES } from "@/config/routes";
 
 // Données de navigation mémorisées en dehors du composant
 const BASE_NAVIGATION = [
@@ -203,7 +204,7 @@ const UnauthenticatedMenu = memo(({ router }: { router: any }) => {
       exit={{ opacity: 0, scale: 0.9 }}
       transition={{ duration: 0.2 }}
     >
-      <Link href="/auth/signup" passHref>
+      <Link href={AUTH_ROUTES.REGISTER} passHref>
         <Button 
           variant="ghost" 
           size="sm" 
@@ -213,7 +214,7 @@ const UnauthenticatedMenu = memo(({ router }: { router: any }) => {
           S'inscrire
         </Button>
       </Link>
-      <Link href="/auth/login" passHref>
+      <Link href={AUTH_ROUTES.LOGIN} passHref>
         <Button 
           variant="default" 
           size="sm" 
@@ -245,10 +246,10 @@ const DashboardButton = memo(({
   
   // Déterminer le bon chemin de dashboard en fonction du rôle
   const dashboardPath = isClient 
-    ? '/client-dashboard' 
+    ? CLIENT_ROUTES.DASHBOARD 
     : isFreelance 
-      ? '/dashboard' 
-      : '/dashboard'; // Par défaut, rediriger vers le dashboard freelance
+      ? FREELANCE_ROUTES.DASHBOARD 
+      : FREELANCE_ROUTES.DASHBOARD; // Par défaut, rediriger vers le dashboard freelance
   
   // Vérifier si le chemin actuel correspond au bon type de dashboard
   const isInWrongDashboard = (isClient && activePath.startsWith('/dashboard')) || 
@@ -682,6 +683,7 @@ function Header() {
   const isActive = useCallback((path: string) => {
     // Si le chemin est un sous-chemin de dashboard, vérifier aussi client-dashboard
     if (path.startsWith('/dashboard/') && userProfile.profile?.role === 'client') {
+      // Utiliser les constantes de routes pour la conversion
       const clientPath = path.replace('/dashboard/', '/client-dashboard/');
       return pathname === path || pathname?.startsWith(`${path}/`) || 
              pathname === clientPath || pathname?.startsWith(`${clientPath}/`);
@@ -690,22 +692,22 @@ function Header() {
     return pathname === path || pathname?.startsWith(`${path}/`);
   }, [pathname, userProfile.profile?.role]);
   
-  // Définir la navigation en fonction du rôle de l'utilisateur
+  // Définir la navigation en fonction du rôle de l'utilisateur avec les constantes
   const authenticatedNavigation = useMemo(() => {
-    const dashboardPrefix = userProfile.profile?.role === 'client' ? '/client-dashboard' : '/dashboard';
+    const isClient = userProfile.profile?.role === 'client';
     
     return [
       ...(userProfile.profile?.role === 'freelance' ? [
-        { name: "Mes Services", href: `${dashboardPrefix}/services`, icon: Briefcase },
-        { name: "Créer un Service", href: `${dashboardPrefix}/services/new`, icon: PlusCircle },
+        { name: "Mes Services", href: FREELANCE_ROUTES.SERVICES, icon: Briefcase },
+        { name: "Créer un Service", href: `${FREELANCE_ROUTES.SERVICES}/new`, icon: PlusCircle },
       ] : []),
-      ...(userProfile.profile?.role === 'client' ? [
-        { name: "Favoris", href: `${dashboardPrefix}/favorites`, icon: Heart },
+      ...(isClient ? [
+        { name: "Favoris", href: `${CLIENT_ROUTES.DASHBOARD}/favorites`, icon: Heart },
       ] : []),
-      { name: "Commandes", href: `${dashboardPrefix}/orders`, icon: Briefcase },
-      { name: "Messages", href: `${dashboardPrefix}/messages`, icon: MessageSquare },
-      { name: "Wallet", href: `${dashboardPrefix}/payments`, icon: Wallet },
-      { name: "Profil", href: `${dashboardPrefix}/profile`, icon: User },
+      { name: "Commandes", href: isClient ? CLIENT_ROUTES.ORDERS : FREELANCE_ROUTES.ORDERS, icon: Briefcase },
+      { name: "Messages", href: isClient ? CLIENT_ROUTES.MESSAGES : FREELANCE_ROUTES.MESSAGES, icon: MessageSquare },
+      { name: "Wallet", href: isClient ? CLIENT_ROUTES.PAYMENTS : FREELANCE_ROUTES.WALLET, icon: Wallet },
+      { name: "Profil", href: isClient ? CLIENT_ROUTES.PROFILE : FREELANCE_ROUTES.PROFILE, icon: User },
     ];
   }, [
     userProfile.profile?.role
@@ -983,25 +985,25 @@ function Header() {
                           </div>
                           <div className="border-t border-vynal-purple-secondary/20 dark:border-vynal-purple-secondary/20 my-1" />
                           <div className="space-y-0.5">
-                            <Link href={userStatus.isClient ? "/client-dashboard/profile" : "/dashboard/profile"} className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs cursor-pointer ${isDark ? 'hover:bg-vynal-purple-secondary/30 text-vynal-text-primary' : 'hover:bg-vynal-purple-100/60 text-vynal-purple-dark'}`}>
+                            <Link href={userStatus.isClient ? CLIENT_ROUTES.PROFILE : FREELANCE_ROUTES.PROFILE} className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs cursor-pointer ${isDark ? 'hover:bg-vynal-purple-secondary/30 text-vynal-text-primary' : 'hover:bg-vynal-purple-100/60 text-vynal-purple-dark'}`}>
                               <User className="h-3 w-3" />
                               <span>Profil</span>
                             </Link>
-                            <Link href={userStatus.isClient ? "/client-dashboard/orders" : "/dashboard/orders"} className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs cursor-pointer ${isDark ? 'hover:bg-vynal-purple-secondary/30 text-vynal-text-primary' : 'hover:bg-vynal-purple-100/60 text-vynal-purple-dark'}`}>
+                            <Link href={userStatus.isClient ? CLIENT_ROUTES.ORDERS : FREELANCE_ROUTES.ORDERS} className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs cursor-pointer ${isDark ? 'hover:bg-vynal-purple-secondary/30 text-vynal-text-primary' : 'hover:bg-vynal-purple-100/60 text-vynal-purple-dark'}`}>
                               <Briefcase className="h-3 w-3" />
                               <span>Commandes</span>
                             </Link>
                             {userStatus.isFreelance && (
-                              <Link href="/dashboard/services" className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs cursor-pointer ${isDark ? 'hover:bg-vynal-purple-secondary/30 text-vynal-text-primary' : 'hover:bg-vynal-purple-100/60 text-vynal-purple-dark'}`}>
+                              <Link href={FREELANCE_ROUTES.SERVICES} className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs cursor-pointer ${isDark ? 'hover:bg-vynal-purple-secondary/30 text-vynal-text-primary' : 'hover:bg-vynal-purple-100/60 text-vynal-purple-dark'}`}>
                                 <Briefcase className="h-3 w-3" />
                                 <span>Mes Services</span>
                               </Link>
                             )}
-                            <Link href={userStatus.isClient ? "/client-dashboard/messages" : "/dashboard/messages"} className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs cursor-pointer ${isDark ? 'hover:bg-vynal-purple-secondary/30 text-vynal-text-primary' : 'hover:bg-vynal-purple-100/60 text-vynal-purple-dark'}`}>
+                            <Link href={userStatus.isClient ? CLIENT_ROUTES.MESSAGES : FREELANCE_ROUTES.MESSAGES} className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs cursor-pointer ${isDark ? 'hover:bg-vynal-purple-secondary/30 text-vynal-text-primary' : 'hover:bg-vynal-purple-100/60 text-vynal-purple-dark'}`}>
                               <MessageSquare className="h-3 w-3" />
                               <span>Messages</span>
                             </Link>
-                            <Link href={userStatus.isClient ? "/client-dashboard/payments" : "/dashboard/wallet"} className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs cursor-pointer ${isDark ? 'hover:bg-vynal-purple-secondary/30 text-vynal-text-primary' : 'hover:bg-vynal-purple-100/60 text-vynal-purple-dark'}`}>
+                            <Link href={userStatus.isClient ? CLIENT_ROUTES.PAYMENTS : FREELANCE_ROUTES.WALLET} className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs cursor-pointer ${isDark ? 'hover:bg-vynal-purple-secondary/30 text-vynal-text-primary' : 'hover:bg-vynal-purple-100/60 text-vynal-purple-dark'}`}>
                               <Wallet className="h-3 w-3" />
                               <span>Portefeuille</span>
                             </Link>

@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { RefreshIndicator } from "@/components/ui/refresh-indicator";
 import { useCallback, useMemo, memo, useState, useEffect } from "react";
 import { DashboardPageSkeleton } from "@/components/skeletons/DashboardPageSkeleton";
+import { FREELANCE_ROUTES } from "@/config/routes";
 
 // Type pour les statistiques d'un freelance
 interface FreelanceStats {
@@ -353,19 +354,19 @@ const QuickActions = memo(() => (
     </CardHeader>
     <CardContent className="px-4 pb-4 sm:px-6 sm:pb-6">
       <div className="grid grid-cols-2 gap-2 sm:gap-3">
-        <Link href="/dashboard/services/new" className="bg-vynal-purple-secondary/5 dark:bg-vynal-purple-secondary/10 hover:bg-vynal-purple-secondary/10 dark:hover:bg-vynal-purple-secondary/20 p-2 sm:p-4 rounded-lg flex flex-col items-center text-center gap-1 sm:gap-2 transition-colors">
+        <Link href={`${FREELANCE_ROUTES.SERVICES}/new`} className="bg-vynal-purple-secondary/5 dark:bg-vynal-purple-secondary/10 hover:bg-vynal-purple-secondary/10 dark:hover:bg-vynal-purple-secondary/20 p-2 sm:p-4 rounded-lg flex flex-col items-center text-center gap-1 sm:gap-2 transition-colors">
           <Package className="h-4 w-4 sm:h-5 sm:w-5 text-vynal-accent-primary" />
           <span className="text-[10px] sm:text-xs font-medium text-vynal-purple-light dark:text-vynal-text-primary">Créer un service</span>
         </Link>
-        <Link href="/dashboard/messages" className="bg-vynal-purple-secondary/5 dark:bg-vynal-purple-secondary/10 hover:bg-vynal-purple-secondary/10 dark:hover:bg-vynal-purple-secondary/20 p-2 sm:p-4 rounded-lg flex flex-col items-center text-center gap-1 sm:gap-2 transition-colors">
+        <Link href={FREELANCE_ROUTES.MESSAGES} className="bg-vynal-purple-secondary/5 dark:bg-vynal-purple-secondary/10 hover:bg-vynal-purple-secondary/10 dark:hover:bg-vynal-purple-secondary/20 p-2 sm:p-4 rounded-lg flex flex-col items-center text-center gap-1 sm:gap-2 transition-colors">
           <MessageCircle className="h-4 w-4 sm:h-5 sm:w-5 text-vynal-accent-primary" />
           <span className="text-[10px] sm:text-xs font-medium text-vynal-purple-light dark:text-vynal-text-primary">Messages</span>
         </Link>
-        <Link href="/dashboard/orders" className="bg-vynal-purple-secondary/5 dark:bg-vynal-purple-secondary/10 hover:bg-vynal-purple-secondary/10 dark:hover:bg-vynal-purple-secondary/20 p-2 sm:p-4 rounded-lg flex flex-col items-center text-center gap-1 sm:gap-2 transition-colors">
+        <Link href={FREELANCE_ROUTES.ORDERS} className="bg-vynal-purple-secondary/5 dark:bg-vynal-purple-secondary/10 hover:bg-vynal-purple-secondary/10 dark:hover:bg-vynal-purple-secondary/20 p-2 sm:p-4 rounded-lg flex flex-col items-center text-center gap-1 sm:gap-2 transition-colors">
           <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-vynal-accent-primary" />
           <span className="text-[10px] sm:text-xs font-medium text-vynal-purple-light dark:text-vynal-text-primary">Commandes</span>
         </Link>
-        <Link href="/dashboard/wallet" className="bg-vynal-purple-secondary/5 dark:bg-vynal-purple-secondary/10 hover:bg-vynal-purple-secondary/10 dark:hover:bg-vynal-purple-secondary/20 p-2 sm:p-4 rounded-lg flex flex-col items-center text-center gap-1 sm:gap-2 transition-colors">
+        <Link href={FREELANCE_ROUTES.WALLET} className="bg-vynal-purple-secondary/5 dark:bg-vynal-purple-secondary/10 hover:bg-vynal-purple-secondary/10 dark:hover:bg-vynal-purple-secondary/20 p-2 sm:p-4 rounded-lg flex flex-col items-center text-center gap-1 sm:gap-2 transition-colors">
           <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 text-vynal-accent-primary" />
           <span className="text-[10px] sm:text-xs font-medium text-vynal-purple-light dark:text-vynal-text-primary">Paiements</span>
         </Link>
@@ -500,7 +501,7 @@ export default function DashboardPage() {
   }
   
   return (
-    <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6">
+    <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6" data-content="loaded">
       {/* En-tête du Dashboard */}
       <div className="flex justify-between items-center">
         <h1 className="text-base sm:text-lg md:text-xl font-bold text-vynal-purple-light dark:text-vynal-text-primary">

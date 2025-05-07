@@ -219,10 +219,10 @@ function SignupForm() {
   }, [passwordValue]);
 
   return (
-    <div className="w-full max-w-md p-8 space-y-8 bg-vynal-purple-dark/90 rounded-xl shadow-lg shadow-vynal-accent-secondary/20 border border-vynal-purple-secondary/30">
+    <div className="w-full max-w-md p-8 space-y-8 bg-white/30 dark:bg-vynal-purple-dark/90 rounded-xl shadow-sm shadow-slate-200/50 dark:shadow-vynal-accent-secondary/20 border border-slate-200 dark:border-vynal-purple-secondary/30 transition-all duration-200">
       <div className="text-center">
-        <h1 className="text-2xl font-bold text-vynal-text-primary">Inscription</h1>
-        <p className="mt-2 text-sm text-vynal-text-secondary">
+        <h1 className="text-2xl font-bold text-slate-800 dark:text-vynal-text-primary">Inscription</h1>
+        <p className="mt-2 text-sm text-slate-600 dark:text-vynal-text-secondary">
           Créez votre compte {watch("role") === "client" ? "client" : "freelance"} et commencez à utiliser notre plateforme.
         </p>
       </div>
@@ -236,7 +236,7 @@ function SignupForm() {
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <div className="space-y-2">
-          <label htmlFor="role" className="text-sm font-medium text-vynal-text-primary">
+          <label htmlFor="role" className="text-sm font-medium text-slate-800 dark:text-vynal-text-primary">
             Je m'inscris en tant que
           </label>
           <div className="flex space-x-4">
@@ -246,7 +246,7 @@ function SignupForm() {
               className={`flex-1 flex items-center justify-center p-3 border rounded-md transition-colors ${
                 watch("role") === "client" 
                   ? "border-vynal-accent-primary bg-vynal-accent-primary/20 text-vynal-accent-primary" 
-                  : "border-vynal-purple-secondary/50 text-vynal-text-secondary hover:bg-vynal-purple-secondary/10"
+                  : "border-slate-200/50 text-slate-700 dark:border-vynal-purple-secondary/50 dark:text-vynal-text-secondary hover:bg-slate-100/20 dark:hover:bg-vynal-purple-secondary/10"
               }`}
               disabled={isLoading}
               aria-pressed={watch("role") === "client"}
@@ -259,7 +259,7 @@ function SignupForm() {
               className={`flex-1 flex items-center justify-center p-3 border rounded-md transition-colors ${
                 watch("role") === "freelance" 
                   ? "border-vynal-accent-primary bg-vynal-accent-primary/20 text-vynal-accent-primary" 
-                  : "border-vynal-purple-secondary/50 text-vynal-text-secondary hover:bg-vynal-purple-secondary/10"
+                  : "border-slate-200/50 text-slate-700 dark:border-vynal-purple-secondary/50 dark:text-vynal-text-secondary hover:bg-slate-100/20 dark:hover:bg-vynal-purple-secondary/10"
               }`}
               disabled={isLoading}
               aria-pressed={watch("role") === "freelance"}
@@ -270,12 +270,12 @@ function SignupForm() {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="email" className="text-sm font-medium text-vynal-text-primary">
+          <Label htmlFor="email" className="text-sm font-medium text-slate-800 dark:text-vynal-text-primary">
             Email
           </Label>
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Mail className="h-5 w-5 text-vynal-text-secondary" />
+              <Mail className="h-5 w-5 text-slate-400 dark:text-vynal-text-secondary" />
             </div>
             <input
               id="email"
@@ -284,7 +284,7 @@ function SignupForm() {
               disabled={isLoading}
               aria-invalid={errors.email ? "true" : "false"}
               aria-describedby="email-error"
-              className="block w-full pl-10 pr-3 py-2 bg-vynal-purple-secondary/30 border border-vynal-purple-secondary/50 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-vynal-accent-primary focus:border-vynal-accent-primary text-vynal-text-primary placeholder:text-vynal-text-secondary/70"
+              className="block w-full pl-10 pr-3 py-2 bg-white/40 dark:bg-vynal-purple-secondary/30 border border-slate-200/50 dark:border-vynal-purple-secondary/50 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-vynal-accent-primary focus:border-vynal-accent-primary text-slate-800 dark:text-vynal-text-primary placeholder:text-slate-400 dark:placeholder:text-vynal-text-secondary/70"
               placeholder="votre@email.com"
               {...register('email')}
             />
@@ -295,12 +295,12 @@ function SignupForm() {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="password" className="text-sm font-medium text-vynal-text-primary">
+          <Label htmlFor="password" className="text-sm font-medium text-slate-800 dark:text-vynal-text-primary">
             Mot de passe
           </Label>
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Lock className="h-5 w-5 text-vynal-text-secondary" />
+              <Lock className="h-5 w-5 text-slate-400 dark:text-vynal-text-secondary" />
             </div>
             <input
               id="password"
@@ -309,7 +309,7 @@ function SignupForm() {
               disabled={isLoading}
               aria-invalid={errors.password ? "true" : "false"}
               aria-describedby="password-error password-requirements"
-              className="block w-full pl-10 pr-10 py-2 bg-vynal-purple-secondary/30 border border-vynal-purple-secondary/50 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-vynal-accent-primary focus:border-vynal-accent-primary text-vynal-text-primary placeholder:text-vynal-text-secondary/70"
+              className="block w-full pl-10 pr-10 py-2 bg-white/40 dark:bg-vynal-purple-secondary/30 border border-slate-200/50 dark:border-vynal-purple-secondary/50 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-vynal-accent-primary focus:border-vynal-accent-primary text-slate-800 dark:text-vynal-text-primary placeholder:text-slate-400 dark:placeholder:text-vynal-text-secondary/70"
               placeholder="••••••••"
               {...register('password')}
             />
@@ -317,7 +317,7 @@ function SignupForm() {
               <button
                 type="button"
                 onClick={togglePasswordVisibility}
-                className="text-vynal-text-secondary hover:text-vynal-text-primary focus:outline-none transition-colors"
+                className="text-slate-400 dark:text-vynal-text-secondary hover:text-slate-800 dark:hover:text-vynal-text-primary focus:outline-none transition-colors"
                 aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
                 disabled={isLoading}
               >
@@ -328,7 +328,7 @@ function SignupForm() {
           
           {dirtyFields.password && (
             <div id="password-requirements" className="mt-3 space-y-2">
-              <div className="w-full bg-vynal-purple-secondary/30 rounded-full h-2">
+              <div className="w-full bg-white/40 dark:bg-vynal-purple-secondary/30 rounded-full h-2">
                 <div 
                   className={`h-2 rounded-full transition-all duration-300 ${
                     passwordStrength < 40 ? 'bg-red-500' : 
@@ -352,7 +352,7 @@ function SignupForm() {
                     ) : (
                       <XCircle className="h-3 w-3 text-red-500 mr-2" />
                     )}
-                    <span className={check.valid ? "text-green-500" : "text-vynal-text-secondary"}>
+                    <span className={check.valid ? "text-green-500" : "text-slate-400 dark:text-vynal-text-secondary"}>
                       {check.text}
                     </span>
                   </li>
@@ -367,12 +367,12 @@ function SignupForm() {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="confirmPassword" className="text-sm font-medium text-vynal-text-primary">
+          <Label htmlFor="confirmPassword" className="text-sm font-medium text-slate-800 dark:text-vynal-text-primary">
             Confirmer le mot de passe
           </Label>
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Lock className="h-5 w-5 text-vynal-text-secondary" />
+              <Lock className="h-5 w-5 text-slate-400 dark:text-vynal-text-secondary" />
             </div>
             <input
               id="confirmPassword"
@@ -381,7 +381,7 @@ function SignupForm() {
               disabled={isLoading}
               aria-invalid={errors.confirmPassword ? "true" : "false"}
               aria-describedby="confirm-password-error"
-              className="block w-full pl-10 pr-10 py-2 bg-vynal-purple-secondary/30 border border-vynal-purple-secondary/50 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-vynal-accent-primary focus:border-vynal-accent-primary text-vynal-text-primary placeholder:text-vynal-text-secondary/70"
+              className="block w-full pl-10 pr-10 py-2 bg-white/40 dark:bg-vynal-purple-secondary/30 border border-slate-200/50 dark:border-vynal-purple-secondary/50 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-vynal-accent-primary focus:border-vynal-accent-primary text-slate-800 dark:text-vynal-text-primary placeholder:text-slate-400 dark:placeholder:text-vynal-text-secondary/70"
               placeholder="••••••••"
               {...register('confirmPassword')}
             />
@@ -389,7 +389,7 @@ function SignupForm() {
               <button
                 type="button"
                 onClick={toggleConfirmPasswordVisibility}
-                className="text-vynal-text-secondary hover:text-vynal-text-primary focus:outline-none transition-colors"
+                className="text-slate-400 dark:text-vynal-text-secondary hover:text-slate-800 dark:hover:text-vynal-text-primary focus:outline-none transition-colors"
                 aria-label={showConfirmPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
                 disabled={isLoading}
               >
@@ -408,14 +408,14 @@ function SignupForm() {
               id="termsAccepted"
               type="checkbox"
               disabled={isLoading}
-              className="h-4 w-4 bg-vynal-purple-secondary/30 border-vynal-purple-secondary/50 rounded focus:ring-vynal-accent-primary text-vynal-accent-primary"
+              className="h-4 w-4 bg-white/40 dark:bg-vynal-purple-secondary/30 border border-slate-200/50 dark:border-vynal-purple-secondary/50 rounded focus:ring-vynal-accent-primary text-vynal-accent-primary"
               {...register('termsAccepted')}
               aria-invalid={errors.termsAccepted ? "true" : "false"}
               aria-describedby="terms-error"
             />
           </div>
           <div className="text-sm">
-            <label htmlFor="termsAccepted" className="text-vynal-text-secondary">
+            <label htmlFor="termsAccepted" className="text-slate-600 dark:text-vynal-text-secondary">
               J'accepte les{" "}
               <Link href="/terms-of-service" className="text-vynal-accent-primary hover:text-vynal-accent-secondary underline">
                 Conditions d'utilisation
@@ -454,7 +454,7 @@ function SignupForm() {
         </Button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-vynal-text-secondary">
+      <p className="mt-6 text-center text-sm text-slate-600 dark:text-vynal-text-secondary">
         Vous avez déjà un compte ?{" "}
         <Link
           href="/auth/login"

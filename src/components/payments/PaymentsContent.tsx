@@ -1,15 +1,15 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { formatCurrency } from "@/lib/utils/format";
 import { TransactionsList } from "@/components/payments/TransactionsList";
 import { useTransactions } from "@/hooks/useTransactions";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { ArrowDown, ArrowUp, Wallet } from "lucide-react";
+import { WalletStatCard } from "@/components/wallet/WalletStatCard";
 
 export function PaymentsContent() {
   const searchParams = useSearchParams();
@@ -36,20 +36,11 @@ export function PaymentsContent() {
   }), [wallet]);
   
   useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Données PaymentsContent:', {
-        wallet,
-        safeWallet,
-        stats,
-        loading,
-        transactionsCount: transactions?.length,
-      });
-    }
-    
     refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   
-  const handleSearch = (value: string) => {
+  const handleSearch = useCallback((value: string) => {
     setSearch(value);
     
     const params = new URLSearchParams(searchParams);
@@ -60,9 +51,9 @@ export function PaymentsContent() {
     }
     
     router.replace(`${pathname}?${params.toString()}`);
-  };
+  }, [searchParams, router, pathname]);
   
-  const handleTabChange = (value: string) => {
+  const handleTabChange = useCallback((value: string) => {
     const params = new URLSearchParams(searchParams);
     
     if (value === "all") {
@@ -76,68 +67,34 @@ export function PaymentsContent() {
     }
     
     router.replace(`${pathname}?${params.toString()}`);
-  };
+  }, [searchParams, router, pathname, search]);
   
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-content="loaded">
       <div className="grid gap-3 md:grid-cols-3">
-        <Card className="border border-vynal-purple-secondary/10 shadow-sm hover:shadow-md transition-shadow duration-300">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 px-3 pt-3 sm:px-4 sm:pt-4">
-            <CardTitle className="text-xs sm:text-sm font-medium text-vynal-purple-light dark:text-vynal-text-primary">
-              Solde du portefeuille
-            </CardTitle>
-            <div className="p-1.5 rounded-full bg-gradient-to-tr from-vynal-purple-secondary/30 to-vynal-purple-secondary/20 shadow-sm">
-              <Wallet className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-vynal-purple-secondary dark:text-vynal-text-secondary" />
-            </div>
-          </CardHeader>
-          <CardContent className="px-3 pb-3 sm:px-4 sm:pb-4">
-            {loading ? (
-              <Skeleton className="h-6 w-20" />
-            ) : (
-              <div className="text-base sm:text-lg font-bold">{formatCurrency(safeWallet.balance)}</div>
-            )}
-          </CardContent>
-        </Card>
+        <WalletStatCard
+          title="Solde du portefeuille"
+          value={formatCurrency(safeWallet.balance)}
+          icon={Wallet}
+          isLoading={loading}
+          variant="default"
+        />
         
-        <Card className="border border-vynal-purple-secondary/10 shadow-sm hover:shadow-md transition-shadow duration-300">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 px-3 pt-3 sm:px-4 sm:pt-4">
-            <CardTitle className="text-xs sm:text-sm font-medium text-vynal-purple-light dark:text-vynal-text-primary">
-              Total des gains
-            </CardTitle>
-            <div className="p-1.5 rounded-full bg-gradient-to-tr from-green-200/80 to-green-100/80 shadow-sm dark:from-green-900/20 dark:to-green-800/20">
-              <ArrowDown className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-green-600 dark:text-green-400" />
-            </div>
-          </CardHeader>
-          <CardContent className="px-3 pb-3 sm:px-4 sm:pb-4">
-            {loading ? (
-              <Skeleton className="h-6 w-20" />
-            ) : (
-              <div className="text-base sm:text-lg font-bold text-green-600 dark:text-green-400">
-                {formatCurrency(safeWallet.total_earnings)}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <WalletStatCard
+          title="Total des gains"
+          value={formatCurrency(safeWallet.total_earnings)}
+          icon={ArrowDown}
+          isLoading={loading}
+          variant="green"
+        />
         
-        <Card className="border border-vynal-purple-secondary/10 shadow-sm hover:shadow-md transition-shadow duration-300">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 px-3 pt-3 sm:px-4 sm:pt-4">
-            <CardTitle className="text-xs sm:text-sm font-medium text-vynal-purple-light dark:text-vynal-text-primary">
-              Total des retraits
-            </CardTitle>
-            <div className="p-1.5 rounded-full bg-gradient-to-tr from-red-200/80 to-red-100/80 shadow-sm dark:from-red-900/20 dark:to-red-800/20">
-              <ArrowUp className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-red-600 dark:text-red-400" />
-            </div>
-          </CardHeader>
-          <CardContent className="px-3 pb-3 sm:px-4 sm:pb-4">
-            {loading ? (
-              <Skeleton className="h-6 w-20" />
-            ) : (
-              <div className="text-base sm:text-lg font-bold text-red-600 dark:text-red-400">
-                {formatCurrency(safeWallet.total_withdrawals)}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <WalletStatCard
+          title="Total des retraits"
+          value={formatCurrency(safeWallet.total_withdrawals)}
+          icon={ArrowUp}
+          isLoading={loading}
+          variant="red"
+        />
       </div>
       
       <div className="space-y-3">

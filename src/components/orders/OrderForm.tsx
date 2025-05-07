@@ -25,6 +25,7 @@ import { Loader } from "@/components/ui/loader";
 import { useForm } from "react-hook-form";
 import { Calendar } from "@/components/ui/calendar";
 import { motion } from "framer-motion";
+import { FREELANCE_ROUTES, CLIENT_ROUTES } from "@/config/routes";
 
 interface OrderFormProps {
   serviceId: string;
@@ -205,7 +206,7 @@ export function OrderForm({ serviceId, onClose }: OrderFormProps) {
       sessionStorage.setItem('pendingOrder', JSON.stringify(orderData));
       
       // Redirection vers la page de paiement
-      router.push(`/dashboard/orders/payment?serviceId=${serviceId}`);
+      router.push(`${FREELANCE_ROUTES.ORDERS}/payment?serviceId=${serviceId}`);
     } catch (err: any) {
       console.error("Erreur lors de la préparation de la commande", err);
       setError("Une erreur s'est produite lors de la préparation de la commande: " + (err.message || ""));

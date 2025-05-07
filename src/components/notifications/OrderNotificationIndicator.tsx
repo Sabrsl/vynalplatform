@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePathname } from 'next/navigation';
 import { useNotificationStore } from "@/lib/stores/useNotificationStore";
+import { FREELANCE_ROUTES, CLIENT_ROUTES } from "@/config/routes";
 
 interface Notification {
   id: string;
@@ -238,7 +239,7 @@ export function OrderNotificationIndicator() {
                         whileHover={{ backgroundColor: "rgba(99, 102, 241, 0.08)" }}
                       >
                         <Link 
-                          href={`/dashboard/orders/${notification.id}`}
+                          href={`${FREELANCE_ROUTES.ORDERS}/${notification.id}`}
                           className="relative flex select-none rounded-md px-3 py-2.5 text-sm outline-none transition-colors focus:bg-vynal-purple-secondary/10 dark:hover:bg-vynal-purple-secondary/10 cursor-pointer"
                           onClick={() => handleNotificationClick(notification)}
                           role="menuitem"

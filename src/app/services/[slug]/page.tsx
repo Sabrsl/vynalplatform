@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowLeft, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
+import { PUBLIC_ROUTES } from "@/config/routes";
 
 function ServiceDetailContent() {
   // États pour gérer le chargement et les erreurs
@@ -199,7 +200,7 @@ function ServiceDetailContent() {
     return (
       <div className="container mx-auto py-8 px-4 bg-white dark:bg-vynal-purple-dark/90 text-vynal-title dark:text-vynal-text-primary rounded-xl shadow-lg shadow-gray-200 dark:shadow-vynal-accent-secondary/20 border border-gray-200 dark:border-vynal-purple-secondary/30">
         <div className="mb-6">
-          <Link href="/services" className="inline-flex items-center text-vynal-title dark:text-vynal-text-primary hover:text-vynal-accent-primary transition-colors text-[11px]">
+          <Link href={PUBLIC_ROUTES.SERVICES} className="inline-flex items-center text-vynal-title dark:text-vynal-text-primary hover:text-vynal-accent-primary transition-colors text-[11px]">
             <ArrowLeft className="h-3 w-3 mr-1" />
             Retour aux services
           </Link>
@@ -210,7 +211,7 @@ function ServiceDetailContent() {
           <h2 className="text-xl font-bold text-vynal-title dark:text-vynal-text-primary mb-2">Service introuvable</h2>
           <p className="text-vynal-body dark:text-vynal-text-secondary text-center mb-4">{error}</p>
           <Button asChild variant="default" className="bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-vynal-purple-dark">
-            <Link href="/services">Parcourir tous les services</Link>
+            <Link href={PUBLIC_ROUTES.SERVICES}>Parcourir tous les services</Link>
           </Button>
         </div>
       </div>
@@ -219,29 +220,31 @@ function ServiceDetailContent() {
 
   // Rendu pour afficher les détails du service
   return (
-    <div className="min-h-screen bg-white dark:bg-vynal-purple-dark">
-      <div className="container mx-auto py-8 px-4 animate-in fade-in duration-300">
-        <div className="mb-6">
-          <Link href="/services" className="inline-flex items-center text-vynal-title hover:text-vynal-accent-primary transition-colors text-[11px]">
-            <ArrowLeft className="h-3 w-3 mr-1" />
-            Retour aux services
-          </Link>
-        </div>
-        
-        {service && (
-          <div>
-            <ServiceView 
-              service={service}
-              loading={false}
-              error={null}
-              isFreelanceView={false}
-              relatedServices={relatedServices}
-              loadingRelated={loadingRelated}
-              className="animate-in fade-in duration-300"
-            />
+    <div className="min-h-screen bg-white dark:bg-vynal-purple-dark animate-in fade-in duration-300">
+      <main data-content="loaded">
+        <div className="container mx-auto py-8 px-4">
+          <div className="mb-6">
+            <Link href={PUBLIC_ROUTES.SERVICES} className="inline-flex items-center text-vynal-title hover:text-vynal-accent-primary transition-colors text-[11px]">
+              <ArrowLeft className="h-3 w-3 mr-1" />
+              Retour aux services
+            </Link>
           </div>
-        )}
-      </div>
+          
+          {service && (
+            <div>
+              <ServiceView 
+                service={service}
+                loading={false}
+                error={null}
+                isFreelanceView={false}
+                relatedServices={relatedServices}
+                loadingRelated={loadingRelated}
+                className="animate-in fade-in duration-300"
+              />
+            </div>
+          )}
+        </div>
+      </main>
     </div>
   );
 }

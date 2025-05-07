@@ -169,6 +169,9 @@ const textStyles = {
   )
 };
 
+// Ajouter l'import des constantes de routes
+import { FREELANCE_ROUTES, CLIENT_ROUTES, PUBLIC_ROUTES } from "@/config/routes";
+
 /**
  * Composant d'erreur pour afficher lorsque le service n'est pas disponible
  */
@@ -210,7 +213,7 @@ const ServiceErrorView = React.memo(({ error, onBack, isDarkMode }: {
               Retour
             </Button>
           ) : (
-            <Link href="/services" className="group">
+            <Link href={PUBLIC_ROUTES.SERVICES} className="group">
               <Button variant="outline" className={cn(
                 "transition-colors btn-vynal-outline text-[10px]",
                 isDarkMode ? "dark" : "light",
@@ -866,7 +869,7 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
     if (!serviceMeta?.freelance?.id) return;
     
     const path = user?.profile?.id === serviceMeta.freelance.id
-      ? "/dashboard/profile"
+      ? FREELANCE_ROUTES.PROFILE
       : serviceMeta.freelance.username 
         ? `/profile/${serviceMeta.freelance.username}` 
         : `/profile/id/${serviceMeta.freelance.id}`;
@@ -1237,7 +1240,7 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                           <Link 
                             href={
                               user?.profile?.id === serviceMeta.freelance.id
-                                ? "/dashboard/services"
+                                ? FREELANCE_ROUTES.SERVICES
                                 : `/services?freelancer=${serviceMeta.freelance.id}`
                             } 
                             className="w-full block"

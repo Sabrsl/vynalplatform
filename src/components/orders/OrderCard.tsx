@@ -11,6 +11,7 @@ import React from 'react';
 import { formatDate, formatPrice } from '@/lib/utils';
 import { Order } from '@/hooks/useOrders';
 import { OrderStatusBadge } from './OrderStatusBadge';
+import { FREELANCE_ROUTES, CLIENT_ROUTES } from "@/config/routes";
 
 interface OrderCardProps {
   order: Order;
@@ -126,7 +127,7 @@ export const OrderCard: React.FC<OrderCardProps> = ({
           asChild
           className="text-[8px] sm:text-[10px] md:text-xs h-7 sm:h-8 md:h-9 text-vynal-accent-primary hover:text-vynal-accent-primary/90 hover:bg-vynal-accent-primary/10 dark:text-vynal-accent-primary dark:hover:text-vynal-accent-primary/90 rounded-lg font-medium"
         >
-          <Link href={`/dashboard/orders/${order.id}`}>
+          <Link href={`${FREELANCE_ROUTES.ORDERS}/${order.id}`}>
             <Eye className="h-3 w-3 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4 mr-1 sm:mr-1.5 md:mr-2" />
             <span className="inline-block">Détails</span>
           </Link>
@@ -139,7 +140,7 @@ export const OrderCard: React.FC<OrderCardProps> = ({
             className="text-[8px] sm:text-[10px] md:text-xs h-7 sm:h-8 md:h-9 bg-emerald-50 border-emerald-400 text-emerald-600 hover:bg-emerald-100 hover:text-emerald-700 dark:border-emerald-500 dark:text-emerald-300 dark:bg-emerald-900/20 dark:hover:bg-emerald-900/40 dark:hover:text-emerald-200 font-medium rounded-lg"
             asChild
           >
-            <Link href={`/client-dashboard/orders/${order.id}`}>
+            <Link href={`${CLIENT_ROUTES.ORDERS}/${order.id}`}>
               <FileCheck className="h-3 w-3 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4 mr-1 sm:mr-1.5 md:mr-2" />
               <span className="inline-block">Accepter</span>
             </Link>
@@ -153,7 +154,7 @@ export const OrderCard: React.FC<OrderCardProps> = ({
             className="text-[8px] sm:text-[10px] md:text-xs h-7 sm:h-8 md:h-9 bg-amber-50 border-amber-400 text-amber-600 hover:bg-amber-100 hover:text-amber-700 dark:border-amber-500 dark:text-amber-300 dark:bg-amber-900/20 dark:hover:bg-amber-900/40 dark:hover:text-amber-200 font-medium rounded-lg"
             asChild
           >
-            <Link href={`/client-dashboard/orders/${order.id}`}>
+            <Link href={`${CLIENT_ROUTES.ORDERS}/${order.id}`}>
               <RefreshCw className="h-3 w-3 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4 mr-1 sm:mr-1.5 md:mr-2" />
               <span className="inline-block">Demander révision</span>
             </Link>
@@ -166,7 +167,7 @@ export const OrderCard: React.FC<OrderCardProps> = ({
           asChild
           className="text-[8px] sm:text-[10px] md:text-xs h-7 sm:h-8 md:h-9 text-vynal-purple-secondary hover:text-vynal-accent-secondary hover:bg-vynal-accent-secondary/10 dark:text-vynal-text-secondary dark:hover:text-vynal-accent-secondary rounded-lg font-medium"
         >
-          <Link href={`/dashboard/messages?orderId=${order.id}`}>
+          <Link href={`${FREELANCE_ROUTES.MESSAGES}?orderId=${order.id}`}>
             <MessageSquare className="h-3 w-3 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4 mr-1 sm:mr-1.5 md:mr-2" />
             <span className="inline-block">Message</span>
           </Link>

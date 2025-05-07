@@ -8,6 +8,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { Order, OrderStatus } from "@/types/orders";
 import { formatPrice } from "@/lib/utils";
+import { FREELANCE_ROUTES, CLIENT_ROUTES } from "@/config/routes";
 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -533,7 +534,7 @@ export function OrderSidebar({
               className="w-full border-amber-400 text-amber-600 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-900/30 dark:hover:text-amber-300"
               asChild
             >
-              <Link href={`/dashboard/disputes/${order.dispute_id}`}>
+              <Link href={`${FREELANCE_ROUTES.DISPUTES}/${order.dispute_id}`}>
                 <AlertCircle className="h-4 w-4 mr-1.5" />
                 Voir le litige
               </Link>

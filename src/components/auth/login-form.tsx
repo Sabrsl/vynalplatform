@@ -5,13 +5,17 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Mail, Lock, AlertCircle, Eye, EyeOff } from "lucide-react";
+import { Mail, Lock, AlertCircle, Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { RefreshIndicator } from "@/components/ui/refresh-indicator";
 import { supabase } from "@/lib/supabase/client";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { debounce } from "lodash";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/components/ui/use-toast";
+import TwoFactorVerification from "./TwoFactorVerification";
+import { AUTH_ROUTES } from "@/config/routes";
 
 // Constants for rate limiting
 const MAX_LOGIN_ATTEMPTS = 5;
@@ -258,29 +262,39 @@ function LoginForm({ redirectPath = "/dashboard" }: LoginFormProps) {
   }, [setValue, getValues]);
 
   return (
-    <div className="w-full max-w-md p-8 space-y-8 bg-vynal-purple-dark/90 rounded-xl shadow-lg shadow-vynal-accent-secondary/20 border border-vynal-purple-secondary/30">
+    <div className="w-full max-w-md p-8 space-y-8 bg-white/30 dark:bg-vynal-purple-dark/90 rounded-xl shadow-sm shadow-slate-200/50 dark:shadow-vynal-accent-secondary/20 border border-slate-200 dark:border-vynal-purple-secondary/30 transition-all duration-200">
+      <div className="flex justify-start">
+        <Link
+          href="/"
+          className="text-sm text-slate-800 dark:text-vynal-text-primary hover:text-vynal-accent-primary dark:hover:text-vynal-accent-secondary transition-colors flex items-center"
+        >
+          <ArrowLeft className="h-4 w-4 mr-1" />
+          Retour à l'accueil
+        </Link>
+      </div>
+
       <div className="text-center">
-        <h1 className="text-2xl font-bold text-vynal-text-primary">Connexion</h1>
-        <p className="mt-2 text-sm text-vynal-text-secondary">
+        <h1 className="text-2xl font-bold text-slate-800 dark:text-vynal-text-primary">Connexion</h1>
+        <p className="mt-2 text-sm text-slate-600 dark:text-vynal-text-secondary">
           Bienvenue ! Connectez-vous pour accéder à votre compte.
         </p>
       </div>
 
       {error && (
-        <div className="p-3 bg-vynal-status-error/20 border border-vynal-status-error/30 rounded-md flex items-center text-vynal-status-error text-sm" role="alert">
-          <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
+        <div className="p-3 bg-vynal-status-error/20 border border-vynal-status-error/30 rounded-md flex items-start text-vynal-status-error text-sm" role="alert">
+          <AlertCircle className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" />
           <span>{error}</span>
         </div>
       )}
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6" autoComplete="off">
         <div className="space-y-2">
-          <label htmlFor="email" className="text-sm font-medium text-vynal-text-primary">
+          <Label htmlFor="email" className="text-sm font-medium text-slate-800 dark:text-vynal-text-primary">
             Email
-          </label>
+          </Label>
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Mail className="h-5 w-5 text-vynal-text-secondary" />
+              <Mail className="h-5 w-5 text-slate-400 dark:text-vynal-text-secondary" />
             </div>
             <input
               id="email"
@@ -289,7 +303,7 @@ function LoginForm({ redirectPath = "/dashboard" }: LoginFormProps) {
               disabled={isLoading || isLocked}
               aria-invalid={errors.email ? "true" : "false"}
               aria-describedby="email-error"
-              className="block w-full pl-10 pr-3 py-2 bg-vynal-purple-secondary/30 border border-vynal-purple-secondary/50 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-vynal-accent-primary focus:border-vynal-accent-primary text-vynal-text-primary placeholder:text-vynal-text-secondary/70"
+              className="block w-full pl-10 pr-3 py-2 bg-white/40 dark:bg-vynal-purple-secondary/30 border border-slate-200/50 dark:border-vynal-purple-secondary/50 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-vynal-accent-primary focus:border-vynal-accent-primary text-slate-800 dark:text-vynal-text-primary placeholder:text-slate-400 dark:placeholder:text-vynal-text-secondary/70"
               placeholder="votre@email.com"
               {...register('email')}
             />
@@ -301,11 +315,11 @@ function LoginForm({ redirectPath = "/dashboard" }: LoginFormProps) {
 
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <label htmlFor="password" className="text-sm font-medium text-vynal-text-primary">
+            <Label htmlFor="password" className="text-sm font-medium text-slate-800 dark:text-vynal-text-primary">
               Mot de passe
-            </label>
+            </Label>
             <Link
-              href="/auth/forgot-password"
+              href={AUTH_ROUTES.FORGOT_PASSWORD}
               className="text-sm font-medium text-vynal-accent-primary hover:text-vynal-accent-secondary transition-colors"
             >
               Mot de passe oublié ?
@@ -313,7 +327,7 @@ function LoginForm({ redirectPath = "/dashboard" }: LoginFormProps) {
           </div>
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Lock className="h-5 w-5 text-vynal-text-secondary" />
+              <Lock className="h-5 w-5 text-slate-400 dark:text-vynal-text-secondary" />
             </div>
             <input
               id="password"
@@ -322,7 +336,7 @@ function LoginForm({ redirectPath = "/dashboard" }: LoginFormProps) {
               disabled={isLoading || isLocked}
               aria-invalid={errors.password ? "true" : "false"}
               aria-describedby="password-error"
-              className="block w-full pl-10 pr-10 py-2 bg-vynal-purple-secondary/30 border border-vynal-purple-secondary/50 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-vynal-accent-primary focus:border-vynal-accent-primary text-vynal-text-primary placeholder:text-vynal-text-secondary/70"
+              className="block w-full pl-10 pr-10 py-2 bg-white/40 dark:bg-vynal-purple-secondary/30 border border-slate-200/50 dark:border-vynal-purple-secondary/50 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-vynal-accent-primary focus:border-vynal-accent-primary text-slate-800 dark:text-vynal-text-primary placeholder:text-slate-400 dark:placeholder:text-vynal-text-secondary/70"
               placeholder="••••••••"
               {...register('password')}
             />
@@ -330,7 +344,7 @@ function LoginForm({ redirectPath = "/dashboard" }: LoginFormProps) {
               <button
                 type="button"
                 onClick={togglePasswordVisibility}
-                className="text-vynal-text-secondary hover:text-vynal-text-primary focus:outline-none transition-colors"
+                className="text-slate-400 dark:text-vynal-text-secondary hover:text-slate-800 dark:hover:text-vynal-text-primary focus:outline-none transition-colors"
                 aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
                 disabled={isLoading || isLocked}
               >
@@ -348,12 +362,12 @@ function LoginForm({ redirectPath = "/dashboard" }: LoginFormProps) {
             id="rememberMe"
             type="checkbox"
             disabled={isLoading || isLocked}
-            className="h-4 w-4 bg-vynal-purple-secondary/30 border-vynal-purple-secondary/50 rounded focus:ring-vynal-accent-primary text-vynal-accent-primary"
+            className="h-4 w-4 bg-white/40 dark:bg-vynal-purple-secondary/30 border border-slate-200/50 dark:border-vynal-purple-secondary/50 rounded focus:ring-vynal-accent-primary text-vynal-accent-primary"
             {...register('rememberMe')}
           />
           <label 
             htmlFor="rememberMe" 
-            className="ml-2 block text-sm text-vynal-text-secondary cursor-pointer"
+            className="ml-2 block text-sm text-slate-600 dark:text-vynal-text-secondary cursor-pointer"
             onClick={toggleRememberMe}
           >
             Se souvenir de moi
@@ -364,7 +378,7 @@ function LoginForm({ redirectPath = "/dashboard" }: LoginFormProps) {
           type="submit" 
           disabled={isLoading || isLocked} 
           aria-busy={isLoading}
-          className="w-full py-5 flex items-center justify-center text-sm"
+          className="w-full flex justify-center bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-vynal-purple-dark font-medium transition-all"
         >
           {isLoading ? (
             <div className="flex items-center">
@@ -385,10 +399,10 @@ function LoginForm({ redirectPath = "/dashboard" }: LoginFormProps) {
 
       <div className="relative mt-6">
         <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-vynal-purple-secondary/40" />
+          <div className="w-full border-t border-slate-200/50 dark:border-vynal-purple-secondary/40" />
         </div>
         <div className="relative flex justify-center text-sm">
-          <span className="px-2 bg-vynal-purple-dark/90 text-vynal-text-secondary">Ou continuer avec</span>
+          <span className="px-2 bg-white/30 dark:bg-vynal-purple-dark/90 text-slate-500 dark:text-vynal-text-secondary">Ou continuer avec</span>
         </div>
       </div>
 
@@ -399,7 +413,7 @@ function LoginForm({ redirectPath = "/dashboard" }: LoginFormProps) {
           onClick={() => handleSocialSignIn('google')} 
           disabled={isLoading || isLocked}
           aria-label="Se connecter avec Google"
-          className="w-full py-5 flex items-center justify-center gap-2 text-sm"
+          className="w-full py-5 flex items-center justify-center gap-2 text-sm bg-white/40 dark:bg-vynal-purple-secondary/30 border-slate-200/50 dark:border-vynal-purple-secondary/50 text-slate-700 dark:text-vynal-text-primary hover:bg-slate-50/40 dark:hover:bg-vynal-purple-secondary/40"
         >
           {isLoading ? (
             <RefreshIndicator 
@@ -440,7 +454,7 @@ function LoginForm({ redirectPath = "/dashboard" }: LoginFormProps) {
           onClick={() => handleSocialSignIn('github')} 
           disabled={isLoading || isLocked}
           aria-label="Se connecter avec GitHub"
-          className="w-full py-5 flex items-center justify-center gap-2 text-sm"
+          className="w-full py-5 flex items-center justify-center gap-2 text-sm bg-white/40 dark:bg-vynal-purple-secondary/30 border-slate-200/50 dark:border-vynal-purple-secondary/50 text-slate-700 dark:text-vynal-text-primary hover:bg-slate-50/40 dark:hover:bg-vynal-purple-secondary/40"
         >
           {isLoading ? (
             <RefreshIndicator 
@@ -465,7 +479,7 @@ function LoginForm({ redirectPath = "/dashboard" }: LoginFormProps) {
           onClick={() => handleSocialSignIn('linkedin')} 
           disabled={isLoading || isLocked}
           aria-label="Se connecter avec LinkedIn"
-          className="w-full py-5 flex items-center justify-center gap-2 text-sm hover:bg-blue-50/5"
+          className="w-full py-5 flex items-center justify-center gap-2 text-sm bg-white/40 dark:bg-vynal-purple-secondary/30 border-slate-200/50 dark:border-vynal-purple-secondary/50 text-slate-700 dark:text-vynal-text-primary hover:bg-slate-50/40 dark:hover:bg-vynal-purple-secondary/40"
         >
           {isLoading ? (
             <RefreshIndicator 
@@ -485,13 +499,13 @@ function LoginForm({ redirectPath = "/dashboard" }: LoginFormProps) {
         </Button>
       </div>
 
-      <p className="mt-6 text-center text-sm text-vynal-text-secondary">
-        Vous n'avez pas de compte ?{" "}
+      <p className="mt-6 text-center text-sm text-slate-600 dark:text-vynal-text-secondary">
+        Pas encore de compte ?{" "}
         <Link
-          href="/auth/signup"
+          href={AUTH_ROUTES.REGISTER}
           className="font-medium text-vynal-accent-primary hover:text-vynal-accent-secondary transition-colors"
         >
-          Inscrivez-vous
+          S'inscrire
         </Link>
       </p>
     </div>

@@ -7,6 +7,7 @@ import { APP_CONFIG } from './constants';
 import nodemailer, { Transporter, TransportOptions, createTransport } from 'nodemailer';
 import fs from 'fs';
 import path from 'path';
+import { FREELANCE_ROUTES, CLIENT_ROUTES } from "@/config/routes";
 
 // Types
 interface EmailOptions {
@@ -290,7 +291,7 @@ export const sendOrderConfirmationEmail = async (options: OrderConfirmationOptio
     currency: options.currency,
     deliveryDate: options.deliveryDate,
     sellerName: options.sellerName,
-    orderLink: `${APP_URLS.baseUrl}/dashboard/orders/${options.orderNumber}`,
+    orderLink: `${APP_URLS.baseUrl}${FREELANCE_ROUTES.ORDERS}/${options.orderNumber}`,
   };
   
   return await sendTemplateEmail(

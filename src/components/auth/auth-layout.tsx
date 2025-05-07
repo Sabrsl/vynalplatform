@@ -12,14 +12,6 @@ interface AuthLayoutProps {
 // Composant de header mémorisé pour éviter les rendus inutiles
 const AuthHeader = memo(({ title }: { title?: string }) => (
   <div className="sm:mx-auto sm:w-full sm:max-w-md">
-    <Link 
-      href="/" 
-      className="flex items-center text-sm text-vynal-text-secondary hover:text-vynal-text-primary transition-colors mb-6 mx-auto w-fit"
-    >
-      <ChevronLeft className="w-4 h-4 mr-1" />
-      Retour à l'accueil
-    </Link>
-    
     <div className="text-center">
       <Link href="/">
         <h2 className="text-3xl font-extrabold bg-gradient-to-r from-vynal-accent-primary to-vynal-accent-secondary bg-clip-text text-transparent">
