@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import ServiceDescriptionValidator from "@/components/services/ServiceDescriptionValidator";
+import ServicePricingValidator from "@/components/services/ServicePricingValidator";
 import { 
   Select, 
   SelectContent, 
@@ -384,86 +386,88 @@ ${newFields.exclusions}`;
   }
   
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex items-center mb-6">
+    <div className="container mx-auto px-4 py-4">
+      <div className="flex items-center mb-3">
         <Button 
           variant="ghost" 
           onClick={() => router.push("/dashboard/services")} 
-          className="mr-4 text-vynal-purple-dark hover:text-vynal-purple-dark/80 dark:text-vynal-text-primary"
+          className="mr-3 text-slate-700 hover:text-slate-800 dark:text-vynal-text-primary dark:hover:text-vynal-text-primary/80"
         >
-          <ArrowLeft className="w-4 h-4 mr-2" />
+          <ArrowLeft className="w-3 h-3 mr-1.5" />
           Retour
         </Button>
-        <h1 className="text-xs sm:text-sm md:text-base font-semibold text-vynal-purple-dark dark:text-vynal-text-primary">Créer un service</h1>
+        <h1 className="text-[10px] sm:text-xs md:text-sm font-semibold text-slate-800 dark:text-vynal-text-primary">Créer un service</h1>
       </div>
       
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-900 p-4 rounded-lg mb-6 flex gap-2 items-start">
-          <AlertCircle className="h-3 w-3 text-red-600 mt-0.5 flex-shrink-0" />
-          <p className="text-[10px] sm:text-xs text-red-900">{error}</p>
+        <div className="bg-red-500/10 border border-red-500/20 text-red-500 dark:text-red-400 p-4 rounded-lg mb-6 flex gap-2 items-start">
+          <AlertCircle className="h-3 w-3 text-red-500 dark:text-red-400 mt-0.5 flex-shrink-0" />
+          <p className="text-[10px] sm:text-xs text-red-500 dark:text-red-400">{error}</p>
         </div>
       )}
 
       <form onSubmit={handleSubmit}>
         <div className="grid gap-6 md:grid-cols-2">
           {profile && !profile.is_certified && profile.role === 'freelance' && (
-            <div className="md:col-span-2 mb-2 p-2 sm:p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-400 rounded-lg flex items-start gap-2">
-              <AlertCircle className="h-3 w-3 text-amber-600 dark:text-amber-500 mt-0.5 flex-shrink-0" />
+            <div className="md:col-span-2 mb-2 p-2 sm:p-3 bg-amber-500/10 dark:bg-amber-500/10 border border-amber-500/20 dark:border-amber-500/20 text-amber-700 dark:text-amber-400 rounded-lg flex items-start gap-2">
+              <AlertCircle className="h-3 w-3 text-amber-500 dark:text-amber-400 mt-0.5 flex-shrink-0" />
               <div>
-                <p className="text-[10px] sm:text-xs font-medium text-amber-900 dark:text-amber-400">Limitation des services actifs</p>
-                <p className="text-[8px] sm:text-[10px] text-amber-800 dark:text-amber-400">Sans certification expert, vous êtes limité à 6 services actifs maximum. Pour supprimer cette limitation, obtenez une certification expert.</p>
+                <p className="text-[10px] sm:text-xs font-medium text-amber-700 dark:text-amber-400">Limitation des services actifs</p>
+                <p className="text-[8px] sm:text-[10px] text-amber-600 dark:text-amber-400">Sans certification expert, vous êtes limité à 6 services actifs maximum. Pour supprimer cette limitation, obtenez une certification expert.</p>
               </div>
             </div>
           )}
           
-          <Card className="md:col-span-1 border-slate-200/50 dark:border-slate-800/50">
+          <Card className="md:col-span-1 border-slate-200 dark:border-slate-700/30 bg-white/30 dark:bg-slate-900/30 backdrop-blur-sm">
             <CardHeader>
-              <CardTitle className="text-xs sm:text-sm md:text-base font-semibold text-vynal-purple-dark dark:text-vynal-text-primary">Informations générales</CardTitle>
-              <CardDescription className="text-[10px] sm:text-xs text-vynal-purple-dark/80 dark:text-vynal-text-secondary">Définissez les informations principales de votre service</CardDescription>
+              <CardTitle className="text-xs sm:text-sm md:text-base font-semibold text-slate-800 dark:text-vynal-text-primary">Informations générales</CardTitle>
+              <CardDescription className="text-[10px] sm:text-xs text-slate-600 dark:text-vynal-text-secondary">Définissez les informations principales de votre service</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="title" className="text-[10px] sm:text-xs text-vynal-purple-dark dark:text-vynal-text-primary">Titre du service *</Label>
+                <Label htmlFor="title" className="text-[10px] sm:text-xs text-slate-700 dark:text-vynal-text-primary">Titre du service *</Label>
                 <div className="relative">
-                  <div className="absolute left-0 top-0 bottom-0 bg-slate-100 dark:bg-slate-800 px-2 flex items-center rounded-l-md border-r border-slate-200 dark:border-slate-700 pointer-events-none">
-                    <span className="text-[10px] sm:text-xs text-vynal-purple-dark/80 dark:text-vynal-text-secondary font-medium">Je vais</span>
+                  <div className="absolute left-0 top-0 bottom-0 bg-slate-100/30 dark:bg-slate-800/30 px-2 flex items-center rounded-l-md border-r border-slate-200 dark:border-slate-700/30 pointer-events-none">
+                    <span className="text-[10px] sm:text-xs text-slate-600 dark:text-vynal-text-secondary font-medium">Je vais</span>
                   </div>
-                  <Input
-                    id="title"
-                    name="title"
+                <Input
+                  id="title"
+                  name="title"
                     value={userTitleInput}
-                    onChange={handleChange}
+                  onChange={handleChange}
                     placeholder="créer un logo professionnel pour votre entreprise"
-                    maxLength={93} // 100 - 7 ("Je vais" + espace)
-                    required
-                    className="text-[10px] sm:text-xs text-vynal-purple-dark dark:text-vynal-text-primary pl-20"
-                  />
+                    maxLength={93}
+                  required
+                    className="text-[10px] sm:text-xs text-slate-700 dark:text-vynal-text-primary pl-20 bg-slate-100/85 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700/30"
+                />
                 </div>
-                <p className="text-[8px] sm:text-[10px] text-vynal-purple-dark/80 dark:text-vynal-text-secondary">
+                <p className="text-[8px] sm:text-[10px] text-slate-600 dark:text-vynal-text-secondary">
                   {(formData.title.length)}/100 caractères (commence toujours par "Je vais")
                 </p>
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="description" className="text-[10px] sm:text-xs text-vynal-purple-dark dark:text-vynal-text-primary">Description *</Label>
-                <div className="rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 p-3 space-y-4">
+                <Label htmlFor="description" className="text-[10px] sm:text-xs text-slate-700 dark:text-vynal-text-primary">Description *</Label>
+                <div className="rounded-md border border-slate-200 dark:border-slate-700/30 bg-white/25 dark:bg-slate-900/20 p-3 space-y-4">
                   {/* Présentation et Expertise */}
                   <div className="space-y-3">
                     <div className="flex items-center gap-2">
-                      <div className="h-4 w-4 rounded-full bg-vynal-accent-primary/10 flex items-center justify-center">
-                        <span className="text-[10px] text-vynal-accent-primary">1</span>
+                      <div className="h-4 w-4 rounded-full bg-vynal-accent-primary/10 dark:bg-vynal-accent-primary/10 flex items-center justify-center">
+                        <span className="text-[10px] text-vynal-accent-primary dark:text-vynal-accent-primary">1</span>
                       </div>
-                      <h4 className="text-[10px] sm:text-xs font-medium text-slate-800 dark:text-vynal-text-primary">Présentation et Expertise</h4>
+                      <span className="text-[10px] sm:text-xs font-medium text-slate-800 dark:text-vynal-text-primary">Présentation et Expertise</span>
                     </div>
                     <div className="space-y-2 pl-6">
-                      <Textarea
+                      <ServiceDescriptionValidator
                         id="description_intro"
-                        name="description_intro"
+                        field="intro"
                         value={descriptionFields.intro}
-                        onChange={handleChange}
+                        onChange={handleDescriptionChange}
+                        label="Présentation et Expertise"
                         placeholder="Présentez-vous et votre expertise en quelques phrases"
                         rows={2}
-                        className="text-[10px] sm:text-xs text-vynal-purple-dark dark:text-vynal-text-primary"
+                        required={false}
+                        className="bg-slate-100/85 dark:bg-slate-800/40"
                       />
                     </div>
                   </div>
@@ -471,48 +475,45 @@ ${newFields.exclusions}`;
                   {/* Description du Service */}
                   <div className="space-y-3">
                     <div className="flex items-center gap-2">
-                      <div className="h-4 w-4 rounded-full bg-vynal-accent-primary/10 flex items-center justify-center">
-                        <span className="text-[10px] text-vynal-accent-primary">2</span>
+                      <div className="h-4 w-4 rounded-full bg-vynal-accent-primary/10 dark:bg-vynal-accent-primary/10 flex items-center justify-center">
+                        <span className="text-[10px] text-vynal-accent-primary dark:text-vynal-accent-primary">2</span>
                       </div>
-                      <h4 className="text-[10px] sm:text-xs font-medium text-slate-800 dark:text-vynal-text-primary">📝 Description du service</h4>
+                      <span className="text-[10px] sm:text-xs font-medium text-slate-800 dark:text-vynal-text-primary">📝 Description du service</span>
                     </div>
                     <div className="space-y-2 pl-6">
-                      <Textarea
+                      <ServiceDescriptionValidator
                         id="description_service"
-                        name="description_service"
+                        field="service"
                         value={descriptionFields.service}
-                        onChange={handleChange}
+                        onChange={handleDescriptionChange}
+                        label="Description détaillée"
                         placeholder="Détaillez précisément ce que vous proposez"
                         rows={3}
-                        className={`text-[10px] sm:text-xs text-vynal-purple-dark dark:text-vynal-text-primary ${
-                          !isServiceDescriptionValid() && descriptionFields.service.length > 0
-                            ? 'border-red-300 dark:border-red-800'
-                            : ''
-                        }`}
+                        required={true}
+                        className="bg-slate-100/85 dark:bg-slate-800/40"
                       />
-                      <p className="text-[8px] sm:text-[10px] text-vynal-purple-dark/80 dark:text-vynal-text-secondary">
-                        {getServiceDescriptionLength()}/10000 caractères (minimum 1000 caractères requis)
-                      </p>
                     </div>
                   </div>
 
                   {/* Livrables et Résultats */}
                   <div className="space-y-3">
                     <div className="flex items-center gap-2">
-                      <div className="h-4 w-4 rounded-full bg-vynal-accent-primary/10 flex items-center justify-center">
-                        <span className="text-[10px] text-vynal-accent-primary">3</span>
+                      <div className="h-4 w-4 rounded-full bg-vynal-accent-primary/10 dark:bg-vynal-accent-primary/10 flex items-center justify-center">
+                        <span className="text-[10px] text-vynal-accent-primary dark:text-vynal-accent-primary">3</span>
                       </div>
-                      <h4 className="text-[10px] sm:text-xs font-medium text-slate-800 dark:text-vynal-text-primary">🎯 Ce que vous obtiendrez</h4>
+                      <span className="text-[10px] sm:text-xs font-medium text-slate-800 dark:text-vynal-text-primary">🎯 Ce que vous obtiendrez</span>
                     </div>
                     <div className="space-y-2 pl-6">
-                      <Textarea
+                      <ServiceDescriptionValidator
                         id="description_deliverables"
-                        name="description_deliverables"
+                        field="deliverables"
                         value={descriptionFields.deliverables}
-                        onChange={handleChange}
+                        onChange={handleDescriptionChange}
+                        label="Livrables"
                         placeholder="Liste des livrables et résultats concrets"
                         rows={3}
-                        className="text-[10px] sm:text-xs text-vynal-purple-dark dark:text-vynal-text-primary"
+                        required={true}
+                        className="bg-slate-100/85 dark:bg-slate-800/40"
                       />
                     </div>
                   </div>
@@ -520,34 +521,38 @@ ${newFields.exclusions}`;
                   {/* Conditions et Prérequis */}
                   <div className="space-y-3">
                     <div className="flex items-center gap-2">
-                      <div className="h-4 w-4 rounded-full bg-vynal-accent-primary/10 flex items-center justify-center">
-                        <span className="text-[10px] text-vynal-accent-primary">4</span>
+                      <div className="h-4 w-4 rounded-full bg-vynal-accent-primary/10 dark:bg-vynal-accent-primary/10 flex items-center justify-center">
+                        <span className="text-[10px] text-vynal-accent-primary dark:text-vynal-accent-primary">4</span>
                       </div>
-                      <h4 className="text-[10px] sm:text-xs font-medium text-slate-800 dark:text-vynal-text-primary">Conditions et Prérequis</h4>
+                      <span className="text-[10px] sm:text-xs font-medium text-slate-800 dark:text-vynal-text-primary">Conditions et Prérequis</span>
                     </div>
                     <div className="space-y-3 pl-6">
                       <div className="space-y-2">
-                        <h5 className="text-[10px] sm:text-xs font-medium text-slate-700 dark:text-slate-300">🛠️ Ce dont j'ai besoin de vous</h5>
-                        <Textarea
+                        <span className="text-[10px] sm:text-xs font-medium text-slate-700 dark:text-slate-300">🛠️ Ce dont j'ai besoin de vous</span>
+                        <ServiceDescriptionValidator
                           id="description_requirements"
-                          name="description_requirements"
+                          field="requirements"
                           value={descriptionFields.requirements}
-                          onChange={handleChange}
+                          onChange={handleDescriptionChange}
+                          label="Prérequis"
                           placeholder="Informations et documents nécessaires"
                           rows={2}
-                          className="text-[10px] sm:text-xs text-vynal-purple-dark dark:text-vynal-text-primary"
+                          required={true}
+                          className="bg-slate-100/85 dark:bg-slate-800/40"
                         />
                       </div>
                       <div className="space-y-2">
-                        <h5 className="text-[10px] sm:text-xs font-medium text-slate-700 dark:text-slate-300">⏱️ Délais et révisions</h5>
-                        <Textarea
+                        <span className="text-[10px] sm:text-xs font-medium text-slate-700 dark:text-slate-300">⏱️ Délais et révisions</span>
+                        <ServiceDescriptionValidator
                           id="description_timing"
-                          name="description_timing"
+                          field="timing"
                           value={descriptionFields.timing}
-                          onChange={handleChange}
+                          onChange={handleDescriptionChange}
+                          label="Délais"
                           placeholder="Temps de livraison et nombre de révisions incluses"
                           rows={2}
-                          className="text-[10px] sm:text-xs text-vynal-purple-dark dark:text-vynal-text-primary"
+                          required={true}
+                          className="bg-slate-100/85 dark:bg-slate-800/40"
                         />
                       </div>
                     </div>
@@ -556,69 +561,81 @@ ${newFields.exclusions}`;
                   {/* Limites du Service */}
                   <div className="space-y-3">
                     <div className="flex items-center gap-2">
-                      <div className="h-4 w-4 rounded-full bg-vynal-accent-primary/10 flex items-center justify-center">
-                        <span className="text-[10px] text-vynal-accent-primary">5</span>
+                      <div className="h-4 w-4 rounded-full bg-vynal-accent-primary/10 dark:bg-vynal-accent-primary/10 flex items-center justify-center">
+                        <span className="text-[10px] text-vynal-accent-primary dark:text-vynal-accent-primary">5</span>
                       </div>
-                      <h4 className="text-[10px] sm:text-xs font-medium text-slate-800 dark:text-vynal-text-primary">❌ Ce qui n'est pas inclus</h4>
+                      <span className="text-[10px] sm:text-xs font-medium text-slate-800 dark:text-vynal-text-primary">❌ Ce qui n'est pas inclus</span>
                     </div>
                     <div className="space-y-2 pl-6">
-                      <Textarea
+                      <ServiceDescriptionValidator
                         id="description_exclusions"
-                        name="description_exclusions"
+                        field="exclusions"
                         value={descriptionFields.exclusions}
-                        onChange={handleChange}
+                        onChange={handleDescriptionChange}
+                        label="Exclusions"
                         placeholder="Précisez les limites de votre service"
                         rows={2}
-                        className="text-[10px] sm:text-xs text-vynal-purple-dark dark:text-vynal-text-primary"
+                        required={true}
+                        className="bg-slate-100/85 dark:bg-slate-800/40"
                       />
                     </div>
                   </div>
                 </div>
               </div>
-              
+            </CardContent>
+          </Card>
+
+          <div className="md:col-span-1 space-y-6">
+            <Card className="border-slate-200 dark:border-slate-700/30 bg-white/30 dark:bg-slate-900/30 backdrop-blur-sm">
+              <CardHeader>
+                <CardTitle className="text-xs sm:text-sm md:text-base font-semibold text-slate-800 dark:text-vynal-text-primary">Prix et délais</CardTitle>
+                <CardDescription className="text-[10px] sm:text-xs text-slate-600 dark:text-vynal-text-secondary">Définissez le prix et le délai de livraison de votre service</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="price" className="text-[10px] sm:text-xs text-vynal-purple-dark dark:text-vynal-text-primary">Prix (FCFA) *</Label>
-                  <Input
+                  <ServicePricingValidator
                     id="price"
-                    name="price"
+                    type="price"
                     value={formData.price}
-                    onChange={handleChange}
+                    onChange={(value) => handleChange({ target: { name: 'price', value } } as any)}
+                    label="Prix (FCFA)"
                     placeholder="Ex: 5000"
-                    required
-                    className="text-[10px] sm:text-xs text-vynal-purple-dark dark:text-vynal-text-primary"
+                    required={true}
+                    className="bg-slate-100/85 dark:bg-slate-800/40"
                   />
-                  <p className="text-[8px] sm:text-[10px] text-vynal-purple-dark/80 dark:text-vynal-text-secondary">
-                    Prix minimum: 1000 FCFA
-                  </p>
-                </div>
                 
-                <div className="space-y-2">
-                  <Label htmlFor="delivery_time" className="text-[10px] sm:text-xs text-vynal-purple-dark dark:text-vynal-text-primary">Délai de livraison (jours) *</Label>
-                  <Input
+                  <ServicePricingValidator
                     id="delivery_time"
-                    name="delivery_time"
+                    type="deliveryTime"
                     value={formData.delivery_time}
-                    onChange={handleChange}
+                    onChange={(value) => handleChange({ target: { name: 'delivery_time', value } } as any)}
+                    label="Délai de livraison (jours)"
                     placeholder="Ex: 3"
-                    required
-                    className="text-[10px] sm:text-xs text-vynal-purple-dark dark:text-vynal-text-primary"
+                    required={true}
+                    className="bg-slate-100/85 dark:bg-slate-800/40"
                   />
                 </div>
-              </div>
-              
+              </CardContent>
+            </Card>
+
+            <Card className="border-slate-200 dark:border-slate-700/30 bg-white/30 dark:bg-slate-900/30 backdrop-blur-sm">
+              <CardHeader>
+                <CardTitle className="text-xs sm:text-sm md:text-base font-semibold text-slate-800 dark:text-vynal-text-primary">Catégorie</CardTitle>
+                <CardDescription className="text-[10px] sm:text-xs text-slate-600 dark:text-vynal-text-secondary">Sélectionnez la catégorie et sous-catégorie de votre service</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="category_id" className="text-[10px] sm:text-xs text-vynal-purple-dark dark:text-vynal-text-primary">Catégorie *</Label>
+                  <Label htmlFor="category_id" className="text-[10px] sm:text-xs text-slate-700 dark:text-vynal-text-primary">Catégorie *</Label>
                 <Select
                   value={formData.category_id}
                   onValueChange={(value) => handleSelectChange("category_id", value)}
                 >
-                  <SelectTrigger id="category_id" className="w-full text-[10px] sm:text-xs text-vynal-purple-dark dark:text-vynal-text-primary">
+                    <SelectTrigger id="category_id" className="w-full text-[10px] sm:text-xs text-slate-700 dark:text-vynal-text-primary bg-slate-100/85 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700/30">
                     <SelectValue placeholder="Sélectionnez une catégorie" />
                   </SelectTrigger>
                   <SelectContent>
                     {categories.map((category) => (
-                      <SelectItem key={category.id} value={category.id} className="text-[10px] sm:text-xs text-vynal-purple-dark dark:text-vynal-text-primary">
+                        <SelectItem key={category.id} value={category.id} className="text-[10px] sm:text-xs text-slate-700 dark:text-vynal-text-primary">
                         {category.name}
                       </SelectItem>
                     ))}
@@ -628,18 +645,18 @@ ${newFields.exclusions}`;
               
               {subcategoriesForSelected.length > 0 && (
                 <div className="space-y-2">
-                  <Label htmlFor="subcategory_id" className="text-[10px] sm:text-xs text-vynal-purple-dark dark:text-vynal-text-primary">Sous-catégorie *</Label>
+                    <Label htmlFor="subcategory_id" className="text-[10px] sm:text-xs text-slate-700 dark:text-vynal-text-primary">Sous-catégorie *</Label>
                   <Select
                     value={formData.subcategory_id}
                     onValueChange={(value) => handleSelectChange("subcategory_id", value)}
                     required
                   >
-                    <SelectTrigger id="subcategory_id" className="w-full text-[10px] sm:text-xs text-vynal-purple-dark dark:text-vynal-text-primary">
+                      <SelectTrigger id="subcategory_id" className="w-full text-[10px] sm:text-xs text-slate-700 dark:text-vynal-text-primary bg-slate-100/85 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700/30">
                       <SelectValue placeholder="Sélectionnez une sous-catégorie" />
                     </SelectTrigger>
                     <SelectContent>
                       {subcategoriesForSelected.map((subcategory) => (
-                        <SelectItem key={subcategory.id} value={subcategory.id} className="text-[10px] sm:text-xs text-vynal-purple-dark dark:text-vynal-text-primary">
+                          <SelectItem key={subcategory.id} value={subcategory.id} className="text-[10px] sm:text-xs text-slate-700 dark:text-vynal-text-primary">
                           {subcategory.name}
                         </SelectItem>
                       ))}
@@ -650,23 +667,23 @@ ${newFields.exclusions}`;
             </CardContent>
           </Card>
           
-          <Card className="md:col-span-1 border-slate-200/50 dark:border-slate-800/50">
+            <Card className="border-slate-200 dark:border-slate-700/30 bg-white/30 dark:bg-slate-900/30 backdrop-blur-sm">
             <CardHeader>
-              <CardTitle className="text-xs sm:text-sm md:text-base font-semibold text-vynal-purple-dark dark:text-vynal-text-primary">Images</CardTitle>
-              <CardDescription className="text-[10px] sm:text-xs text-vynal-purple-dark/80 dark:text-vynal-text-secondary">Ajoutez des images représentatives de votre service (1 à 3 images)</CardDescription>
+                <CardTitle className="text-xs sm:text-sm md:text-base font-semibold text-slate-800 dark:text-vynal-text-primary">Images</CardTitle>
+                <CardDescription className="text-[10px] sm:text-xs text-slate-600 dark:text-vynal-text-secondary">Ajoutez des images représentatives de votre service (1 à 3 images)</CardDescription>
             </CardHeader>
             <CardContent>
               <ServiceImageUploader onImagesChange={setImages} />
             </CardContent>
           </Card>
           
-          <Card className="md:col-span-2 border-slate-200/50 dark:border-slate-800/50">
-            <CardContent className="pt-6">
+            <Card className="border-slate-200 dark:border-slate-700/30 bg-white/30 dark:bg-slate-900/30 backdrop-blur-sm">
+              <CardContent className="pt-4">
               <div className="flex justify-end">
                 <Button 
                   type="submit" 
                   disabled={isSubmitting}
-                  className="w-full sm:w-auto text-[10px] sm:text-xs text-white hover:text-white/80"
+                    className="w-full sm:w-auto text-[10px] sm:text-xs text-white hover:text-white/80 bg-vynal-accent-primary hover:bg-vynal-accent-primary/90"
                 >
                   {isSubmitting ? (
                     <>
@@ -680,6 +697,7 @@ ${newFields.exclusions}`;
               </div>
             </CardContent>
           </Card>
+          </div>
         </div>
       </form>
     </div>

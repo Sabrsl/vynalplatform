@@ -4,6 +4,8 @@ import Image from 'next/image';
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
 import { X, Upload, AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ImageIcon } from "lucide-react";
 
 // Types pour le composant
 interface ServiceImageUploaderProps {
@@ -148,105 +150,90 @@ const ServiceImageUploader: React.FC<ServiceImageUploaderProps> = ({
     }
   }, [images, isRequired, onImagesChange, toast]);
 
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+    // Dans une implémentation complète, on traiterait les fichiers déposés ici
+  };
+
   return (
     <div className="space-y-4">
-      {/* Message d'erreur */}
-      {error && (
-        <div className="p-3 rounded-md flex items-start gap-2 text-sm bg-red-50 border border-red-200 text-red-700">
-          <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-          <p>{error}</p>
-        </div>
-      )}
-      
-      {/* Images uploadées */}
-      {images.length > 0 && (
-        <div className="space-y-2">
-          <h3 className="text-sm font-medium text-gray-700">
-            Images téléchargées ({images.length}/{maxImages})
-          </h3>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-            {images.map((image, index) => (
-              <div key={index} className="relative group">
-                <div className="aspect-video bg-gray-100 rounded-md overflow-hidden border border-gray-200 relative">
-                  <Image 
-                    src={image} 
-                    alt={`Image ${index + 1}`} 
-                    className="object-cover" 
-                    fill
-                    sizes="(max-width: 768px) 50vw, 33vw"
-                    priority={index === 0 || image.includes('/services/temp_')}
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleRemoveImage(index)}
-                  className={cn(
-                    "absolute top-2 right-2 p-1 rounded-full shadow-sm",
-                    "opacity-80 hover:opacity-100 transition-opacity",
-                    isRequired && images.length === 1 
-                      ? "cursor-not-allowed bg-gray-400"
-                      : "bg-red-500 text-white hover:bg-red-600"
-                  )}
-                  disabled={isRequired && images.length === 1}
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            ))}
+      <div
+        className={`
+          relative border-2 border-dashed rounded-lg p-2 sm:p-4
+          ${isDragging ? 'border-vynal-accent-primary bg-vynal-accent-primary/5' : 'border-slate-200 dark:border-slate-700'}
+          ${error ? 'border-red-500 dark:border-red-500' : ''}
+          transition-colors duration-200
+        `}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
+        <div className="flex flex-col items-center justify-center text-center p-2 sm:p-4">
+          <div className="mb-2 sm:mb-3">
+            <ImageIcon className="h-6 w-6 sm:h-8 sm:w-8 text-slate-400 dark:text-slate-500" />
           </div>
-        </div>
-      )}
-      
-      {/* Zone d'upload */}
-      {images.length < maxImages && (
-        <div 
-          className={cn(
-            "border-2 border-dashed rounded-lg p-4 text-center transition-all",
-            isDragging ? "border-indigo-400 bg-indigo-50" : "border-gray-300 hover:border-indigo-300",
-            className
-          )}
-          onClick={() => fileInputRef.current?.click()}
-          onDragOver={(e) => {
-            e.preventDefault();
-            setIsDragging(true);
-          }}
-          onDragLeave={() => setIsDragging(false)}
-          onDrop={(e) => {
-            e.preventDefault();
-            setIsDragging(false);
-            // Dans une implémentation complète, on traiterait les fichiers déposés ici
-          }}
-        >
+          <p className="text-[10px] sm:text-xs text-slate-600 dark:text-slate-400 mb-1 sm:mb-2">
+            Glissez-déposez vos images ou cliquez pour parcourir
+          </p>
+          <p className="text-[8px] sm:text-[10px] text-slate-500 dark:text-slate-500">
+            Vous pouvez ajouter jusqu'à 3 images supplémentaires
+          </p>
           <input
             type="file"
             ref={fileInputRef}
             onChange={handleFileSelect}
             accept="image/*"
-            multiple={maxImages - images.length > 1}
+            multiple
             className="hidden"
           />
-          
-          <div className="py-4">
-            <div className="mb-2">
-              <div className="mx-auto h-12 w-12 rounded-full flex items-center justify-center bg-indigo-100 text-indigo-600">
-                <Upload className="h-6 w-6" />
-              </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => fileInputRef.current?.click()}
+            className="mt-2 sm:mt-3 text-[10px] sm:text-xs h-6 sm:h-8 px-2 sm:px-3"
+          >
+            Sélectionner des images
+          </Button>
+        </div>
+      </div>
+
+      {error && (
+        <div className="flex items-start gap-1.5">
+          <AlertCircle className="h-3 w-3 text-red-500 mt-0.5 flex-shrink-0" />
+          <p className="text-[8px] sm:text-[10px] text-red-500">{error}</p>
+        </div>
+      )}
+
+      {images.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
+          {images.map((image, index) => (
+            <div key={index} className="relative group aspect-[3/2]">
+              <Image
+                src={image}
+                alt={`Image ${index + 1}`}
+                fill
+                className="object-cover rounded-lg"
+              />
+              <button
+                type="button"
+                onClick={() => handleRemoveImage(index)}
+                className="absolute top-1 right-1 p-1 bg-red-500/90 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <X className="h-3 w-3" />
+              </button>
             </div>
-            
-            <p className="text-sm font-medium mb-1 text-gray-700">
-              {isDragging 
-                ? "Déposez vos images ici"
-                : "Glissez-déposez vos images ou cliquez pour parcourir"
-              }
-            </p>
-            
-            <p className="text-xs text-gray-500">
-              {maxImages - images.length > 1 
-                ? `Vous pouvez ajouter jusqu'à ${maxImages - images.length} images supplémentaires`
-                : "Vous pouvez ajouter 1 image supplémentaire"
-              }
-            </p>
-          </div>
+          ))}
         </div>
       )}
     </div>

@@ -84,8 +84,10 @@ const ServiceDetails: React.FC<ServiceDetailsProps> = ({
       case 'pending':
         return (
           <Badge variant="outline" className={cn(
-            "bg-amber-500/80 text-white hover:bg-amber-500 border-amber-500/50 text-[10px] sm:text-xs py-0.5 px-2",
-            "flex items-center"
+            "text-[10px] sm:text-xs py-0.5 px-2 flex items-center transition-all duration-200",
+            isDarkMode
+              ? "bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 border-amber-500/20 hover:border-amber-500/40"
+              : "bg-amber-500/20 text-amber-600 hover:bg-amber-500/30 border-amber-500/30 hover:border-amber-500/40"
           )}>
             <AlertTriangle className="h-3 w-3 mr-1" />
             En attente
@@ -94,8 +96,10 @@ const ServiceDetails: React.FC<ServiceDetailsProps> = ({
       case 'approved':
         return (
           <Badge variant="outline" className={cn(
-            "bg-green-500/80 text-white hover:bg-green-500 border-green-500/50 text-[10px] sm:text-xs py-0.5 px-2",
-            "flex items-center"
+            "text-[10px] sm:text-xs py-0.5 px-2 flex items-center transition-all duration-200",
+            isDarkMode
+              ? "bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border-emerald-500/20 hover:border-emerald-500/40"
+              : "bg-emerald-500/20 text-emerald-600 hover:bg-emerald-500/30 border-emerald-500/30 hover:border-emerald-500/40"
           )}>
             <CheckCircle className="h-3 w-3 mr-1" />
             Approuvé
@@ -104,8 +108,10 @@ const ServiceDetails: React.FC<ServiceDetailsProps> = ({
       case 'rejected':
         return (
           <Badge variant="outline" className={cn(
-            "bg-red-500/80 text-white hover:bg-red-500 border-red-500/50 text-xs py-0.5 px-2",
-            "flex items-center"
+            "text-[10px] sm:text-xs py-0.5 px-2 flex items-center transition-all duration-200",
+            isDarkMode
+              ? "bg-red-500/10 text-red-500 hover:bg-red-500/20 border-red-500/20 hover:border-red-500/40"
+              : "bg-red-500/20 text-red-600 hover:bg-red-500/30 border-red-500/30 hover:border-red-500/40"
           )}>
             <XCircle className="h-3 w-3 mr-1" />
             Rejeté
@@ -162,7 +168,7 @@ const ServiceDetails: React.FC<ServiceDetailsProps> = ({
   return (
     <div className={cn("p-2 sm:p-4", className)}>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3 sm:mb-4">
-        <div className="flex items-center">
+        <div className="flex items-center gap-3">
           {onBack && (
             <Button 
               variant="outline"
@@ -175,7 +181,7 @@ const ServiceDetails: React.FC<ServiceDetailsProps> = ({
           )}
           <h1 className={cn(
             "text-lg sm:text-xl md:text-2xl font-bold tracking-tight",
-            isDarkMode ? "text-vynal-text-primary" : "text-gray-900"
+            isDarkMode ? "text-vynal-text-primary" : "text-slate-800"
           )}>Détails</h1>
         </div>
         
@@ -185,10 +191,10 @@ const ServiceDetails: React.FC<ServiceDetailsProps> = ({
               variant="outline"
               onClick={onView}
               className={cn(
-                "text-xs py-1 px-2.5 h-8 transition-colors",
+                "text-xs py-1 px-2.5 h-8 transition-all duration-200",
                 isDarkMode 
-                  ? "border-vynal-purple-secondary/30 hover:border-vynal-purple-light/50 bg-vynal-purple-secondary/20" 
-                  : "border-gray-200 hover:border-indigo-200 bg-gray-50"
+                  ? "border-slate-700/30 hover:border-slate-700/50 bg-slate-900/20" 
+                  : "border-slate-200 hover:border-slate-300 bg-white/25"
               )}
             >
               Voir sur le site
@@ -198,10 +204,10 @@ const ServiceDetails: React.FC<ServiceDetailsProps> = ({
             <Button 
               onClick={onEdit}
               className={cn(
-                "text-xs py-1 px-2.5 h-8 transition-colors",
+                "text-xs py-1 px-2.5 h-8 transition-all duration-200",
                 isDarkMode 
-                  ? "bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-vynal-purple-dark" 
-                  : "bg-indigo-600 hover:bg-indigo-700 text-white"
+                  ? "bg-vynal-accent-primary/10 hover:bg-vynal-accent-primary/20 text-vynal-text-primary border-vynal-accent-primary/20" 
+                  : "bg-vynal-accent-primary/10 hover:bg-vynal-accent-primary/15 text-slate-700 border-vynal-accent-primary/20"
               )}
             >
               Modifier
@@ -212,10 +218,10 @@ const ServiceDetails: React.FC<ServiceDetailsProps> = ({
       
       <div className="space-y-3">
         <Card className={cn(
-          "overflow-hidden border shadow-md rounded-lg",
+          "overflow-hidden border shadow-sm backdrop-blur-sm rounded-lg transition-all duration-200",
           isDarkMode 
-            ? "bg-vynal-purple-dark/90 border-vynal-purple-secondary/30" 
-            : "bg-white border-gray-200"
+            ? "bg-slate-900/30 border-slate-700/30" 
+            : "bg-white/30 border-slate-200"
         )}>
           <CardHeader className="p-3 sm:p-4">
             <div className="flex flex-col gap-2">
@@ -223,15 +229,18 @@ const ServiceDetails: React.FC<ServiceDetailsProps> = ({
                 <div className="max-w-full">
                   <CardTitle className={cn(
                     "break-words text-sm sm:text-lg md:text-xl font-normal",
-                    isDarkMode ? "text-white" : "text-gray-900"
+                    isDarkMode ? "text-vynal-text-primary" : "text-slate-800"
                   )}>{service.title || "Sans titre"}</CardTitle>
-                  <CardDescription className="text-xs mt-2">
+                  <CardDescription className={cn(
+                    "text-xs mt-2",
+                    isDarkMode ? "text-vynal-text-secondary" : "text-slate-700"
+                  )}>
                     ID: {service.id || "N/A"}
                   </CardDescription>
                 </div>
                 <div className={cn(
-                  "text-base sm:text-lg text-right whitespace-nowrap mt-2",
-                  isDarkMode ? "text-vynal-accent-primary" : "text-indigo-600"
+                  "text-base sm:text-lg text-right whitespace-nowrap mt-2 font-bold",
+                  isDarkMode ? "text-vynal-accent-primary" : "text-vynal-accent-primary"
                 )}>
                   {formatPrice(service.price || 0)}
                 </div>
@@ -241,10 +250,14 @@ const ServiceDetails: React.FC<ServiceDetailsProps> = ({
                 <Badge 
                   variant="outline" 
                   className={cn(
-                    "text-xs py-0.5 px-2 flex items-center",
+                    "text-xs py-0.5 px-2 flex items-center transition-all duration-200",
                     uiState.isActive 
-                      ? "bg-vynal-status-success/80 text-white hover:bg-vynal-status-success border-vynal-status-success/50" 
-                      : "bg-vynal-status-warning/80 text-white hover:bg-vynal-status-warning border-vynal-status-warning/50"
+                      ? isDarkMode
+                        ? "bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border-emerald-500/20 hover:border-emerald-500/40"
+                        : "bg-emerald-500/20 text-emerald-600 hover:bg-emerald-500/30 border-emerald-500/30 hover:border-emerald-500/40"
+                      : isDarkMode
+                        ? "bg-red-500/10 text-red-500 hover:bg-red-500/20 border-red-500/20 hover:border-red-500/40"
+                        : "bg-red-500/20 text-red-600 hover:bg-red-500/30 border-red-500/30 hover:border-red-500/40"
                   )}
                 >
                   {uiState.isActive ? "Actif" : "Inactif"}
@@ -258,56 +271,98 @@ const ServiceDetails: React.FC<ServiceDetailsProps> = ({
           <CardContent className="p-3 sm:p-4 pt-0">
             <div className="space-y-3 sm:space-y-4">
               <div>
-                <h3 className="text-xs sm:text-sm md:text-base font-semibold text-slate-900 dark:text-vynal-text-primary mb-1.5">Description</h3>
-                <div className="p-2.5 sm:p-3 rounded-md whitespace-pre-wrap bg-slate-50 dark:bg-slate-800/60">
-                  <p className="text-[10px] sm:text-xs break-words text-slate-900 dark:text-slate-200">{service.description || "Aucune description disponible"}</p>
+                <h3 className={cn(
+                  "text-xs sm:text-sm md:text-base font-semibold mb-1.5",
+                  isDarkMode ? "text-vynal-text-primary" : "text-slate-800"
+                )}>Description</h3>
+                <div className="p-2.5 sm:p-3 rounded-md whitespace-pre-wrap bg-white/20 dark:bg-slate-800/25">
+                  <p className={cn(
+                    "text-[10px] sm:text-xs break-words",
+                    isDarkMode ? "text-vynal-text-secondary" : "text-slate-700"
+                  )}>{service.description || "Aucune description disponible"}</p>
                 </div>
               </div>
               
               <div className="grid grid-cols-2 gap-2 sm:gap-3">
                 <div className="flex items-center space-x-2">
-                  <Tag className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0 text-indigo-600 dark:text-indigo-400" />
+                  <Tag className={cn(
+                    "h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0",
+                    isDarkMode ? "text-vynal-accent-primary" : "text-vynal-accent-primary"
+                  )} />
                   <div>
-                    <p className="text-[10px] sm:text-xs text-slate-600 dark:text-slate-400">Catégorie</p>
-                    <p className="text-[10px] sm:text-xs font-normal text-slate-900 dark:text-slate-200">{service.categories?.name || "Non spécifiée"}</p>
+                    <p className={cn(
+                      "text-[10px] sm:text-xs",
+                      isDarkMode ? "text-vynal-text-secondary" : "text-slate-700"
+                    )}>Catégorie</p>
+                    <p className={cn(
+                      "text-[10px] sm:text-xs font-normal",
+                      isDarkMode ? "text-vynal-text-primary" : "text-slate-800"
+                    )}>{service.categories?.name || "Non spécifiée"}</p>
                   </div>
                 </div>
                 
                 {service.subcategories && (
                   <div className="flex items-center space-x-2">
-                    <Tag className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0 text-indigo-600 dark:text-indigo-400" />
+                    <Tag className={cn(
+                      "h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0",
+                      isDarkMode ? "text-vynal-accent-primary" : "text-vynal-accent-primary"
+                    )} />
                     <div>
-                      <p className="text-[10px] sm:text-xs text-slate-600 dark:text-slate-400">Sous-catégorie</p>
-                      <p className="text-[10px] sm:text-xs font-normal text-slate-900 dark:text-slate-200">{service.subcategories.name}</p>
+                      <p className={cn(
+                        "text-[10px] sm:text-xs",
+                        isDarkMode ? "text-vynal-text-secondary" : "text-slate-700"
+                      )}>Sous-catégorie</p>
+                      <p className={cn(
+                        "text-[10px] sm:text-xs font-normal",
+                        isDarkMode ? "text-vynal-text-primary" : "text-slate-800"
+                      )}>{service.subcategories.name}</p>
                     </div>
                   </div>
                 )}
                 
                 <div className="flex items-center space-x-2">
-                  <Clock className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0 text-indigo-600 dark:text-indigo-400" />
+                  <Clock className={cn(
+                    "h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0",
+                    isDarkMode ? "text-vynal-accent-primary" : "text-vynal-accent-primary"
+                  )} />
                   <div>
-                    <p className="text-[10px] sm:text-xs text-slate-600 dark:text-slate-400">Livraison</p>
-                    <p className="text-[10px] sm:text-xs font-normal text-slate-900 dark:text-slate-200">{service.delivery_time || 0} jour{(service.delivery_time || 0) > 1 ? 's' : ''}</p>
+                    <p className={cn(
+                      "text-[10px] sm:text-xs",
+                      isDarkMode ? "text-vynal-text-secondary" : "text-slate-700"
+                    )}>Livraison</p>
+                    <p className={cn(
+                      "text-[10px] sm:text-xs font-normal",
+                      isDarkMode ? "text-vynal-text-primary" : "text-slate-800"
+                    )}>{service.delivery_time || 0} jour{(service.delivery_time || 0) > 1 ? 's' : ''}</p>
                   </div>
                 </div>
                 
                 <div className="flex items-center space-x-2">
-                  <Calendar className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0 text-indigo-600 dark:text-indigo-400" />
+                  <Calendar className={cn(
+                    "h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0",
+                    isDarkMode ? "text-vynal-accent-primary" : "text-vynal-accent-primary"
+                  )} />
                   <div>
-                    <p className="text-[10px] sm:text-xs text-slate-600 dark:text-slate-400">Créé le</p>
-                    <p className="text-[10px] sm:text-xs font-normal text-slate-900 dark:text-slate-200">{formatDate(service.created_at || new Date().toISOString())}</p>
+                    <p className={cn(
+                      "text-[10px] sm:text-xs",
+                      isDarkMode ? "text-vynal-text-secondary" : "text-slate-700"
+                    )}>Créé le</p>
+                    <p className={cn(
+                      "text-[10px] sm:text-xs font-normal",
+                      isDarkMode ? "text-vynal-text-primary" : "text-slate-800"
+                    )}>{formatDate(service.created_at || new Date().toISOString())}</p>
                   </div>
                 </div>
               </div>
               
               <div>
-                <h3 className="text-xs sm:text-sm md:text-base font-semibold text-slate-900 dark:text-vynal-text-primary mb-1.5">Images</h3>
+                <h3 className="text-xs sm:text-sm md:text-base font-semibold text-slate-800 dark:text-vynal-text-primary mb-1.5">Images</h3>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {service.images && service.images.length > 0 ? (
                     service.images.map((img, index) => (
                       <div 
                         key={index} 
-                        className="aspect-video rounded-md overflow-hidden bg-slate-100 dark:bg-slate-800"
+                        className="aspect-video rounded-md overflow-hidden bg-white/20 dark:bg-slate-800/25"
                       >
                         <Image 
                           src={img} 
@@ -325,8 +380,11 @@ const ServiceDetails: React.FC<ServiceDetailsProps> = ({
                       </div>
                     ))
                   ) : (
-                    <div className="aspect-video rounded-md flex items-center justify-center bg-slate-100 dark:bg-slate-800">
-                      <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400">Aucune image</p>
+                    <div className="aspect-video rounded-md flex items-center justify-center bg-white/20 dark:bg-slate-800/25">
+                      <p className={cn(
+                        "text-[10px] sm:text-xs",
+                        isDarkMode ? "text-vynal-text-secondary" : "text-slate-700"
+                      )}>Aucune image</p>
                     </div>
                   )}
                 </div>

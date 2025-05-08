@@ -744,10 +744,62 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
     if (!serviceMeta?.description) return "Aucune description disponible";
     
     try {
-      return serviceMeta.description.split('\n').map((line, i) => (
-        <React.Fragment key={i}>
-          {line}
-          {i < serviceMeta.description.split('\n').length - 1 && <br />}
+      // Définir les sections principales avec leurs emojis
+      const mainSections = [
+        "📝 Description du service",
+        "🎯 Ce que vous obtiendrez",
+        "🛠️ Ce dont j'ai besoin de vous",
+        "⏱️ Délais et révisions",
+        "❌ Ce qui n'est pas inclus"
+      ];
+
+      // Diviser le texte en sections
+      const sections = serviceMeta.description.split('\n\n');
+      let currentSection = "";
+      let currentContent = "";
+      const formattedSections = [];
+
+      for (const section of sections) {
+        const lines = section.split('\n');
+        const title = lines[0];
+        const content = lines.slice(1).join('\n');
+
+        // Si c'est une section principale
+        if (mainSections.some(mainSection => title.includes(mainSection))) {
+          // Si on avait une section précédente, l'ajouter
+          if (currentSection) {
+            formattedSections.push(
+              <div key={currentSection} className="mb-4">
+                <h3 className="text-sm font-semibold mb-2 text-vynal-title">{currentSection}</h3>
+                <div className="text-xs text-vynal-body whitespace-pre-wrap">{currentContent}</div>
+              </div>
+            );
+          }
+          currentSection = title;
+          currentContent = content;
+        } else {
+          // Si ce n'est pas une section principale, l'ajouter au contenu actuel
+          currentContent += (currentContent ? '\n\n' : '') + section;
+        }
+      }
+
+      // Ajouter la dernière section
+      if (currentSection) {
+        formattedSections.push(
+          <div key={currentSection} className="mb-4">
+            <h3 className="text-sm font-semibold mb-2 text-vynal-title">{currentSection}</h3>
+            <div className="text-xs text-vynal-body whitespace-pre-wrap">{currentContent}</div>
+          </div>
+        );
+      }
+
+      // Ajouter les séparateurs entre les sections
+      return formattedSections.map((section, index) => (
+        <React.Fragment key={index}>
+          {section}
+          {index < formattedSections.length - 1 && (
+            <div className="h-[1px] bg-gradient-to-r from-transparent via-vynal-purple-dark/30 dark:via-vynal-purple-light/30 to-transparent my-4" />
+          )}
         </React.Fragment>
       ));
     } catch {
