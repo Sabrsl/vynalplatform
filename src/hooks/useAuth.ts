@@ -33,7 +33,13 @@ export function useAuth() {
 
   // Résoudre l'URL de redirection complète
   const getRedirectUrl = useCallback((path: string): string => {
-    return `${APP_URLS.productionUrl}${path}`;
+    // S'assurer que l'URL de redirection est complète et correcte pour Supabase
+    if (path.startsWith('/auth/reset-password')) {
+      // Pour la réinitialisation de mot de passe, nous retournons l'URL complète
+      return `${APP_URLS.productionUrl}${path}`;
+    } else {
+      return `${APP_URLS.productionUrl}${path}`;
+    }
   }, []);
 
   // Fonction optimisée pour récupérer le rôle utilisateur
@@ -278,7 +284,7 @@ export function useAuth() {
     try {
       setLoading(true);
       // Utiliser l'URL absolue pour être sûr que Supabase redirige correctement
-      const redirectUrl = getRedirectUrl('/auth/reset-password');
+      const redirectUrl = `${APP_URLS.productionUrl}/auth/reset-password`;
       console.log("URL de redirection pour réinitialisation:", redirectUrl);
       
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
@@ -303,7 +309,7 @@ export function useAuth() {
     } finally {
       setLoading(false);
     }
-  }, [getRedirectUrl]);
+  }, []);
 
   const updatePassword = useCallback(async (password: string): Promise<AuthResult> => {
     if (!password) {

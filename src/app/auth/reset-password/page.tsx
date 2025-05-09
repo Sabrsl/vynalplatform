@@ -24,7 +24,13 @@ export default function ResetPasswordPage() {
     // Vérifier si on a un hash dans l'URL
     const hash = window.location.hash;
     // Vérifier si on a un token dans les paramètres d'URL (cas classique)
-    const token = searchParams?.get('token');
+    const token = searchParams?.get('token') || searchParams?.get('type');
+    
+    console.log("Paramètres d'URL:", {
+      hash: hash,
+      token: token,
+      searchParams: Object.fromEntries(searchParams?.entries() || [])
+    });
     
     if (hash && hash.includes("access_token")) {
       // Cas où les tokens sont dans le hash
@@ -79,7 +85,14 @@ export default function ResetPasswordPage() {
         }
       })();
     } else {
-      setError("Aucun token fourni.");
+      // Tenter de récupérer la session active
+      supabase.auth.getSession().then(({ data, error }: { data: any, error: any }) => {
+        if (error || !data.session) {
+          setError("Aucun token fourni. Veuillez utiliser le lien envoyé par email.");
+        } else {
+          setIsReady(true);
+        }
+      });
     }
   }, [searchParams]);
 
