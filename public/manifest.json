@@ -1,0 +1,9 @@
+{
+  "name": "Vynal Platform",
+  "short_name": "Vynal",
+  "description": "Plateforme de services numériques proposés par des professionnels indépendants",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1a1a2e",
+  "theme_color": "#1a1a2e"
+} 

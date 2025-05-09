@@ -50,7 +50,7 @@ export default function DashboardContainer({ children }: DashboardContainerProps
     const isClientOnly = isClient && !isFreelance;
     
     // Vérifier si redirection nécessaire
-    const needsRedirect = !isDashboardPath(pathname, isClientOnly);
+    const needsRedirect = !isDashboardPath(pathname || '', isClientOnly);
     
     return {
       shouldBeOnClientDashboard: isClientOnly,

@@ -4,6 +4,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { Loader } from '@/components/ui/loader';
 import { useAuth } from '@/hooks/useAuth';
+import { useUser } from '@/hooks/useUser';
 import { useInView } from 'react-intersection-observer';
 import { MessagingInterfaceProps } from './messaging-types';
 
@@ -90,6 +91,7 @@ const MessagingInterface: React.FC<MessagingInterfaceProps> = ({
   isFreelance: propIsFreelance
 }) => {
   const { user } = useAuth();
+  const { isFreelance: userIsFreelance } = useUser();
   const [mounted, setMounted] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -100,14 +102,11 @@ const MessagingInterface: React.FC<MessagingInterfaceProps> = ({
     triggerOnce: false
   });
 
-  // Déterminer si l'utilisateur est un freelance ou un client
+  // Utiliser la prop isFreelance si fournie, sinon utiliser la valeur du hook useUser
   const isFreelance = useMemo(() => {
     if (propIsFreelance !== undefined) return propIsFreelance;
-    
-    return user?.user_metadata?.role === 'freelance' || 
-           user?.role === 'freelance' || 
-           user?.user_metadata?.userRole === 'freelance';
-  }, [propIsFreelance, user]);
+    return userIsFreelance;
+  }, [propIsFreelance, userIsFreelance]);
 
   // Initialisation simple 
   useEffect(() => {

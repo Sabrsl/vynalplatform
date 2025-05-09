@@ -4,6 +4,16 @@ import { useEffect, useRef, useCallback, memo } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import { eventEmitter, EVENTS, type NotificationEvent } from '@/lib/utils/events';
 
+// Clé pour stocker les notifications déjà affichées dans localStorage
+const DISPLAYED_NOTIFICATIONS_KEY = 'vynal_displayed_notifications';
+// Délai minimum entre les mêmes notifications (24 heures en millisecondes)
+const MIN_NOTIFICATION_INTERVAL = 24 * 60 * 60 * 1000;
+
+// Interface pour le stockage des notifications
+interface SessionToasts {
+  [key: string]: number;
+}
+
 /**
  * Composant optimisé qui écoute les événements de notification et affiche les toasts
  * Ce composant doit être monté à la racine de l'application pour capturer 
@@ -28,6 +38,51 @@ const NotificationListener = () => {
       debounceTimerRef.current = null;
     }
   }, []);
+
+  // Vérifier si une notification a déjà été affichée récemment
+  const shouldShowNotification = useCallback((notification: NotificationEvent): boolean => {
+    if (typeof window === 'undefined') return true;
+    
+    try {
+      // Générer un ID unique pour cette notification basé sur son contenu
+      const notificationId = `${notification.title}-${notification.description}`.replace(/\s+/g, '-').toLowerCase();
+      
+      // Récupérer l'état des notifications depuis le stockage global ou localStorage
+      let sessionToasts: SessionToasts = {};
+      
+      if (window.vynal_sessionToasts) {
+        sessionToasts = window.vynal_sessionToasts as unknown as SessionToasts;
+      } else {
+        try {
+          const storedState = localStorage.getItem(DISPLAYED_NOTIFICATIONS_KEY);
+          sessionToasts = storedState ? JSON.parse(storedState) : {};
+          window.vynal_sessionToasts = sessionToasts as any;
+        } catch (err) {
+          console.warn('[NotificationListener] Erreur localStorage:', err);
+          sessionToasts = {};
+        }
+      }
+      
+      // Vérifier si la notification a déjà été affichée et quand
+      const now = Date.now();
+      const lastShown = sessionToasts[notificationId];
+      
+      // Si jamais affichée ou affichée il y a plus de 24h, on l'affiche
+      if (!lastShown || (now - lastShown) > MIN_NOTIFICATION_INTERVAL) {
+        // Mettre à jour l'heure de dernière affichage
+        sessionToasts[notificationId] = now;
+        
+        // Persister l'état
+        localStorage.setItem(DISPLAYED_NOTIFICATIONS_KEY, JSON.stringify(sessionToasts));
+        return true;
+      }
+      
+      return false;
+    } catch (err) {
+      console.warn('[NotificationListener] Erreur dans shouldShowNotification:', err);
+      return true; // En cas d'erreur, on affiche la notification par précaution
+    }
+  }, []);
   
   // Traiter les notifications en file d'attente pour éviter les chevauchements
   const processNotificationQueue = useCallback(async () => {
@@ -40,6 +95,15 @@ const NotificationListener = () => {
       const notification = notificationQueueRef.current.shift();
       if (!notification) {
         isProcessingRef.current = false;
+        return;
+      }
+      
+      // Vérifier si on doit afficher cette notification
+      if (!shouldShowNotification(notification)) {
+        isProcessingRef.current = false;
+        if (notificationQueueRef.current.length > 0) {
+          processNotificationQueue();
+        }
         return;
       }
       
@@ -76,61 +140,30 @@ const NotificationListener = () => {
         }
       }, 500);
     }
-  }, [toast, clearTimers]);
+  }, [toast, clearTimers, shouldShowNotification]);
   
-  // Optimisation: fonction avec debounce pour ajouter une notification à la file d'attente
-  const queueNotification = useCallback((notification: NotificationEvent) => {
-    // Annuler tout debounce en cours
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
-    
-    debounceTimerRef.current = setTimeout(() => {
-      // Utiliser Set pour détecter les doublons de manière plus efficace
-      const notificationKey = `${notification.title}|${notification.description}`;
-      const existingKeys = new Set(
-        notificationQueueRef.current.map(n => `${n.title}|${n.description}`)
-      );
-      
-      // Ne pas ajouter si un doublon existe déjà
-      if (!existingKeys.has(notificationKey)) {
-        // Ajouter au début si haute priorité, sinon à la fin
-        if (notification.priority === 'high') {
-          notificationQueueRef.current.unshift(notification);
-        } else {
-          notificationQueueRef.current.push(notification);
-        }
-        
-        // Limiter la file d'attente à 5 notifications max
-        if (notificationQueueRef.current.length > 5) {
-          notificationQueueRef.current = notificationQueueRef.current.slice(0, 5);
-        }
-        
-        // Démarrer le traitement si ce n'est pas déjà en cours
-        if (!isProcessingRef.current) {
-          processNotificationQueue();
-        }
-      }
-      
-      debounceTimerRef.current = null;
-    }, 50); // Petit délai pour grouper les notifications similaires
-  }, [processNotificationQueue]);
-
-  // S'abonner aux événements de notification
+  // Configurer les écouteurs d'événements pour les notifications
   useEffect(() => {
-    // Écouter les événements de notification
-    const unsubscribe = eventEmitter.on(EVENTS.NOTIFICATION, queueNotification);
-
-    // Se désabonner lors du démontage du composant
-    return () => {
-      unsubscribe();
-      // Nettoyer les ressources lors du démontage
-      clearTimers();
-      notificationQueueRef.current = [];
+    const handleNotification = (event: NotificationEvent) => {
+      notificationQueueRef.current.push(event);
+      
+      // Si on n'est pas déjà en train de traiter, lancer le traitement
+      if (!isProcessingRef.current) {
+        processNotificationQueue();
+      }
     };
-  }, [queueNotification, clearTimers]);
-
-  // Ce composant ne rend rien visuellement
+    
+    // S'abonner à l'événement de notification
+    const unsubscribe = eventEmitter.on(EVENTS.NOTIFICATION, handleNotification);
+    
+    // Nettoyage lors du démontage du composant
+    return () => {
+      unsubscribe(); // Utiliser la fonction de désinscription retournée
+      clearTimers();
+    };
+  }, [processNotificationQueue, clearTimers]);
+  
+  // Ce composant ne rend rien, il se contente d'écouter les événements
   return null;
 };
 

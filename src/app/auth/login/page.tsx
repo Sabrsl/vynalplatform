@@ -9,7 +9,7 @@ export default function LoginPage() {
   const searchParams = useSearchParams();
   // Mémoriser le chemin de redirection pour éviter les recalculs inutiles
   const redirect = useMemo(() => 
-    searchParams.get('redirectTo') || '/dashboard', 
+    searchParams?.get('redirectTo') || '/dashboard', 
     [searchParams]
   );
   

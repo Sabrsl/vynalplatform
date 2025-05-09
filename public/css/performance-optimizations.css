@@ -1,0 +1,118 @@
+/**
+ * Optimisations CSS pour améliorer les performances
+ * Ce fichier est conçu pour ne pas affecter le design du site
+ * tout en améliorant les performances sur tous les appareils
+ */
+
+/* Optimisations pour les appareils à faible puissance */
+html.reduced-motion * {
+  transition-duration: 0.001ms !important;
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  scroll-behavior: auto !important;
+}
+
+/* Optimisations pour les éléments LCP (Largest Contentful Paint) */
+#lcp-title {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 200px;
+}
+
+/* Prévenir les changements de mise en page (CLS) pour les éléments qui chargent dynamiquement */
+.image-container {
+  display: block;
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  height: 0;
+  padding-bottom: 56.25%; /* Ratio 16:9 */
+  contain: strict;
+}
+
+.image-container img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  will-change: transform;
+}
+
+/* Stabiliser les éléments propices au CLS */
+img:not([width]):not([height]) {
+  aspect-ratio: 16/9;
+  transform: translateZ(0); /* Force GPU acceleration pour éviter les repaints */
+}
+
+button, a, input, select, textarea {
+  min-height: 44px; /* Taille minimale pour les éléments interactifs */
+  transform: translateZ(0); /* Force GPU acceleration for interactive elements */
+}
+
+/* Prévenir le CLS lors du chargement des polices */
+html {
+  font-display: swap;
+  text-size-adjust: 100%;
+}
+
+/* Fixer les hauteurs des conteneurs pour prévenir les mouvements */
+.min-h-\[320px\] {
+  contain: layout;
+  content-visibility: auto;
+}
+
+/* Préserver l'espace pour les polices en cours de chargement */
+body {
+  font-display: optional;
+}
+
+/* Optimisations pour l'affichage des contenus importants */
+[importance="high"] {
+  content-visibility: auto;
+  will-change: opacity;
+}
+
+/* Stabiliser les éléments de tableau pour prévenir les mouvements */
+table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+/* Stabiliser les cartes et les conteneurs flexibles */
+.card, [class*="flex-"], [class*="grid-"] {
+  contain: layout style;
+}
+
+/* Réduire l'utilisation de box-shadow coûteuse sur mobile */
+@media (max-width: 768px) {
+  /* Optimisation sélective des ombres */
+  html.reduced-motion .shadow-md {
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) !important;
+  }
+  
+  html.reduced-motion .shadow-lg {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+  }
+  
+  /* Simplifier les effets de hover sur mobile */
+  html.reduced-motion .hover\:scale-\[1\.02\]:hover {
+    transform: none !important;
+  }
+  
+  html.reduced-motion .hover\:-translate-y-1:hover {
+    transform: none !important;
+  }
+  
+  /* Désactiver les animations de fond sur mobile */
+  html.reduced-motion .animate-gradient-x {
+    animation: none !important;
+  }
+} 
+
+/* Optimiser le chargement des polices */
+@font-face {
+  font-family: 'Poppins';
+  font-display: swap;
+  src: local('Poppins'), url('https://fonts.gstatic.com/s/poppins/v20/pxiEyp8kv8JHgFVrJJfecg.woff2') format('woff2');
+} 

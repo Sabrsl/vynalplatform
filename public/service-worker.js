@@ -1,232 +1,267 @@
-// Service Worker pour Vynal Platform
-const CACHE_NAME = 'vynal-app-cache-v1';
+/**
+ * Service Worker optimisé pour Vynal Platform
+ * Gestion intelligente du cache et des ressources
+ */
 
-// Ressources à mettre en cache lors de l'installation
-const STATIC_ASSETS = [
+const CACHE_NAME = 'vynal-cache-v1';
+const STATIC_CACHE = 'static-v1';
+const DYNAMIC_CACHE = 'dynamic-v1';
+const IMAGE_CACHE = 'images-v1';
+
+// Liste des ressources à mettre en cache immédiatement
+const STATIC_RESOURCES = [
   '/',
-  '/manifest.json',
-  '/favicon.ico',
-  '/logo.png',
-  // Ajoutez d'autres ressources statiques importantes ici
+  '/index.html',
+  '/css/performance-optimizations.css',
+  '/js/async-interactions.js',
+  '/js/performance-utils.js',
+  '/js/lcp-optimizer.js'
 ];
 
-// Installation: mettre en cache les ressources statiques
+// Installation du Service Worker
 self.addEventListener('install', (event) => {
-  console.log('Service Worker: Installation');
-  
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => {
-        console.log('Service Worker: Mise en cache des ressources statiques');
-        return cache.addAll(STATIC_ASSETS);
-      })
+    Promise.all([
+      // Mise en cache des ressources statiques
+      caches.open(STATIC_CACHE).then(cache => {
+        return cache.addAll(STATIC_RESOURCES);
+      }),
+      // Préparation du cache pour les images
+      caches.open(IMAGE_CACHE)
+    ])
   );
-  
-  // Activer immédiatement sans attendre la fermeture des onglets
+  // Activer immédiatement le nouveau Service Worker
   self.skipWaiting();
 });
 
-// Activation: nettoyer les anciens caches
+// Activation et nettoyage des anciens caches
 self.addEventListener('activate', (event) => {
-  console.log('Service Worker: Activation');
-  
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
+    caches.keys().then(cacheNames => {
       return Promise.all(
-        cacheNames.filter((name) => name !== CACHE_NAME)
-          .map((name) => {
-            console.log('Service Worker: Suppression de l\'ancien cache', name);
-            return caches.delete(name);
-          })
+        cacheNames
+          .filter(name => name.startsWith('vynal-') && name !== CACHE_NAME)
+          .map(name => caches.delete(name))
       );
     })
   );
-  
-  // Prendre le contrôle de tous les clients non contrôlés
-  event.waitUntil(self.clients.claim());
+  // Prendre le contrôle immédiatement
+  self.clients.claim();
 });
 
-// Stratégie de cache: Network First pour les API, Cache First pour les assets
+// Stratégie Stale-While-Revalidate optimisée
+async function staleWhileRevalidateStrategy(request) {
+  try {
+    // Essayer d'abord le cache
+    const cachedResponse = await caches.match(request);
+    
+    // Lancer la requête réseau en parallèle
+    const fetchPromise = fetch(request).then(async (networkResponse) => {
+      if (networkResponse.ok) {
+        // Mettre à jour le cache avec la nouvelle réponse
+        const cache = await caches.open(CACHE_NAME);
+        cache.put(request, networkResponse.clone());
+      }
+      return networkResponse;
+    }).catch(error => {
+      console.error('[Service Worker] Erreur de fetch:', error);
+      throw error;
+    });
+    
+    // Retourner la réponse du cache si disponible, sinon attendre la réponse réseau
+    return cachedResponse || fetchPromise;
+  } catch (error) {
+    console.error('[Service Worker] Erreur dans staleWhileRevalidateStrategy:', error);
+    throw error;
+  }
+}
+
+// Gestion des requêtes
 self.addEventListener('fetch', (event) => {
   // Ignorer les requêtes non GET
   if (event.request.method !== 'GET') return;
   
   const url = new URL(event.request.url);
   
-  // Ignorer les requêtes de chrome-extension ou autres protocoles non-http(s)
+  // Ignorer les requêtes non-http(s)
   if (!url.protocol.startsWith('http')) return;
   
-  // Stratégie différente selon le type de requête
-  // 1. API requests (Network First)
-  if (url.pathname.startsWith('/api/')) {
-    event.respondWith(networkFirstStrategy(event.request));
-  } 
-  // 2. Static assets (Cache First)
-  else if (
-    url.pathname.match(/\.(js|css|png|jpg|jpeg|svg|ico|webp|woff2?)$/) ||
-    STATIC_ASSETS.includes(url.pathname)
-  ) {
-    event.respondWith(cacheFirstStrategy(event.request));
-  } 
-  // 3. HTML navigations (Network First with timeout fallback)
-  else if (
-    event.request.mode === 'navigate' ||
-    event.request.headers.get('accept')?.includes('text/html')
-  ) {
-    event.respondWith(networkFirstWithTimeoutStrategy(event.request, 3000));
+  // Stratégie spécifique pour les images
+  if (url.pathname.match(/\.(png|jpe?g|gif|svg|webp|avif)$/)) {
+    event.respondWith(staleWhileRevalidateStrategy(event.request));
+    return;
   }
-  // 4. Autres requêtes (Network First simple)
-  else {
-    event.respondWith(networkFirstStrategy(event.request));
+  
+  // Stratégie pour les ressources statiques
+  if (STATIC_RESOURCES.includes(url.pathname)) {
+    event.respondWith(
+      caches.match(event.request).then(response => {
+        return response || fetch(event.request);
+      })
+    );
+    return;
   }
+  
+  // Stratégie par défaut pour les autres ressources
+  event.respondWith(
+    caches.match(event.request).then(response => {
+      if (response) {
+        // Vérifier si la réponse en cache est toujours valide
+        const cacheDate = new Date(response.headers.get('date'));
+        const now = new Date();
+        const cacheAge = now - cacheDate;
+        
+        // Si le cache est récent (< 1 heure), l'utiliser
+        if (cacheAge < 3600000) {
+          return response;
+        }
+      }
+      
+      // Sinon, utiliser la stratégie Stale-While-Revalidate
+      return staleWhileRevalidateStrategy(event.request);
+    })
+  );
 });
 
-// Stratégie Cache First: essayer d'abord le cache, puis le réseau
-async function cacheFirstStrategy(request) {
-  const cachedResponse = await caches.match(request);
-  
-  if (cachedResponse) {
-    return cachedResponse;
-  }
-  
-  try {
-    const networkResponse = await fetch(request);
-    
-    // Mettre en cache une copie de la réponse si elle est valide
-    if (networkResponse.ok) {
-      const cache = await caches.open(CACHE_NAME);
-      cache.put(request, networkResponse.clone());
-    }
-    
-    return networkResponse;
-  } catch (error) {
-    // Si le réseau échoue et que nous n'avons pas de cache, 
-    // essayer de retourner une page d'erreur offline pour les requêtes HTML
-    if (request.headers.get('accept')?.includes('text/html')) {
-      return caches.match('/offline.html');
-    }
-    
-    throw error;
-  }
-}
-
-// Stratégie Network First: essayer d'abord le réseau, puis le cache
-async function networkFirstStrategy(request) {
-  try {
-    const networkResponse = await fetch(request);
-    
-    // Mettre en cache une copie de la réponse si elle est valide
-    if (networkResponse.ok) {
-      const cache = await caches.open(CACHE_NAME);
-      cache.put(request, networkResponse.clone());
-    }
-    
-    return networkResponse;
-  } catch (error) {
-    // Si le réseau échoue, essayer le cache
-    const cachedResponse = await caches.match(request);
-    
-    if (cachedResponse) {
-      return cachedResponse;
-    }
-    
-    // Si le réseau échoue et que nous n'avons pas de cache, 
-    // essayer de retourner une page d'erreur offline pour les requêtes HTML
-    if (request.headers.get('accept')?.includes('text/html')) {
-      return caches.match('/offline.html');
-    }
-    
-    throw error;
-  }
-}
-
-// Stratégie Network First avec timeout: essayer le réseau avec un délai maximum
-async function networkFirstWithTimeoutStrategy(request, timeoutMs) {
-  const timeoutPromise = new Promise(resolve => {
-    setTimeout(() => {
-      resolve('TIMEOUT');
-    }, timeoutMs);
-  });
-  
-  try {
-    // Course entre le timeout et la requête réseau
-    const result = await Promise.race([
-      fetch(request.clone()),
-      timeoutPromise
-    ]);
-    
-    // Si c'est un timeout, utiliser le cache
-    if (result === 'TIMEOUT') {
-      console.log('Service Worker: Timeout pour', request.url);
-      const cachedResponse = await caches.match(request);
-      
-      if (cachedResponse) {
-        // Essayer quand même de mettre à jour le cache en arrière-plan
-        fetchAndUpdateCache(request);
-        return cachedResponse;
-      }
-    } else {
-      // C'est une réponse réseau
-      const networkResponse = result;
-      
-      // Mettre en cache une copie de la réponse
-      if (networkResponse.ok) {
-        const cache = await caches.open(CACHE_NAME);
-        cache.put(request, networkResponse.clone());
-      }
-      
-      return networkResponse;
-    }
-  } catch (error) {
-    // Si le réseau échoue, essayer le cache
-    const cachedResponse = await caches.match(request);
-    
-    if (cachedResponse) {
-      return cachedResponse;
-    }
-    
-    // Retourner la page offline en dernier recours
-    return caches.match('/offline.html');
-  }
-}
-
-// Mettre à jour le cache en arrière-plan sans attendre
-function fetchAndUpdateCache(request) {
-  fetch(request.clone())
-    .then(response => {
-      if (response.ok) {
-        caches.open(CACHE_NAME)
-          .then(cache => {
-            cache.put(request, response);
-          });
-      }
-    })
-    .catch(error => {
-      console.error('Service Worker: Erreur de mise à jour en arrière-plan', error);
-    });
-}
-
-// Gestion des messages
+// Gestion améliorée des messages avec timeouts et canaux de communication robustes
 self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'PRECACHE_ROUTES') {
-    const routes = event.data.payload || [];
-    
-    if (routes.length > 0) {
-      console.log('Service Worker: Préchargement des routes:', routes);
-      
-      caches.open(CACHE_NAME)
-        .then(cache => {
-          return Promise.all(
-            routes.map(route => 
-              cache.add(route)
-                .catch(error => {
-                  console.warn('Service Worker: Impossible de précharger:', route, error);
+  // Extraire le port de communication s'il existe
+  const replyPort = event.ports && event.ports[0];
+  const withReply = !!replyPort;
+  
+  // Traitement des différents types de messages
+  if (event.data) {
+    switch (event.data.type) {
+      case 'SKIP_WAITING':
+        self.skipWaiting();
+        // Envoyer une confirmation si un port de réponse est disponible
+        if (withReply) {
+          replyPort.postMessage({ success: true, action: 'SKIP_WAITING' });
+        }
+        break;
+        
+      case 'PRECACHE_ROUTES':
+        // Si nous avons un port de réponse, traiter de façon asynchrone
+        if (withReply) {
+          const routes = event.data.payload || [];
+          
+          // Utiliser waitUntil pour garder le SW actif pendant le traitement
+          event.waitUntil(
+            // Prévoir un timeout pour ne pas laisser le message en attente indéfiniment
+            Promise.race([
+              // Tâche principale
+              caches.open(CACHE_NAME)
+                .then(cache => {
+                  return Promise.all(
+                    routes.map(route => 
+                      cache.add(route)
+                        .catch(error => {
+                          console.warn('[Service Worker] Impossible de précharger:', route, error);
+                          return null; // Continuer malgré l'erreur
+                        })
+                    )
+                  );
                 })
-            )
+                .then(() => {
+                  // Envoyer une réponse de succès
+                  replyPort.postMessage({ success: true, routes: routes.length });
+                })
+                .catch(error => {
+                  // Envoyer l'erreur
+                  console.error('[Service Worker] Erreur de préchargement:', error);
+                  replyPort.postMessage({ 
+                    success: false, 
+                    error: error.message || 'Erreur inconnue'
+                  });
+                }),
+              
+              // Timeout de sécurité (10 secondes)
+              new Promise(resolve => {
+                setTimeout(() => {
+                  replyPort.postMessage({ 
+                    success: false, 
+                    error: 'Timeout: Opération trop longue'
+                  });
+                  resolve();
+                }, 10000);
+              })
+            ])
           );
-        });
+          
+          // Indiquer que nous allons répondre de façon asynchrone
+          return true;
+        } else {
+          // Sans port de réponse, traiter de façon synchrone (meilleure compatibilité)
+          const routes = event.data.payload || [];
+          if (routes.length > 0) {
+            // Précharger en tâche de fond sans bloquer
+            event.waitUntil(
+              caches.open(CACHE_NAME)
+                .then(cache => {
+                  return Promise.all(
+                    routes.map(route => 
+                      cache.add(route).catch(() => null)
+                    )
+                  );
+                })
+            );
+          }
+        }
+        break;
+        
+      case 'CLEAR_CACHE':
+        // Nettoyer le cache spécifié ou tous les caches
+        const cacheName = event.data.cacheName;
+        
+        event.waitUntil(
+          (async () => {
+            try {
+              if (cacheName) {
+                // Nettoyer un cache spécifique
+                await caches.delete(cacheName);
+                if (withReply) {
+                  replyPort.postMessage({ 
+                    success: true, 
+                    message: `Cache ${cacheName} supprimé` 
+                  });
+                }
+              } else {
+                // Nettoyer tous les caches
+                const keys = await caches.keys();
+                await Promise.all(
+                  keys.map(key => caches.delete(key))
+                );
+                if (withReply) {
+                  replyPort.postMessage({ 
+                    success: true, 
+                    message: 'Tous les caches supprimés' 
+                  });
+                }
+              }
+            } catch (error) {
+              console.error('[Service Worker] Erreur lors du nettoyage du cache:', error);
+              if (withReply) {
+                replyPort.postMessage({ 
+                  success: false, 
+                  error: error.message || 'Erreur inconnue'
+                });
+              }
+            }
+          })()
+        );
+        
+        if (withReply) return true;
+        break;
+        
+      default:
+        // Message non reconnu
+        if (withReply) {
+          replyPort.postMessage({ 
+            success: false, 
+            error: `Type de message non reconnu: ${event.data.type}` 
+          });
+          return true;
+        }
     }
-  } else if (event.data && event.data.type === 'SKIP_WAITING') {
-    self.skipWaiting();
   }
 }); 

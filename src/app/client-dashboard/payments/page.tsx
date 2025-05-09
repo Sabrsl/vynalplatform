@@ -23,8 +23,8 @@ export default function ClientPaymentsPage() {
   const router = useRouter();
   const pathname = usePathname();
   
-  const currentTab = searchParams.get("tab") || "all";
-  const searchQuery = searchParams.get("search") || "";
+  const currentTab = searchParams?.get("tab") || "all";
+  const searchQuery = searchParams?.get("search") || "";
   
   const [search, setSearch] = useState(searchQuery);
   const [currentPage, setCurrentPage] = useState(1);
@@ -67,7 +67,13 @@ export default function ClientPaymentsPage() {
     setSearch(value);
     setCurrentPage(1); // Réinitialiser la pagination lors d'une recherche
     
-    const params = new URLSearchParams(searchParams);
+    const params = new URLSearchParams();
+    if (searchParams) {
+      searchParams?.forEach((value, key) => {
+        params.set(key, value);
+      });
+    }
+    
     if (value) {
       params.set("search", value);
     } else {
@@ -80,7 +86,12 @@ export default function ClientPaymentsPage() {
   // Optimisation: Gestion du changement d'onglet avec useCallback
   const handleTabChange = useCallback((value: string) => {
     setCurrentPage(1); // Réinitialiser la pagination lors d'un changement d'onglet
-    const params = new URLSearchParams(searchParams);
+    const params = new URLSearchParams();
+    if (searchParams) {
+      searchParams?.forEach((value, key) => {
+        params.set(key, value);
+      });
+    }
     
     if (value === "all") {
       params.delete("tab");

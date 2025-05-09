@@ -42,7 +42,7 @@ export default function EditServicePage() {
   const { toast } = useToast();
   
   // Récupérer l'ID du service depuis les paramètres d'URL
-  const serviceId = typeof params.id === 'string' ? params.id : Array.isArray(params.id) ? params.id[0] : '';
+  const serviceId = params?.id ? (typeof params.id === 'string' ? params.id : Array.isArray(params.id) ? params.id[0] : '') : '';
   
   const [categories, setCategories] = useState<Category[]>([]);
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);

@@ -22,10 +22,10 @@ import { logSecurityEvent, isSuspiciousActivity } from "@/lib/security/audit";
 
 export default function PaymentPage() {
   const { user } = useAuth();
-  const { profile } = useUser();
+  const { profile, isFreelance } = useUser();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const serviceId = searchParams.get("serviceId");
+  const serviceId = searchParams?.get('serviceId');
   
   const [loading, setLoading] = useState(true);
   const [service, setService] = useState<any>(null);
@@ -78,8 +78,8 @@ export default function PaymentPage() {
       return;
     }
 
-    // Vérifier si l'utilisateur a un rôle de freelance dans les métadonnées
-    if (user?.user_metadata?.role === "freelance") {
+    // Vérifier si l'utilisateur a un rôle de freelance avec useUser
+    if (isFreelance) {
       router.push("/dashboard");
       setError("Les prestataires ne peuvent pas effectuer de paiements");
       return;
@@ -164,7 +164,7 @@ export default function PaymentPage() {
     };
 
     fetchService();
-  }, [user, router, serviceId, profile]);
+  }, [user, router, serviceId, profile, isFreelance]);
 
   const handlePayment = async () => {
     if (isOwnService) {

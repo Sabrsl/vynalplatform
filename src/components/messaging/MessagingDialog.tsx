@@ -13,6 +13,7 @@ import { ShieldAlert } from 'lucide-react';
 import { validateMessage } from '@/lib/message-validation';
 import { Loader } from '@/components/ui/loader';
 import { FREELANCE_ROUTES, CLIENT_ROUTES } from "@/config/routes";
+import { useUser } from '@/hooks/useUser';
 
 interface MessagingDialogProps {
   freelanceId: string;
@@ -36,6 +37,7 @@ const MessagingDialog = ({
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
+  const { isFreelance } = useUser();
   const { toast } = useToast();
   
   const { createConversation, isLoading, error: storeError, sendMessage } = useMessagingStore();
@@ -141,9 +143,12 @@ const MessagingDialog = ({
         description: `Votre message à ${freelanceName} a été envoyé.`,
       });
       
+      // Déterminer la route de redirection en fonction du rôle de l'utilisateur
+      const messagesRoute = isFreelance ? FREELANCE_ROUTES.MESSAGES : CLIENT_ROUTES.MESSAGES;
+      
       // Redirection
       setTimeout(() => {
-        router.push(`${FREELANCE_ROUTES.MESSAGES}?conversation=${conversationId}`);
+        router.push(`${messagesRoute}?conversation=${conversationId}`);
       }, 500);
       
     } catch (err: any) {

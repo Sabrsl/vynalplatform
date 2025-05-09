@@ -77,7 +77,7 @@ function SignupForm() {
       email: "",
       password: "",
       confirmPassword: "",
-      role: (searchParams.get("role") as "client" | "freelance") || "client",
+      role: (searchParams?.get("role") as "client" | "freelance") || "client",
       termsAccepted: true
     },
     mode: "onChange" // Validate on change for immediate feedback
@@ -115,7 +115,7 @@ function SignupForm() {
 
   // Update role from URL params
   useEffect(() => {
-    const role = searchParams.get("role");
+    const role = searchParams?.get("role");
     if (role === "freelance" || role === "client") {
       setValue("role", role as "client" | "freelance");
     }

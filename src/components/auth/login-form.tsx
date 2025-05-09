@@ -186,7 +186,22 @@ function LoginForm({ redirectPath = "/dashboard" }: LoginFormProps) {
       if (success) {
         // Reset login attempts on successful login
         resetLoginAttempts();
-        router.push(redirectPath);
+        
+        // Récupérer le rôle utilisateur pour la redirection appropriée
+        const { data } = await supabase.rpc('get_user_role');
+        const userRole = data;
+        
+        // Rediriger en fonction du rôle
+        if (userRole === 'client') {
+          router.push('/client-dashboard');
+        } else if (userRole === 'freelance') {
+          router.push('/dashboard');
+        } else if (userRole === 'admin') {
+          router.push('/admin');
+        } else {
+          // Fallback au chemin par défaut si le rôle n'est pas déterminé
+          router.push(redirectPath);
+        }
       } else {
         incrementLoginAttempts();
         debouncedSetError(

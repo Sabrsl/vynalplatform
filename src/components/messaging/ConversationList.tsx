@@ -133,7 +133,7 @@ const ConversationList: React.FC<ConversationListProps> = ({
                   key={conversation.id}
                   className={`
                     relative hover:bg-gray-50 dark:hover:bg-gray-900/50 cursor-pointer transition-colors
-                    ${conversation.id === activeConversationId ? 'bg-pink-50 dark:bg-pink-950/30' : ''}
+                    ${conversation.id === activeConversationId ? 'bg-vynal-purple-secondary/10 dark:bg-vynal-purple-secondary/20 border-l-2 border-vynal-purple-secondary' : ''}
                   `}
                   onClick={() => onSelectConversation(conversation.id)}
                 >

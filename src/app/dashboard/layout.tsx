@@ -212,6 +212,7 @@ export default function DashboardLayout({
   const { profile, isClient, isFreelance } = useUser();
   const router = useRouter();
   const pathname = usePathname();
+  const [initialized, setInitialized] = useState(false);
   
   // Optimisation : mémoriser les informations utilisateur
   const userInfo = useMemo(() => ({ 
@@ -265,20 +266,12 @@ export default function DashboardLayout({
     }
   }, [user, loading, router]);
 
-  // Vérification du rôle et redirection vers le bon tableau de bord
+  // Mettre à jour le state mais sans redirection supplémentaire
   useEffect(() => {
-    if (loading || !profile) return;
-    
-    // Si l'utilisateur est un client mais essaie d'accéder au tableau de bord freelance
-    if (userInfo.isClient && pathname?.startsWith('/dashboard')) {
-      router.push('/client-dashboard');
+    if (!loading && user && profile) {
+      setInitialized(true);
     }
-    
-    // Si l'utilisateur est un freelance mais essaie d'accéder au tableau de bord client
-    if (userInfo.isFreelance && pathname?.startsWith('/client-dashboard')) {
-      router.push('/dashboard');
-    }
-  }, [userInfo.isClient, userInfo.isFreelance, loading, pathname, profile, router]);
+  }, [loading, user, profile]);
 
   // Loading state - optimisé
   if (loading || !user) {

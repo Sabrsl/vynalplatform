@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
+import { useUser } from "@/hooks/useUser";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -43,9 +44,10 @@ const MOCK_ORDER = {
 
 export default function RevisionPage() {
   const { user } = useAuth();
+  const { isFreelance } = useUser();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const orderId = searchParams.get("orderId") || "order-1"; // ID de l'ordre par défaut pour la démo
+  const orderId = searchParams?.get("orderId");
   
   const [loading, setLoading] = useState(true);
   const [order, setOrder] = useState<any>(null);
@@ -61,7 +63,7 @@ export default function RevisionPage() {
       return;
     }
 
-    if (user?.user_metadata?.role === "freelance") {
+    if (isFreelance) {
       router.push("/dashboard");
       return;
     }
@@ -84,7 +86,7 @@ export default function RevisionPage() {
     };
 
     fetchOrder();
-  }, [user, router, orderId]);
+  }, [user, router, orderId, isFreelance]);
 
   const handleRevisionRequest = async () => {
     // Validation

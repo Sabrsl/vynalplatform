@@ -389,11 +389,11 @@ function ServicesPageContent() {
   const searchParams = useSearchParams();
   
   // Extraction des paramètres d'URL
-  const categorySlug = searchParams.get('category');
-  const subcategorySlug = searchParams.get('subcategory');
-  const page = Number(searchParams.get('page') || '1');
-  const paginationMode = searchParams.get('mode') || 'pagination';
-  const urlSearchQuery = searchParams.get('search') || '';
+  const categorySlug = searchParams?.get('category') || null;
+  const subcategorySlug = searchParams?.get('subcategory') || null;
+  const page = Number(searchParams?.get('page') || '1');
+  const paginationMode = searchParams?.get('mode') || 'pagination';
+  const urlSearchQuery = searchParams?.get('search') || '';
   
   // États locaux
   const [selectedCategory, setSelectedCategory] = useState(categorySlug);
@@ -466,7 +466,7 @@ function ServicesPageContent() {
   
   // Mémoriser updateURLParams pour éviter les re-rendus
   const updateURLParams = useCallback((newPage: number, newSearchQuery?: string) => {
-    const params = new URLSearchParams(searchParams.toString());
+    const params = new URLSearchParams(searchParams?.toString() || '');
     params.set('page', newPage.toString());
     
     if (newSearchQuery !== undefined) {
@@ -494,7 +494,7 @@ function ServicesPageContent() {
   
   // Basculer le mode de pagination
   const togglePaginationMode = useCallback(() => {
-    const params = new URLSearchParams(searchParams.toString());
+    const params = new URLSearchParams(searchParams?.toString() || '');
     const newMode = isLoadMoreMode ? 'pagination' : 'loadmore';
     params.set('mode', newMode);
     params.set('page', '1');

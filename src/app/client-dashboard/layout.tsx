@@ -144,21 +144,11 @@ export default function ClientDashboardLayout({
       return;
     }
     
-    // Vérifier que le rôle utilisateur est correct pour ce tableau de bord
-    if (profile) {
-      // Si c'est un freelance qui essaie d'accéder au dashboard client
-      if (isFreelance) {
-        console.log("Freelance détecté accédant au tableau de bord client - redirection vers /dashboard");
-        router.push('/dashboard');
-        return;
-      }
-      
-      // Si c'est bien un client, marquer l'initialisation comme terminée
-      if (isClient) {
-        setIsInitialized(true);
-      }
+    // Initialiser l'état une fois l'utilisateur chargé
+    if (!isInitialized) {
+      setIsInitialized(true);
     }
-  }, [user, loading, profileLoading, profile, router, isClient, isFreelance]);
+  }, [user, loading, profileLoading, router, isInitialized]);
 
   useEffect(() => {
     setActivePath(pathname || "/client-dashboard");

@@ -93,7 +93,7 @@ export async function GET(req: NextRequest) {
   try {
     // Récupérer l'ID utilisateur depuis les paramètres de requête
     const { searchParams } = new URL(req.url);
-    const userId = searchParams.get('userId');
+    const userId = searchParams?.get('userId');
 
     if (!userId) {
       return NextResponse.json(

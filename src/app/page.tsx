@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowRight, Search, Star, Shield, Clock } from 'lucide-react';
+import { ArrowRight, Search, Star, Shield } from 'lucide-react';
 import PageLayout from '@/components/ui/PageLayout';
 import SpotlightCard from '@/components/ui/SpotlightCard';
 import { TextRevealSection } from '@/components/sections/TextRevealSection';
@@ -14,14 +14,83 @@ import { findBestCategoryMatch } from '@/lib/search/searchService';
 import { useAuth } from "@/hooks/useAuth";
 import { useUser } from "@/hooks/useUser";
 import { PUBLIC_ROUTES, AUTH_ROUTES } from "@/config/routes";
+import dynamic from 'next/dynamic';
+import { memo } from 'react';
+
+const TextRevealSectionDynamic = dynamic(() => 
+  import('@/components/sections/TextRevealSection').then(mod => mod.TextRevealSection),
+  { ssr: true, loading: () => <div className="h-72" /> }
+);
+
+const BorderBeamButtonDynamic = dynamic(() =>
+  import('@/components/ui/border-beam-button').then(mod => mod.BorderBeamButton),
+  { ssr: true }
+);
+
+const PartnersSectionDynamic = dynamic(() => 
+  import('@/components/sections/PartnersSection').then(mod => mod.default || mod),
+  { ssr: true, loading: () => <div className="h-48" /> }
+);
+
+const FastLCPTitle = memo(() => (
+  <h1 
+    className="text-4xl md:text-5xl font-bold mb-6 leading-tight" 
+    id="lcp-title"
+    style={{
+      background: 'linear-gradient(to right, #7c3aed, #e879f9)',
+      WebkitBackgroundClip: 'text',
+      WebkitTextFillColor: 'transparent',
+      backgroundClip: 'text',
+      display: 'block',
+      contain: 'layout',
+    }}
+  >
+    Trouvez des freelances qualifiés pour tous vos projets
+  </h1>
+));
+
+FastLCPTitle.displayName = "FastLCPTitle";
 
 export default function Home() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [loadedComponents, setLoadedComponents] = useState(false);
   const { categories, subcategories } = useCategories();
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const { isFreelance, isClient, isAdmin, loading: userLoading } = useUser();
+
+  // Détecter les appareils mobiles pour optimiser les performances
+  useEffect(() => {
+    const checkMobile = () => {
+      const mobile = window.innerWidth < 768 || navigator.userAgent.toLowerCase().includes('mobi');
+      setIsMobile(mobile);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+  
+  // Charger les composants non critiques de manière différée
+  useEffect(() => {
+    // Utiliser requestIdleCallback ou setTimeout pour différer les calculs non critiques
+    const loadNonCriticalComponents = () => {
+      setLoadedComponents(true);
+    };
+    
+    if (typeof window !== 'undefined') {
+      if ('requestIdleCallback' in window) {
+        // @ts-ignore
+        window.requestIdleCallback(loadNonCriticalComponents, { timeout: 2000 });
+      } else {
+        // Fallback pour les navigateurs qui ne supportent pas requestIdleCallback
+        setTimeout(loadNonCriticalComponents, 1000);
+      }
+    }
+  }, []);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,13 +136,11 @@ export default function Home() {
 
   return (
     <PageLayout fullGradient={true}>
-      {/* Hero Section */}
+      {/* Hero Section - LCP */}
       <section className="text-vynal-text-primary py-16 md:py-24">
         <div className="container mx-auto px-4 flex flex-col lg:flex-row items-center justify-between">
-          <div className="lg:w-1/2 mb-10 lg:mb-0">
-            <h1 className="text-4xl md:text-5xl font-bold mb-6 leading-tight bg-gradient-to-r from-vynal-accent-primary to-vynal-accent-secondary bg-clip-text text-transparent">
-              Trouvez des freelances qualifiés pour tous vos projets
-            </h1>
+          <div className="lg:w-1/2 mb-10 lg:mb-0" id="lcp-container">
+            <FastLCPTitle />
             <p className="text-base md:text-lg lg:text-xl text-vynal-body mb-10">
             La solution idéale pour accéder à des services digitaux fiables, fournis par des professionnels indépendants, à prix fixe.
             </p>
@@ -81,6 +148,7 @@ export default function Home() {
               <Link 
                 href={PUBLIC_ROUTES.SERVICES} 
                 className="bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-vynal-purple-dark py-3 px-6 rounded-md font-medium flex items-center gap-2 transition-all shadow-md"
+                prefetch={true}
               >
                 Explorer les services <ArrowRight size={18} />
               </Link>
@@ -177,7 +245,10 @@ export default function Home() {
         <div className="container mx-auto px-4">
           <h2 className="text-3xl font-bold text-center mb-16 bg-gradient-to-r from-vynal-accent-primary to-vynal-accent-secondary bg-clip-text text-transparent">Comment ça fonctionne</h2>
           <div className="grid md:grid-cols-3 gap-10">
-            <SpotlightCard className="flex flex-col items-center text-center bg-white dark:bg-vynal-purple-dark/80 p-8 rounded-xl text-vynal-title dark:text-vynal-text-primary border border-gray-100 dark:border-vynal-purple-secondary/30 shadow-md min-h-[320px] justify-between">
+            <SpotlightCard 
+              className="flex flex-col items-center text-center bg-white dark:bg-vynal-purple-dark/80 p-8 rounded-xl text-vynal-title dark:text-vynal-text-primary border border-gray-100 dark:border-vynal-purple-secondary/30 shadow-md min-h-[320px] justify-between"
+              disableEffects={isMobile}
+            >
               <div className="mb-6 flex items-center justify-center">
                 <Search className="w-10 h-10 text-vynal-accent-primary" />
               </div>
@@ -188,7 +259,10 @@ export default function Home() {
                 </p>
               </div>
             </SpotlightCard>
-            <SpotlightCard className="flex flex-col items-center text-center bg-white dark:bg-vynal-purple-dark/80 p-8 rounded-xl text-vynal-title dark:text-vynal-text-primary border border-gray-100 dark:border-vynal-purple-secondary/30 shadow-md min-h-[320px] justify-between">
+            <SpotlightCard 
+              className="flex flex-col items-center text-center bg-white dark:bg-vynal-purple-dark/80 p-8 rounded-xl text-vynal-title dark:text-vynal-text-primary border border-gray-100 dark:border-vynal-purple-secondary/30 shadow-md min-h-[320px] justify-between"
+              disableEffects={isMobile}
+            >
               <div className="mb-6 flex items-center justify-center">
                 <Star className="w-10 h-10 text-vynal-accent-primary" />
               </div>
@@ -199,7 +273,10 @@ export default function Home() {
                 </p>
               </div>
             </SpotlightCard>
-            <SpotlightCard className="flex flex-col items-center text-center bg-white dark:bg-vynal-purple-dark/80 p-8 rounded-xl text-vynal-title dark:text-vynal-text-primary border border-gray-100 dark:border-vynal-purple-secondary/30 shadow-md min-h-[320px] justify-between">
+            <SpotlightCard 
+              className="flex flex-col items-center text-center bg-white dark:bg-vynal-purple-dark/80 p-8 rounded-xl text-vynal-title dark:text-vynal-text-primary border border-gray-100 dark:border-vynal-purple-secondary/30 shadow-md min-h-[320px] justify-between"
+              disableEffects={isMobile}
+            >
               <div className="mb-6 flex items-center justify-center">
                 <Shield className="w-10 h-10 text-vynal-accent-primary" />
               </div>
@@ -215,10 +292,10 @@ export default function Home() {
       </section>
 
       {/* Text Reveal Section */}
-      <TextRevealSection />
+      <TextRevealSectionDynamic />
 
       {/* Partners Section */}
-      <PartnersSection />
+      <PartnersSectionDynamic />
 
       {/* Call to Action Section */}
       <section className="text-vynal-title py-16 md:py-24">
@@ -236,9 +313,9 @@ export default function Home() {
             >
               S'inscrire comme client
             </Link>
-            <BorderBeamButton href="/devenir-freelance" className="force-white-text">
+            <BorderBeamButtonDynamic href="/devenir-freelance" className="force-white-text">
               S'inscrire comme freelance
-            </BorderBeamButton>
+            </BorderBeamButtonDynamic>
           </div>
         </div>
       </section>

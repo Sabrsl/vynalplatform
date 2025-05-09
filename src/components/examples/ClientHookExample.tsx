@@ -6,7 +6,7 @@ import React from 'react';
 export default function ClientHookExample() {
   // Ce hook ne fonctionnera que sur le client
   const searchParams = useSearchParams();
-  const query = searchParams.get('q') || '';
+  const query = searchParams?.get('q') || '';
   
   return (
     <div className="p-4 border rounded-lg">

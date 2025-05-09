@@ -19,7 +19,7 @@ export function useScrollRestoration() {
   const searchParams = useSearchParams();
   
   // Une clé unique pour chaque URL (incluant les paramètres)
-  const currentUrlKey = `${pathname}${searchParams ? `?${searchParams}` : ''}`;
+  const currentUrlKey = `${pathname}${searchParams ? `?${searchParams?.toString()}` : ''}`;
   
   // Référence pour stocker les positions de défilement par URL (max 20 pour éviter la fuite mémoire)
   const scrollPositionsRef = useRef<ScrollPositions>({});

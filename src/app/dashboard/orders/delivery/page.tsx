@@ -210,7 +210,7 @@ export default function DeliveryPage() {
   const { profile, isFreelance } = useUser();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const orderId = searchParams.get("orderId");
+  const orderId = searchParams?.get("orderId") || null;
   const { toast } = useToast();
   
   // États optimisés avec des types stricts

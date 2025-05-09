@@ -21,9 +21,13 @@ export default function ResetPasswordPage() {
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
+    // Vérifier si on a un hash dans l'URL
     const hash = window.location.hash;
-
+    // Vérifier si on a un token dans les paramètres d'URL (cas classique)
+    const token = searchParams?.get('token');
+    
     if (hash && hash.includes("access_token")) {
+      // Cas où les tokens sont dans le hash
       const params = new URLSearchParams(hash.replace("#", ""));
       const access_token = params.get("access_token");
       const refresh_token = params.get("refresh_token");
@@ -51,10 +55,33 @@ export default function ResetPasswordPage() {
       } else {
         setError("Lien incomplet.");
       }
+    } else if (token) {
+      // Cas où le token est directement dans l'URL
+      // Utiliser ce token pour définir une session
+      (async () => {
+        try {
+          // Vérifier que le token est valide
+          const { data, error } = await supabase.auth.verifyOtp({
+            token_hash: token,
+            type: 'recovery'
+          });
+          
+          if (error) {
+            console.error("Erreur de vérification du token:", error.message);
+            setError("Lien invalide ou expiré.");
+            return;
+          }
+          
+          setIsReady(true);
+        } catch (err) {
+          console.error("Erreur lors de la vérification du token:", err);
+          setError("Une erreur est survenue lors de la vérification du lien.");
+        }
+      })();
     } else {
       setError("Aucun token fourni.");
     }
-  }, []);
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -5,25 +5,25 @@ import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { useUser } from "@/hooks/useUser";
 import { Button } from "@/components/ui/button";
 import { Loader, ArrowLeft } from "lucide-react";
 import { OrderDetailContent } from "@/components/orders/OrderDetailContent";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { Order, OrderStatus } from "@/types/orders";
+import { FreelanceGuard } from "@/lib/guards/roleGuards";
 
 export default function OrderDetailPage() {
   const { user } = useAuth();
+  const { isFreelance } = useUser();
   const router = useRouter();
   const params = useParams<{ id: string }>();
-  const orderId = params.id;
+  const orderId = params?.id;
   const { toast } = useToast();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [order, setOrder] = useState<Order | null>(null);
-  
-  // On force le rôle freelance
-  const isFreelance = true;
   
   // Simuler un chargement initial depuis l'API
   useEffect(() => {
@@ -40,7 +40,7 @@ export default function OrderDetailPage() {
           .select(`
             *,
             services (*),
-            profiles!orders_client_id_fkey (id, username, full_name, avatar_url),
+            client:profiles!orders_client_id_fkey (id, username, full_name, avatar_url),
             freelance:profiles!orders_freelance_id_fkey (id, username, full_name, avatar_url)
           `)
           .eq('id', orderId)
@@ -82,10 +82,10 @@ export default function OrderDetailPage() {
             avatar_url: data.freelance.avatar_url
           },
           client: {
-            id: data.profiles.id,
-            username: data.profiles.username,
-            full_name: data.profiles.full_name,
-            avatar_url: data.profiles.avatar_url
+            id: data.client.id,
+            username: data.client.username,
+            full_name: data.client.full_name,
+            avatar_url: data.client.avatar_url
           }
         };
         
@@ -179,28 +179,30 @@ export default function OrderDetailPage() {
   }
 
   return (
-    <div className="w-full h-full overflow-x-hidden overflow-y-auto scrollbar-hide bg-gray-50/50 dark:bg-transparent">
-      <div className="p-2 sm:p-4 space-y-4 sm:space-y-6 pb-12 max-w-[1600px] mx-auto">
-        <div className="flex flex-col space-y-1 sm:space-y-2">
-          <div className="flex items-center">
-            <Button variant="ghost" size="sm" asChild className="mr-2 sm:mr-4 text-vynal-purple-secondary hover:bg-vynal-purple-secondary/5 hover:text-vynal-purple-light dark:text-vynal-text-secondary dark:hover:bg-vynal-purple-secondary/10 dark:hover:text-vynal-text-primary">
-              <Link href="/dashboard/orders">
-                <ArrowLeft className="h-3.5 w-3.5 mr-1" />
-                <span className="hidden sm:inline text-[10px] sm:text-xs">Retour</span>
-              </Link>
-            </Button>
-            <h1 className="text-sm sm:text-base md:text-lg font-bold text-vynal-purple-light dark:text-vynal-text-primary truncate">
-              Détails de la commande
-            </h1>
+    <FreelanceGuard>
+      <div className="w-full h-full overflow-x-hidden overflow-y-auto scrollbar-hide bg-gray-50/50 dark:bg-transparent">
+        <div className="p-2 sm:p-4 space-y-4 sm:space-y-6 pb-12 max-w-[1600px] mx-auto">
+          <div className="flex flex-col space-y-1 sm:space-y-2">
+            <div className="flex items-center">
+              <Button variant="ghost" size="sm" asChild className="mr-2 sm:mr-4 text-vynal-purple-secondary hover:bg-vynal-purple-secondary/5 hover:text-vynal-purple-light dark:text-vynal-text-secondary dark:hover:bg-vynal-purple-secondary/10 dark:hover:text-vynal-text-primary">
+                <Link href="/dashboard/orders">
+                  <ArrowLeft className="h-3.5 w-3.5 mr-1" />
+                  <span className="hidden sm:inline text-[10px] sm:text-xs">Retour</span>
+                </Link>
+              </Button>
+              <h1 className="text-sm sm:text-base md:text-lg font-bold text-vynal-purple-light dark:text-vynal-text-primary truncate">
+                Détails de la commande
+              </h1>
+            </div>
           </div>
+          
+          <OrderDetailContent 
+            order={order}
+            isFreelance={isFreelance}
+            navigateToOrdersList={navigateToOrdersList}
+          />
         </div>
-        
-        <OrderDetailContent 
-          order={order}
-          isFreelance={isFreelance}
-          navigateToOrdersList={navigateToOrdersList}
-        />
       </div>
-    </div>
+    </FreelanceGuard>
   );
 } 

@@ -64,6 +64,7 @@ interface MessagingState {
   updateMessage: (messageId: string, updates: Partial<Message>) => void;
   deleteMessage: (messageId: string) => void;
   clearMessages: () => void;
+  updateConversationParticipant: (conversationId: string, updatedParticipant: any) => void;
 }
 
 export const useMessagingStore = create<MessagingState>((set, get) => ({
@@ -171,7 +172,7 @@ export const useMessagingStore = create<MessagingState>((set, get) => ({
       return formattedConversations;
     } catch (error) {
       console.error("Erreur lors de la récupération des conversations:", error);
-      set({ error: error instanceof Error ? error.message : 'Failed to fetch conversations' });
+      set({ error: error instanceof Error ? error.message : 'Failed to fetch conversations', loading: false, isLoading: false });
       return [];
     }
   },
@@ -213,6 +214,38 @@ export const useMessagingStore = create<MessagingState>((set, get) => ({
       }) || [];
 
       set({ messages: messagesWithSenders as Message[] });
+
+      // NOUVEAU: Mettre à jour les informations des participants de la conversation
+      const { activeConversation } = get();
+      if (activeConversation && activeConversation.id === conversationId) {
+        const participantsToUpdate = new Map();
+        
+        // Collecter les informations les plus récentes des expéditeurs
+        messagesWithSenders.forEach(message => {
+          if (message.sender && message.sender.id) {
+            const existingInfo = participantsToUpdate.get(message.sender.id);
+            
+            // N'écraser que si on a de nouvelles informations
+            if (!existingInfo || !existingInfo.avatar_url || !existingInfo.full_name) {
+              participantsToUpdate.set(message.sender.id, {
+                id: message.sender.id,
+                username: message.sender.username || existingInfo?.username,
+                full_name: message.sender.full_name || existingInfo?.full_name,
+                avatar_url: message.sender.avatar_url || existingInfo?.avatar_url
+              });
+            }
+          }
+        });
+        
+        // Mettre à jour chaque participant
+        participantsToUpdate.forEach((updatedInfo) => {
+          const participant = activeConversation.participants.find(p => p.id === updatedInfo.id);
+          if (participant && (!participant.avatar_url || !participant.full_name)) {
+            get().updateConversationParticipant(conversationId, updatedInfo);
+          }
+        });
+      }
+      
       return messagesWithSenders as Message[];
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to fetch messages' });
@@ -224,34 +257,44 @@ export const useMessagingStore = create<MessagingState>((set, get) => ({
 
   sendMessage: async (conversationId: string, senderId: string, content: string, attachmentUrl?: string, attachmentType?: string, attachmentName?: string) => {
     try {
-      const messageData: PartialMessage = {
-        content,
-        sender_id: senderId,
-        conversation_id: conversationId,
-        is_typing: false,
-        read: false,
-        created_at: new Date().toISOString(),
-      };
-
-      // Ajouter les pièces jointes si nécessaire
-      if (attachmentUrl) {
-        messageData.attachment_url = attachmentUrl;
-        messageData.attachment_type = attachmentType || null;
-        messageData.attachment_name = attachmentName || null;
+      // Utiliser la fonction RPC sécurisée
+      const { data: messageId, error: sendError } = await supabase
+        .rpc('send_secure_message', {
+          p_conversation_id: conversationId,
+          p_sender_id: senderId,
+          p_content: content,
+          p_attachment_url: attachmentUrl || null,
+          p_attachment_type: attachmentType || null,
+          p_attachment_name: attachmentName || null
+        });
+      
+      if (sendError) {
+        console.error("Erreur lors de l'envoi du message:", sendError);
+        throw sendError;
       }
-
-      const { data, error } = await supabase
+      
+      // Récupérer le message complet pour l'ajouter à l'état
+      const { data: message, error: msgError } = await supabase
         .from('messages')
-        .insert([messageData])
-        .select()
+        .select(`
+          *,
+          sender:sender_id (
+            id,
+            username,
+            full_name,
+            avatar_url,
+            role
+          )
+        `)
+        .eq('id', messageId)
         .single();
-
-      if (error) {
-        console.error("Erreur lors de l'envoi du message:", error);
-        throw error;
+      
+      if (msgError) {
+        console.error("Erreur lors de la récupération du message:", msgError);
+        throw msgError;
       }
-
-      get().addMessage(data as Message);
+      
+      get().addMessage(message as Message);
     } catch (error) {
       console.error("Erreur lors de l'envoi du message:", error);
       set({ error: error instanceof Error ? error.message : 'Failed to send message' });
@@ -260,21 +303,63 @@ export const useMessagingStore = create<MessagingState>((set, get) => ({
 
   markMessagesAsRead: async (conversationId: string, userId: string) => {
     try {
-      const { error } = await supabase.rpc('mark_messages_as_read', {
-        p_conversation_id: conversationId,
-        p_user_id: userId
-      });
-
+      // Appeler la fonction RPC existante sans la modifier
+      const { error } = await supabase
+        .rpc('mark_messages_as_read', {
+          p_conversation_id: conversationId,
+          p_user_id: userId
+        });
+      
       if (error) throw error;
-
+      
+      // 1. Mettre à jour les messages dans l'état local
       set(state => ({
         ...state,
         messages: state.messages.map(msg => 
-          msg.conversation_id === conversationId && !msg.read
+          msg.conversation_id === conversationId && !msg.read && msg.sender_id !== userId
             ? { ...msg, read: true }
             : msg
         )
       }));
+      
+      // 2. Mettre à jour les compteurs de messages non lus dans l'état des conversations
+      set(state => {
+        // Mettre à jour les conversations
+        return {
+          conversations: state.conversations.map(conv => 
+            conv.id === conversationId 
+              ? { 
+                  ...conv, 
+                  // Mettre à jour tous les participants pour cet utilisateur
+                  participants: conv.participants.map(part => 
+                    part.id === userId 
+                      ? { ...part, unread_count: 0 }
+                      : part
+                  )
+                }
+              : conv
+          )
+        };
+      });
+      
+      // 3. Forcer une mise à jour de la conversation pour déclencher le rafraîchissement des VV
+      setTimeout(async () => {
+        try {
+          // Mettre à jour manuellement la date de dernière mise à jour de la conversation
+          // Cela va forcer une mise à jour des indicateurs visuels
+          await supabase
+            .from('conversations')
+            .update({ updated_at: new Date().toISOString() })
+            .eq('id', conversationId);
+            
+          // Rafraîchir la liste des conversations (pour s'assurer que les badges sont mis à jour)
+          if (userId) {
+            get().fetchConversations(userId);
+          }
+        } catch (refreshError) {
+          console.error('Erreur lors du rafraîchissement des conversations:', refreshError);
+        }
+      }, 500); // Petit délai pour s'assurer que les mises à jour précédentes sont terminées
     } catch (error) {
       console.error('Error marking messages as read:', error);
     }
@@ -397,39 +482,64 @@ export const useMessagingStore = create<MessagingState>((set, get) => ({
   },
 
   setupRealtimeSubscriptions: (userId: string) => {
+    if (!userId) {
+      console.error("Impossible de configurer les abonnements en temps réel: userId manquant");
+      return () => {}; // Fonction de nettoyage vide
+    }
+
+    console.log("Configuration des abonnements en temps réel pour l'utilisateur:", userId);
+    
     // Nettoyer d'abord les canaux existants pour cet utilisateur
     const userChannelPrefix = `messages-for-user-${userId}`;
     Array.from(channelManager.activeChannels.keys())
       .filter(name => name.startsWith(userChannelPrefix))
-      .forEach(name => channelManager.removeChannel(name));
+      .forEach(name => {
+        console.log("Suppression du canal existant:", name);
+        channelManager.removeChannel(name);
+      });
     
     // Fonction pour gérer les mises à jour de conversation
     const handleConversationUpdate = async (payload: any) => {
       try {
         const { new: participant } = payload;
-        if (!participant) return;
+        if (!participant) {
+          console.log("Mise à jour de conversation reçue sans données de participant", payload);
+          return;
+        }
+
+        console.log("Mise à jour de conversation reçue:", participant);
 
         // Récupérer les détails de la conversation
-        const { data: conversation } = await supabase
+        const { data: conversation, error } = await supabase
           .from('conversations')
           .select('*')
           .eq('id', participant.conversation_id)
           .single();
 
+        if (error) {
+          console.error("Erreur lors de la récupération de la conversation:", error);
+          return;
+        }
+
         if (conversation) {
+          console.log("Conversation mise à jour:", conversation);
+          
           // Mettre à jour l'état des conversations
           set((state) => {
             const existingConversation = state.conversations.find(c => c.id === conversation.id);
             if (existingConversation) {
+              console.log("Mise à jour d'une conversation existante");
               return {
                 conversations: state.conversations.map(c => 
                   c.id === conversation.id ? { ...c, ...conversation } : c
                 )
               };
             } else {
-              return {
-                conversations: [...state.conversations, conversation]
-              };
+              console.log("Ajout d'une nouvelle conversation");
+              // Forcer un rafraîchissement complet plutôt que d'ajouter directement
+              // Utiliser un timeout pour éviter les problèmes de fermeture de canal
+              setTimeout(() => get().fetchConversations(userId), 100);
+              return state;
             }
           });
         }
@@ -441,21 +551,41 @@ export const useMessagingStore = create<MessagingState>((set, get) => ({
     // Fonction pour vérifier et gérer les nouveaux messages
     const checkAndHandleNewMessage = async (message: any, userId: string) => {
       try {
-        if (!message || message.sender_id === userId) return;
+        if (!message || !message.conversation_id) {
+          console.log("Message reçu sans conversation_id:", message);
+          return;
+        }
+
+        console.log("Nouveau message reçu:", message);
 
         // Vérifier si l'utilisateur est participant à cette conversation
-        if (message.conversation_id) {
-          const { data: participations } = await supabase
-            .from('conversation_participants')
-            .select('conversation_id')
-            .eq('participant_id', userId)
-            .eq('conversation_id', message.conversation_id)
-            .limit(1);
+        const { data: participations, error } = await supabase
+          .from('conversation_participants')
+          .select('conversation_id')
+          .eq('participant_id', userId)
+          .eq('conversation_id', message.conversation_id)
+          .limit(1);
 
-          if (participations && participations.length > 0) {
-            // L'utilisateur est participant à cette conversation
-            get().addMessage(message as Message);
+        if (error) {
+          console.error("Erreur lors de la vérification des participations:", error);
+          return;
+        }
+
+        if (participations && participations.length > 0) {
+          console.log("L'utilisateur est participant à cette conversation, ajout du message");
+          
+          // L'utilisateur est participant à cette conversation
+          get().addMessage(message as Message);
+          
+          // Mettre à jour la liste des conversations si nécessaire
+          const existingConversation = get().conversations.find(c => c.id === message.conversation_id);
+          if (!existingConversation) {
+            console.log("La conversation n'existe pas encore dans l'état local, rafraîchissement");
+            // Utiliser un timeout pour éviter les problèmes de fermeture de canal
+            setTimeout(() => get().fetchConversations(userId), 100);
           }
+        } else {
+          console.log("L'utilisateur n'est pas participant à cette conversation");
         }
       } catch (error) {
         console.error("Erreur lors de la vérification du nouveau message:", error);
@@ -465,103 +595,181 @@ export const useMessagingStore = create<MessagingState>((set, get) => ({
     // Fonction pour gérer les mises à jour de statut des messages
     const handleMessageStatusUpdate = (message: any) => {
       try {
-        if (!message) return;
-        get().updateMessage(message.id, { read: message.read });
+        if (!message) {
+          console.log("Mise à jour de statut de message reçue sans données");
+          return;
+        }
+        
+        console.log("Mise à jour du statut du message:", message);
+        
+        // Utiliser un setTimeout pour éviter les problèmes de fermeture de canal
+        setTimeout(() => {
+          get().updateMessage(message.id, { read: message.read });
+        }, 0);
       } catch (error) {
         console.error("Erreur lors de la mise à jour du statut du message:", error);
       }
     };
 
-    // S'abonner aux nouvelles conversations où l'utilisateur est participant
-    const conversationsSubscription = supabase
-      .channel('conversation-updates')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'conversation_participants',
-          filter: `participant_id=eq.${userId}`
-        },
-        (payload) => handleConversationUpdate(payload)
-      )
-      .subscribe();
+    try {
+      console.log("Création des abonnements aux canaux...");
 
-    // S'abonner aux nouveaux messages dans toutes les conversations de l'utilisateur
-    const messagesSubscription = supabase
-      .channel('message-updates')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages'
-        },
-        (payload) => {
-          // Vérifier si le message appartient à une conversation de l'utilisateur
-          checkAndHandleNewMessage(payload.new, userId);
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'messages',
-          filter: `read=eq.true`
-        },
-        (payload) => handleMessageStatusUpdate(payload.new)
-      )
-      .subscribe();
+      // Configurer les canaux avec des traitements d'événements qui ne renvoient pas de promesses
+      const conversationsSubscription = supabase
+        .channel(`conversation-updates-${userId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'conversation_participants',
+            filter: `participant_id=eq.${userId}`
+          },
+          (payload) => {
+            console.log("Événement de conversation reçu:", payload);
+            // Utiliser un setTimeout pour éviter les problèmes de fermeture de canal
+            setTimeout(() => handleConversationUpdate(payload), 0);
+            return undefined; // Retourner undefined au lieu d'une promesse
+          }
+        )
+        .subscribe((status) => {
+          console.log(`Statut de l'abonnement aux conversations: ${status}`);
+        });
 
-    // Enregistrer les canaux dans le gestionnaire
-    channelManager.registerChannel('conversation-updates', conversationsSubscription);
-    channelManager.registerChannel('message-updates', messagesSubscription);
+      // S'abonner aux nouveaux messages
+      const messagesSubscription = supabase
+        .channel(`message-updates-${userId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'messages'
+          },
+          (payload) => {
+            console.log("Événement de nouveau message reçu:", payload);
+            // Utiliser un setTimeout pour éviter les problèmes de fermeture de canal
+            setTimeout(() => checkAndHandleNewMessage(payload.new, userId), 0);
+            return undefined; // Retourner undefined au lieu d'une promesse
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'messages',
+            filter: `read=eq.true`
+          },
+          (payload) => {
+            console.log("Événement de mise à jour de message reçu:", payload);
+            // Utiliser un setTimeout pour éviter les problèmes de fermeture de canal
+            setTimeout(() => handleMessageStatusUpdate(payload.new), 0);
+            return undefined; // Retourner undefined au lieu d'une promesse
+          }
+        )
+        .subscribe((status) => {
+          console.log(`Statut de l'abonnement aux messages: ${status}`);
+        });
 
-    // Fonction de nettoyage
-    return () => {
-      channelManager.removeChannel('conversation-updates');
-      channelManager.removeChannel('message-updates');
-    };
+      // Enregistrer les canaux dans le gestionnaire
+      channelManager.registerChannel(`conversation-updates-${userId}`, conversationsSubscription);
+      channelManager.registerChannel(`message-updates-${userId}`, messagesSubscription);
+
+      console.log("Abonnements configurés avec succès");
+
+      // Fonction de nettoyage
+      return () => {
+        console.log("Nettoyage des abonnements");
+        channelManager.removeChannel(`conversation-updates-${userId}`);
+        channelManager.removeChannel(`message-updates-${userId}`);
+      };
+    } catch (error) {
+      console.error("Erreur lors de la configuration des abonnements:", error);
+      return () => {}; // Fonction de nettoyage vide en cas d'erreur
+    }
   },
 
   createConversation: async (participantIds: string[]) => {
     try {
-      // Créer une nouvelle conversation
-      const { data: conversation, error } = await supabase
-        .from('conversations')
-        .insert({
-          status: 'active',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-      if (!conversation) throw new Error('Échec de la création de la conversation');
-
-      // Ajouter les participants
-      const participants = participantIds.map(id => ({
-        conversation_id: conversation.id,
-        participant_id: id,
-        created_at: new Date().toISOString(),
-        unread_count: 0
-      }));
-
-      const { error: participantError } = await supabase
-        .from('conversation_participants')
-        .insert(participants);
-
-      if (participantError) throw participantError;
-
-      // Mettre à jour l'état
-      get().fetchConversations(participantIds[0]);
+      console.log("Création d'une conversation entre:", participantIds);
       
-      return conversation.id;
+      // Vérifier si tous les participants sont définis et non vides
+      if (!participantIds || participantIds.length < 2 || participantIds.some(id => !id)) {
+        console.error("IDs des participants invalides:", participantIds);
+        throw new Error("Les IDs des participants sont invalides");
+      }
+
+      // Récupérer l'ID de l'utilisateur actuel
+      const { data } = await supabase.auth.getUser();
+      const user = data?.user;
+      
+      if (!user || !user.id) {
+        throw new Error('Utilisateur non authentifié');
+      }
+      
+      // Utiliser la fonction RPC sécurisée
+      const { data: conversationId, error } = await supabase
+        .rpc('create_secure_conversation', {
+          creator_id: user.id,
+          participant_ids: participantIds
+        });
+      
+      if (error) {
+        console.error("Erreur lors de la création de la conversation:", error);
+        throw error;
+      }
+      
+      if (!conversationId) {
+        console.error("Échec de la création de la conversation: aucune donnée retournée");
+        throw new Error('Échec de la création de la conversation');
+      }
+      
+      console.log("Conversation créée avec succès:", conversationId);
+      
+      // Rafraîchir les conversations
+      setTimeout(() => {
+        get().fetchConversations(user.id);
+      }, 500);
+      
+      return conversationId;
     } catch (error) {
+      console.error("Erreur lors de la création de la conversation:", error);
       set({ error: error instanceof Error ? error.message : 'Failed to create conversation' });
       return null;
     }
+  },
+
+  updateConversationParticipant: (conversationId, updatedParticipant) => {
+    set(state => {
+      // Mettre à jour les conversations
+      const updatedConversations = state.conversations.map(conv => {
+        if (conv.id === conversationId) {
+          return {
+            ...conv,
+            participants: conv.participants.map(p => 
+              p.id === updatedParticipant.id ? { ...p, ...updatedParticipant } : p
+            )
+          };
+        }
+        return conv;
+      });
+      
+      // Mettre à jour la conversation active si c'est la même
+      let updatedActiveConversation = state.activeConversation;
+      if (state.activeConversation && state.activeConversation.id === conversationId) {
+        updatedActiveConversation = {
+          ...state.activeConversation,
+          participants: state.activeConversation.participants.map(p => 
+            p.id === updatedParticipant.id ? { ...p, ...updatedParticipant } : p
+          )
+        };
+      }
+      
+      return { 
+        conversations: updatedConversations,
+        activeConversation: updatedActiveConversation
+      };
+    });
   },
 })); 

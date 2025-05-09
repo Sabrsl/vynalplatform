@@ -16,8 +16,8 @@ export function PaymentsContent() {
   const router = useRouter();
   const pathname = usePathname();
   
-  const currentTab = searchParams.get("tab") || "all";
-  const searchQuery = searchParams.get("search") || "";
+  const currentTab = searchParams?.get("tab") || "all";
+  const searchQuery = searchParams?.get("search") || "";
   
   const [search, setSearch] = useState(searchQuery);
   
@@ -40,34 +40,24 @@ export function PaymentsContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   
-  const handleSearch = useCallback((value: string) => {
+  const handleSearch = (value: string) => {
     setSearch(value);
-    
-    const params = new URLSearchParams(searchParams);
-    if (value) {
-      params.set("search", value);
-    } else {
-      params.delete("search");
-    }
-    
-    router.replace(`${pathname}?${params.toString()}`);
-  }, [searchParams, router, pathname]);
+    const params = new URLSearchParams(searchParams?.toString() || '');
+    params.set("search", value);
+    router.push(`${pathname}?${params.toString()}`);
+  };
   
   const handleTabChange = useCallback((value: string) => {
-    const params = new URLSearchParams(searchParams);
-    
-    if (value === "all") {
-      params.delete("tab");
-    } else {
-      params.set("tab", value);
-    }
-    
-    if (search) {
-      params.set("search", search);
-    }
-    
-    router.replace(`${pathname}?${params.toString()}`);
-  }, [searchParams, router, pathname, search]);
+    const params = new URLSearchParams(searchParams?.toString() || '');
+    params.set("tab", value);
+    router.push(`${pathname}?${params.toString()}`);
+  }, [router, pathname, searchParams]);
+  
+  const handleSearchChange = useCallback((term: string) => {
+    const params = new URLSearchParams(searchParams?.toString() || '');
+    params.set("search", term);
+    router.push(`${pathname}?${params.toString()}`);
+  }, [router, pathname, searchParams]);
   
   return (
     <div className="space-y-4" data-content="loaded">
@@ -110,7 +100,7 @@ export function PaymentsContent() {
               <Input
                 placeholder="Rechercher des transactions..."
                 value={search}
-                onChange={(e) => handleSearch(e.target.value)}
+                onChange={(e) => handleSearchChange(e.target.value)}
                 className="w-full h-8 text-xs"
               />
             </div>

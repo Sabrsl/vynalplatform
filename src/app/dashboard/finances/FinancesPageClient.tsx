@@ -32,13 +32,13 @@ export function FinancesPageClient() {
 
   // Handle search input with debouncing
   const handleSearchChange = debounce((term: string) => {
-    const params = new URLSearchParams(searchParams.toString());
+    const params = new URLSearchParams(searchParams?.toString() || "");
     if (term) {
       params.set("search", term);
     } else {
       params.delete("search");
     }
-    router.push(`${pathname}?${params.toString()}`);
+    router.replace(`${pathname}?${params.toString()}`);
   }, 300);
 
   return (

@@ -180,12 +180,17 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         {!isCurrentUser && !showAvatar && <div className="w-8"></div>}
         
         {/* Contenu du message */}
-        <div className={`${bubbleMaxWidth} ${bubbleColor} ${bubbleShape} px-3 py-1.5 shadow-sm`}>
+        <div className={`${bubbleMaxWidth} ${bubbleColor} ${bubbleShape} px-3 py-1.5 shadow-sm min-h-[24px]`}>
           {/* Contenu texte */}
           {message.content && (
             <p className="whitespace-pre-wrap break-words text-xs">
               {message.content}
             </p>
+          )}
+          
+          {/* S'assurer qu'il y a toujours du contenu dans la bulle */}
+          {!message.content && !hasAttachment && (
+            <p className="whitespace-pre-wrap break-words text-xs opacity-0">.</p>
           )}
           
           {/* Pièce jointe */}

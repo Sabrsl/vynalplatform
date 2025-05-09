@@ -37,7 +37,7 @@ const SearchBar = ({
   // Récupération de la recherche initiale depuis l'URL
   useEffect(() => {
     if (pathname?.includes('/services')) {
-      const searchParam = searchParams.get('search');
+      const searchParam = searchParams?.get('search');
       if (searchParam) {
         onSearchChange(decodeURIComponent(searchParam));
       }
@@ -81,8 +81,8 @@ const SearchBar = ({
 
   // Vérifier l'URL pour conserver la recherche
   useEffect(() => {
-    const searchParams = new URLSearchParams(window.location.search);
-    const searchParam = searchParams.get('search');
+    const searchParamsLocal = new URLSearchParams(window.location.search);
+    const searchParam = searchParamsLocal?.get('search');
     if (searchParam && searchQuery !== decodeURIComponent(searchParam)) {
       onSearchChange(decodeURIComponent(searchParam));
     }

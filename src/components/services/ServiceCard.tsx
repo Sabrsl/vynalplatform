@@ -398,7 +398,7 @@ const ServiceCard = memo<ServiceCardProps>(
   }) {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const searchQuery = searchParams.get('search') || '';
+    const searchQuery = searchParams?.get('search') || '';
     const { theme } = useTheme();
     
     // Check if we're on the client side to prevent hydration mismatches

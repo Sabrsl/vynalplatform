@@ -789,8 +789,8 @@ export default function ServicesPage() {
     if (typeof window === 'undefined' || !mountedRef.current) return;
     
     const searchParams = new URLSearchParams(window.location.search);
-    const status = searchParams.get('status');
-    const error = searchParams.get('error');
+    const status = searchParams?.get('status');
+    const error = searchParams?.get('error');
     
     if (status === 'created-without-images') {
       safeSetState(prev => ({

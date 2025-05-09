@@ -28,7 +28,8 @@ import {
   Keyboard,
   Moon,
   Sun,
-  AlertTriangle
+  AlertTriangle,
+  Badge
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useTheme } from "next-themes";
@@ -36,6 +37,7 @@ import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuLab
 import Image from "next/image";
 import { debounce } from "lodash";
 import { FREELANCE_ROUTES, CLIENT_ROUTES, AUTH_ROUTES } from "@/config/routes";
+import { useUnreadMessages } from "@/hooks/useUnreadMessages";
 
 // Données de navigation mémorisées en dehors du composant
 const BASE_NAVIGATION = [
@@ -468,6 +470,94 @@ const MobileSearchBar = memo(({
 
 MobileSearchBar.displayName = 'MobileSearchBar';
 
+// Nouveau composant pour les notifications de messages
+const MessageNotificationIndicator = memo(() => {
+  const { user } = useAuth();
+  const { isClient, isFreelance } = useUser();
+  const { unreadCounts, refreshCount } = useUnreadMessages(user?.id);
+  const router = useRouter();
+  const [count, setCount] = useState<number>(0);
+  
+  // Mettre à jour le compteur local quand les données changent
+  useEffect(() => {
+    if (unreadCounts?.total !== undefined) {
+      setCount(unreadCounts.total);
+    }
+  }, [unreadCounts]);
+  
+  // Écouter les événements de mise à jour des messages
+  useEffect(() => {
+    if (!user?.id) return;
+    
+    const handleMessageUpdate = (event: Event) => {
+      // S'assurer que refreshCount est toujours appelé
+      refreshCount();
+      
+      // Également mettre à jour directement le compteur local si l'événement contient les données
+      const customEvent = event as CustomEvent;
+      if (customEvent.detail?.counts?.total !== undefined) {
+        setCount(customEvent.detail.counts.total);
+      }
+    };
+    
+    // S'abonner aux événements de mise à jour des messages
+    window.addEventListener('vynal:messages-read', handleMessageUpdate);
+    window.addEventListener('vynal:messages-update', handleMessageUpdate);
+    window.addEventListener('vynal:ui-notifications-update', handleMessageUpdate);
+    
+    // Actualiser les compteurs au montage du composant
+    refreshCount();
+    
+    // S'abonner aux changements de visibilité pour actualiser au retour sur l'onglet
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        refreshCount();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      window.removeEventListener('vynal:messages-read', handleMessageUpdate);
+      window.removeEventListener('vynal:messages-update', handleMessageUpdate);
+      window.removeEventListener('vynal:ui-notifications-update', handleMessageUpdate);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [user?.id, refreshCount]);
+  
+  const handleClick = useCallback(() => {
+    // Rediriger vers la page des messages
+    const route = isClient 
+      ? CLIENT_ROUTES.MESSAGES 
+      : FREELANCE_ROUTES.MESSAGES;
+      
+    router.push(route);
+  }, [router, isClient]);
+  
+  // Si aucun message non lu, afficher une icône simple
+  if (count <= 0) {
+    return (
+      <Button variant="ghost" size="icon" className="relative" onClick={handleClick}>
+        <MessageSquare className="h-[1.2rem] w-[1.2rem] text-vynal-purple-secondary dark:text-vynal-text-secondary" />
+      </Button>
+    );
+  }
+  
+  // Avec des messages non lus, afficher le badge
+  return (
+    <Button variant="ghost" size="icon" className="relative" onClick={handleClick}>
+      <MessageSquare className="h-[1.2rem] w-[1.2rem] text-vynal-purple-secondary dark:text-vynal-text-secondary" />
+      <Badge 
+        className="absolute top-1 right-2 w-3 h-3 flex items-center justify-center rounded-full bg-red-500 text-[10px] animate-pulse"
+      >
+        {count > 99 ? '99+' : count}
+      </Badge>
+    </Button>
+  );
+});
+
+MessageNotificationIndicator.displayName = 'MessageNotificationIndicator';
+
 // Composant principal du Header
 function Header() {
   // États locaux
@@ -506,7 +596,7 @@ function Header() {
       // Récupération de la recherche initiale depuis l'URL
       if (pathname.includes('/services')) {
         const searchParams = new URLSearchParams(window.location.search);
-        const searchParam = searchParams.get('search');
+        const searchParam = searchParams?.get('search');
         if (searchParam) {
           setSearchQuery(decodeURIComponent(searchParam));
         }
@@ -680,16 +770,18 @@ function Header() {
   }, [auth, isLoggingOut]);
   
   // Fonctions utilitaires mémorisées
-  const isActive = useCallback((path: string) => {
+  const isActive = useCallback((path: string): boolean => {
+    if (!pathname) return false;
+    
     // Si le chemin est un sous-chemin de dashboard, vérifier aussi client-dashboard
     if (path.startsWith('/dashboard/') && userProfile.profile?.role === 'client') {
       // Utiliser les constantes de routes pour la conversion
       const clientPath = path.replace('/dashboard/', '/client-dashboard/');
-      return pathname === path || pathname?.startsWith(`${path}/`) || 
-             pathname === clientPath || pathname?.startsWith(`${clientPath}/`);
+      return pathname === path || pathname.startsWith(`${path}/`) || 
+             pathname === clientPath || pathname.startsWith(`${clientPath}/`);
     }
     // Sinon, vérification normale
-    return pathname === path || pathname?.startsWith(`${path}/`);
+    return pathname === path || pathname.startsWith(`${path}/`);
   }, [pathname, userProfile.profile?.role]);
   
   // Définir la navigation en fonction du rôle de l'utilisateur avec les constantes
@@ -920,6 +1012,9 @@ function Header() {
                   {userStatus.isFreelance && (
                     <OrderNotificationIndicator />
                   )}
+                  
+                  {/* Notifications de messages - pour tous les utilisateurs */}
+                  <MessageNotificationIndicator />
                   
                   {/* Bouton du tableau de bord */}
                   <DashboardButton 

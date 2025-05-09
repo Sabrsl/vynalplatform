@@ -21,6 +21,18 @@ const validDashboardRoutes = [
   '/dashboard/resources',
   '/dashboard/support',
   '/dashboard/settings',
+  '/dashboard/help',
+];
+
+// Liste des sous-routes valides du client dashboard
+const validClientDashboardRoutes = [
+  '/client-dashboard',
+  '/client-dashboard/orders',
+  '/client-dashboard/messages',
+  '/client-dashboard/disputes',
+  '/client-dashboard/payments',
+  '/client-dashboard/profile',
+  '/client-dashboard/settings',
 ];
 
 // Vérifier si une route spécifique existe
@@ -34,6 +46,19 @@ function isValidRoute(pathname: string): boolean {
   
   // Pour les routes fixes
   return validDashboardRoutes.some(route => 
+    pathname === route || pathname.startsWith(`${route}/`)
+  );
+}
+
+// Vérifier si une route client dashboard est valide
+function isValidClientRoute(pathname: string): boolean {
+  // Pour les routes avec ID dynamique
+  if (/\/client-dashboard\/orders\/\w+/.test(pathname)) {
+    return true;
+  }
+  
+  // Pour les routes fixes
+  return validClientDashboardRoutes.some(route => 
     pathname === route || pathname.startsWith(`${route}/`)
   );
 }
@@ -55,64 +80,119 @@ export async function middleware(req: NextRequest) {
   // Vérifier si l'utilisateur accède à une route protégée
   const isAuthRoute = pathname.startsWith('/auth');
   const isDashboardRoute = pathname.startsWith('/dashboard');
+  const isClientDashboardRoute = pathname.startsWith('/client-dashboard');
   const isAdminRoute = pathname.startsWith('/admin');
   const isPublicRoute = noRedirectRoutes.includes(pathname) || 
                       noRedirectRoutes.some(route => pathname.startsWith(`${route}/`));
+  
+  // Cache local pour le rôle utilisateur (valide uniquement pour cette requête)
+  let userRole: string | null = null;
+  
+  // Récupérer le rôle utilisateur de manière optimisée
+  const getUserRole = async (): Promise<string | null> => {
+    if (userRole !== null) return userRole; // Retourner le rôle si déjà récupéré
+    
+    if (!session) return null;
+    
+    try {
+      const { data, error } = await supabase.rpc('get_user_role');
+      
+      if (error) {
+        console.error("Erreur lors de la récupération du rôle:", error);
+        return null;
+      }
+      
+      userRole = data;
+      return data;
+    } catch (err) {
+      console.error("Exception lors de la récupération du rôle:", err);
+      return null;
+    }
+  };
   
   // Si l'utilisateur est sur une route publique, ne jamais le rediriger automatiquement
   if (isPublicRoute) {
     return res;
   }
   
-  // Si l'utilisateur est connecté et tente d'accéder à une page d'auth, le rediriger vers le dashboard
+  // Si l'utilisateur est connecté et tente d'accéder à une page d'auth, 
+  // le rediriger vers le dashboard approprié selon son rôle
   if (session && isAuthRoute) {
-    url.pathname = '/dashboard';
-    return NextResponse.redirect(url);
-  }
-  
-  // Si l'utilisateur n'est pas connecté et tente d'accéder au dashboard, le rediriger vers la page de connexion
-  if (!session && isDashboardRoute) {
-    url.pathname = '/auth/login';
-    // Ajouter la redirection en paramètre pour revenir à la page après connexion
-    // Mais vérifier d'abord que la route est valide pour éviter les redirections vers des 404
-    if (isValidRoute(pathname)) {
-      url.searchParams.set('redirectTo', pathname);
+    const role = await getUserRole();
+    
+    if (role === 'client') {
+      url.pathname = '/client-dashboard';
+    } else if (role === 'freelance') {
+      url.pathname = '/dashboard';
+    } else if (role === 'admin') {
+      url.pathname = '/admin';
     } else {
-      // Si la route n'est pas valide, rediriger vers le dashboard principal
-      url.searchParams.set('redirectTo', '/dashboard');
+      // Fallback par défaut
+      url.pathname = '/dashboard';
     }
-    return NextResponse.redirect(url);
-  }
-
-  // Si l'utilisateur n'est pas connecté et tente d'accéder à l'admin, le rediriger vers la page de connexion
-  if (!session && isAdminRoute) {
-    url.pathname = '/auth/login';
-    url.searchParams.set('redirectTo', '/admin');
+    
     return NextResponse.redirect(url);
   }
   
-  // Si l'utilisateur est connecté mais n'est pas admin et tente d'accéder à l'admin, le rediriger vers une page non autorisée
+  // Si l'utilisateur n'est pas connecté et tente d'accéder à une zone protégée
+  if (!session && (isDashboardRoute || isClientDashboardRoute || isAdminRoute)) {
+    url.pathname = '/auth/login';
+    
+    // Ajouter le paramètre de redirection approprié
+    if (isDashboardRoute && isValidRoute(pathname)) {
+      url.searchParams.set('redirectTo', pathname);
+    } else if (isClientDashboardRoute && isValidClientRoute(pathname)) {
+      url.searchParams.set('redirectTo', pathname);
+    } else if (isAdminRoute) {
+      url.searchParams.set('redirectTo', '/admin');
+    } else {
+      // Fallback pour les routes invalides
+      url.searchParams.set('redirectTo', isDashboardRoute ? '/dashboard' : 
+        isClientDashboardRoute ? '/client-dashboard' : '/dashboard');
+    }
+    
+    return NextResponse.redirect(url);
+  }
+  
+  // Si l'utilisateur est connecté, vérifier s'il accède au bon dashboard pour son rôle
+  if (session && (isDashboardRoute || isClientDashboardRoute)) {
+    const role = await getUserRole();
+    
+    // Rediriger les clients qui tentent d'accéder au dashboard freelance
+    if (role === 'client' && isDashboardRoute) {
+      url.pathname = '/client-dashboard';
+      return NextResponse.redirect(url);
+    }
+    
+    // Rediriger les freelances qui tentent d'accéder au dashboard client
+    if (role === 'freelance' && isClientDashboardRoute) {
+      url.pathname = '/dashboard';
+      return NextResponse.redirect(url);
+    }
+  }
+  
+  // Vérifier si l'utilisateur a accès à l'admin
   if (session && isAdminRoute) {
-    try {
-      // Vérifier si l'utilisateur a le rôle admin
-      const { data: userRole, error } = await supabase.rpc('get_user_role');
-      
-      if (error || userRole !== 'admin') {
-        url.pathname = '/unauthorized';
-        return NextResponse.redirect(url);
-      }
-    } catch (err) {
-      console.error("Erreur lors de la vérification du rôle admin:", err);
+    const role = await getUserRole();
+    
+    if (role !== 'admin') {
       url.pathname = '/unauthorized';
       return NextResponse.redirect(url);
     }
   }
   
-  // Vérifier si la route dashboard existe (pour éviter les 404)
-  if (session && isDashboardRoute && !isValidRoute(pathname)) {
-    // Rediriger vers le dashboard principal si la route n'est pas valide
-    url.pathname = '/dashboard';
-    return NextResponse.redirect(url);
+  // Vérification des routes valides
+  if (session) {
+    // Rediriger vers la route principale si la route spécifique n'existe pas
+    if (isDashboardRoute && !isValidRoute(pathname)) {
+      url.pathname = '/dashboard';
+      return NextResponse.redirect(url);
+    }
+    
+    if (isClientDashboardRoute && !isValidClientRoute(pathname)) {
+      url.pathname = '/client-dashboard';
+      return NextResponse.redirect(url);
+    }
   }
   
   return res;
@@ -123,6 +203,7 @@ export const config = {
   matcher: [
     // Routes à protéger - uniquement celles qui nécessitent une authentification
     '/dashboard/:path*',
+    '/client-dashboard/:path*',
     '/admin/:path*',
     // Routes d'authentification à gérer
     '/auth/:path*',

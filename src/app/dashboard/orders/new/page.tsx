@@ -14,10 +14,10 @@ import { supabase } from "@/lib/supabase/client";
 
 export default function NewOrderPage() {
   const { user } = useAuth();
-  const { profile } = useUser();
+  const { profile, isFreelance } = useUser();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const serviceId = searchParams.get("serviceId");
+  const serviceId = searchParams?.get("serviceId");
   
   const [loading, setLoading] = useState(true);
   const [service, setService] = useState<any>(null);
@@ -30,7 +30,7 @@ export default function NewOrderPage() {
       return;
     }
 
-    if (user?.user_metadata?.role === "freelance") {
+    if (isFreelance) {
       router.push("/dashboard");
       return;
     }
@@ -105,7 +105,7 @@ export default function NewOrderPage() {
     };
 
     fetchService();
-  }, [user, router, serviceId, profile]);
+  }, [user, router, serviceId, profile, isFreelance]);
 
   if (loading) {
     return (

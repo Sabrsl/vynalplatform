@@ -142,7 +142,8 @@ const getFileName = (fileUrl: string) => {
 };
 
 export default function OrderDetailPage() {
-  const { id } = useParams();
+  const params = useParams();
+  const orderId = params?.id as string;
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const [order, setOrder] = useState<OrderDetail | null>(null);
@@ -172,7 +173,7 @@ export default function OrderDetailPage() {
 
   // Récupération de la commande
   const fetchOrder = useCallback(async () => {
-    if (!user || !id) return;
+    if (!user || !orderId) return;
 
     try {
       const { data, error } = await supabase
@@ -182,7 +183,7 @@ export default function OrderDetailPage() {
           service:services(*),
           freelance:profiles!freelance_id(*)
         `)
-        .eq('id', id)
+        .eq('id', orderId)
         .eq('client_id', user.id)
         .single();
 
@@ -195,7 +196,7 @@ export default function OrderDetailPage() {
       setError("Impossible de charger les détails de la commande.");
       setLoading(false);
     }
-  }, [user, id]);
+  }, [user, orderId]);
 
   // Accepter une livraison
   const handleAcceptDelivery = async () => {

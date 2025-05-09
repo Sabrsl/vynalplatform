@@ -8,6 +8,9 @@ import { usePathname, useSearchParams, useRouter } from 'next/navigation';
 import { ErrorBoundary, FallbackProps } from 'react-error-boundary';
 import { OrderNotificationProvider } from "@/components/notifications/OrderNotificationProvider";
 
+// Clé pour stocker les notifications déjà affichées dans localStorage
+const DISPLAYED_NOTIFICATIONS_KEY = 'vynal_displayed_notifications';
+
 // État global pour le chargement entre navigations - ULTRA SIMPLIFIÉ
 const initialNavigationState = {
   isNavigating: false,
@@ -59,6 +62,10 @@ interface VisibilityStateType {
 declare global {
   interface Window {
     VisibilityState?: VisibilityStateType;
+    vynal_sessionToasts?: {
+      isWelcomeShown?: boolean;
+      lastShownTimestamp?: number;
+    };
   }
 }
 
@@ -124,6 +131,36 @@ const ErrorFallback = memo(({ error, resetErrorBoundary }: FallbackProps) => {
 
 ErrorFallback.displayName = 'ErrorFallback';
 
+// Composant wrappeur pour NotificationListener avec gestion de l'état
+const ToastManager = memo(() => {
+  // Lors du montage, initialiser l'état persistant pour les toasts
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    // Initialiser l'objet global qui suit l'état des notifications
+    if (!window.vynal_sessionToasts) {
+      try {
+        // Récupérer l'état depuis localStorage s'il existe
+        const storedState = localStorage.getItem(DISPLAYED_NOTIFICATIONS_KEY);
+        window.vynal_sessionToasts = storedState ? JSON.parse(storedState) : {
+          isWelcomeShown: false,
+          lastShownTimestamp: 0
+        };
+      } catch (err) {
+        console.warn('Erreur lors de la récupération des données de notification:', err);
+        window.vynal_sessionToasts = {
+          isWelcomeShown: false,
+          lastShownTimestamp: 0
+        };
+      }
+    }
+  }, []);
+  
+  return <NotificationListener />;
+});
+
+ToastManager.displayName = 'ToastManager';
+
 // Gestionnaire d'événements de navigation optimisé
 const NavigationEventHandler = memo(() => {
   const pathname = usePathname();
@@ -171,7 +208,7 @@ const NavigationEventHandler = memo(() => {
     if (typeof window === 'undefined') return;
     
     // Combinaison de pathname et searchParams pour détection complète des changements de route
-    const fullPath = pathname + (searchParams?.toString() ? `?${searchParams.toString()}` : '');
+    const fullPath = pathname + (searchParams?.toString() ? `?${searchParams?.toString()}` : '');
     
     if (prevPathRef.current !== fullPath) {
       // Utiliser requestAnimationFrame pour une réinitialisation du scroll plus fluide
@@ -248,31 +285,29 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   // Options pour éviter les rendus inutiles dans ErrorBoundary
   const onError = useCallback((error: Error, info: React.ErrorInfo) => {
-    console.error("Erreur capturée par ErrorBoundary:", error, info);
+    console.error('Erreur dans l\'application Vynal:', error, info);
   }, []);
-  
+
   const onReset = useCallback(() => {
-    // Réinitialiser l'état de navigation
-    NavigationLoadingState.isNavigating = false;
+    // Réinitialiser l'état global de navigation si nécessaire
     NavigationLoadingState.resetErrorState();
   }, []);
 
   return (
-    <ErrorBoundary 
-      FallbackComponent={ErrorFallback}
-      onError={onError}
-      onReset={onReset}
-    >
-      <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={true}>
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+      <ErrorBoundary 
+        FallbackComponent={ErrorFallback} 
+        onError={onError}
+        onReset={onReset}
+      >
         <OrderNotificationProvider>
-          {/* N'afficher le contenu dépendant du thème que côté client */}
-          {mounted ? children : <div style={{ visibility: 'hidden' }}>{children}</div>}
+          <VisibilityStateHandler />
+          <NavigationEventHandler />
+          <ToastManager />
+          <Toaster />
+          {children}
         </OrderNotificationProvider>
-        <Toaster />
-        <NotificationListener />
-        <NavigationEventHandler />
-        <VisibilityStateHandler />
-      </ThemeProvider>
-    </ErrorBoundary>
+      </ErrorBoundary>
+    </ThemeProvider>
   );
 } 

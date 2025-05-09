@@ -19,8 +19,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import Image from 'next/image';
 
 export default function DisputeDetailPage() {
-  const { id } = useParams();
-  const disputeId = Array.isArray(id) ? id[0] : id;
+  const params = useParams();
+  const disputeId = params?.id as string;
   const router = useRouter();
   
   const [resolutionNote, setResolutionNote] = useState("");

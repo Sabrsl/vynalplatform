@@ -277,8 +277,12 @@ export function useAuth() {
     
     try {
       setLoading(true);
+      // Utiliser l'URL absolue pour être sûr que Supabase redirige correctement
+      const redirectUrl = getRedirectUrl('/auth/reset-password');
+      console.log("URL de redirection pour réinitialisation:", redirectUrl);
+      
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: getRedirectUrl('/auth/reset-password'),
+        redirectTo: redirectUrl,
       });
       
       if (error) throw error;

@@ -5,6 +5,8 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import MessagingInterface from '@/components/messaging/MessagingInterface';
 import { useAuth } from '@/hooks/useAuth';
+import { useUser } from '@/hooks/useUser';
+import { FreelanceGuard } from "@/lib/guards/roleGuards";
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { MessagesPageSkeleton } from "@/components/skeletons/MessagesPageSkeleton";
 
@@ -24,6 +26,7 @@ const fadeIn = "animate-in fade-in duration-300 ease-in-out";
 
 export default function MessagesPage() {
   const { user, loading: authLoading } = useAuth();
+  const { isFreelance } = useUser();
   const [isComponentLoaded, setIsComponentLoaded] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isError, setIsError] = useState(false);
@@ -77,16 +80,6 @@ export default function MessagesPage() {
     return <MessagesPageSkeleton />;
   }
   
-  // Afficher un message si l'utilisateur n'est pas connecté
-  if (!user) {
-    return (
-      <div className="p-6 bg-gray-50 rounded-lg">
-        <h1 className="text-2xl font-bold mb-4">Messagerie Freelance</h1>
-        <p className="text-gray-600">Veuillez vous connecter pour accéder à vos messages.</p>
-      </div>
-    );
-  }
-  
   // Afficher un message d'erreur si nécessaire
   if (isError && errorMessage) {
     return (
@@ -103,41 +96,37 @@ export default function MessagesPage() {
     );
   }
   
-  // Déterminer si l'utilisateur est un freelance en vérifiant différentes sources possibles
-  // Important : vérifier si le rôle est stocké directement dans user ou dans user_metadata
-  const isFreelance = 
-    (user?.user_metadata?.role === 'freelance') || 
-    (user?.role === 'freelance') ||
-    (user?.user_metadata?.userRole === 'freelance');
-  
+  // Le contenu principal protégé par FreelanceGuard
   return (
-    <ErrorBoundary fallback={
-      <div className="p-6 bg-red-50 rounded-lg">
-        <h1 className="text-2xl font-bold mb-4">Une erreur est survenue</h1>
-        <p className="text-red-600">Impossible de charger la messagerie. Veuillez rafraîchir la page.</p>
-      </div>
-    }>
-      <div className={`p-0 sm:p-6 ${fadeIn}`}>
-        <div className="flex items-center justify-between px-2 mb-3">
-          <div className="flex items-center gap-2">
-            <h1 className="text-base sm:text-lg md:text-xl font-bold text-vynal-purple-light dark:text-vynal-text-primary">Messagerie Freelance</h1>
-            <NewConversationDialog 
-              onConversationCreated={handleConversationCreated}
-              isFreelance={isFreelance}
-              buttonVariant="ghost"
-              className="h-8 w-8 p-0 rounded-full bg-gradient-to-r from-pink-500/10 to-purple-500/10 text-pink-600 dark:text-pink-400 hover:text-pink-700 dark:hover:text-pink-300 hover:bg-gradient-to-r hover:from-pink-500/20 hover:to-purple-500/20"
-            />
-          </div>
+    <FreelanceGuard>
+      <ErrorBoundary fallback={
+        <div className="p-6 bg-red-50 rounded-lg">
+          <h1 className="text-2xl font-bold mb-4">Une erreur est survenue</h1>
+          <p className="text-red-600">Impossible de charger la messagerie. Veuillez rafraîchir la page.</p>
         </div>
-        
-        <MessagingInterface 
-          initialConversationId={conversationId || undefined} 
-          orderId={orderId || undefined}
-          isFreelance={isFreelance}
-          key={`messaging-${conversationId || orderId || 'all'}`}
-          className="w-full sm:mx-0"
-        />
-      </div>
-    </ErrorBoundary>
+      }>
+        <div className={`p-0 sm:p-6 ${fadeIn}`}>
+          <div className="flex items-center justify-between px-2 mb-3">
+            <div className="flex items-center gap-2">
+              <h1 className="text-base sm:text-lg md:text-xl font-bold text-vynal-purple-light dark:text-vynal-text-primary">Messagerie Freelance</h1>
+              <NewConversationDialog 
+                onConversationCreated={handleConversationCreated}
+                isFreelance={isFreelance}
+                buttonVariant="ghost"
+                className="h-8 w-8 p-0 rounded-full bg-gradient-to-r from-pink-500/10 to-purple-500/10 text-pink-600 dark:text-pink-400 hover:text-pink-700 dark:hover:text-pink-300 hover:bg-gradient-to-r hover:from-pink-500/20 hover:to-purple-500/20"
+              />
+            </div>
+          </div>
+          
+          <MessagingInterface 
+            initialConversationId={conversationId || undefined} 
+            orderId={orderId || undefined}
+            isFreelance={isFreelance}
+            key={`messaging-${conversationId || orderId || 'all'}`}
+            className="w-full sm:mx-0"
+          />
+        </div>
+      </ErrorBoundary>
+    </FreelanceGuard>
   );
 }

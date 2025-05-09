@@ -50,40 +50,29 @@ const ThemeWrapper = memo(function ThemeWrapper({
     );
   }, [fullGradient, isDark, className]);
   
-  // Mémoriser les classes pour les éléments décoratifs
-  const topCircleClasses = useMemo(() => cn(
-    "absolute -top-64 -right-64 w-[600px] h-[600px]",
-    isDark ? "bg-vynal-accent-primary opacity-5" : "bg-indigo-100 opacity-40",
-    "rounded-full blur-3xl"
-  ), [isDark]);
-  
-  const bottomCircleClasses = useMemo(() => cn(
-    "absolute -bottom-64 -left-64 w-[600px] h-[600px]",
-    isDark ? "bg-vynal-accent-secondary opacity-5" : "bg-indigo-50 opacity-50",
-    "rounded-full blur-3xl"
-  ), [isDark]);
-  
-  const gridClasses = useMemo(() => cn(
-    "absolute inset-0 bg-[url('/img/grid-pattern.svg')] bg-center",
-    isDark ? "opacity-5" : "opacity-0"
-  ), [isDark]);
-  
-  // Optimisation : ne pas rendre les éléments décoratifs si fullGradient est false
-  const decorativeElements = useMemo(() => {
-    if (!fullGradient) return null;
-    
-    return (
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className={topCircleClasses}></div>
-        <div className={bottomCircleClasses}></div>
-        <div className={gridClasses}></div>
-      </div>
-    );
-  }, [fullGradient, topCircleClasses, bottomCircleClasses, gridClasses]);
+  // Optimisation : rendu conditionnel des éléments décoratifs pour réduire le coût
+  const renderDecorativeElements = fullGradient && (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
+      <div className={cn(
+        "absolute -top-64 -right-64 w-[600px] h-[600px]",
+        isDark ? "bg-vynal-accent-primary opacity-5" : "bg-indigo-100 opacity-40",
+        "rounded-full blur-3xl"
+      )}></div>
+      <div className={cn(
+        "absolute -bottom-64 -left-64 w-[600px] h-[600px]",
+        isDark ? "bg-vynal-accent-secondary opacity-5" : "bg-indigo-50 opacity-50",
+        "rounded-full blur-3xl"
+      )}></div>
+      <div className={cn(
+        "absolute inset-0 bg-[url('/img/grid-pattern.svg')] bg-center",
+        isDark ? "opacity-5" : "opacity-0"
+      )}></div>
+    </div>
+  );
   
   return (
     <div className={wrapperClasses}>
-      {decorativeElements}
+      {renderDecorativeElements}
       
       {/* Contenu de la page */}
       <div className="relative z-10">

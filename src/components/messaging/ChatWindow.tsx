@@ -26,6 +26,7 @@ import { Conversation as BaseConversation } from '@/components/messaging/messagi
 import EnhancedAvatar from '@/components/ui/enhanced-avatar';
 import { useUnreadMessages } from '@/hooks/useUnreadMessages';
 import { UnreadBadge } from '@/components/ui/UnreadBadge';
+import { motion, AnimatePresence } from "framer-motion";
 
 // Extension du type Conversation pour inclure other_user et order_id
 interface Conversation extends BaseConversation {
@@ -84,7 +85,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const [messageText, setMessageText] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [attachments, setAttachments] = useState<{url: string, type: string, name: string}[]>([]);
-  const [visibleMessages, setVisibleMessages] = useState<Message[]>([]);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
   const [page, setPage] = useState(1);
@@ -110,6 +110,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const userScrolledUpRef = useRef<boolean>(false);
   const notificationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const scrollDebounceRef = useRef<boolean>(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   
   const { 
     messages,
@@ -118,8 +120,28 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     markMessagesAsRead,
     markSpecificMessagesAsRead,
     setIsTyping: updateTypingStatus,
-    setMessages
+    setMessages,
+    fetchMessages,
+    updateConversationParticipant
   } = useMessagingStore();
+
+  // Charger les messages au montage du composant
+  useEffect(() => {
+    if (conversation?.id) {
+      fetchMessages(conversation.id);
+    }
+  }, [conversation?.id, fetchMessages]);
+
+  // Initialiser les messages visibles
+  useEffect(() => {
+    if (messages.length > 0) {
+      // Afficher les messages les plus récents (limité à MESSAGES_PER_PAGE)
+      const startIdx = Math.max(0, messages.length - MESSAGES_PER_PAGE);
+      setHasMoreMessages(startIdx > 0);
+    } else {
+      setHasMoreMessages(false);
+    }
+  }, [messages]);
 
   // Trouver l'autre participant (dans une conversation à 2 personnes)
   const otherParticipant = conversation.participants.find(
@@ -184,31 +206,17 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     }
   }, [otherParticipant]);
 
-  // Initialiser les messages visibles
-  useEffect(() => {
-    if (messages.length > 0) {
-      // Afficher les messages les plus récents (limité à MESSAGES_PER_PAGE)
-      const startIdx = Math.max(0, messages.length - MESSAGES_PER_PAGE);
-      setVisibleMessages(messages.slice(startIdx));
-      setPage(1);
-      setHasMoreMessages(startIdx > 0);
-    } else {
-      setVisibleMessages([]);
-      setHasMoreMessages(false);
-    }
-  }, [messages]);
-
   // Fonction pour vérifier quels messages sont actuellement visibles à l'écran
   const checkVisibleMessages = useCallback(() => {
     if (!user) return;
     
     // Accumuler les IDs pour n'effectuer qu'une seule mise à jour
-    const unreadVisibleMessageIds = visibleMessages
+    const unreadVisibleMessageIds = messages
       .filter((msg: Message) => !msg.read && msg.sender_id !== user.id)
       .map((msg: Message) => msg.id);
     
     // Mettre à jour la référence des messages visibles
-    visibleMessageIdsRef.current = new Set(visibleMessages.map((msg: Message) => msg.id));
+    visibleMessageIdsRef.current = new Set(messages.map((msg: Message) => msg.id));
     
     // Marquer les messages visibles non lus comme lus après un court délai
     if (markAsReadTimeoutRef.current) {
@@ -219,10 +227,14 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     if (unreadVisibleMessageIds.length > 0 && user.id) {
       // Regrouper les opérations de marquage pour éviter les reflows multiples
       markAsReadTimeoutRef.current = setTimeout(() => {
-        markSpecificMessagesAsRead(conversation.id, user.id, unreadVisibleMessageIds);
+        // Utiliser la fonction qui met à jour complètement les indicateurs
+        markMessagesAsRead(conversation.id, user.id);
+        
+        // Aussi mettre à jour les compteurs globaux
+        markConversationAsRead(conversation.id);
       }, 1000);
     }
-  }, [conversation.id, user, visibleMessages, markSpecificMessagesAsRead]);
+  }, [conversation.id, user, messages, markMessagesAsRead, markConversationAsRead]);
 
   // Fonction pour charger plus de messages (scroll vers le haut)
   const loadMoreMessages = useCallback(() => {
@@ -232,9 +244,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     const nextPage = page + 1;
     const startIdx = Math.max(0, messages.length - (nextPage * MESSAGES_PER_PAGE));
     const endIdx = messages.length - ((nextPage - 1) * MESSAGES_PER_PAGE);
-    const moreMessages = messages.slice(startIdx, endIdx);
     
-    setVisibleMessages(prev => [...moreMessages, ...prev]);
     setPage(nextPage);
     setHasMoreMessages(startIdx > 0);
     
@@ -242,7 +252,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     setTimeout(() => {
       if (messagesContainerRef.current) {
         messagesContainerRef.current.scrollToIndex({
-          index: moreMessages.length,
+          index: endIdx - startIdx,
           align: 'start'
         });
       }
@@ -258,6 +268,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       
       // Exécuter le code de défilement dans requestAnimationFrame
       requestAnimationFrame(() => {
+        // Mettre à jour le flag de défilement manuel
+        userScrolledUpRef.current = e.scrollTop < e.scrollHeight - e.clientHeight - 100;
+        
         if (e.scrollTop < 50 && hasMoreMessages && !isLoadingMore) {
           loadMoreMessages();
         }
@@ -290,26 +303,33 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   // Scroll vers le bas quand de nouveaux messages arrivent
   useEffect(() => {
     // Ne pas défiler automatiquement lors du chargement d'anciens messages
-    if (!isLoadingMore && messages.length > 0 && visibleMessages.length > 0) {
-      // Vérifier si le dernier message visible est aussi le dernier message de tous les messages
-      const lastVisibleMessageId = visibleMessages[visibleMessages.length - 1].id;
-      const lastMessageId = messages[messages.length - 1].id;
-      
-      // Défiler vers le bas seulement si l'utilisateur n'a pas scrollé vers le haut manuellement
-      // ou si c'est le premier chargement ou un nouveau message de l'utilisateur
+    if (!isLoadingMore && messages.length > 0) {
+      // Vérifier si le dernier message est de l'utilisateur actuel
       const isNewMessageFromUser = messages[messages.length - 1]?.sender_id === user?.id;
       
-      if ((lastVisibleMessageId === lastMessageId && !userScrolledUpRef.current) || isNewMessageFromUser) {
-        // Utiliser requestAnimationFrame pour réduire les reflows
+      // Défiler vers le bas seulement si :
+      // 1. C'est un nouveau message de l'utilisateur
+      // 2. L'utilisateur n'a pas scrollé vers le haut manuellement
+      // 3. Le dernier message est visible
+      const lastMessage = messages[messages.length - 1];
+      const isLastMessageVisible = lastMessage && visibleMessageIdsRef.current.has(lastMessage.id);
+      
+      if (isNewMessageFromUser && !userScrolledUpRef.current && isLastMessageVisible) {
         requestAnimationFrame(() => {
-          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+          if (messagesContainerRef.current) {
+            messagesContainerRef.current.scrollToIndex({
+              index: messages.length - 1,
+              align: 'end',
+              behavior: 'smooth'
+            });
+          }
         });
       }
     }
     
     // Vérifier les messages visibles après le rendu des messages
     setTimeout(checkVisibleMessages, 100);
-  }, [visibleMessages, messages, checkVisibleMessages, isLoadingMore, user?.id]);
+  }, [messages, checkVisibleMessages, isLoadingMore, user?.id]);
 
   // Mettre à jour le statut "last_seen" quand l'utilisateur est actif sur le chat
   useEffect(() => {
@@ -383,24 +403,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     };
   }, []);
 
-  // Fonction pour récupérer les messages
-  const fetchMessages = useCallback(async (conversationId: string) => {
-    setIsLoadingMessages(true);
-    setMessageError(null);
-    try {
-      // Ici, implémentez la logique de chargement des messages
-      // Par exemple, vous pourriez appeler un service ou un API
-      // Simuler un délai
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      // Si l'implémentation est incomplète, vous pouvez simplement ne rien faire
-      setIsLoadingMessages(false);
-    } catch (error) {
-      console.error("Erreur lors du chargement des messages:", error);
-      setMessageError("Impossible de charger les messages. Veuillez réessayer.");
-      setIsLoadingMessages(false);
-    }
-  }, []);
-
   // Fonction pour marquer les messages comme non lus
   const markAsUnread = useCallback(() => {
     if (!user || !conversation) return;
@@ -443,9 +445,21 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   // Mettre à jour la fonction handleMarkAsRead
   const handleMarkAsRead = useCallback(() => {
     if (user?.id && conversation?.id) {
+      // Marquer les messages comme lus
       markMessagesAsRead(conversation.id, user.id);
+      
+      // Également mettre à jour les compteurs globaux
+      markConversationAsRead(conversation.id);
+      
+      // Déclencher un événement pour forcer la mise à jour des interfaces
+      if (typeof window !== 'undefined') {
+        // Événement spécifique pour les messages
+        window.dispatchEvent(new CustomEvent('vynal:messages-read', { 
+          detail: { conversationId: conversation.id, timestamp: Date.now() } 
+        }));
+      }
     }
-  }, [user, conversation, markMessagesAsRead]);
+  }, [user, conversation, markMessagesAsRead, markConversationAsRead]);
 
   // Modifier la fonction removeAttachment pour être compatible avec un handler d'événement
   const handleRemoveAttachment = useCallback(() => {
@@ -562,7 +576,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           // Mettre à jour les messages dans le store
           if (updatedMessages) {
             setMessages(updatedMessages);
-            setVisibleMessages(updatedMessages);
           }
           
         } else {
@@ -585,15 +598,17 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           }
         }
         
+        // Réinitialiser tous les états liés aux fichiers
         setAttachments([]);
+        setAttachment(null);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
         
         setMessageText('');
         
         // Réinitialiser l'état d'écriture
         updateTypingStatus(conversation.id, user.id, false);
-        
-        // Réinitialiser le flag de défilement manuel pour permettre le défilement automatique après l'envoi d'un message
-        userScrolledUpRef.current = false;
         
         // Si le message a été censuré, on affiche une notification
         if (validationResult.censored) {
@@ -678,6 +693,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     } catch (error) {
       console.error('Erreur lors de l\'upload du fichier:', error);
       showNotification("Erreur lors de l'upload du fichier", 'error');
+      setAttachment(null);
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -687,45 +703,106 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   // Supprimer une pièce jointe
   const removeAttachment = (index: number) => {
     setAttachments(prev => prev.filter((_, i) => i !== index));
+    if (attachments.length === 1) {
+      setAttachment(null);
+    }
   };
 
-  // Mettre à jour l'appel dans useEffect
+  // Gérer la fermeture du menu lors d'un clic en dehors
   useEffect(() => {
-    if (user?.id && unreadCount > 10) {
-      markMessagesAsRead(conversation.id, user.id);
-    } else {
-      setTimeout(checkVisibleMessages, 100);
-    }
-    
-    return () => {
-      if (markAsReadTimeoutRef.current) {
-        clearTimeout(markAsReadTimeoutRef.current);
-        markAsReadTimeoutRef.current = null;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false);
       }
     };
-  }, [conversation.id, user?.id, unreadCount, checkVisibleMessages, markMessagesAsRead]);
+
+    if (isMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isMenuOpen]);
+
+  // Ajout de la fonction pour synchroniser les informations du participant
+  const syncParticipantWithMessages = useCallback(() => {
+    if (otherParticipant && messages.length > 0) {
+      // Chercher un message de l'autre participant
+      const participantMessage = messages.find(msg => 
+        msg.sender_id === otherParticipant.id && msg.sender
+      );
+      
+      if (participantMessage?.sender) {
+        // Vérifier si on a des données manquantes dans otherParticipant
+        if ((!otherParticipant.avatar_url && participantMessage.sender.avatar_url) || 
+            (!otherParticipant.full_name && participantMessage.sender.full_name)) {
+              
+          // Mettre à jour les informations du participant
+          if (typeof updateConversationParticipant === 'function') {
+            updateConversationParticipant(conversation.id, {
+              id: otherParticipant.id,
+              username: participantMessage.sender.username || otherParticipant.username,
+              full_name: participantMessage.sender.full_name || otherParticipant.full_name,
+              avatar_url: participantMessage.sender.avatar_url || otherParticipant.avatar_url,
+              last_seen: otherParticipant.last_seen
+            });
+          }
+          
+          // Mettre à jour le titre immédiatement pour une mise à jour visuelle rapide
+          setConversationTitle(
+            participantMessage.sender.full_name || 
+            participantMessage.sender.username || 
+            otherParticipant.full_name ||
+            otherParticipant.username ||
+            "Discussion"
+          );
+        }
+      }
+    }
+  }, [otherParticipant, messages, conversation.id, updateConversationParticipant]);
+
+  // Appeler la fonction quand les messages changent
+  useEffect(() => {
+    syncParticipantWithMessages();
+  }, [syncParticipantWithMessages]);
+
+  // Mettre le focus sur la zone de texte quand la conversation est ouverte
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.focus();
+    }
+  }, [conversation.id]);
 
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-gray-950">
-      {/* Header avec le nom du participant */}
-      <div className="border-b p-4 flex items-center justify-between bg-white dark:bg-gray-950 dark:border-gray-800">
+    <div className="flex flex-col h-full bg-white/30 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700/30 backdrop-blur-sm shadow-sm transition-all duration-200 rounded-lg">
+      {/* En-tête du chat */}
+      <div className="flex items-center justify-between p-3 border-b border-slate-200 dark:border-slate-700/30 bg-white/20 dark:bg-slate-900/20">
         <div className="flex items-center space-x-3">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="md:hidden mr-2"
+            onClick={onBack}
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
           {otherParticipant && otherParticipant.avatar_url ? (
             <EnhancedAvatar 
               src={otherParticipant.avatar_url} 
               alt={otherParticipant.full_name || otherParticipant.username || ""}
               fallback={(otherParticipant.full_name || otherParticipant.username || '?') as string}
-              className="h-10 w-10"
+              className="h-8 w-8"
               onError={() => setHeaderAvatarError(true)}
             />
           ) : (
-            <Avatar className="h-10 w-10">
+            <Avatar className="h-8 w-8">
               <AvatarFallback>{conversationTitle.substring(0, 2).toUpperCase()}</AvatarFallback>
             </Avatar>
           )}
           <div>
-            <h2 className="text-lg font-semibold">{conversationTitle}</h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <h2 className="text-sm font-semibold">{conversationTitle}</h2>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
               {otherParticipant?.last_seen 
                 ? `Vu ${formatDistanceToNow(new Date(otherParticipant.last_seen), { addSuffix: true, locale: fr })}` 
                 : 'Hors ligne'}
@@ -734,196 +811,226 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         </div>
         <div className="flex items-center space-x-2">
           <UnreadBadge count={unreadCounts.byConversation[conversation.id] || 0} />
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button 
-                variant="ghost" 
-                size="icon"
-                className="ml-2 text-white hover:bg-white/20 h-7 w-7"
-              >
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem className="cursor-pointer flex items-center gap-2 text-xs">
-                <MessageSquare className="h-3 w-3" />
-                <span>Marquer comme non lu</span>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="cursor-pointer text-red-500 flex items-center gap-2 text-xs">
-                <Trash className="h-3 w-3" />
-                <span>Supprimer la conversation</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className="relative" ref={menuRef}>
+            <Button 
+              variant="ghost" 
+              size="icon"
+              className="h-8 w-8 p-0 hover:bg-slate-100 dark:hover:bg-slate-800"
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+            >
+              <MoreVertical className="h-4 w-4" />
+              <span className="sr-only">Options de la conversation</span>
+            </Button>
+
+            <AnimatePresence>
+              {isMenuOpen && (
+                <motion.div 
+                  className="absolute right-0 mt-2 w-48 z-50 rounded-lg border border-vynal-purple-secondary/20 bg-white p-1 text-vynal-purple-dark shadow-lg dark:border-vynal-purple-secondary/20 dark:bg-vynal-purple-dark dark:text-vynal-text-primary backdrop-blur-sm"
+                  initial={{ opacity: 0, scale: 0.95, y: -5 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: -5 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <motion.button
+                    className="w-full flex items-center gap-2 px-2 py-1.5 text-xs hover:bg-vynal-purple-secondary/10 dark:hover:bg-vynal-purple-secondary/10 rounded-md transition-colors opacity-50 cursor-not-allowed"
+                    onClick={markAsUnread}
+                    disabled
+                    whileHover={{ backgroundColor: "rgba(99, 102, 241, 0.08)" }}
+                  >
+                    <MessageSquare className="h-3 w-3" />
+                    <span>Marquer comme non lu</span>
+                  </motion.button>
+                  <div className="h-px bg-vynal-purple-secondary/20 dark:bg-vynal-purple-secondary/20 my-1" />
+                  <motion.button
+                    className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-md transition-colors opacity-50 cursor-not-allowed"
+                    onClick={handleDelete}
+                    disabled
+                    whileHover={{ backgroundColor: "rgba(239, 68, 68, 0.08)" }}
+                  >
+                    <Trash className="h-3 w-3" />
+                    <span>Supprimer la conversation</span>
+                  </motion.button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
       </div>
-      
-      {/* Zone des messages avec virtualisation pour optimiser les performances */}
-      <Virtuoso
-        ref={messagesContainerRef}
-        style={{ height: 'calc(100vh - 170px)' }}
-        totalCount={visibleMessages.length}
-        data={visibleMessages}
-        followOutput={"auto"}
-        onScroll={handleVirtuosoScroll}
-        components={{
-          Header: () => (
-            <>
-              {/* Bouton pour charger plus de messages */}
-              {loadMoreVisible && hasMoreMessages && (
-                <div className="flex justify-center mb-3">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={loadMoreMessages}
-                    disabled={isLoadingMore}
-                    className="rounded-full text-xs bg-white shadow-sm hover:bg-gray-100 text-gray-700 flex items-center gap-1 h-6 px-2 py-0"
-                  >
-                    {isLoadingMore ? (
-                      <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                    ) : (
-                      <ChevronUp className="h-3 w-3 mr-1" />
-                    )}
-                    Messages précédents
-                  </Button>
-                </div>
-              )}
-              
-              {/* Loader lors du chargement initial des messages - Amélioration de l'animation */}
-              {isLoadingMessages && visibleMessages.length === 0 && (
-                <div className="flex justify-center items-center h-[150px] animate-in fade-in duration-300 ease-in-out">
-                  <div className="flex flex-col items-center space-y-2">
-                    <div className="flex flex-col space-y-3 w-3/4 max-w-md">
-                      {/* Skeleton message items avec animation douce */}
-                      {[...Array(3)].map((_, i) => (
-                        <div 
-                          key={i} 
-                          className={`flex items-start ${i % 2 === 0 ? 'justify-end' : ''} animate-pulse`}
-                          style={{ animationDelay: `${i * 150}ms`, opacity: 1 - (i * 0.15) }}
-                        >
-                          {i % 2 !== 0 && (
-                            <div className="h-6 w-6 rounded-full bg-vynal-purple-secondary/30 mr-2"></div>
-                          )}
+
+      {/* Corps de la conversation avec la zone de défilement */}
+      <div className="flex-1 overflow-hidden bg-white/20 dark:bg-slate-800/25 relative">
+        <Virtuoso
+          ref={messagesContainerRef}
+          style={{ height: '100%', overflow: 'auto' }}
+          totalCount={messages.length}
+          data={messages}
+          alignToBottom={true}
+          initialTopMostItemIndex={messages.length - 1}
+          followOutput={"auto"}
+          onScroll={handleVirtuosoScroll}
+          components={{
+            Header: () => (
+              <>
+                {/* Bouton pour charger plus de messages */}
+                {loadMoreVisible && hasMoreMessages && (
+                  <div className="flex justify-center mb-3">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={loadMoreMessages}
+                      disabled={isLoadingMore}
+                      className="rounded-full text-xs bg-white shadow-sm hover:bg-gray-100 text-gray-700 flex items-center gap-1 h-6 px-2 py-0"
+                    >
+                      {isLoadingMore ? (
+                        <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                      ) : (
+                        <ChevronUp className="h-3 w-3 mr-1" />
+                      )}
+                      Messages précédents
+                    </Button>
+                  </div>
+                )}
+                
+                {/* Loader lors du chargement initial des messages - Amélioration de l'animation */}
+                {isLoadingMessages && messages.length === 0 && (
+                  <div className="flex justify-center items-center h-[150px] animate-in fade-in duration-300 ease-in-out">
+                    <div className="flex flex-col items-center space-y-2">
+                      <div className="flex flex-col space-y-3 w-3/4 max-w-md">
+                        {/* Skeleton message items avec animation douce */}
+                        {[...Array(3)].map((_, i) => (
                           <div 
-                            className={`h-[50px] rounded-2xl ${i % 2 === 0 ? 'bg-vynal-purple-secondary/30 w-[65%]' : 'bg-vynal-purple-secondary/30 w-[70%]'}`}
-                          ></div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-              
-              {/* Liste des messages */}
-              {visibleMessages.length === 0 && !isLoadingMessages && (
-                <div className="flex flex-col items-center justify-center h-[250px] p-3 text-center">
-                  <div className="bg-indigo-100 dark:bg-indigo-900/30 rounded-full p-3 mb-2">
-                    <MessageSquare className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
-                  </div>
-                  <h3 className="text-sm font-semibold mb-1 text-gray-800 dark:text-gray-200">Aucun message</h3>
-                  <p className="text-gray-500 dark:text-gray-400 text-xs max-w-xs">
-                    Démarrez la conversation avec {otherParticipant?.full_name || 'votre contact'} en envoyant un message ci-dessous.
-                  </p>
-                </div>
-              )}
-            </>
-          ),
-          Footer: () => (
-            <>
-              {/* Indicateur de frappe */}
-              {isOtherParticipantTyping && (
-                <div className="flex items-start mb-2 animate-fade-in">
-                  <div className="flex items-end">
-                    <EnhancedAvatar
-                      src={otherParticipant?.avatar_url || ''} 
-                      alt={otherParticipant?.full_name || 'Contact'}
-                      fallback={getInitials(otherParticipant?.full_name || otherParticipant?.username || 'User')}
-                      className="h-6 w-6 mr-2"
-                      fallbackClassName="bg-indigo-100 text-indigo-800 text-xs"
-                      onError={() => setTypingAvatarError(true)}
-                    />
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl px-3 py-1 shadow-sm flex items-center">
-                      <div className="flex space-x-1">
-                        <span className="bg-vynal-purple-secondary/30 rounded-full h-1.5 w-1.5 animate-bounce" style={{ animationDelay: '0s' }}></span>
-                        <span className="bg-vynal-purple-secondary/30 rounded-full h-1.5 w-1.5 animate-bounce" style={{ animationDelay: '0.2s' }}></span>
-                        <span className="bg-vynal-purple-secondary/30 rounded-full h-1.5 w-1.5 animate-bounce" style={{ animationDelay: '0.4s' }}></span>
+                            key={i} 
+                            className={`flex items-start ${i % 2 === 0 ? 'justify-end' : ''} animate-pulse`}
+                            style={{ animationDelay: `${i * 150}ms`, opacity: 1 - (i * 0.15) }}
+                          >
+                            {i % 2 !== 0 && (
+                              <div className="h-6 w-6 rounded-full bg-vynal-purple-secondary/30 mr-2"></div>
+                            )}
+                            <div 
+                              className={`h-[50px] rounded-2xl ${i % 2 === 0 ? 'bg-vynal-purple-secondary/30 w-[65%]' : 'bg-vynal-purple-secondary/30 w-[70%]'}`}
+                            ></div>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   </div>
-                </div>
-              )}
-              <div ref={messagesEndRef} />
-            </>
-          )
-        }}
-        itemContent={(index, message) => {
-          // Vérifier si le message a toutes les informations nécessaires
-          if (!message || !message.sender_id) {
-            console.error("Message invalide:", message);
-            return null;
-          }
+                )}
+                
+                {/* Liste des messages */}
+                {messages.length === 0 && !isLoadingMessages && (
+                  <div className="flex flex-col items-center justify-center h-[250px] p-3 text-center">
+                    <div className="bg-indigo-100 dark:bg-indigo-900/30 rounded-full p-3 mb-2">
+                      <MessageSquare className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                    </div>
+                    <h3 className="text-sm font-semibold mb-1 text-gray-800 dark:text-gray-200">Aucun message</h3>
+                    <p className="text-gray-500 dark:text-gray-400 text-xs max-w-xs">
+                      Démarrez la conversation avec {otherParticipant?.full_name || 'votre contact'} en envoyant un message ci-dessous.
+                    </p>
+                  </div>
+                )}
+              </>
+            ),
+            Footer: () => (
+              <>
+                {/* Indicateur de frappe */}
+                {isOtherParticipantTyping && (
+                  <div className="flex items-start mb-2 animate-fade-in">
+                    <div className="flex items-end">
+                      <EnhancedAvatar
+                        src={otherParticipant?.avatar_url || ''} 
+                        alt={otherParticipant?.full_name || 'Contact'}
+                        fallback={getInitials(otherParticipant?.full_name || otherParticipant?.username || 'User')}
+                        className="h-6 w-6 mr-2"
+                        fallbackClassName="bg-indigo-100 text-indigo-800 text-xs"
+                        onError={() => setTypingAvatarError(true)}
+                      />
+                      <div className="bg-white dark:bg-gray-800 rounded-2xl px-3 py-1 shadow-sm flex items-center">
+                        <div className="flex space-x-1">
+                          <span className="bg-vynal-purple-secondary/30 rounded-full h-1.5 w-1.5 animate-bounce" style={{ animationDelay: '0s' }}></span>
+                          <span className="bg-vynal-purple-secondary/30 rounded-full h-1.5 w-1.5 animate-bounce" style={{ animationDelay: '0.2s' }}></span>
+                          <span className="bg-vynal-purple-secondary/30 rounded-full h-1.5 w-1.5 animate-bounce" style={{ animationDelay: '0.4s' }}></span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <div ref={messagesEndRef} className="h-0" />
+              </>
+            )
+          }}
+          itemContent={(index, message) => {
+            // Vérifier si le message a toutes les informations nécessaires
+            if (!message || !message.sender_id) {
+              console.error("Message invalide:", message);
+              return null;
+            }
 
-          // Déterminer si le message est de l'utilisateur actuel
-          const isCurrentUser = message.sender_id === user?.id;
-          
-          // Créer une clé de données unique pour ce message
-          const messageKey = `msg-${message.id}`;
-          
-          // Déterminer si nous devons afficher l'avatar (pour les messages groupés)
-          const showAvatar = !isCurrentUser && 
-            (index === 0 || 
-              visibleMessages[index - 1].sender_id !== message.sender_id);
-          
-          // Obtenir les messages précédent et suivant pour le groupement
-          const previousMessage = index > 0 ? visibleMessages[index - 1] : undefined;
-          const nextMessage = index < visibleMessages.length - 1 ? visibleMessages[index + 1] : undefined;
-          
-          // Obtenir les informations de l'expéditeur
-          const sender = message.sender || (isCurrentUser ? {
-            id: user?.id || '',
-            username: user?.user_metadata?.username || 'Vous',
-            full_name: user?.user_metadata?.full_name,
-            avatar_url: user?.user_metadata?.avatar_url,
-          } : {
-            id: otherParticipant?.id || '',
-            username: otherParticipant?.username || 'Utilisateur',
-            full_name: otherParticipant?.full_name,
-            avatar_url: otherParticipant?.avatar_url
-          });
-          
-          // Vérifier si le message est valide avant de le rendre
-          if (!sender.id) {
-            console.error("Informations de l'expéditeur manquantes:", message);
-            return null;
-          }
-          
-          return (
-            <div 
-              data-message-id={message.id}
-              data-key={messageKey}
-              className="mb-2"
-            >
-              <MessageBubble 
-                key={messageKey}
-                message={{
-                  ...message,
-                  sender
-                }}
-                isCurrentUser={isCurrentUser}
-                showAvatar={showAvatar}
-                otherParticipant={sender}
-                isFreelance={isFreelance}
-                previousMessage={previousMessage}
-                nextMessage={nextMessage}
-              />
-            </div>
-          );
-        }}
-      />
+            // Déterminer si le message est de l'utilisateur actuel
+            const isCurrentUser = message.sender_id === user?.id;
+            
+            // Créer une clé de données unique pour ce message
+            const messageKey = `msg-${message.id}`;
+            
+            // Déterminer si nous devons afficher l'avatar (pour les messages groupés)
+            const showAvatar = !isCurrentUser && 
+              (index === 0 || 
+                messages[index - 1].sender_id !== message.sender_id);
+            
+            // Obtenir les messages précédent et suivant pour le groupement
+            const previousMessage = index > 0 ? messages[index - 1] : undefined;
+            const nextMessage = index < messages.length - 1 ? messages[index + 1] : undefined;
+            
+            // Obtenir les informations de l'expéditeur
+            const sender = message.sender || (isCurrentUser ? {
+              id: user?.id || message.sender_id || '',
+              username: user?.user_metadata?.username || 'Vous',
+              full_name: user?.user_metadata?.full_name,
+              avatar_url: user?.user_metadata?.avatar_url,
+            } : {
+              id: otherParticipant?.id || message.sender_id || '',
+              username: otherParticipant?.username || 'Utilisateur',
+              full_name: otherParticipant?.full_name,
+              avatar_url: otherParticipant?.avatar_url
+            });
+            
+            // Vérifier si le message est valide avant de le rendre
+            if (!sender.id && message.sender_id) {
+              // Si sender.id est manquant mais que sender_id existe, on utilise sender_id
+              sender.id = message.sender_id;
+            }
+            
+            if (!sender.id) {
+              console.error("Informations de l'expéditeur manquantes:", message);
+              return null;
+            }
+            
+            return (
+              <div 
+                data-message-id={message.id}
+                data-key={messageKey}
+                className="mb-2 px-3 min-h-[20px]"
+              >
+                <MessageBubble 
+                  key={messageKey}
+                  message={{
+                    ...message,
+                    sender
+                  }}
+                  isCurrentUser={isCurrentUser}
+                  showAvatar={showAvatar}
+                  otherParticipant={sender}
+                  isFreelance={isFreelance}
+                  previousMessage={previousMessage}
+                  nextMessage={nextMessage}
+                />
+              </div>
+            );
+          }}
+        />
+      </div>
       
       {/* Zone de saisie du message */}
-      <div className="border-t border-gray-200 dark:border-gray-800 p-2 bg-white dark:bg-gray-950">
+      <div className="border-t border-slate-200 dark:border-slate-700/30 p-3 bg-white/40 dark:bg-slate-800/40">
         {notification && (
           <div className={`mb-2 p-1.5 text-xs rounded-md ${
             notification.type === 'error' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' :
@@ -942,8 +1049,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       )}
       
         {attachment && (
-          <div className="mb-2 p-1.5 bg-gray-50 dark:bg-gray-900 rounded-md border border-gray-200 dark:border-gray-800">
-          <div className="flex items-center justify-between">
+          <div className="mb-2 p-1.5 bg-white/20 dark:bg-slate-800/25 rounded-md border border-slate-200/50 dark:border-slate-700/15">
+            <div className="flex items-center justify-between">
               <div className="flex items-center">
                 <FileIcon 
                   fileName={attachment.name} 
@@ -959,14 +1066,14 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                 size="icon" 
                 className="h-5 w-5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                 onClick={() => setAttachment(null)}
-            >
-              <X className="h-3 w-3" />
+              >
+                <X className="h-3 w-3" />
               </Button>
+            </div>
           </div>
-        </div>
-      )}
-      
-        <div className="flex items-end">
+        )}
+        
+        <div className="flex items-end gap-2">
           <input
             type="file"
             ref={fileInputRef}
@@ -974,32 +1081,32 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             onChange={handleFileUpload}
           />
           
-          <div className="flex space-x-2 mr-2">
-              <Button
-                type="button"
-                size="icon"
+          <div className="flex space-x-2">
+            <Button
+              type="button"
+              size="sm"
               variant="ghost"
-              className="rounded-full bg-gray-100 dark:bg-gray-900 hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 h-7 w-7"
+              className="rounded-full bg-white/20 dark:bg-slate-800/25 hover:bg-white/25 dark:hover:bg-slate-800/30 text-slate-700 dark:text-vynal-text-secondary h-8 w-8 p-0 transition-all duration-200"
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading || isSending}
             >
               {isUploading ? (
-                <Loader2 className="h-4 w-4 animate-spin text-indigo-600" />
+                <Loader2 className="h-4 w-4 animate-spin text-vynal-accent-primary" />
               ) : (
                 <Paperclip className="h-4 w-4" />
               )}
-              </Button>
+            </Button>
           
-          <Button
-            type="button"
-            size="icon"
+            <Button
+              type="button"
+              size="sm"
               variant="ghost"
-              className="rounded-full bg-gray-100 dark:bg-gray-900 hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 h-7 w-7"
+              className="rounded-full bg-white/20 dark:bg-slate-800/25 hover:bg-white/25 dark:hover:bg-slate-800/30 text-slate-700 dark:text-vynal-text-secondary h-8 w-8 p-0 transition-all duration-200"
               onClick={() => window.alert("La fonction emoji sera implémentée prochainement")}
             >
               <Smile className="h-4 w-4" />
-          </Button>
-      </div>
+            </Button>
+          </div>
       
           <div className="flex-1 relative">
             <Textarea
@@ -1008,17 +1115,17 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               onChange={handleTyping}
               onKeyDown={handleKeyDown}
               placeholder="Écrivez votre message..."
-              className="resize-none py-2 px-3 rounded-full bg-gray-100 dark:bg-gray-900 border-none focus-visible:ring-pink-500 min-h-8 text-sm"
+              className="resize-none py-2 px-3 rounded-full bg-white/20 dark:bg-slate-800/25 border border-slate-200/50 dark:border-slate-700/15 focus-visible:ring-vynal-accent-primary/20 min-h-8 text-sm text-slate-800 dark:text-vynal-text-primary placeholder-slate-600 dark:placeholder-vynal-text-secondary"
               rows={1}
               style={{ minHeight: '36px', maxHeight: '100px', paddingRight: '40px' }}
             />
             
-          <Button
-            type="button"
-            size="icon"
+            <Button
+              type="button"
+              size="sm"
               className={`absolute right-1 bottom-1 rounded-full ${
-                messageText.trim() ? 'bg-pink-600 hover:bg-pink-700' : 'bg-gray-300 dark:bg-gray-700'
-              } text-white h-6 w-6`}
+                messageText.trim() || attachment ? 'bg-vynal-accent-primary hover:bg-vynal-accent-primary/90' : 'bg-slate-300 dark:bg-slate-700'
+              } text-white h-6 w-6 p-0 transition-all duration-200`}
               onClick={handleSendMessage}
               disabled={(!messageText.trim() && !attachment) || isSending}
             >
@@ -1027,8 +1134,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               ) : (
                 <SendHorizontal className="h-3 w-3" />
               )}
-          </Button>
-        </div>
+            </Button>
+          </div>
         </div>
         
         {messageError && (

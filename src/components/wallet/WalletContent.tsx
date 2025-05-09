@@ -44,7 +44,7 @@ export default function WalletContent() {
   // Handle search input with debouncing
   const handleSearchChange = useCallback((term: string) => {
     const debouncedSearch = debounce((searchTerm: string) => {
-      const params = new URLSearchParams(searchParams.toString());
+      const params = new URLSearchParams(searchParams?.toString() || "");
       if (searchTerm) {
         params.set("search", searchTerm);
       } else {
