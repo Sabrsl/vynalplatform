@@ -2,6 +2,7 @@ import { useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { APP_URLS } from '@/lib/constants';
+import { AUTH_ROUTES } from '@/config/routes';
 import { AuthError, User, Session } from '@supabase/supabase-js';
 
 // Interface pour l'utilisateur augmenté avec le rôle
@@ -284,7 +285,8 @@ export function useAuth() {
     try {
       setLoading(true);
       // Utiliser l'URL absolue pour être sûr que Supabase redirige correctement
-      const redirectUrl = `${APP_URLS.productionUrl}/auth/reset-password`;
+      // Assurez-vous que l'URL complète est utilisée sans paramètres supplémentaires
+      const redirectUrl = `${APP_URLS.productionUrl}${AUTH_ROUTES.RESET_PASSWORD}`;
       console.log("URL de redirection pour réinitialisation:", redirectUrl);
       
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
