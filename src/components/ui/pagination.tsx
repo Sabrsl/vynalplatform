@@ -144,15 +144,25 @@ export function PaginationControls({
 
   // Classes communes pour les boutons de navigation
   const navButtonClasses = cn(
-    "h-8 w-8 border bg-white dark:bg-vynal-purple-secondary/10",
-    "text-vynal-title hover:bg-gray-100 dark:hover:bg-vynal-purple-secondary/30",
-    "border-gray-200 dark:border-vynal-purple-secondary/30"
+    "h-7 w-7 border bg-white dark:bg-vynal-purple-secondary/10",
+    "text-slate-800 dark:text-vynal-title hover:bg-slate-100 dark:hover:bg-vynal-purple-secondary/30",
+    "border-slate-200 dark:border-vynal-purple-secondary/30",
+    "text-xs"
+  );
+  
+  // Classes pour les boutons de navigation (première, précédente, suivante, dernière)
+  const navArrowButtonClasses = cn(
+    "h-7 w-7 border bg-white dark:bg-vynal-purple-secondary/10",
+    "text-slate-800 dark:text-vynal-title hover:bg-slate-100 dark:hover:bg-vynal-purple-secondary/30",
+    "border-slate-200 dark:border-vynal-purple-secondary/30",
+    "text-xs"
   );
   
   // Classes pour le bouton de page active
   const activePageClasses = cn(
-    "h-8 w-8 bg-vynal-accent-primary text-white dark:text-vynal-purple-dark",
-    "border-vynal-accent-primary dark:border-vynal-accent-primary hover:bg-vynal-accent-secondary"
+    "h-7 w-7 bg-gradient-to-r from-vynal-accent-primary to-vynal-accent-secondary text-white dark:text-vynal-purple-dark",
+    "border-vynal-accent-primary dark:border-vynal-accent-primary hover:from-vynal-accent-secondary hover:to-vynal-accent-primary",
+    "text-xs"
   );
   
   // Rendu des boutons de pagination
@@ -163,7 +173,7 @@ export function PaginationControls({
         variant="outline"
         size="icon"
         className={cn(
-          navButtonClasses,
+          navArrowButtonClasses,
           currentPage === 1 ? "opacity-50 cursor-not-allowed" : ""
         )}
         disabled={currentPage === 1}
@@ -178,7 +188,7 @@ export function PaginationControls({
         variant="outline"
         size="icon"
         className={cn(
-          navButtonClasses,
+          navArrowButtonClasses,
           currentPage === 1 ? "opacity-50 cursor-not-allowed" : ""
         )}
         disabled={currentPage === 1}
@@ -195,9 +205,9 @@ export function PaginationControls({
           return (
             <span
               key={index}
-              className="flex items-center justify-center h-8 w-8 text-vynal-body"
+              className="flex items-center justify-center h-7 w-7 text-slate-600 dark:text-vynal-body text-xs"
             >
-              <MoreHorizontal className="h-5 w-5" />
+              <MoreHorizontal className="h-4 w-4" />
             </span>
           );
         }
@@ -223,7 +233,7 @@ export function PaginationControls({
         variant="outline"
         size="icon"
         className={cn(
-          navButtonClasses,
+          navArrowButtonClasses,
           currentPage === totalPages ? "opacity-50 cursor-not-allowed" : ""
         )}
         disabled={currentPage === totalPages}
@@ -238,7 +248,7 @@ export function PaginationControls({
         variant="outline"
         size="icon"
         className={cn(
-          navButtonClasses,
+          navArrowButtonClasses,
           currentPage === totalPages ? "opacity-50 cursor-not-allowed" : ""
         )}
         disabled={currentPage === totalPages}

@@ -128,7 +128,19 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   // Charger les messages au montage du composant
   useEffect(() => {
     if (conversation?.id) {
-      fetchMessages(conversation.id);
+      setIsLoadingMessages(true);
+      fetchMessages(conversation.id)
+        .catch(error => {
+          // Ignorer les erreurs d'annulation de requête
+          if (error?.message?.includes('aborted') || error?.name === 'AbortError') {
+            console.log('Chargement des messages annulé');
+          } else {
+            console.error("Erreur lors du chargement des messages:", error);
+          }
+        })
+        .finally(() => {
+          setIsLoadingMessages(false);
+        });
     }
   }, [conversation?.id, fetchMessages]);
 
@@ -251,10 +263,15 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     // Utiliser scrollToIndex pour maintenir la position de défilement
     setTimeout(() => {
       if (messagesContainerRef.current) {
-        messagesContainerRef.current.scrollToIndex({
-          index: endIdx - startIdx,
-          align: 'start'
-        });
+        try {
+          messagesContainerRef.current.scrollToIndex({
+            index: endIdx - startIdx,
+            align: 'start'
+          });
+        } catch (error) {
+          console.error("Erreur de défilement:", error);
+          // Continuer sans bloquer l'interface
+        }
       }
       setIsLoadingMore(false);
     }, 10);
@@ -268,15 +285,25 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       
       // Exécuter le code de défilement dans requestAnimationFrame
       requestAnimationFrame(() => {
-        // Mettre à jour le flag de défilement manuel
-        userScrolledUpRef.current = e.scrollTop < e.scrollHeight - e.clientHeight - 100;
-        
-        if (e.scrollTop < 50 && hasMoreMessages && !isLoadingMore) {
-          loadMoreMessages();
+        // S'assurer que l'élément existe encore avant de manipuler ses propriétés
+        if (!e || e.target?.nodeType !== 1) {
+          scrollDebounceRef.current = false;
+          return;
         }
         
-        // Vérifier les messages visibles
-        checkVisibleMessages();
+        try {
+          // Mettre à jour le flag de défilement manuel
+          userScrolledUpRef.current = e.scrollTop < e.scrollHeight - e.clientHeight - 100;
+          
+          if (e.scrollTop < 50 && hasMoreMessages && !isLoadingMore) {
+            loadMoreMessages();
+          }
+          
+          // Vérifier les messages visibles
+          checkVisibleMessages();
+        } catch (error) {
+          console.error("Erreur lors du traitement du défilement:", error);
+        }
         
         // Réinitialiser après un délai
         setTimeout(() => {
@@ -867,6 +894,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           alignToBottom={true}
           initialTopMostItemIndex={messages.length - 1}
           followOutput={"auto"}
+          overscan={150}
+          defaultItemHeight={80}
           onScroll={handleVirtuosoScroll}
           components={{
             Header: () => (

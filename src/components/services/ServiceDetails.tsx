@@ -233,14 +233,14 @@ const ServiceDetails: React.FC<ServiceDetailsProps> = ({
                   )}>{service.title || "Sans titre"}</CardTitle>
                   <CardDescription className={cn(
                     "text-xs mt-2",
-                    isDarkMode ? "text-vynal-text-secondary" : "text-slate-700"
+                    isDarkMode ? "text-vynal-text-secondary" : "text-slate-600"
                   )}>
                     ID: {service.id || "N/A"}
                   </CardDescription>
                 </div>
                 <div className={cn(
                   "text-base sm:text-lg text-right whitespace-nowrap mt-2 font-bold",
-                  isDarkMode ? "text-vynal-accent-primary" : "text-vynal-accent-primary"
+                  isDarkMode ? "text-vynal-accent-primary" : "text-slate-800"
                 )}>
                   {formatPrice(service.price || 0)}
                 </div>
@@ -278,7 +278,7 @@ const ServiceDetails: React.FC<ServiceDetailsProps> = ({
                 <div className="p-2.5 sm:p-3 rounded-md whitespace-pre-wrap bg-white/20 dark:bg-slate-800/25">
                   <p className={cn(
                     "text-[10px] sm:text-xs break-words",
-                    isDarkMode ? "text-vynal-text-secondary" : "text-slate-700"
+                    isDarkMode ? "text-vynal-text-secondary" : "text-slate-600"
                   )}>{service.description || "Aucune description disponible"}</p>
                 </div>
               </div>
@@ -292,7 +292,7 @@ const ServiceDetails: React.FC<ServiceDetailsProps> = ({
                   <div>
                     <p className={cn(
                       "text-[10px] sm:text-xs",
-                      isDarkMode ? "text-vynal-text-secondary" : "text-slate-700"
+                      isDarkMode ? "text-vynal-text-secondary" : "text-slate-600"
                     )}>Catégorie</p>
                     <p className={cn(
                       "text-[10px] sm:text-xs font-normal",
@@ -310,7 +310,7 @@ const ServiceDetails: React.FC<ServiceDetailsProps> = ({
                     <div>
                       <p className={cn(
                         "text-[10px] sm:text-xs",
-                        isDarkMode ? "text-vynal-text-secondary" : "text-slate-700"
+                        isDarkMode ? "text-vynal-text-secondary" : "text-slate-600"
                       )}>Sous-catégorie</p>
                       <p className={cn(
                         "text-[10px] sm:text-xs font-normal",
@@ -328,7 +328,7 @@ const ServiceDetails: React.FC<ServiceDetailsProps> = ({
                   <div>
                     <p className={cn(
                       "text-[10px] sm:text-xs",
-                      isDarkMode ? "text-vynal-text-secondary" : "text-slate-700"
+                      isDarkMode ? "text-vynal-text-secondary" : "text-slate-600"
                     )}>Livraison</p>
                     <p className={cn(
                       "text-[10px] sm:text-xs font-normal",
@@ -345,7 +345,7 @@ const ServiceDetails: React.FC<ServiceDetailsProps> = ({
                   <div>
                     <p className={cn(
                       "text-[10px] sm:text-xs",
-                      isDarkMode ? "text-vynal-text-secondary" : "text-slate-700"
+                      isDarkMode ? "text-vynal-text-secondary" : "text-slate-600"
                     )}>Créé le</p>
                     <p className={cn(
                       "text-[10px] sm:text-xs font-normal",
@@ -383,7 +383,7 @@ const ServiceDetails: React.FC<ServiceDetailsProps> = ({
                     <div className="aspect-video rounded-md flex items-center justify-center bg-white/20 dark:bg-slate-800/25">
                       <p className={cn(
                         "text-[10px] sm:text-xs",
-                        isDarkMode ? "text-vynal-text-secondary" : "text-slate-700"
+                        isDarkMode ? "text-vynal-text-secondary" : "text-slate-600"
                       )}>Aucune image</p>
                     </div>
                   )}

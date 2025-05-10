@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { ArrowLeft, Mail, AlertCircle, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
+import AuthLayout from '@/components/auth/auth-layout';
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
@@ -46,89 +47,88 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="mb-4">
-          <Link href="/auth/login" className="inline-flex items-center text-sm text-gray-600 hover:text-gray-900">
-            <ArrowLeft className="mr-2 h-4 w-4" /> Retour à la connexion
+    <AuthLayout title="Vynal Platform">
+      <div className="w-full max-w-md p-8 space-y-8 bg-white/30 dark:bg-slate-900/30 rounded-xl shadow-sm shadow-slate-200/50 dark:shadow-vynal-accent-secondary/20 border border-slate-200 dark:border-slate-700/30 transition-all duration-200">
+        <div className="flex justify-start">
+          <Link
+            href="/auth/login"
+            className="text-sm text-slate-800 dark:text-vynal-text-primary hover:text-vynal-accent-primary dark:hover:text-vynal-accent-secondary transition-colors flex items-center"
+          >
+            <ArrowLeft className="h-4 w-4 mr-1" />
+            Retour à la connexion
           </Link>
         </div>
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
-          <h2 className="text-center text-2xl font-bold text-gray-900 mb-6">
-            Mot de passe oublié
-          </h2>
-          
-          {success ? (
-            <div className="space-y-6">
-              <div className="bg-green-50 border-l-4 border-green-400 p-4 mb-6">
-                <div className="flex">
-                  <CheckCircle className="h-5 w-5 text-green-400" />
-                  <div className="ml-3">
-                    <p className="text-sm text-green-700">
-                      Si un compte existe avec cette adresse e-mail, vous recevrez un lien pour réinitialiser votre mot de passe.
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <p className="text-sm text-gray-600 text-center">
-                Vérifiez votre boîte de réception et suivez les instructions pour réinitialiser votre mot de passe.
-              </p>
-              <Button
-                onClick={() => router.push('/auth/login')}
-                className="w-full flex justify-center"
-              >
-                Retour à la connexion
-              </Button>
-            </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
-              <p className="text-sm text-gray-600 mb-4">
-                Entrez votre adresse e-mail ci-dessous et nous vous enverrons un lien pour réinitialiser votre mot de passe.
-              </p>
-              
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                  Adresse e-mail
-                </label>
-                <div className="mt-1 relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Mail className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    className="appearance-none block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                    placeholder="votre@email.com"
-                  />
-                </div>
-              </div>
 
-              {error && (
-                <div className="bg-red-50 border-l-4 border-red-400 p-4 flex items-center">
-                  <AlertCircle className="h-5 w-5 text-red-400" />
-                  <div className="ml-3">
-                    <p className="text-sm text-red-700">{error}</p>
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <Button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full flex justify-center"
-                >
-                  {loading ? 'Envoi en cours...' : 'Envoyer le lien de réinitialisation'}
-                </Button>
-              </div>
-            </form>
-          )}
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-slate-800 dark:text-vynal-text-primary">Mot de passe oublié</h1>
+          <p className="mt-2 text-sm text-slate-600 dark:text-vynal-text-secondary">
+            Entrez votre adresse e-mail pour réinitialiser votre mot de passe.
+          </p>
         </div>
+        
+        {success ? (
+          <div className="space-y-6">
+            <div className="bg-emerald-500/10 border-l-4 border-emerald-500/20 p-4 mb-6">
+              <div className="flex">
+                <CheckCircle className="h-5 w-5 text-emerald-500" />
+                <div className="ml-3">
+                  <p className="text-sm text-slate-800 dark:text-vynal-text-primary">
+                    Si un compte existe avec cette adresse e-mail, vous recevrez un lien pour réinitialiser votre mot de passe.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <p className="text-sm text-slate-600 dark:text-vynal-text-secondary text-center">
+              Vérifiez votre boîte de réception et suivez les instructions pour réinitialiser votre mot de passe.
+            </p>
+            <Button
+              onClick={() => router.push('/auth/login')}
+              className="w-full flex justify-center bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-vynal-purple-dark font-medium transition-all"
+            >
+              Retour à la connexion
+            </Button>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
+            <div className="space-y-2">
+              <label htmlFor="email" className="block text-sm font-medium text-slate-800 dark:text-vynal-text-primary">
+                Adresse e-mail
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Mail className="h-5 w-5 text-slate-400 dark:text-vynal-text-secondary" />
+                </div>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  autoComplete="email"
+                  className="block w-full pl-10 pr-3 py-2 bg-white/40 dark:bg-slate-800/40 border border-slate-400 dark:border-slate-700/40 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-vynal-accent-primary focus:border-vynal-accent-primary text-xs text-slate-800 dark:text-vynal-text-primary placeholder:text-xs text-slate-400 dark:placeholder:text-vynal-text-secondary/70"
+                  placeholder="Entrez votre adresse email"
+                />
+              </div>
+            </div>
+
+            {error && (
+              <div className="p-3 bg-vynal-status-error/20 border border-vynal-status-error/30 rounded-md flex items-start text-vynal-status-error text-sm" role="alert">
+                <AlertCircle className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            <Button
+              type="submit"
+              disabled={loading}
+              className="w-full flex justify-center bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-vynal-purple-dark font-medium transition-all"
+            >
+              {loading ? 'Envoi en cours...' : 'Envoyer le lien de réinitialisation'}
+            </Button>
+          </form>
+        )}
       </div>
-    </div>
+    </AuthLayout>
   );
 } 

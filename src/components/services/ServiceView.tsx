@@ -1093,7 +1093,10 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                 {/* Titre du service */}
                 <div className="mb-4 sm:mb-5">
                   <h1 
-                    className="text-xl sm:text-2xl font-bold break-words text-vynal-title"
+                    className={cn(
+                      "text-xl sm:text-2xl font-bold break-words",
+                      isDarkMode ? "text-vynal-title" : "text-slate-800"
+                    )}
                     id="service-title"
                   >
                     {serviceMeta.title}
@@ -1145,11 +1148,14 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                 )}>
                   <h2 className={cn(
                     "text-2xl font-bold",
-                    isDarkMode ? "text-vynal-accent-primary" : "text-vynal-title"
+                    isDarkMode ? "text-vynal-accent-primary" : "text-slate-800"
                   )}>
                     {formattedPrice}
                   </h2>
-                  <p className="text-xs text-vynal-body">Prix final, sans frais supplémentaires</p>
+                  <p className={cn(
+                    "text-xs",
+                    isDarkMode ? "text-vynal-body" : "text-slate-600"
+                  )}>Prix final, sans frais supplémentaires</p>
                 </div>
                 
                 <CardContent className="p-5 lg:p-4">
@@ -1264,8 +1270,14 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                           "mb-4 p-3 rounded-md",
                           isDarkMode ? "" : "bg-gray-50"
                         )}>
-                          <h4 className="text-xs font-normal mb-1 text-vynal-title">À propos du vendeur</h4>
-                          <p className="text-xs line-clamp-3 text-vynal-body">
+                          <h4 className={cn(
+                            "text-xs font-normal mb-1",
+                            isDarkMode ? "text-vynal-title" : "text-slate-800"
+                          )}>À propos du vendeur</h4>
+                          <p className={cn(
+                            "text-xs line-clamp-3",
+                            isDarkMode ? "text-vynal-body" : "text-slate-600"
+                          )}>
                             {serviceMeta.freelance.bio}
                           </p>
                         </div>

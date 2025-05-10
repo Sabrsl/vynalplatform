@@ -158,13 +158,13 @@ const HeroSection = React.memo(({ totalCount, categories, selectedCategory, getS
         transition={{ duration: 0.5 }}
         className="text-center max-w-3xl mx-auto pt-4 md:pt-6"
       >
-        <span className="inline-block px-2 py-0.5 text-[10px] font-medium bg-indigo-100/70 dark:bg-vynal-purple-secondary/30 rounded-full backdrop-blur-sm mb-2 text-indigo-700 dark:text-vynal-text-primary">
+        <span className="inline-block px-2 py-0.5 text-[10px] font-medium bg-slate-100/30 dark:bg-slate-800/30 rounded-full backdrop-blur-sm mb-2 text-slate-700 dark:text-vynal-text-primary">
           {totalCount > 0 ? `+${totalCount}` : "Des"} services disponibles
         </span>
-        <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-2 leading-tight text-vynal-title">
+        <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-2 leading-tight text-slate-800 dark:text-vynal-text-primary">
           Trouvez le service idéal
         </h1>
-        <p className="text-sm sm:text-base text-vynal-body mb-4 sm:mb-6 max-w-2xl mx-auto">
+        <p className="text-sm sm:text-base text-slate-600 dark:text-vynal-text-secondary mb-4 sm:mb-6 max-w-2xl mx-auto">
           Des milliers de freelances talentueux prêts à réaliser vos projets
         </p>
       </motion.div>
@@ -209,7 +209,7 @@ const NavigationBar = React.memo(({
   viewMode: 'grid' | 'list',
   setViewMode: (mode: 'grid' | 'list') => void
 }) => (
-  <section className="bg-gray-50 dark:bg-vynal-purple-dark/90 border-y border-gray-200 dark:border-vynal-purple-secondary/30 sticky top-0 z-10">
+  <section className="bg-gray-50 dark:bg-vynal-purple-dark/90 border-t border-gray-200 dark:border-vynal-purple-secondary/30 sticky top-0 z-10">
     <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-3">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         {/* Breadcrumbs */}
@@ -223,34 +223,34 @@ const NavigationBar = React.memo(({
           <button
             onClick={refreshData}
             disabled={isRefreshing || servicesLoading}
-            className="p-1.5 text-vynal-body hover:text-vynal-accent-primary hover:bg-gray-100 dark:hover:bg-vynal-purple-secondary/30 rounded-full disabled:opacity-50 transition-colors"
+            className="p-1.5 text-slate-700 hover:text-vynal-accent-primary hover:bg-slate-100 dark:hover:bg-slate-800/25 rounded-full disabled:opacity-50 transition-all duration-200"
             title="Actualiser"
           >
-            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''} icon-vynal`} />
+            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
           </button>
           
           <button
             onClick={togglePaginationMode}
-            className="text-xs px-2 py-1 border border-gray-200 dark:border-vynal-purple-secondary/50 rounded-md hover:bg-gray-100 dark:hover:bg-vynal-purple-secondary/30 bg-white dark:bg-vynal-purple-secondary/10 text-vynal-body transition-colors"
+            className="text-xs px-2 py-1 border border-slate-300 dark:border-slate-700/20 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800/25 bg-white/40 dark:bg-slate-800/40 text-slate-700 dark:text-vynal-text-primary transition-all duration-200"
             title={isLoadMoreMode ? "Passer à la pagination classique" : "Passer au mode 'Charger plus'"}
           >
             {isLoadMoreMode ? "Pagination" : "Charger plus"}
           </button>
           
-          <div className="hidden sm:flex items-center space-x-1 bg-gray-100 dark:bg-vynal-purple-secondary/30 rounded-lg p-1">
+          <div className="hidden sm:flex items-center space-x-1 bg-slate-100/30 dark:bg-slate-800/30 rounded-lg p-1">
             <button
               onClick={() => setViewMode('grid')}
-              className={`p-1.5 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-white dark:bg-vynal-purple-secondary/50 text-vynal-accent-primary' : 'text-vynal-body hover:text-vynal-title'}`}
+              className={`p-1.5 rounded-md transition-all duration-200 ${viewMode === 'grid' ? 'bg-white/40 dark:bg-slate-800/40 text-vynal-accent-primary' : 'text-slate-700 dark:text-vynal-text-primary hover:bg-slate-100 dark:hover:bg-slate-800/25'}`}
               title="Vue en grille"
             >
-              <Grid className="h-4 w-4 icon-vynal" />
+              <Grid className="h-4 w-4" />
             </button>
             <button
               onClick={() => setViewMode('list')}
-              className={`p-1.5 rounded-md transition-colors ${viewMode === 'list' ? 'bg-white dark:bg-vynal-purple-secondary/50 text-vynal-accent-primary' : 'text-vynal-body hover:text-vynal-title'}`}
+              className={`p-1.5 rounded-md transition-all duration-200 ${viewMode === 'list' ? 'bg-white/40 dark:bg-slate-800/40 text-vynal-accent-primary' : 'text-slate-700 dark:text-vynal-text-primary hover:bg-slate-100 dark:hover:bg-slate-800/25'}`}
               title="Vue en liste"
             >
-              <List className="h-4 w-4 icon-vynal" />
+              <List className="h-4 w-4" />
             </button>
           </div>
         </div>
@@ -277,7 +277,7 @@ const ResultsHeader = React.memo(({
 }) => (
   <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-2">
     <div>
-      <h2 className="text-lg text-vynal-title">
+      <h2 className="text-lg text-slate-800 dark:text-vynal-text-primary">
         {searchQuery 
           ? `Résultats pour "${searchQuery}"`
           : activeSubcategory 
@@ -287,7 +287,7 @@ const ResultsHeader = React.memo(({
               : "Tous les services"
         }
       </h2>
-      <p className="text-sm text-vynal-body mt-0.5">
+      <p className="text-sm text-slate-600 dark:text-vynal-text-secondary mt-0.5">
         {totalCount} services disponibles
         {currentPage > 1 ? ` • Page ${currentPage} sur ${totalPages}` : ''}
       </p>

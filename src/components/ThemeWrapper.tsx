@@ -34,21 +34,17 @@ const ThemeWrapper = memo(function ThemeWrapper({
   
   // Mémoriser les classes CSS pour éviter les recalculs à chaque rendu
   const wrapperClasses = useMemo(() => {
-    const bgClass = fullGradient 
-      ? isDark 
-        ? "bg-gradient-vynal" 
-        : "bg-gradient-to-b from-white to-gray-50"
-      : isDark 
-        ? "bg-vynal-purple-dark"
-        : "bg-white";
+    const bgClass = isDark 
+      ? "bg-vynal-purple-dark"
+      : "bg-white";
     
     return cn(
-      "min-h-screen",
+      "fixed inset-0 min-h-screen w-full h-full",
       bgClass,
       className,
       "transition-colors duration-300"
     );
-  }, [fullGradient, isDark, className]);
+  }, [isDark, className]);
   
   // Optimisation : rendu conditionnel des éléments décoratifs pour réduire le coût
   const renderDecorativeElements = fullGradient && (
@@ -71,14 +67,14 @@ const ThemeWrapper = memo(function ThemeWrapper({
   );
   
   return (
-    <div className={wrapperClasses}>
-      {renderDecorativeElements}
-      
-      {/* Contenu de la page */}
-      <div className="relative z-10">
-        {children}
+    <>
+      <div className={wrapperClasses} />
+      <div className="relative min-h-screen">
+        <div className="relative z-10">
+          {children}
+        </div>
       </div>
-    </div>
+    </>
   );
 });
 

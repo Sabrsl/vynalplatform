@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, memo } from 'react';
+import React, { useCallback, useEffect, useMemo, memo, useState } from 'react';
 import Link from 'next/link';
 import { useTheme } from 'next-themes';
 import { User } from '@supabase/supabase-js';
@@ -36,7 +36,8 @@ import {
   Bell,
   Heart,
   Briefcase,
-  HelpCircle
+  HelpCircle,
+  Loader2
 } from 'lucide-react';
 
 interface NavItemProps {
@@ -110,8 +111,20 @@ const MobileMenuHeader = memo(({
 }) => {
   const { theme } = useTheme();
   const { profile } = useUser();
-  const isClient = profile?.role === 'client';
   const isDark = theme === 'dark';
+  
+  // Détermine le rôle de manière fiable
+  const userRole = useMemo(() => {
+    if (user?.user_metadata?.role) {
+      return user.user_metadata.role;
+    }
+    if (profile?.role) {
+      return profile.role;
+    }
+    return null;
+  }, [user?.user_metadata?.role, profile?.role]);
+  
+  const isClient = userRole === 'client';
   
   return (
     <div className="p-3 flex items-center justify-between border-b dark:border-vynal-purple-secondary/20">
@@ -148,145 +161,240 @@ const MobileMenuHeader = memo(({
 
 MobileMenuHeader.displayName = 'MobileMenuHeader';
 
+// Fonction utilitaire pour déterminer le rôle de manière fiable
+const determineUserRole = (user: User | null, profile: any): string | null => {
+  // Vérifier d'abord les métadonnées (plus rapide)
+  if (user?.user_metadata?.role) {
+    return user.user_metadata.role;
+  }
+  
+  // Ensuite vérifier le profil (plus fiable)
+  if (profile?.role) {
+    return profile.role;
+  }
+  
+  return null;
+};
+
+// Composant de chargement pour les états intermédiaires
+const LoadingMenuContent = memo(() => {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+  
+  return (
+    <div className="flex flex-col items-center justify-center flex-1 p-6">
+      <Loader2 className="h-8 w-8 animate-spin text-vynal-accent-primary mb-4" />
+      <p className={`text-xs ${isDark ? 'text-vynal-text-secondary' : 'text-vynal-purple-dark/70'}`}>
+        Chargement de votre espace...
+      </p>
+    </div>
+  );
+});
+
+LoadingMenuContent.displayName = 'LoadingMenuContent';
+
+interface NavItemConfig {
+  href: string;
+  icon: React.ElementType;
+  label: string;
+  badge?: number;
+  callback: string;
+}
+
 // Composant pour le contenu des utilisateurs authentifiés
 const AuthenticatedMenuContent = memo(({ 
   totalUnreadCount, 
   isActive, 
   navItemCallbacks, 
   isNavigating, 
-  handleSignOut 
+  handleSignOut,
+  setActivePath,
+  onClose,
+  router,
+  userRole,
+  activePath
 }: { 
   totalUnreadCount: number; 
   isActive: (path: string) => boolean; 
   navItemCallbacks: Record<string, () => void>; 
   isNavigating: boolean;
   handleSignOut: () => void;
+  setActivePath: (path: string) => void;
+  onClose: () => void;
+  router: any;
+  userRole: string | null;
+  activePath: string;
 }) => {
   const { theme } = useTheme();
-  const { profile } = useUser();
-  const isClient = profile?.role === 'client';
-  const dashboardPrefix = isClient ? CLIENT_ROUTES.DASHBOARD : FREELANCE_ROUTES.DASHBOARD;
   const isDark = theme === 'dark';
+  
+  // Déterminer le rôle de manière plus fiable
+  const isClient = userRole === 'client';
+  const isFreelance = userRole === 'freelance';
+  
+  // Utiliser le bon préfixe de dashboard en fonction du rôle
+  const dashboardPrefix = isClient 
+    ? CLIENT_ROUTES.DASHBOARD 
+    : isFreelance 
+      ? FREELANCE_ROUTES.DASHBOARD 
+      : '/'; // Rediriger vers l'accueil si le rôle n'est pas déterminé
+  
+  // Centralisons la configuration des items de menu selon le rôle
+  const menuConfig = useMemo(() => {
+    // Structure commune des menus par section
+    const menus = {
+      principal: [
+        {
+          href: dashboardPrefix,
+          icon: Home,
+          label: "Tableau de bord",
+          callback: "dashboard"
+        },
+        {
+          href: isClient ? CLIENT_ROUTES.ORDERS : FREELANCE_ROUTES.ORDERS,
+          icon: ShoppingBag,
+          label: "Commandes",
+          callback: "orders"
+        },
+        {
+          href: isClient ? CLIENT_ROUTES.MESSAGES : FREELANCE_ROUTES.MESSAGES,
+          icon: MessageSquare,
+          label: "Messages",
+          badge: totalUnreadCount,
+          callback: "messages"
+        },
+        {
+          href: isClient ? CLIENT_ROUTES.DISPUTES : FREELANCE_ROUTES.DISPUTES,
+          icon: AlertTriangle,
+          label: "Litiges",
+          callback: "disputes"
+        },
+        {
+          href: isClient ? CLIENT_ROUTES.PAYMENTS : FREELANCE_ROUTES.WALLET,
+          icon: CreditCard,
+          label: isClient ? "Paiements" : "Wallet",
+          callback: "wallet"
+        }
+      ],
+      // Services - uniquement pour les freelances
+      services: isFreelance ? [
+        {
+          href: FREELANCE_ROUTES.SERVICES,
+          icon: FileText,
+          label: "Mes services",
+          callback: "services"
+        },
+        {
+          href: FREELANCE_ROUTES.STATS,
+          icon: BarChart2,
+          label: "Statistiques",
+          callback: "stats"
+        },
+        {
+          href: FREELANCE_ROUTES.CERTIFICATIONS,
+          icon: Award,
+          label: "Certifications",
+          callback: "certifications"
+        }
+      ] : [],
+      // Actions - uniquement pour les clients
+      actions: isClient ? [
+        {
+          href: "/services",
+          icon: FileText,
+          label: "Trouver un service",
+          callback: "findService"
+        },
+        {
+          href: `${CLIENT_ROUTES.DASHBOARD}/favorites`,
+          icon: Heart,
+          label: "Favoris",
+          callback: "favorites"
+        }
+      ] : [],
+      // Profil - pour tous les utilisateurs
+      profil: [
+        {
+          href: isClient ? CLIENT_ROUTES.PROFILE : FREELANCE_ROUTES.PROFILE,
+          icon: UserIcon,
+          label: "Mon profil",
+          callback: "profile"
+        },
+        {
+          href: isClient ? CLIENT_ROUTES.SETTINGS : FREELANCE_ROUTES.SETTINGS,
+          icon: Settings,
+          label: "Paramètres",
+          callback: "settings"
+        }
+      ]
+    };
+    
+    return menus;
+  }, [dashboardPrefix, isClient, isFreelance, totalUnreadCount]);
+  
+  // Fonction pour rendre une section de menu
+  const renderMenuSection = useCallback((title: string, items: NavItemConfig[]) => {
+    if (items.length === 0) return null;
+    
+    return (
+      <div>
+        <p className={`px-2 text-[10px] font-semibold uppercase mb-1 ${title !== 'principal' ? 'mt-4' : ''} ${
+          isDark ? "text-vynal-text-secondary" : "text-vynal-purple-400"
+        }`}>
+          {title === 'principal' ? 'Principal' : 
+           title === 'services' ? 'Services' : 
+           title === 'actions' ? 'Actions' : 'Profil'}
+        </p>
+        <div>
+          {items.map((item, i) => (
+            <NavItem 
+              key={`${title}-item-${i}`}
+              href={item.href} 
+              icon={item.icon} 
+              label={item.label} 
+              isActive={isActive(item.href)}
+              onClick={navItemCallbacks[item.callback] || (() => {})} // Fallback pour éviter les erreurs
+              isNavigating={isNavigating}
+              badgeCount={item.badge}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  }, [isActive, navItemCallbacks, isNavigating, isDark]);
+  
+  // Avertissement pour le mauvais dashboard
+  const isInWrongDashboard = (isClient && activePath.startsWith('/dashboard')) || 
+                            (isFreelance && activePath.startsWith('/client-dashboard'));
   
   return (
     <>
+      {isInWrongDashboard && (
+        <div className="px-4 py-2 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800/20">
+          <div className="flex items-center">
+            <AlertTriangle className="h-3.5 w-3.5 text-amber-500 mr-2" />
+            <p className="text-[10px] text-amber-800 dark:text-amber-400">
+              Vous êtes dans le mauvais tableau de bord. Accédez à{' '}
+              <button 
+                className="font-medium underline"
+                onClick={() => {
+                  onClose();
+                  router.push(dashboardPrefix);
+                }}
+              >
+                votre espace
+              </button>
+            </p>
+          </div>
+        </div>
+      )}
+      
       <ScrollArea className="flex-1">
         <div className="p-3">
-          {/* Principal */}
-          <div>
-            <p className={`px-2 text-[10px] font-semibold uppercase mb-1 ${
-              isDark ? "text-vynal-text-secondary" : "text-vynal-purple-400"
-            }`}>
-              Principal
-            </p>
-            <div>
-              <NavItem 
-                href={dashboardPrefix} 
-                icon={Home} 
-                label="Tableau de bord" 
-                isActive={isActive(dashboardPrefix)}
-                onClick={navItemCallbacks.dashboard}
-                isNavigating={isNavigating}
-              />
-              <NavItem 
-                href={`${dashboardPrefix}/orders`} 
-                icon={ShoppingBag} 
-                label="Commandes reçues" 
-                isActive={isActive(`${dashboardPrefix}/orders`)}
-                onClick={navItemCallbacks.orders}
-                isNavigating={isNavigating}
-              />
-              <NavItem 
-                href={`${dashboardPrefix}/messages`} 
-                icon={MessageSquare} 
-                label="Messages" 
-                isActive={isActive(`${dashboardPrefix}/messages`)}
-                onClick={navItemCallbacks.messages}
-                isNavigating={isNavigating}
-                badgeCount={totalUnreadCount}
-              />
-              <NavItem 
-                href={`${dashboardPrefix}/disputes`} 
-                icon={AlertTriangle} 
-                label="Litiges" 
-                isActive={isActive(`${dashboardPrefix}/disputes`)}
-                onClick={navItemCallbacks.disputes}
-                isNavigating={isNavigating}
-              />
-              <NavItem 
-                href={`${dashboardPrefix}/payments`} 
-                icon={CreditCard} 
-                label="Paiements" 
-                isActive={isActive(`${dashboardPrefix}/payments`)}
-                onClick={navItemCallbacks.wallet}
-                isNavigating={isNavigating}
-              />
-            </div>
-          </div>
-          
-          {/* Section services - Afficher uniquement pour les freelances */}
-          {!isClient && (
-            <div>
-              <p className={`px-2 text-[10px] font-semibold uppercase mb-1 mt-4 ${
-                isDark ? "text-vynal-text-secondary" : "text-vynal-purple-400"
-              }`}>
-                Services
-              </p>
-              <div>
-                <NavItem 
-                  href={`${dashboardPrefix}/services`} 
-                  icon={FileText} 
-                  label="Mes services" 
-                  isActive={isActive(`${dashboardPrefix}/services`)}
-                  onClick={navItemCallbacks.services}
-                  isNavigating={isNavigating}
-                />
-                <NavItem 
-                  href={`${dashboardPrefix}/stats`} 
-                  icon={BarChart2} 
-                  label="Statistiques" 
-                  isActive={isActive(`${dashboardPrefix}/stats`)}
-                  onClick={navItemCallbacks.stats}
-                  isNavigating={isNavigating}
-                />
-                <NavItem 
-                  href={`${dashboardPrefix}/certifications`} 
-                  icon={Award} 
-                  label="Certifications" 
-                  isActive={isActive(`${dashboardPrefix}/certifications`)}
-                  onClick={navItemCallbacks.certifications}
-                  isNavigating={isNavigating}
-                />
-              </div>
-            </div>
-          )}
-          
-          {/* Section profil et configuration */}
-          <div>
-            <p className={`px-2 text-[10px] font-semibold uppercase mb-1 mt-4 ${
-              isDark ? "text-vynal-text-secondary" : "text-vynal-purple-400"
-            }`}>
-              Profil
-            </p>
-            <div>
-              <NavItem 
-                href={`${dashboardPrefix}/profile`} 
-                icon={UserIcon} 
-                label="Mon profil" 
-                isActive={isActive(`${dashboardPrefix}/profile`)}
-                onClick={navItemCallbacks.profile}
-                isNavigating={isNavigating}
-              />
-              <NavItem 
-                href={`${dashboardPrefix}/settings`} 
-                icon={Settings} 
-                label="Paramètres" 
-                isActive={isActive(`${dashboardPrefix}/settings`)}
-                onClick={navItemCallbacks.settings}
-                isNavigating={isNavigating}
-              />
-            </div>
-          </div>
+          {renderMenuSection('principal', menuConfig.principal)}
+          {renderMenuSection('services', menuConfig.services)}
+          {renderMenuSection('actions', menuConfig.actions)}
+          {renderMenuSection('profil', menuConfig.profil)}
         </div>
       </ScrollArea>
       
@@ -328,10 +436,10 @@ const UnauthenticatedMenuContent = memo(({
           <div className="mx-auto w-10 h-10 rounded-full bg-gradient-to-br from-vynal-accent-primary to-vynal-accent-secondary flex items-center justify-center shadow-md shadow-vynal-accent-primary/10">
             <UserIcon className="h-4 w-4 text-white" />
           </div>
-          <h3 className={`text-base font-medium ${isDark ? "text-vynal-text-primary" : "text-vynal-purple-dark"}`}>
+          <h3 className="text-base font-medium text-slate-800 dark:text-vynal-text-primary">
             Bienvenue sur Vynal
           </h3>
-          <p className="text-[11px] leading-tight text-vynal-text-secondary max-w-[180px] mx-auto">
+          <p className="text-[11px] leading-tight text-slate-600 dark:text-vynal-text-secondary max-w-[180px] mx-auto">
             Connectez-vous pour accéder à votre espace et gérer vos projets
           </p>
         </div>
@@ -341,20 +449,20 @@ const UnauthenticatedMenuContent = memo(({
       <div className="p-5 space-y-3">
         <Button 
           variant="default" 
-          className="w-full py-2 h-auto text-sm relative overflow-hidden bg-gradient-to-r from-vynal-accent-primary to-vynal-accent-secondary hover:from-vynal-accent-primary/95 hover:to-vynal-accent-secondary/95 shadow hover:shadow-md transition-all"
+          className="w-full py-2 h-auto text-sm relative overflow-hidden bg-gradient-to-r from-vynal-accent-primary to-vynal-accent-secondary hover:from-vynal-accent-primary/95 hover:to-vynal-accent-secondary/95 shadow hover:shadow-md transition-all text-slate-800 dark:text-white"
           onClick={() => navigateAndClose(AUTH_ROUTES.LOGIN)}
         >
           <div className="absolute inset-0 bg-white/5 rounded-full w-full h-full transform scale-0 hover:scale-100 transition-transform duration-300"></div>
-          <UserIcon className="h-3.5 w-3.5 mr-2 opacity-80" />
+          <UserIcon className="h-3.5 w-3.5 mr-2" />
           <span>Se connecter</span>
         </Button>
         
         <Button 
           variant="outline" 
-          className="w-full py-2 h-auto text-sm border-vynal-purple-secondary/20 hover:border-vynal-accent-primary/40 hover:bg-vynal-purple-secondary/5 transition-colors"
+          className="w-full py-2 h-auto text-sm border-slate-200 dark:border-vynal-purple-secondary/20 hover:border-vynal-accent-primary/40 hover:bg-slate-50 dark:hover:bg-vynal-purple-secondary/5 transition-colors text-slate-700 dark:text-vynal-text-secondary"
           onClick={() => navigateAndClose(AUTH_ROUTES.REGISTER)}
         >
-          <UserPlus className="h-3.5 w-3.5 mr-2 opacity-80" />
+          <UserPlus className="h-3.5 w-3.5 mr-2 text-slate-700 dark:text-vynal-text-secondary" />
           <span>S'inscrire</span>
         </Button>
       </div>
@@ -362,7 +470,7 @@ const UnauthenticatedMenuContent = memo(({
       {/* Section découverte */}
       <div className="mt-6 px-4">
         <div className="text-center">
-          <p className="text-[11px] font-medium text-vynal-text-secondary/80 mb-3">Explorer notre marketplace</p>
+          <p className="text-[11px] font-medium text-slate-600 dark:text-vynal-text-secondary/80 mb-3">Explorer notre marketplace</p>
           <div className="grid grid-cols-2 gap-3">
             <Button 
               variant="ghost" 
@@ -396,7 +504,7 @@ const UnauthenticatedMenuContent = memo(({
             <Button 
               variant="ghost" 
               size="sm"
-              className="h-8 w-8 p-0 rounded-full flex items-center justify-center text-vynal-text-secondary/70 hover:text-vynal-accent-primary"
+              className="h-8 w-8 p-0 rounded-full flex items-center justify-center text-slate-600 dark:text-vynal-text-secondary/70 hover:text-vynal-accent-primary"
               onClick={() => navigateAndClose(PUBLIC_ROUTES.ABOUT)}
             >
               <MessageCircle className="h-3.5 w-3.5" />
@@ -404,13 +512,13 @@ const UnauthenticatedMenuContent = memo(({
             <Button 
               variant="ghost" 
               size="sm"
-              className="h-8 w-8 p-0 rounded-full flex items-center justify-center text-vynal-text-secondary/70 hover:text-vynal-accent-primary"
+              className="h-8 w-8 p-0 rounded-full flex items-center justify-center text-slate-600 dark:text-vynal-text-secondary/70 hover:text-vynal-accent-primary"
               onClick={() => navigateAndClose(PUBLIC_ROUTES.CONTACT)}
             >
               <HelpCircle className="h-3.5 w-3.5" />
             </Button>
           </div>
-          <span className="text-[8px] text-vynal-text-secondary/60">VynaPlatform © {new Date().getFullYear()}</span>
+          <span className="text-[8px] text-slate-500 dark:text-vynal-text-secondary/60">VynaPlatform © {new Date().getFullYear()}</span>
         </div>
       </div>
     </div>
@@ -430,31 +538,58 @@ interface MobileMenuProps {
 
 export default function MobileMenu({ isOpen, onClose, user, activePath, setActivePath, isNavigating }: MobileMenuProps) {
   const { theme } = useTheme();
-  const { signOut } = useAuth();
+  const auth = useAuth();
   const { logout } = useLogout();
-  const { profile } = useUser();
-  const isClient = profile?.role === 'client';
+  const userProfile = useUser();
   const isDark = theme === 'dark';
   const router = useRouter();
   
-  // Préfixe de chemin pour le dashboard en fonction du rôle utilisateur
-  const dashboardPrefix = isClient ? CLIENT_ROUTES.DASHBOARD : FREELANCE_ROUTES.DASHBOARD;
+  // État pour suivre si le rôle est vérifié
+  const [roleVerified, setRoleVerified] = useState(false);
   
-  // Notifications non lues - optimisé avec useMemo pour éviter les recalculs
+  // Déterminer le rôle de manière fiable
+  const userRole = useMemo(() => {
+    return determineUserRole(user, userProfile.profile);
+  }, [user, userProfile.profile]);
+  
+  // Synchroniser les rôles si nécessaire
+  useEffect(() => {
+    if (user?.id && userProfile.profile && !userProfile.loading && !auth.loading) {
+      const metadataRole = user.user_metadata?.role;
+      const profileRole = userProfile.profile.role;
+      
+      // Vérifier s'il y a des incohérences
+      if ((metadataRole && !profileRole) || (!metadataRole && profileRole) || 
+          (metadataRole && profileRole && metadataRole !== profileRole)) {
+        // Utiliser la fonction de synchronisation des rôles
+        if (auth.syncUserRole) {
+          auth.syncUserRole(user.id, metadataRole, profileRole)
+            .then(() => {
+              // Marquer que la vérification est terminée
+              setRoleVerified(true);
+            });
+        } else {
+          // Fallback si syncUserRole n'est pas disponible
+          console.warn("La fonction syncUserRole n'est pas disponible dans le hook useAuth");
+          setRoleVerified(true);
+        }
+      } else {
+        // Pas d'incohérence, marquer comme vérifié
+        setRoleVerified(true);
+      }
+    }
+  }, [user?.id, user?.user_metadata?.role, userProfile.profile, userProfile.loading, auth]);
+  
+  // Notifications non lues
   const { totalUnreadCount } = useUserNotifications(user?.id);
   
-  // Fonction mémorisée pour vérifier si un chemin est actif
+  // Fonction pour vérifier si un chemin est actif
   const isActive = useCallback((path: string) => activePath === path, [activePath]);
   
-  // Mémorisez les gestionnaires d'événements pour éviter les recréations
+  // Fonction pour la déconnexion
   const handleSignOut = useCallback(() => {
-    // Indiquer que la navigation commence
     NavigationLoadingState.setIsNavigating(true);
-    
-    // Fermer le menu mobile
     onClose();
-    
-    // Utiliser le hook logout optimisé qui gère la redirection
     logout();
   }, [logout, onClose]);
   
@@ -483,7 +618,6 @@ export default function MobileMenu({ isOpen, onClose, user, activePath, setActiv
     document.body.style.width = '100%';
     document.body.style.top = `-${scrollY}px`;
     
-    // Nettoyer lors de la fermeture ou du démontage
     return () => {
       // Restaurer la position
       const recoveredScrollY = parseInt(document.body.style.top || '0') * -1;
@@ -495,37 +629,70 @@ export default function MobileMenu({ isOpen, onClose, user, activePath, setActiv
   }, [isOpen]);
 
   // Mémoriser les callbacks de clic pour chaque item du menu
-  const navItemCallbacks: Record<string, () => void> = useMemo(() => {
+  const navItemCallbacks = useMemo(() => {
     const callbacks: Record<string, () => void> = {
-      dashboard: () => { setActivePath(dashboardPrefix); onClose(); router.push(dashboardPrefix); },
+      dashboard: () => { 
+        const dashPath = userRole === 'client' ? CLIENT_ROUTES.DASHBOARD : FREELANCE_ROUTES.DASHBOARD;
+        setActivePath(dashPath); 
+        onClose(); 
+        router.push(dashPath); 
+      },
       orders: () => { 
-        const ordersRoute = isClient ? CLIENT_ROUTES.ORDERS : FREELANCE_ROUTES.ORDERS;
-        setActivePath(ordersRoute); onClose(); router.push(ordersRoute); 
+        const ordersRoute = userRole === 'client' ? CLIENT_ROUTES.ORDERS : FREELANCE_ROUTES.ORDERS;
+        setActivePath(ordersRoute); 
+        onClose(); 
+        router.push(ordersRoute); 
       },
       messages: () => { 
-        const messagesRoute = isClient ? CLIENT_ROUTES.MESSAGES : FREELANCE_ROUTES.MESSAGES;
-        setActivePath(messagesRoute); onClose(); router.push(messagesRoute); 
+        // Rediriger vers la page principale des messages (liste des conversations)
+        const messagesRoute = userRole === 'client' ? CLIENT_ROUTES.MESSAGES : FREELANCE_ROUTES.MESSAGES;
+        
+        // S'assurer qu'on ne redirige pas vers une conversation spécifique
+        // mais vers la liste principale des conversations
+        const baseMessagesRoute = messagesRoute.split('/').slice(0, 3).join('/');
+        
+        setActivePath(baseMessagesRoute); 
+        onClose(); 
+        router.push(baseMessagesRoute); 
       },
       disputes: () => { 
-        const disputesRoute = isClient ? CLIENT_ROUTES.DISPUTES : FREELANCE_ROUTES.DISPUTES;
-        setActivePath(disputesRoute); onClose(); router.push(disputesRoute); 
+        const disputesRoute = userRole === 'client' ? CLIENT_ROUTES.DISPUTES : FREELANCE_ROUTES.DISPUTES;
+        setActivePath(disputesRoute); 
+        onClose(); 
+        router.push(disputesRoute); 
       },
       wallet: () => { 
-        const walletRoute = isClient ? CLIENT_ROUTES.PAYMENTS : FREELANCE_ROUTES.WALLET;
-        setActivePath(walletRoute); onClose(); router.push(walletRoute); 
+        const walletRoute = userRole === 'client' ? CLIENT_ROUTES.PAYMENTS : FREELANCE_ROUTES.WALLET;
+        setActivePath(walletRoute); 
+        onClose(); 
+        router.push(walletRoute); 
       },
       profile: () => { 
-        const profileRoute = isClient ? CLIENT_ROUTES.PROFILE : FREELANCE_ROUTES.PROFILE;
-        setActivePath(profileRoute); onClose(); router.push(profileRoute); 
+        const profileRoute = userRole === 'client' ? CLIENT_ROUTES.PROFILE : FREELANCE_ROUTES.PROFILE;
+        setActivePath(profileRoute); 
+        onClose(); 
+        router.push(profileRoute); 
       },
       settings: () => { 
-        const settingsRoute = isClient ? CLIENT_ROUTES.SETTINGS : FREELANCE_ROUTES.SETTINGS;
-        setActivePath(settingsRoute); onClose(); router.push(settingsRoute); 
+        const settingsRoute = userRole === 'client' ? CLIENT_ROUTES.SETTINGS : FREELANCE_ROUTES.SETTINGS;
+        setActivePath(settingsRoute); 
+        onClose(); 
+        router.push(settingsRoute); 
+      },
+      findService: () => {
+        setActivePath("/services");
+        onClose();
+        router.push("/services");
+      },
+      favorites: () => {
+        setActivePath(`${CLIENT_ROUTES.DASHBOARD}/favorites`);
+        onClose();
+        router.push(`${CLIENT_ROUTES.DASHBOARD}/favorites`);
       }
     };
     
     // Ajouter les callbacks spécifiques aux freelances si l'utilisateur est un freelance
-    if (!isClient) {
+    if (userRole === 'freelance') {
       callbacks.services = () => { 
         setActivePath(FREELANCE_ROUTES.SERVICES); 
         onClose(); 
@@ -544,27 +711,37 @@ export default function MobileMenu({ isOpen, onClose, user, activePath, setActiv
     }
     
     return callbacks;
-  }, [setActivePath, onClose, router, isClient, dashboardPrefix]);
+  }, [setActivePath, onClose, router, userRole]);
+  
+  // Déterminer l'état du menu à afficher
+  const isLoading = auth.loading || userProfile.loading || (user && !roleVerified);
   
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
       <SheetContent side="left" className={`w-[280px] p-0 ${isDark ? 'bg-vynal-purple-dark border-vynal-purple-secondary/20' : 'bg-white'}`}>
         <div className="flex flex-col h-full">
-          {/* En-tête - Extrait en composant */}
+          {/* En-tête */}
           <MobileMenuHeader 
             user={user} 
             onClose={onClose} 
             navigateToHome={navigateToHome} 
           />
           
-          {/* Contenu différent selon l'état d'authentification - Composants distincts */}
-          {user ? (
+          {/* Contenu différent selon l'état */}
+          {isLoading ? (
+            <LoadingMenuContent />
+          ) : user ? (
             <AuthenticatedMenuContent 
               totalUnreadCount={totalUnreadCount}
               isActive={isActive}
               navItemCallbacks={navItemCallbacks}
               isNavigating={isNavigating}
               handleSignOut={handleSignOut}
+              setActivePath={setActivePath}
+              onClose={onClose}
+              router={router}
+              userRole={userRole}
+              activePath={activePath}
             />
           ) : (
             <UnauthenticatedMenuContent 
@@ -575,4 +752,4 @@ export default function MobileMenu({ isOpen, onClose, user, activePath, setActiv
       </SheetContent>
     </Sheet>
   );
-} 
+}

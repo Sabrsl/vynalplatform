@@ -5,8 +5,8 @@ import { APP_URLS } from '@/lib/constants';
 import { AUTH_ROUTES } from '@/config/routes';
 import { AuthError, User, Session } from '@supabase/supabase-js';
 
-// Interface pour l'utilisateur augmenté avec le rôle
-export interface EnhancedUser extends User {
+// Interface pour l'utilisateur avec rôle
+interface EnhancedUser extends User {
   user_metadata: {
     role?: 'admin' | 'client' | 'freelance';
     [key: string]: any;
@@ -24,13 +24,9 @@ export interface AuthResult {
  * Hook optimisé pour gérer l'authentification
  */
 export function useAuth() {
-  // États - doivent être définis au début et dans le même ordre à chaque rendu
   const [user, setUser] = useState<EnhancedUser | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
-  const [initialized, setInitialized] = useState<boolean>(false);
-  const isLoadingUser = useRef<boolean>(false);
-  const subscriptionRef = useRef<{ unsubscribe: () => void } | null>(null);
-  const router = useRouter();
+  const [error, setError] = useState<any>(null);
 
   // Résoudre l'URL de redirection complète
   const getRedirectUrl = useCallback((path: string): string => {
@@ -43,98 +39,110 @@ export function useAuth() {
     }
   }, []);
 
-  // Fonction optimisée pour récupérer le rôle utilisateur
-  const fetchUserRole = useCallback(async (currentUser: User): Promise<EnhancedUser> => {
-    try {
-      const { data: userRole, error } = await supabase.rpc('get_user_role');
-      
-      if (!error && userRole) {
-        // Mettre à jour les métadonnées utilisateur avec le rôle
-        return {
-          ...currentUser,
-          user_metadata: {
-            ...currentUser.user_metadata,
-            role: userRole
-          }
-        };
-      }
-    } catch (err) {
-      console.error("Erreur lors de la récupération du rôle:", err);
-    }
+  // Fonction améliorée pour synchroniser les rôles
+  const syncUserRole = useCallback(async (
+    userId: string,
+    metadataRole: string | undefined,
+    profileRole: string | undefined
+  ): Promise<boolean> => {
+    if (!userId) return false;
     
-    // Si erreur ou pas de rôle, retourner l'utilisateur inchangé
-    return currentUser as EnhancedUser;
+    try {
+      // Si le rôle existe dans le profil mais pas dans les métadonnées
+      if (profileRole && !metadataRole) {
+        await supabase.auth.updateUser({
+          data: { role: profileRole }
+        });
+        return true;
+      }
+      
+      // Si le rôle existe dans les métadonnées mais pas dans le profil
+      if (metadataRole && !profileRole) {
+        await supabase
+          .from('profiles')
+          .update({ role: metadataRole })
+          .eq('id', userId);
+        return true;
+      }
+      
+      // Si les deux existent mais sont différents (privilégier le profil)
+      if (profileRole && metadataRole && profileRole !== metadataRole) {
+        await supabase.auth.updateUser({
+          data: { role: profileRole }
+        });
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error("Erreur lors de la synchronisation du rôle:", error);
+      return false;
+    }
   }, []);
 
-  // Fonction pour mettre à jour l'utilisateur basée sur une session
-  const updateUserFromSession = useCallback(async (session: Session | null) => {
-    try {
-      if (session?.user) {
-        const enhancedUser = await fetchUserRole(session.user);
-        setUser(enhancedUser);
-      } else {
-        setUser(null);
-      }
-    } catch (err) {
-      console.error("Erreur lors de la mise à jour de l'utilisateur:", err);
-      setUser(null);
-    }
-  }, [fetchUserRole]);
-
-  // Initialiser la session et configurer les écouteurs
+  // Vérifier et initialiser la session
   useEffect(() => {
-    if (initialized) return;
-    
-    const initializeAuth = async () => {
-      if (isLoadingUser.current) return;
-      
-      isLoadingUser.current = true;
-      setLoading(true);
-      
+    const checkSession = async () => {
       try {
-        // Récupérer la session actuelle
-        const { data: { session } } = await supabase.auth.getSession();
-        await updateUserFromSession(session);
+        setLoading(true);
+        
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) throw sessionError;
+        
+        if (session) {
+          // Si l'utilisateur est connecté, récupérer également son profil pour vérifier le rôle
+          const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', session.user.id)
+            .single();
+            
+          if (!profileError && profile) {
+            // Synchroniser les rôles si nécessaire
+            const userMetadataRole = session.user.user_metadata?.role;
+            const profileRole = profile.role;
+            
+            // Cette synchronisation résout le problème de cohérence des rôles
+            await syncUserRole(session.user.id, userMetadataRole, profileRole);
+            
+            // Récupérer l'utilisateur mis à jour
+            const { data: { user: updatedUser } } = await supabase.auth.getUser();
+            setUser(updatedUser as EnhancedUser);
+          } else {
+            setUser(session.user as EnhancedUser);
+          }
+        } else {
+          setUser(null);
+        }
       } catch (err) {
-        console.error("Erreur lors de l'initialisation de l'authentification:", err);
+        setError(err);
         setUser(null);
       } finally {
         setLoading(false);
-        isLoadingUser.current = false;
-        setInitialized(true);
       }
     };
     
-    initializeAuth();
-
-    // Configurer l'écouteur d'authentification
+    checkSession();
+    
+    // Écouter les changements d'authentification
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        if (isLoadingUser.current) return;
-        
-        isLoadingUser.current = true;
-        setLoading(true);
-        
-        try {
-          await updateUserFromSession(session);
-        } finally {
-          setLoading(false);
-          isLoadingUser.current = false;
+      async (event, session) => {
+        // Mettre à jour l'utilisateur lors des changements d'état d'authentification
+        if (session) {
+          setUser(session.user as EnhancedUser);
+        } else {
+          setUser(null);
         }
+        
+        setLoading(false);
       }
     );
     
-    // Stocker la référence de l'abonnement
-    subscriptionRef.current = subscription;
-
-    // Nettoyage lors du démontage
     return () => {
-      if (subscriptionRef.current) {
-        subscriptionRef.current.unsubscribe();
-        subscriptionRef.current = null;
-      }
+      subscription.unsubscribe();
     };
-  }, [initialized, updateUserFromSession]);
+  }, [syncUserRole]);
 
   // Connexion avec email/mot de passe
   const signIn = useCallback(async (email: string, password: string, rememberMe: boolean = false): Promise<AuthResult> => {
@@ -175,7 +183,7 @@ export function useAuth() {
     }
   }, []);
 
-  // Le reste de vos fonctions (signInWithGoogle, signUp, etc.)
+  // Connexion avec Google
   const signInWithGoogle = useCallback(async (): Promise<AuthResult> => {
     try {
       setLoading(true);
@@ -202,6 +210,7 @@ export function useAuth() {
     }
   }, [getRedirectUrl]);
 
+  // Inscription
   const signUp = useCallback(async (email: string, password: string, role: 'client' | 'freelance'): Promise<AuthResult> => {
     if (!email || !password) {
       return { success: false, message: "Email et mot de passe requis" };
@@ -244,6 +253,7 @@ export function useAuth() {
     }
   }, [getRedirectUrl]);
 
+  // Déconnexion
   const signOut = useCallback(async (): Promise<AuthResult> => {
     try {
       setLoading(true);
@@ -277,6 +287,7 @@ export function useAuth() {
     }
   }, []);
 
+  // Réinitialisation de mot de passe
   const resetPassword = useCallback(async (email: string): Promise<AuthResult> => {
     if (!email) {
       return { success: false, message: "Email requis" };
@@ -285,9 +296,7 @@ export function useAuth() {
     try {
       setLoading(true);
       // Utiliser l'URL absolue pour être sûr que Supabase redirige correctement
-      // Assurez-vous que l'URL complète est utilisée sans paramètres supplémentaires
       const redirectUrl = `${APP_URLS.productionUrl}${AUTH_ROUTES.RESET_PASSWORD}`;
-      console.log("URL de redirection pour réinitialisation:", redirectUrl);
       
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: redirectUrl,
@@ -313,6 +322,7 @@ export function useAuth() {
     }
   }, []);
 
+  // Mise à jour du mot de passe
   const updatePassword = useCallback(async (password: string): Promise<AuthResult> => {
     if (!password) {
       return { success: false, message: "Nouveau mot de passe requis" };
@@ -346,18 +356,20 @@ export function useAuth() {
     }
   }, []);
 
-  // Valeurs dérivées
+  // Valeurs dérivées optimisées
   const isAuthenticated = useMemo(() => !!user, [user]);
+  const userRole = useMemo(() => user?.user_metadata?.role || null, [user]);
   
   const hasRole = useCallback((role: 'admin' | 'client' | 'freelance'): boolean => {
     return user?.user_metadata?.role === role;
   }, [user]);
-
-  // Retourner un objet mémoïsé pour éviter les recréations inutiles
-  return useMemo(() => ({
+  
+  return {
     user,
     loading,
+    error,
     isAuthenticated,
+    userRole,
     hasRole,
     signIn,
     signInWithGoogle,
@@ -365,16 +377,6 @@ export function useAuth() {
     signOut,
     resetPassword,
     updatePassword,
-  }), [
-    user,
-    loading,
-    isAuthenticated,
-    hasRole,
-    signIn,
-    signInWithGoogle,
-    signUp,
-    signOut,
-    resetPassword,
-    updatePassword,
-  ]);
+    syncUserRole
+  };
 } 

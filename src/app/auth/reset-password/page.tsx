@@ -3,11 +3,12 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft, Loader2, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase/client';
 import { FREELANCE_ROUTES, CLIENT_ROUTES, AUTH_ROUTES } from '@/config/routes';
+import AuthLayout from '@/components/auth/auth-layout';
 
 export default function ResetPasswordPage() {
   const searchParams = useSearchParams();
@@ -173,110 +174,128 @@ export default function ResetPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="mb-4">
-          <Link href="/auth/login" className="inline-flex items-center text-sm text-gray-600 hover:text-gray-900">
-            <ArrowLeft className="mr-2 h-4 w-4" /> Retour à la connexion
+    <AuthLayout title="Vynal Platform">
+      <div className="w-full max-w-md p-8 space-y-8 bg-white/30 dark:bg-slate-900/30 rounded-xl shadow-sm shadow-slate-200/50 dark:shadow-vynal-accent-secondary/20 border border-slate-200 dark:border-slate-700/30 transition-all duration-200">
+        <div className="flex justify-start">
+          <Link
+            href="/auth/login"
+            className="text-sm text-slate-800 dark:text-vynal-text-primary hover:text-vynal-accent-primary dark:hover:text-vynal-accent-secondary transition-colors flex items-center"
+          >
+            <ArrowLeft className="h-4 w-4 mr-1" />
+            Retour à la connexion
           </Link>
         </div>
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
-          <h2 className="text-center text-2xl font-bold text-gray-900 mb-6">
-            Réinitialisation du mot de passe
-          </h2>
-          
-          {!isReady && !error && (
-            <p className="text-center mt-10">Chargement...</p>
-          )}
 
-          {error && (
-            <div className="text-center mt-10 text-red-600">
-              <p>{error}</p>
-              <Link href="/auth/login" className="underline text-blue-600 mt-4 inline-block">Retour à la connexion</Link>
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-slate-800 dark:text-vynal-text-primary">Réinitialisation du mot de passe</h1>
+          <p className="mt-2 text-sm text-slate-600 dark:text-vynal-text-secondary">
+            Créez un nouveau mot de passe pour votre compte.
+          </p>
+        </div>
+        
+        {!isReady && !error && (
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto text-vynal-accent-primary" />
+            <p className="mt-4 text-sm text-slate-600 dark:text-vynal-text-secondary">Chargement...</p>
+          </div>
+        )}
+
+        {error && (
+          <div className="text-center space-y-4">
+            <div className="p-3 bg-vynal-status-error/20 border border-vynal-status-error/30 rounded-md text-vynal-status-error text-sm">
+              {error}
             </div>
-          )}
-          
-          {isReady && !error && (
-            success ? (
-              <div className="bg-green-50 border-l-4 border-green-400 p-4 mb-6">
-                <div className="flex flex-col items-center">
-                  <div className="ml-3">
-                    <p className="text-sm text-green-700">
-                      {userRole === 'admin' && "Votre mot de passe a été réinitialisé avec succès. Vous allez être redirigé vers votre console d'administration..."}
-                      {userRole === 'freelance' && "Votre mot de passe a été réinitialisé avec succès. Vous allez être redirigé vers votre tableau de bord freelance..."}
-                      {userRole === 'client' && "Votre mot de passe a été réinitialisé avec succès. Vous allez être redirigé vers votre espace client..."}
-                      {!userRole && "Votre mot de passe a été réinitialisé avec succès. Vous allez être redirigé vers la page de connexion..."}
-                    </p>
-                  </div>
-                  {redirecting && (
-                    <div className="mt-4">
-                      <Loader2 className="h-5 w-5 animate-spin mx-auto text-green-500" />
-                    </div>
-                  )}
+            <Link 
+              href="/auth/login" 
+              className="text-vynal-accent-primary hover:text-vynal-accent-secondary transition-colors inline-block"
+            >
+              Retour à la connexion
+            </Link>
+          </div>
+        )}
+        
+        {isReady && !error && (
+          success ? (
+            <div className="bg-emerald-500/10 border-l-4 border-emerald-500/20 p-4 mb-6">
+              <div className="flex flex-col items-center">
+                <div className="ml-3">
+                  <p className="text-sm text-slate-800 dark:text-vynal-text-primary">
+                    {userRole === 'admin' && "Votre mot de passe a été réinitialisé avec succès. Vous allez être redirigé vers votre console d'administration..."}
+                    {userRole === 'freelance' && "Votre mot de passe a été réinitialisé avec succès. Vous allez être redirigé vers votre tableau de bord freelance..."}
+                    {userRole === 'client' && "Votre mot de passe a été réinitialisé avec succès. Vous allez être redirigé vers votre espace client..."}
+                    {!userRole && "Votre mot de passe a été réinitialisé avec succès. Vous allez être redirigé vers la page de connexion..."}
+                  </p>
                 </div>
-              </div>
-            ) : (
-              <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
-                <div>
-                  <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                    Nouveau mot de passe
-                  </label>
-                  <div className="mt-1">
-                    <input
-                      id="password"
-                      name="password"
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      autoComplete="new-password"
-                      className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
-                    Confirmer le mot de passe
-                  </label>
-                  <div className="mt-1">
-                    <input
-                      id="confirmPassword"
-                      name="confirmPassword"
-                      type="password"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      required
-                      autoComplete="new-password"
-                      className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                    />
-                  </div>
-                </div>
-
-                {error && (
-                  <div className="bg-red-50 border-l-4 border-red-400 p-4">
-                    <div className="flex">
-                      <div className="ml-3">
-                        <p className="text-sm text-red-700">{error}</p>
-                      </div>
-                    </div>
+                {redirecting && (
+                  <div className="mt-4">
+                    <Loader2 className="h-5 w-5 animate-spin mx-auto text-emerald-500" />
                   </div>
                 )}
-
-                <div>
-                  <Button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full flex justify-center"
-                  >
-                    {loading ? 'Réinitialisation en cours...' : 'Réinitialiser le mot de passe'}
-                  </Button>
+              </div>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
+              <div className="space-y-2">
+                <label htmlFor="password" className="block text-sm font-medium text-slate-800 dark:text-vynal-text-primary">
+                  Nouveau mot de passe
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Lock className="h-5 w-5 text-slate-400 dark:text-vynal-text-secondary" />
+                  </div>
+                  <input
+                    id="password"
+                    name="password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    autoComplete="new-password"
+                    className="block w-full pl-10 pr-3 py-2 bg-white/40 dark:bg-slate-800/40 border border-slate-400 dark:border-slate-700/40 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-vynal-accent-primary focus:border-vynal-accent-primary text-slate-800 dark:text-vynal-text-primary placeholder:text-slate-400 dark:placeholder:text-vynal-text-secondary/70"
+                    placeholder="••••••••"
+                  />
                 </div>
-              </form>
-            )
-          )}
-        </div>
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="confirmPassword" className="block text-sm font-medium text-slate-800 dark:text-vynal-text-primary">
+                  Confirmer le mot de passe
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Lock className="h-5 w-5 text-slate-400 dark:text-vynal-text-secondary" />
+                  </div>
+                  <input
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                    autoComplete="new-password"
+                    className="block w-full pl-10 pr-3 py-2 bg-white/40 dark:bg-slate-800/40 border border-slate-400 dark:border-slate-700/40 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-vynal-accent-primary focus:border-vynal-accent-primary text-slate-800 dark:text-vynal-text-primary placeholder:text-slate-400 dark:placeholder:text-vynal-text-secondary/70"
+                    placeholder="••••••••"
+                  />
+                </div>
+              </div>
+
+              {error && (
+                <div className="p-3 bg-vynal-status-error/20 border border-vynal-status-error/30 rounded-md flex items-start text-vynal-status-error text-sm" role="alert">
+                  <span>{error}</span>
+                </div>
+              )}
+
+              <Button
+                type="submit"
+                disabled={loading}
+                className="w-full flex justify-center bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-vynal-purple-dark font-medium transition-all"
+              >
+                {loading ? 'Réinitialisation en cours...' : 'Réinitialiser le mot de passe'}
+              </Button>
+            </form>
+          )
+        )}
       </div>
-    </div>
+    </AuthLayout>
   );
 } 

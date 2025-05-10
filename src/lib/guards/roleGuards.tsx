@@ -1,128 +1,14 @@
 "use client";
 
-import { ReactNode, useEffect, useState, useCallback, memo } from "react";
+import { ReactNode, useEffect, useState, useCallback, memo, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useUser } from "@/hooks/useUser";
 import { useToast } from "@/components/ui/use-toast";
 import { Loader2 } from "lucide-react";
+import { FREELANCE_ROUTES, CLIENT_ROUTES } from "@/config/routes";
 
-// Constantes pour améliorer la maintenabilité
-const REDIRECT_PATHS = {
-  FREELANCE_FALLBACK: "/dashboard/payments",
-  CLIENT_FALLBACK: "/dashboard/wallet",
-  LOGIN: "/auth/login",
-};
-
-const TOAST_MESSAGES = {
-  FREELANCE_ONLY: {
-    title: "Accès limité",
-    description: "Cette section est réservée aux freelances. Redirection vers votre espace client..."
-  },
-  CLIENT_ONLY: {
-    title: "Accès limité",
-    description: "Cette section est réservée aux clients. Redirection vers votre espace freelance..."
-  },
-  AUTH_REQUIRED: {
-    title: "Authentification requise",
-    description: "Veuillez vous connecter pour accéder à cette page."
-  }
-};
-
-/**
- * Options pour les guards de rôle
- */
-interface RoleGuardOptions {
-  /** Message à afficher pendant la redirection */
-  redirectMessage?: string;
-  /** Message de toast à afficher */
-  toastMessage?: {
-    title: string;
-    description: string;
-  };
-  /** Délai avant redirection (ms) */
-  redirectDelay?: number;
-  /** Chemin de redirection */
-  redirectPath: string;
-  /** Si true, garde les connexions socket pendant la redirection */
-  preserveConnections?: boolean;
-}
-
-/**
- * Hook optimisé pour la gestion des gardes de rôle
- * Utilise le cache et minimise les re-rendus
- */
-export function useRoleGuard(shouldAccess: boolean, options: RoleGuardOptions) {
-  const router = useRouter();
-  const { toast } = useToast();
-  const { user, loading: authLoading } = useAuth();
-  const { loading: userLoading } = useUser();
-  const [redirecting, setRedirecting] = useState(false);
-  const [accessVerified, setAccessVerified] = useState(false);
-
-  // Valeurs par défaut
-  const redirectMessage = options.redirectMessage || "Redirection en cours...";
-  const redirectDelay = options.redirectDelay || 300;
-  
-  // Fonction mémorisée pour gérer la redirection
-  const handleRedirection = useCallback(() => {
-    if (redirecting) return; // Éviter les redirections multiples
-    
-    setRedirecting(true);
-    
-    // Afficher un toast si configuré
-    if (options.toastMessage) {
-      toast({
-        title: options.toastMessage.title,
-        description: options.toastMessage.description,
-        duration: 3000,
-      });
-    }
-    
-    // Rediriger avec un délai pour permettre au toast de s'afficher
-    setTimeout(() => {
-      router.push(options.redirectPath);
-    }, redirectDelay);
-  }, [redirecting, options.toastMessage, options.redirectPath, toast, router, redirectDelay]);
-
-  // Vérification d'accès optimisée
-  useEffect(() => {
-    // Attendre que les données d'authentification soient chargées
-    if (authLoading || userLoading) return;
-    
-    // Vérifier si l'utilisateur est connecté
-    if (!user) {
-      setRedirecting(true);
-      
-      toast({
-        title: TOAST_MESSAGES.AUTH_REQUIRED.title,
-        description: TOAST_MESSAGES.AUTH_REQUIRED.description,
-        duration: 3000,
-      });
-      
-      router.push(REDIRECT_PATHS.LOGIN);
-      return;
-    }
-    
-    // Vérifier le rôle seulement si les données sont chargées
-    if (!authLoading && !userLoading && !shouldAccess) {
-      handleRedirection();
-    } else if (!authLoading && !userLoading) {
-      // L'accès est vérifié et autorisé
-      setAccessVerified(true);
-    }
-  }, [shouldAccess, user, authLoading, userLoading, router, handleRedirection, toast]);
-
-  // Renvoyer un état indiquant si la garde est en train de rediriger
-  return {
-    isRedirecting: redirecting || (!shouldAccess && !authLoading && !userLoading && !!user),
-    isLoading: authLoading || userLoading,
-    redirectMessage,
-    accessVerified
-  };
-}
-
-// Composant de base pour les écrans de chargement/redirection - mémorisé pour optimiser les performances
+// Composant de base pour les écrans de chargement
 const LoadingScreen = memo(({ message }: { message: string }) => (
   <div className="flex items-center justify-center min-h-[60vh]">
     <div className="text-center">
@@ -135,62 +21,161 @@ const LoadingScreen = memo(({ message }: { message: string }) => (
 ));
 LoadingScreen.displayName = 'LoadingScreen';
 
-/**
- * Composant de garde pour protéger les routes accessibles uniquement aux freelances
- * Optimisé pour les performances et la robustesse
- */
-export const FreelanceGuard = memo(({ children }: { children: ReactNode }) => {
-  const { isFreelance, loading: profileLoading } = useUser();
+// Hook unifié pour la vérification des rôles
+function useRoleVerification() {
+  const auth = useAuth();
+  const userProfile = useUser();
+  const [roleVerified, setRoleVerified] = useState(false);
   
-  // Log de débogage
-  console.log("[FreelanceGuard] Vérification d'accès:", { 
-    isFreelance, 
-    profileLoading 
-  });
+  // Vérifier si les données utilisateur sont chargées
+  const isLoading = auth.loading || userProfile.loading;
   
-  const { isRedirecting, isLoading, redirectMessage } = useRoleGuard(
-    // Uniquement vérifier isFreelance si les données du profil sont chargées
-    profileLoading ? true : isFreelance, 
-    {
-      redirectPath: REDIRECT_PATHS.CLIENT_FALLBACK,
-      toastMessage: TOAST_MESSAGES.FREELANCE_ONLY,
-      preserveConnections: true // Évite de fermer les connexions socket pendant la redirection
+  // Détermine le rôle en combinant les sources
+  const userRole = useMemo(() => {
+    // Priorité 1: Métadonnées utilisateur (plus rapide)
+    if (auth.user?.user_metadata?.role) {
+      return auth.user.user_metadata.role;
     }
-  );
+    
+    // Priorité 2: Profil utilisateur (plus fiable)
+    if (userProfile.profile?.role) {
+      return userProfile.profile.role;
+    }
+    
+    // Par défaut: null si on ne peut pas déterminer
+    return null;
+  }, [auth.user?.user_metadata?.role, userProfile.profile?.role]);
+  
+  // Valeurs dérivées pour les différents rôles
+  const isFreelance = userRole === 'freelance';
+  const isClient = userRole === 'client';
+  const isAdmin = userRole === 'admin';
+  
+  // Synchroniser les rôles si nécessaire
+  useEffect(() => {
+    if (auth.user?.id && userProfile.profile && !isLoading) {
+      const metadataRole = auth.user.user_metadata?.role;
+      const profileRole = userProfile.profile.role;
+      
+      // Vérifier s'il y a incohérence et synchroniser
+      if ((metadataRole && !profileRole) || 
+          (!metadataRole && profileRole) || 
+          (metadataRole && profileRole && metadataRole !== profileRole)) {
+        
+        auth.syncUserRole(auth.user.id, metadataRole, profileRole)
+          .then(() => {
+            // Marquer que le rôle a été vérifié après synchronisation
+            setRoleVerified(true);
+          });
+      } else {
+        // Si pas d'incohérence, marquer comme vérifié
+        setRoleVerified(true);
+      }
+    }
+  }, [auth, userProfile, isLoading]);
+  
+  return {
+    userRole,
+    isFreelance,
+    isClient,
+    isAdmin,
+    isLoading,
+    isAuthenticated: auth.isAuthenticated,
+    roleVerified
+  };
+}
 
-  // Afficher un indicateur de chargement pendant la redirection ou le chargement
-  if (isRedirecting || isLoading) {
-    console.log("[FreelanceGuard] Redirection en cours");
-    return <LoadingScreen message={redirectMessage} />;
+// Garde pour les pages freelance
+export const FreelanceGuard = memo(({ children }: { children: ReactNode }) => {
+  const router = useRouter();
+  const { toast } = useToast();
+  const { isFreelance, isLoading, isAuthenticated, roleVerified } = useRoleVerification();
+  const [isRedirecting, setIsRedirecting] = useState(false);
+  
+  // Effectuer la redirection si nécessaire
+  useEffect(() => {
+    // Attendre que le chargement soit terminé et le rôle vérifié
+    if (!isLoading && roleVerified) {
+      // Si l'utilisateur n'est pas authentifié, rediriger vers la connexion
+      if (!isAuthenticated) {
+        setIsRedirecting(true);
+        toast({
+          title: "Authentification requise",
+          description: "Veuillez vous connecter pour accéder à cette page."
+        });
+        router.push('/auth/login');
+        return;
+      }
+      
+      // Si l'utilisateur est authentifié mais n'est pas freelance, rediriger
+      if (isAuthenticated && !isFreelance) {
+        setIsRedirecting(true);
+        toast({
+          title: "Accès limité",
+          description: "Cette section est réservée aux freelances. Redirection vers votre espace client..."
+        });
+        
+        // Rediriger vers le dashboard client
+        setTimeout(() => {
+          router.push(CLIENT_ROUTES.DASHBOARD);
+        }, 300);
+      }
+    }
+  }, [isLoading, roleVerified, isAuthenticated, isFreelance, router, toast]);
+  
+  // Afficher un écran de chargement si nécessaire
+  if (isLoading || isRedirecting || (roleVerified && !isFreelance && isAuthenticated)) {
+    return <LoadingScreen message="Vérification des accès..." />;
   }
-
+  
   // Si tout est OK, afficher le contenu
-  console.log("[FreelanceGuard] Accès autorisé");
   return <>{children}</>;
 });
 FreelanceGuard.displayName = 'FreelanceGuard';
 
-/**
- * Composant de garde pour protéger les routes accessibles uniquement aux clients
- * Optimisé pour les performances et la robustesse
- */
+// Garde pour les pages client
 export const ClientGuard = memo(({ children }: { children: ReactNode }) => {
-  const { isFreelance, loading: profileLoading } = useUser();
-  const { isRedirecting, isLoading, redirectMessage } = useRoleGuard(
-    // Seulement vérifier !isFreelance quand profileLoading est false
-    profileLoading ? true : !isFreelance, 
-    {
-      redirectPath: REDIRECT_PATHS.FREELANCE_FALLBACK,
-      toastMessage: TOAST_MESSAGES.CLIENT_ONLY,
-      preserveConnections: true // Évite de fermer les connexions socket pendant la redirection
+  const router = useRouter();
+  const { toast } = useToast();
+  const { isClient, isLoading, isAuthenticated, roleVerified } = useRoleVerification();
+  const [isRedirecting, setIsRedirecting] = useState(false);
+  
+  // Effectuer la redirection si nécessaire
+  useEffect(() => {
+    // Attendre que le chargement soit terminé et le rôle vérifié
+    if (!isLoading && roleVerified) {
+      // Si l'utilisateur n'est pas authentifié, rediriger vers la connexion
+      if (!isAuthenticated) {
+        setIsRedirecting(true);
+        toast({
+          title: "Authentification requise",
+          description: "Veuillez vous connecter pour accéder à cette page."
+        });
+        router.push('/auth/login');
+        return;
+      }
+      
+      // Si l'utilisateur est authentifié mais n'est pas client, rediriger
+      if (isAuthenticated && !isClient) {
+        setIsRedirecting(true);
+        toast({
+          title: "Accès limité",
+          description: "Cette section est réservée aux clients. Redirection vers votre espace freelance..."
+        });
+        
+        // Rediriger vers le dashboard freelance
+        setTimeout(() => {
+          router.push(FREELANCE_ROUTES.DASHBOARD);
+        }, 300);
+      }
     }
-  );
-
-  // Afficher un indicateur de chargement pendant la redirection ou le chargement
-  if (isRedirecting || isLoading) {
-    return <LoadingScreen message={redirectMessage} />;
+  }, [isLoading, roleVerified, isAuthenticated, isClient, router, toast]);
+  
+  // Afficher un écran de chargement si nécessaire
+  if (isLoading || isRedirecting || (roleVerified && !isClient && isAuthenticated)) {
+    return <LoadingScreen message="Vérification des accès..." />;
   }
-
+  
   // Si tout est OK, afficher le contenu
   return <>{children}</>;
 });

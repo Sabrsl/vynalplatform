@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 import TwoFactorVerification from "./TwoFactorVerification";
 import { AUTH_ROUTES } from "@/config/routes";
+import { NavigationLoadingState } from "@/app/providers";
 
 // Constants for rate limiting
 const MAX_LOGIN_ATTEMPTS = 5;
@@ -45,6 +46,7 @@ function LoginForm({ redirectPath = "/dashboard" }: LoginFormProps) {
   const router = useRouter();
   const { signIn, signInWithGoogle } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [socialLoading, setSocialLoading] = useState<'none' | 'google' | 'github' | 'linkedin'>('none');
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [loginAttempts, setLoginAttempts] = useState(0);
@@ -159,19 +161,16 @@ function LoginForm({ redirectPath = "/dashboard" }: LoginFormProps) {
     }
   }, []);
 
-  // Create a debounced version of setError to prevent UI flicker on rapid errors
-  const debouncedSetError = useMemo(
-    () => debounce((message: string | null) => setError(message), 300),
-    []
-  );
-
-  // Form submission handler
+  // Form submission handler - Remove debounce and simplify
   const onSubmit = useCallback(async (data: LoginFormData) => {
     // Check if account is locked
     if (isLocked) {
       setError(`Trop de tentatives échouées. Réessayez dans ${formattedLockoutTime}.`);
       return;
     }
+    
+    // Éviter les soumissions multiples
+    if (isLoading) return;
     
     setIsLoading(true);
     setError(null);
@@ -186,6 +185,9 @@ function LoginForm({ redirectPath = "/dashboard" }: LoginFormProps) {
       if (success) {
         // Reset login attempts on successful login
         resetLoginAttempts();
+        
+        // Indiquer que la navigation commence pour activer les états de chargement
+        NavigationLoadingState.setIsNavigating(true);
         
         // Récupérer le rôle utilisateur pour la redirection appropriée
         const { data } = await supabase.rpc('get_user_role');
@@ -204,7 +206,8 @@ function LoginForm({ redirectPath = "/dashboard" }: LoginFormProps) {
         }
       } else {
         incrementLoginAttempts();
-        debouncedSetError(
+        // Utiliser setError directement au lieu de debouncedSetError pour une réponse immédiate
+        setError(
           typeof error === 'object' && error !== null && 'message' in error
             ? String(error.message)
             : "Identifiants invalides. Veuillez réessayer."
@@ -212,20 +215,21 @@ function LoginForm({ redirectPath = "/dashboard" }: LoginFormProps) {
       }
     } catch (err) {
       incrementLoginAttempts();
-      debouncedSetError("Une erreur est survenue. Veuillez réessayer.");
+      // Utiliser setError directement au lieu de debouncedSetError pour une réponse immédiate
+      setError("Une erreur est survenue. Veuillez réessayer.");
       console.error("Login error:", err);
     } finally {
       setIsLoading(false);
     }
   }, [
-    isLocked, 
+    isLocked,
+    isLoading,
     formattedLockoutTime, 
     signIn, 
     resetLoginAttempts, 
     router, 
     redirectPath, 
-    incrementLoginAttempts, 
-    debouncedSetError
+    incrementLoginAttempts
   ]);
 
   // Social login handlers with error handling and rate limiting
@@ -234,8 +238,12 @@ function LoginForm({ redirectPath = "/dashboard" }: LoginFormProps) {
       setError(`Trop de tentatives échouées. Réessayez dans ${formattedLockoutTime}.`);
       return;
     }
+    
+    // Éviter les soumissions multiples
+    if (socialLoading !== 'none') return;
 
-    setIsLoading(true);
+    // Mettre à jour l'état de chargement spécifique au provider
+    setSocialLoading(provider);
     setError(null);
     
     try {
@@ -254,16 +262,17 @@ function LoginForm({ redirectPath = "/dashboard" }: LoginFormProps) {
       // Redirection is handled by the OAuth provider
     } catch (err) {
       incrementLoginAttempts();
-      debouncedSetError(`Une erreur est survenue avec la connexion ${provider}.`);
+      // Utiliser setError directement au lieu de debouncedSetError
+      setError(`Une erreur est survenue avec la connexion ${provider}.`);
       console.error(`${provider} login error:`, err);
-      setIsLoading(false);
+      setSocialLoading('none');
     }
   }, [
     isLocked,
+    socialLoading,
     formattedLockoutTime,
     signInWithGoogle,
-    incrementLoginAttempts,
-    debouncedSetError
+    incrementLoginAttempts
   ]);
 
   // Toggle password visibility
@@ -277,160 +286,35 @@ function LoginForm({ redirectPath = "/dashboard" }: LoginFormProps) {
   }, [setValue, getValues]);
 
   return (
-    <div className="w-full max-w-md p-8 space-y-8 bg-white/30 dark:bg-vynal-purple-dark/90 rounded-xl shadow-sm shadow-slate-200/50 dark:shadow-vynal-accent-secondary/20 border border-slate-200 dark:border-vynal-purple-secondary/30 transition-all duration-200">
+    <div className="w-full max-w-md p-4 sm:p-6 md:p-8 space-y-5 sm:space-y-6 bg-white/30 dark:bg-slate-900/30 rounded-xl shadow-sm shadow-slate-200/50 dark:shadow-vynal-accent-secondary/20 border border-slate-200 dark:border-slate-700/30 transition-all duration-200">
       <div className="flex justify-start">
         <Link
           href="/"
-          className="text-sm text-slate-800 dark:text-vynal-text-primary hover:text-vynal-accent-primary dark:hover:text-vynal-accent-secondary transition-colors flex items-center"
+          className="text-xs sm:text-sm text-slate-800 dark:text-vynal-text-primary hover:text-vynal-accent-primary dark:hover:text-vynal-accent-secondary transition-colors flex items-center"
         >
-          <ArrowLeft className="h-4 w-4 mr-1" />
+          <ArrowLeft className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
           Retour à l'accueil
         </Link>
       </div>
 
-      <div className="text-center">
-        <h1 className="text-2xl font-bold text-slate-800 dark:text-vynal-text-primary">Connexion</h1>
-        <p className="mt-2 text-sm text-slate-600 dark:text-vynal-text-secondary">
+      <div className="text-center mb-1">
+        <h1 className="text-xl sm:text-2xl font-bold text-slate-800 dark:text-vynal-text-primary">Connexion</h1>
+        <p className="mt-1 text-xs sm:text-sm text-slate-600 dark:text-vynal-text-secondary">
           Bienvenue ! Connectez-vous pour accéder à votre compte.
         </p>
       </div>
 
-      {error && (
-        <div className="p-3 bg-vynal-status-error/20 border border-vynal-status-error/30 rounded-md flex items-start text-vynal-status-error text-sm" role="alert">
-          <AlertCircle className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" />
-          <span>{error}</span>
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6" autoComplete="off">
-        <div className="space-y-2">
-          <Label htmlFor="email" className="text-sm font-medium text-slate-800 dark:text-vynal-text-primary">
-            Email
-          </Label>
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Mail className="h-5 w-5 text-slate-400 dark:text-vynal-text-secondary" />
-            </div>
-            <input
-              id="email"
-              type="email"
-              autoComplete="email"
-              disabled={isLoading || isLocked}
-              aria-invalid={errors.email ? "true" : "false"}
-              aria-describedby="email-error"
-              className="block w-full pl-10 pr-3 py-2 bg-white/40 dark:bg-vynal-purple-secondary/30 border border-slate-200/50 dark:border-vynal-purple-secondary/50 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-vynal-accent-primary focus:border-vynal-accent-primary text-slate-800 dark:text-vynal-text-primary placeholder:text-slate-400 dark:placeholder:text-vynal-text-secondary/70"
-              placeholder="votre@email.com"
-              {...register('email')}
-            />
-          </div>
-          {errors.email && (
-            <p id="email-error" className="text-sm text-vynal-status-error">{errors.email.message}</p>
-          )}
-        </div>
-
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="password" className="text-sm font-medium text-slate-800 dark:text-vynal-text-primary">
-              Mot de passe
-            </Label>
-            <Link
-              href={AUTH_ROUTES.FORGOT_PASSWORD}
-              className="text-sm font-medium text-vynal-accent-primary hover:text-vynal-accent-secondary transition-colors"
-            >
-              Mot de passe oublié ?
-            </Link>
-          </div>
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Lock className="h-5 w-5 text-slate-400 dark:text-vynal-text-secondary" />
-            </div>
-            <input
-              id="password"
-              type={showPassword ? "text" : "password"}
-              autoComplete="current-password"
-              disabled={isLoading || isLocked}
-              aria-invalid={errors.password ? "true" : "false"}
-              aria-describedby="password-error"
-              className="block w-full pl-10 pr-10 py-2 bg-white/40 dark:bg-vynal-purple-secondary/30 border border-slate-200/50 dark:border-vynal-purple-secondary/50 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-vynal-accent-primary focus:border-vynal-accent-primary text-slate-800 dark:text-vynal-text-primary placeholder:text-slate-400 dark:placeholder:text-vynal-text-secondary/70"
-              placeholder="••••••••"
-              {...register('password')}
-            />
-            <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-              <button
-                type="button"
-                onClick={togglePasswordVisibility}
-                className="text-slate-400 dark:text-vynal-text-secondary hover:text-slate-800 dark:hover:text-vynal-text-primary focus:outline-none transition-colors"
-                aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
-                disabled={isLoading || isLocked}
-              >
-                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-              </button>
-            </div>
-          </div>
-          {errors.password && (
-            <p id="password-error" className="text-sm text-vynal-status-error">{errors.password.message}</p>
-          )}
-        </div>
-
-        <div className="flex items-center">
-          <input
-            id="rememberMe"
-            type="checkbox"
-            disabled={isLoading || isLocked}
-            className="h-4 w-4 bg-white/40 dark:bg-vynal-purple-secondary/30 border border-slate-200/50 dark:border-vynal-purple-secondary/50 rounded focus:ring-vynal-accent-primary text-vynal-accent-primary"
-            {...register('rememberMe')}
-          />
-          <label 
-            htmlFor="rememberMe" 
-            className="ml-2 block text-sm text-slate-600 dark:text-vynal-text-secondary cursor-pointer"
-            onClick={toggleRememberMe}
-          >
-            Se souvenir de moi
-          </label>
-        </div>
-
-        <Button 
-          type="submit" 
-          disabled={isLoading || isLocked} 
-          aria-busy={isLoading}
-          className="w-full flex justify-center bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-vynal-purple-dark font-medium transition-all"
-        >
-          {isLoading ? (
-            <div className="flex items-center">
-              <RefreshIndicator 
-                isRefreshing={true}
-                size="sm"
-                text={true}
-                variant="accent"
-              />
-            </div>
-          ) : isLocked ? (
-            `Compte temporairement bloqué (${formattedLockoutTime})`
-          ) : (
-            <span>Se connecter</span>
-          )}
-        </Button>
-      </form>
-
-      <div className="relative mt-6">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-slate-200/50 dark:border-vynal-purple-secondary/40" />
-        </div>
-        <div className="relative flex justify-center text-sm">
-          <span className="px-2 bg-white/30 dark:bg-vynal-purple-dark/90 text-slate-500 dark:text-vynal-text-secondary">Ou continuer avec</span>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      {/* Social Login Buttons - Moved to the top */}
+      <div className="grid grid-cols-3 gap-2 sm:gap-3">
         <Button 
           type="button" 
           variant="outline" 
           onClick={() => handleSocialSignIn('google')} 
-          disabled={isLoading || isLocked}
+          disabled={isLoading || isLocked || socialLoading !== 'none'}
           aria-label="Se connecter avec Google"
-          className="w-full py-5 flex items-center justify-center gap-2 text-sm bg-white/40 dark:bg-vynal-purple-secondary/30 border-slate-200/50 dark:border-vynal-purple-secondary/50 text-slate-700 dark:text-vynal-text-primary hover:bg-slate-50/40 dark:hover:bg-vynal-purple-secondary/40"
+          className="w-full py-3 sm:py-3 flex items-center justify-center gap-1 text-xs sm:text-sm border border-slate-300 dark:border-slate-700/30 text-slate-700 dark:text-vynal-text-primary hover:bg-slate-100 dark:hover:bg-slate-800/40 transition-all"
         >
-          {isLoading ? (
+          {socialLoading === 'google' ? (
             <RefreshIndicator 
               isRefreshing={true}
               size="sm"
@@ -457,8 +341,7 @@ function LoginForm({ redirectPath = "/dashboard" }: LoginFormProps) {
                 />
                 <path d="M1 1h22v22H1z" fill="none" />
               </svg>
-              <span className="md:hidden">Continuer avec Google</span>
-              <span className="hidden md:inline">Google</span>
+              <span className="hidden sm:inline text-xs">Google</span>
             </>
           )}
         </Button>
@@ -467,11 +350,11 @@ function LoginForm({ redirectPath = "/dashboard" }: LoginFormProps) {
           type="button" 
           variant="outline" 
           onClick={() => handleSocialSignIn('github')} 
-          disabled={isLoading || isLocked}
+          disabled={isLoading || isLocked || socialLoading !== 'none'}
           aria-label="Se connecter avec GitHub"
-          className="w-full py-5 flex items-center justify-center gap-2 text-sm bg-white/40 dark:bg-vynal-purple-secondary/30 border-slate-200/50 dark:border-vynal-purple-secondary/50 text-slate-700 dark:text-vynal-text-primary hover:bg-slate-50/40 dark:hover:bg-vynal-purple-secondary/40"
+          className="w-full py-2 sm:py-3 flex items-center justify-center gap-1 text-xs sm:text-sm border border-slate-300 dark:border-slate-700/30 text-slate-700 dark:text-vynal-text-primary hover:bg-slate-100 dark:hover:bg-slate-800/40 transition-all"
         >
-          {isLoading ? (
+          {socialLoading === 'github' ? (
             <RefreshIndicator 
               isRefreshing={true}
               size="sm"
@@ -482,8 +365,7 @@ function LoginForm({ redirectPath = "/dashboard" }: LoginFormProps) {
               <svg className="h-4 w-4 flex-shrink-0" aria-hidden="true" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" />
               </svg>
-              <span className="md:hidden">Continuer avec GitHub</span>
-              <span className="hidden md:inline">GitHub</span>
+              <span className="hidden sm:inline text-xs">GitHub</span>
             </>
           )}
         </Button>
@@ -492,11 +374,11 @@ function LoginForm({ redirectPath = "/dashboard" }: LoginFormProps) {
           type="button" 
           variant="outline" 
           onClick={() => handleSocialSignIn('linkedin')} 
-          disabled={isLoading || isLocked}
+          disabled={isLoading || isLocked || socialLoading !== 'none'}
           aria-label="Se connecter avec LinkedIn"
-          className="w-full py-5 flex items-center justify-center gap-2 text-sm bg-white/40 dark:bg-vynal-purple-secondary/30 border-slate-200/50 dark:border-vynal-purple-secondary/50 text-slate-700 dark:text-vynal-text-primary hover:bg-slate-50/40 dark:hover:bg-vynal-purple-secondary/40"
+          className="w-full py-2 sm:py-3 flex items-center justify-center gap-1 text-xs sm:text-sm border border-slate-300 dark:border-slate-700/30 text-slate-700 dark:text-vynal-text-primary hover:bg-slate-100 dark:hover:bg-slate-800/40 transition-all"
         >
-          {isLoading ? (
+          {socialLoading === 'linkedin' ? (
             <RefreshIndicator 
               isRefreshing={true}
               size="sm"
@@ -507,25 +389,150 @@ function LoginForm({ redirectPath = "/dashboard" }: LoginFormProps) {
               <svg className="h-4 w-4 flex-shrink-0" aria-hidden="true" viewBox="0 0 24 24" fill="#0A66C2">
                 <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
               </svg>
-              <span className="md:hidden">Continuer avec LinkedIn</span>
-              <span className="hidden md:inline">LinkedIn</span>
+              <span className="hidden sm:inline text-xs">LinkedIn</span>
             </>
           )}
         </Button>
       </div>
 
-      <p className="mt-6 text-center text-sm text-slate-600 dark:text-vynal-text-secondary">
-        Pas encore de compte ?{" "}
-        <Link
-          href={AUTH_ROUTES.REGISTER}
-          className="font-medium text-vynal-accent-primary hover:text-vynal-accent-secondary transition-colors"
+      <div className="relative">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-slate-200/50 dark:border-slate-700/30" />
+        </div>
+        <div className="relative flex justify-center text-[10px] sm:text-xs">
+          <span className="px-2 bg-white/30 dark:bg-slate-900/20 text-slate-500 dark:text-vynal-text-secondary">Ou par email</span>
+        </div>
+      </div>
+
+      {error && (
+        <div className="p-2 sm:p-3 bg-vynal-status-error/10 border border-vynal-status-error/20 rounded-md flex items-start text-vynal-status-error text-xs sm:text-sm" role="alert">
+          <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4 mr-2 mt-0.5 flex-shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 sm:space-y-5" autoComplete="off">
+        <div className="space-y-1 sm:space-y-2">
+          <Label htmlFor="email" className="text-xs sm:text-sm text-slate-800 dark:text-vynal-text-primary">
+            Email
+          </Label>
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-2 sm:pl-3 flex items-center pointer-events-none">
+              <Mail className="h-4 w-4 text-slate-400 dark:text-vynal-text-secondary" />
+            </div>
+            <input
+              id="email"
+              type="email"
+              autoComplete="email"
+              disabled={isLoading || isLocked}
+              aria-invalid={errors.email ? "true" : "false"}
+              aria-describedby="email-error"
+              className="block w-full pl-8 sm:pl-10 pr-3 py-2.5 sm:py-2 text-xs sm:text-sm bg-white/2 dark:bg-slate-800/40 border border-slate-400 dark:border-slate-700/40 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-vynal-accent-primary focus:border-vynal-accent-primary text-slate-800 dark:text-vynal-text-primary placeholder:text-slate-400 dark:placeholder:text-vynal-text-secondary/70"
+              placeholder="votre@email.com"
+              {...register('email')}
+            />
+          </div>
+          {errors.email && (
+            <p id="email-error" className="text-xs text-red-500 mt-1">{errors.email.message}</p>
+          )}
+        </div>
+
+        <div className="space-y-1 sm:space-y-2">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="password" className="text-xs sm:text-sm text-slate-800 dark:text-vynal-text-primary">
+              Mot de passe
+            </Label>
+            <Link
+              href={AUTH_ROUTES.FORGOT_PASSWORD}
+              className="text-[10px] sm:text-xs font-medium text-vynal-accent-primary hover:text-vynal-accent-secondary transition-colors"
+            >
+              Mot de passe oublié ?
+            </Link>
+          </div>
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-2 sm:pl-3 flex items-center pointer-events-none">
+              <Lock className="h-4 w-4 text-slate-400 dark:text-vynal-text-secondary" />
+            </div>
+            <input
+              id="password"
+              type={showPassword ? "text" : "password"}
+              autoComplete="current-password"
+              disabled={isLoading || isLocked}
+              aria-invalid={errors.password ? "true" : "false"}
+              aria-describedby="password-error"
+              className="block w-full pl-8 sm:pl-10 pr-8 sm:pr-10 py-2.5 sm:py-2 text-xs sm:text-sm bg-white/40 dark:bg-slate-800/40 border border-slate-400 dark:border-slate-700/40 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-vynal-accent-primary focus:border-vynal-accent-primary text-slate-800 dark:text-vynal-text-primary placeholder:text-slate-400 dark:placeholder:text-vynal-text-secondary/70"
+              placeholder="••••••••"
+              {...register('password')}
+            />
+            <div className="absolute inset-y-0 right-0 pr-2 sm:pr-3 flex items-center">
+              <button
+                type="button"
+                onClick={togglePasswordVisibility}
+                className="text-slate-400 dark:text-vynal-text-secondary hover:text-slate-800 dark:hover:text-vynal-text-primary focus:outline-none transition-colors"
+                aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                disabled={isLoading || isLocked}
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+          {errors.password && (
+            <p id="password-error" className="text-xs text-red-500 mt-1">{errors.password.message}</p>
+          )}
+        </div>
+
+        <div className="flex items-center">
+          <input
+            id="rememberMe"
+            type="checkbox"
+            disabled={isLoading || isLocked}
+            className="h-3 w-3 sm:h-4 sm:w-4 bg-white/40 dark:bg-slate-800/40 border border-slate-400 dark:border-slate-700/40 rounded focus:ring-vynal-accent-primary text-vynal-accent-primary"
+            {...register('rememberMe')}
+          />
+          <label 
+            htmlFor="rememberMe" 
+            className="ml-2 block text-xs sm:text-sm text-slate-600 dark:text-vynal-text-secondary cursor-pointer"
+            onClick={toggleRememberMe}
+          >
+            Se souvenir de moi
+          </label>
+        </div>
+
+        <Button 
+          type="submit" 
+          disabled={isLoading || isLocked || socialLoading !== 'none'} 
+          aria-busy={isLoading}
+          className="w-full flex justify-center bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-vynal-purple-dark font-medium transition-all text-xs sm:text-sm py-3 sm:py-2 rounded-lg"
         >
-          S'inscrire
-        </Link>
-      </p>
+          {isLoading ? (
+            <div className="flex items-center">
+              <RefreshIndicator 
+                isRefreshing={true}
+                size="sm"
+                text={true}
+                variant="accent"
+              />
+            </div>
+          ) : isLocked ? (
+            `Compte temporairement bloqué (${formattedLockoutTime})`
+          ) : (
+            <span>Se connecter</span>
+          )}
+        </Button>
+
+        <p className="mt-4 text-center text-xs sm:text-sm text-slate-900 dark:text-vynal-text-secondary">
+          Pas encore de compte ?{" "}
+          <Link
+            href={AUTH_ROUTES.REGISTER}
+            className="font-medium text-vynal-accent-primary hover:text-vynal-accent-secondary transition-colors"
+          >
+            S'inscrire
+          </Link>
+        </p>
+      </form>
     </div>
   );
 }
 
 // Mémoisation du composant pour éviter des re-rendus inutiles
-export default memo(LoginForm)
+export default memo(LoginForm);

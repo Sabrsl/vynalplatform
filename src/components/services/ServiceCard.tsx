@@ -279,7 +279,7 @@ const ActionButtons = memo(({
       <Button
         size="sm" 
         variant="secondary"
-        className="rounded-full px-2 py-0.5 h-auto text-[10px] bg-gray-100 dark:bg-vynal-purple-secondary/40 text-vynal-purple-dark dark:text-vynal-text-primary hover:bg-vynal-accent-primary hover:text-white dark:hover:bg-vynal-accent-primary dark:hover:text-vynal-purple-dark border border-gray-200 dark:border-vynal-purple-secondary/30 hover:border-vynal-accent-primary"
+        className="rounded-full px-2 py-0.5 h-auto text-[10px] bg-slate-100 dark:bg-vynal-purple-secondary/40 text-slate-800 dark:text-vynal-text-primary hover:bg-vynal-accent-primary hover:text-white dark:hover:bg-vynal-accent-primary dark:hover:text-vynal-purple-dark border border-slate-200 dark:border-vynal-purple-secondary/30 hover:border-vynal-accent-primary"
       >
         Voir détails
       </Button>
@@ -292,7 +292,7 @@ const ActionButtons = memo(({
         size="sm"
         variant="ghost"
         onClick={onView}
-        className="h-6 w-6 p-0 rounded-full bg-gray-100 dark:bg-vynal-purple-secondary/10 border border-gray-200 dark:border-vynal-purple-secondary/20 hover:bg-gray-200 dark:hover:bg-vynal-purple-secondary/30 hover:text-vynal-accent-primary text-vynal-purple-dark dark:text-vynal-body"
+        className="h-6 w-6 p-0 rounded-full bg-slate-100 dark:bg-vynal-purple-secondary/10 border border-slate-200 dark:border-vynal-purple-secondary/20 hover:bg-slate-200 dark:hover:bg-vynal-purple-secondary/30 hover:text-vynal-accent-primary text-slate-800 dark:text-vynal-body"
         title="Voir les détails"
       >
         <Eye className="h-3 w-3" />
@@ -302,7 +302,7 @@ const ActionButtons = memo(({
         size="sm"
         variant="ghost"
         onClick={onEdit}
-        className="h-6 w-6 p-0 rounded-full bg-gray-100 dark:bg-vynal-purple-secondary/10 border border-gray-200 dark:border-vynal-purple-secondary/20 hover:bg-gray-200 dark:hover:bg-vynal-purple-secondary/30 hover:text-vynal-accent-primary text-vynal-purple-dark dark:text-vynal-body"
+        className="h-6 w-6 p-0 rounded-full bg-slate-100 dark:bg-vynal-purple-secondary/10 border border-slate-200 dark:border-vynal-purple-secondary/20 hover:bg-slate-200 dark:hover:bg-vynal-purple-secondary/30 hover:text-vynal-accent-primary text-slate-800 dark:text-vynal-body"
         title="Modifier"
       >
         <PenSquare className="h-3 w-3" />
@@ -314,7 +314,7 @@ const ActionButtons = memo(({
           variant="ghost"
           onClick={onDelete}
           disabled={isDeleting}
-          className="h-6 w-6 p-0 rounded-full bg-gray-100 dark:bg-vynal-purple-secondary/10 border border-gray-200 dark:border-vynal-purple-secondary/20 hover:bg-red-500/80 hover:text-white hover:border-red-500/30 text-vynal-purple-dark dark:text-vynal-body disabled:opacity-50 disabled:cursor-not-allowed"
+          className="h-6 w-6 p-0 rounded-full bg-slate-100 dark:bg-vynal-purple-secondary/10 border border-slate-200 dark:border-vynal-purple-secondary/20 hover:bg-red-500/80 hover:text-white hover:border-red-500/30 text-slate-800 dark:text-vynal-body disabled:opacity-50 disabled:cursor-not-allowed"
           title="Supprimer"
         >
           {isDeleting ? (
@@ -627,7 +627,7 @@ const ServiceCard = memo<ServiceCardProps>(
     return (
       <div 
         id={`service-card-${service.id}`}
-        className="group overflow-hidden transition-all duration-300 border border-gray-200 dark:border-vynal-purple-secondary/40 rounded-lg relative flex flex-col h-full bg-white dark:bg-vynal-purple-dark/90 backdrop-blur-sm shadow-sm hover:shadow-md dark:shadow-none dark:hover:shadow-none"
+        className="group overflow-hidden transition-all duration-300 border border-slate-200 dark:border-vynal-purple-secondary/40 rounded-lg relative flex flex-col h-full bg-white/95 dark:bg-vynal-purple-dark/90 backdrop-blur-sm shadow-sm hover:shadow-md dark:shadow-none dark:hover:shadow-none"
         onClick={handleCardClick}
         tabIndex={0}
         role="button"
@@ -665,12 +665,12 @@ const ServiceCard = memo<ServiceCardProps>(
           
           {/* Title and description */}
           <div className="mb-4 mt-2">
-            <h3 className="text-sm leading-tight text-vynal-purple-dark dark:text-white line-clamp-2 font-normal">
+            <h3 className="text-sm leading-tight text-slate-800 dark:text-white line-clamp-2 font-normal">
               {highlightedTitle}
             </h3>
             
             {service.short_description && (
-              <p className="mt-1 text-[10px] text-vynal-purple-dark/80 dark:text-vynal-text-secondary/80 line-clamp-2">
+              <p className="mt-1 text-[10px] text-slate-600 dark:text-vynal-text-secondary/80 line-clamp-2">
                 {service.short_description}
               </p>
             )}
@@ -680,8 +680,8 @@ const ServiceCard = memo<ServiceCardProps>(
         {/* Footer section */}
         <div className="mt-auto px-2 pb-2 flex items-center justify-between">
           <div className="flex flex-col">
-            <span className="text-[9px] text-vynal-purple-dark/80 dark:text-vynal-text-secondary/80">À partir de</span>
-            <span className="text-base font-medium text-vynal-accent-primary dark:text-vynal-accent-primary mt-0.5 price-value">
+            <span className="text-[9px] text-slate-600 dark:text-vynal-text-secondary/80">À partir de</span>
+            <span className="text-base font-medium text-slate-800 dark:text-vynal-accent-primary mt-0.5 price-value">
               {formattedPrice} {CURRENCY.symbol}
             </span>
           </div>

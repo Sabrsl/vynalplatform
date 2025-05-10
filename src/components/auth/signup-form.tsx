@@ -219,34 +219,36 @@ function SignupForm() {
   }, [passwordValue]);
 
   return (
-    <div className="w-full max-w-md p-8 space-y-8 bg-white/30 dark:bg-vynal-purple-dark/90 rounded-xl shadow-sm shadow-slate-200/50 dark:shadow-vynal-accent-secondary/20 border border-slate-200 dark:border-vynal-purple-secondary/30 transition-all duration-200">
+    <div className="w-full max-w-md p-4 sm:p-6 md:p-8 space-y-5 sm:space-y-6 bg-white/30 dark:bg-slate-900/30 rounded-xl shadow-sm shadow-slate-200/50 dark:shadow-vynal-accent-secondary/20 border border-slate-200 dark:border-slate-700/30 transition-all duration-200">
       <div className="text-center">
-        <h1 className="text-2xl font-bold text-slate-800 dark:text-vynal-text-primary">Inscription</h1>
-        <p className="mt-2 text-sm text-slate-600 dark:text-vynal-text-secondary">
-          Créez votre compte {watch("role") === "client" ? "client" : "freelance"} et commencez à utiliser notre plateforme.
+        <h1 className="text-xl sm:text-2xl font-bold text-slate-800 dark:text-vynal-text-primary">Inscription</h1>
+        <p className="mt-1 text-[10px] sm:text-xs text-slate-600 dark:text-vynal-text-secondary">
+          {watch("role") === "client" 
+            ? "Créez votre compte client pour accéder à nos services et trouver des freelances."
+            : "Créez votre compte freelance pour proposer vos services et trouver des projets."}
         </p>
       </div>
 
       {error && (
-        <div className="p-3 bg-vynal-status-error/20 border border-vynal-status-error/30 rounded-md flex items-start text-vynal-status-error text-sm" role="alert">
-          <AlertCircle className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" />
+        <div className="p-2 sm:p-3 bg-red-500/10 border border-red-500/20 rounded-md flex items-start text-red-500 text-xs sm:text-sm" role="alert">
+          <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4 mr-2 mt-0.5 flex-shrink-0" />
           <span>{error}</span>
         </div>
       )}
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        <div className="space-y-2">
-          <label htmlFor="role" className="text-sm font-medium text-slate-800 dark:text-vynal-text-primary">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 sm:space-y-5">
+        <div className="space-y-1 sm:space-y-2">
+          <label htmlFor="role" className="text-xs sm:text-sm font-medium text-slate-800 dark:text-vynal-text-primary">
             Je m'inscris en tant que
           </label>
           <div className="flex space-x-4">
             <button
               type="button"
               onClick={() => handleRoleChange("client")}
-              className={`flex-1 flex items-center justify-center p-3 border rounded-md transition-colors ${
+              className={`flex-1 flex items-center justify-center p-2.5 sm:p-3 border rounded-md transition-colors ${
                 watch("role") === "client" 
-                  ? "border-vynal-accent-primary bg-vynal-accent-primary/20 text-vynal-accent-primary" 
-                  : "border-slate-200/50 text-slate-700 dark:border-vynal-purple-secondary/50 dark:text-vynal-text-secondary hover:bg-slate-100/20 dark:hover:bg-vynal-purple-secondary/10"
+                  ? "border-vynal-accent-primary bg-vynal-accent-primary/40 text-vynal-purple-dark font-medium hover:bg-vynal-accent-primary/45 hover:border-vynal-accent-primary/60" 
+                  : "border-slate-200/80 text-slate-700 dark:border-slate-700/40 dark:text-vynal-text-secondary hover:bg-slate-100/20 dark:hover:bg-slate-800/25"
               }`}
               disabled={isLoading}
               aria-pressed={watch("role") === "client"}
@@ -256,10 +258,10 @@ function SignupForm() {
             <button
               type="button"
               onClick={() => handleRoleChange("freelance")}
-              className={`flex-1 flex items-center justify-center p-3 border rounded-md transition-colors ${
+              className={`flex-1 flex items-center justify-center p-2.5 sm:p-3 border rounded-md transition-colors ${
                 watch("role") === "freelance" 
-                  ? "border-vynal-accent-primary bg-vynal-accent-primary/20 text-vynal-accent-primary" 
-                  : "border-slate-200/50 text-slate-700 dark:border-vynal-purple-secondary/50 dark:text-vynal-text-secondary hover:bg-slate-100/20 dark:hover:bg-vynal-purple-secondary/10"
+                  ? "border-vynal-accent-primary bg-vynal-accent-primary/40 text-vynal-purple-dark font-medium hover:bg-vynal-accent-primary/45 hover:border-vynal-accent-primary/60" 
+                  : "border-slate-200/80 text-slate-700 dark:border-slate-700/40 dark:text-vynal-text-secondary hover:bg-slate-100/20 dark:hover:bg-slate-800/25"
               }`}
               disabled={isLoading}
               aria-pressed={watch("role") === "freelance"}
@@ -269,13 +271,13 @@ function SignupForm() {
           </div>
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="email" className="text-sm font-medium text-slate-800 dark:text-vynal-text-primary">
+        <div className="space-y-1 sm:space-y-2">
+          <Label htmlFor="email" className="text-xs sm:text-sm text-slate-800 dark:text-vynal-text-primary">
             Email
           </Label>
           <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Mail className="h-5 w-5 text-slate-400 dark:text-vynal-text-secondary" />
+            <div className="absolute inset-y-0 left-0 pl-2 sm:pl-3 flex items-center pointer-events-none">
+              <Mail className="h-4 w-4 text-slate-400 dark:text-vynal-text-secondary" />
             </div>
             <input
               id="email"
@@ -284,23 +286,23 @@ function SignupForm() {
               disabled={isLoading}
               aria-invalid={errors.email ? "true" : "false"}
               aria-describedby="email-error"
-              className="block w-full pl-10 pr-3 py-2 bg-white/40 dark:bg-vynal-purple-secondary/30 border border-slate-200/50 dark:border-vynal-purple-secondary/50 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-vynal-accent-primary focus:border-vynal-accent-primary text-slate-800 dark:text-vynal-text-primary placeholder:text-slate-400 dark:placeholder:text-vynal-text-secondary/70"
+              className="block w-full pl-8 sm:pl-10 pr-3 py-2.5 sm:py-2 text-xs sm:text-sm bg-white/40 dark:bg-slate-800/40 border border-slate-400 dark:border-slate-700/40 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-vynal-accent-primary focus:border-vynal-accent-primary text-slate-800 dark:text-vynal-text-primary placeholder:text-slate-400 dark:placeholder:text-vynal-text-secondary/70"
               placeholder="votre@email.com"
               {...register('email')}
             />
           </div>
           {errors.email && (
-            <p id="email-error" className="text-sm text-vynal-status-error">{errors.email.message}</p>
+            <p id="email-error" className="text-xs text-red-500 mt-1">{errors.email.message}</p>
           )}
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="password" className="text-sm font-medium text-slate-800 dark:text-vynal-text-primary">
+        <div className="space-y-1 sm:space-y-2">
+          <Label htmlFor="password" className="text-xs sm:text-sm text-slate-800 dark:text-vynal-text-primary">
             Mot de passe
           </Label>
           <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Lock className="h-5 w-5 text-slate-400 dark:text-vynal-text-secondary" />
+            <div className="absolute inset-y-0 left-0 pl-2 sm:pl-3 flex items-center pointer-events-none">
+              <Lock className="h-4 w-4 text-slate-400 dark:text-vynal-text-secondary" />
             </div>
             <input
               id="password"
@@ -309,11 +311,11 @@ function SignupForm() {
               disabled={isLoading}
               aria-invalid={errors.password ? "true" : "false"}
               aria-describedby="password-error password-requirements"
-              className="block w-full pl-10 pr-10 py-2 bg-white/40 dark:bg-vynal-purple-secondary/30 border border-slate-200/50 dark:border-vynal-purple-secondary/50 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-vynal-accent-primary focus:border-vynal-accent-primary text-slate-800 dark:text-vynal-text-primary placeholder:text-slate-400 dark:placeholder:text-vynal-text-secondary/70"
+              className="block w-full pl-8 sm:pl-10 pr-10 py-2.5 sm:py-2 text-xs sm:text-sm bg-white/40 dark:bg-slate-800/40 border border-slate-400 dark:border-slate-700/40 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-vynal-accent-primary focus:border-vynal-accent-primary text-slate-800 dark:text-vynal-text-primary placeholder:text-slate-400 dark:placeholder:text-vynal-text-secondary/70"
               placeholder="••••••••"
               {...register('password')}
             />
-            <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+            <div className="absolute inset-y-0 right-0 pr-2 sm:pr-3 flex items-center">
               <button
                 type="button"
                 onClick={togglePasswordVisibility}
@@ -321,19 +323,19 @@ function SignupForm() {
                 aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
                 disabled={isLoading}
               >
-                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
             </div>
           </div>
           
           {dirtyFields.password && (
             <div id="password-requirements" className="mt-3 space-y-2">
-              <div className="w-full bg-white/40 dark:bg-vynal-purple-secondary/30 rounded-full h-2">
+              <div className="w-full bg-white/20 dark:bg-slate-800/25 rounded-full h-2">
                 <div 
                   className={`h-2 rounded-full transition-all duration-300 ${
                     passwordStrength < 40 ? 'bg-red-500' : 
                     passwordStrength < 80 ? 'bg-yellow-500' : 
-                    'bg-green-500'
+                    'bg-emerald-500'
                   }`}
                   style={{ width: `${passwordStrength}%` }}
                   role="progressbar"
@@ -344,15 +346,15 @@ function SignupForm() {
                 />
               </div>
               
-              <ul className="space-y-1 text-xs">
+              <ul className="space-y-1 text-[10px] sm:text-xs">
                 {passwordChecks.map(check => (
                   <li key={check.id} className="flex items-center">
                     {check.valid ? (
-                      <CheckCircle className="h-3 w-3 text-green-500 mr-2" />
+                      <CheckCircle className="h-3 w-3 text-emerald-500 mr-2" />
                     ) : (
                       <XCircle className="h-3 w-3 text-red-500 mr-2" />
                     )}
-                    <span className={check.valid ? "text-green-500" : "text-slate-400 dark:text-vynal-text-secondary"}>
+                    <span className={check.valid ? "text-emerald-500" : "text-slate-400 dark:text-vynal-text-secondary"}>
                       {check.text}
                     </span>
                   </li>
@@ -362,17 +364,17 @@ function SignupForm() {
           )}
           
           {errors.password && (
-            <p id="password-error" className="text-sm text-vynal-status-error">{errors.password.message}</p>
+            <p id="password-error" className="text-xs text-red-500 mt-1">{errors.password.message}</p>
           )}
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="confirmPassword" className="text-sm font-medium text-slate-800 dark:text-vynal-text-primary">
+        <div className="space-y-1 sm:space-y-2">
+          <Label htmlFor="confirmPassword" className="text-xs sm:text-sm text-slate-800 dark:text-vynal-text-primary">
             Confirmer le mot de passe
           </Label>
           <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Lock className="h-5 w-5 text-slate-400 dark:text-vynal-text-secondary" />
+            <div className="absolute inset-y-0 left-0 pl-2 sm:pl-3 flex items-center pointer-events-none">
+              <Lock className="h-4 w-4 text-slate-400 dark:text-vynal-text-secondary" />
             </div>
             <input
               id="confirmPassword"
@@ -381,11 +383,11 @@ function SignupForm() {
               disabled={isLoading}
               aria-invalid={errors.confirmPassword ? "true" : "false"}
               aria-describedby="confirm-password-error"
-              className="block w-full pl-10 pr-10 py-2 bg-white/40 dark:bg-vynal-purple-secondary/30 border border-slate-200/50 dark:border-vynal-purple-secondary/50 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-vynal-accent-primary focus:border-vynal-accent-primary text-slate-800 dark:text-vynal-text-primary placeholder:text-slate-400 dark:placeholder:text-vynal-text-secondary/70"
+              className="block w-full pl-8 sm:pl-10 pr-10 py-2.5 sm:py-2 text-xs sm:text-sm bg-white/40 dark:bg-slate-800/40 border border-slate-400 dark:border-slate-700/40 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-vynal-accent-primary focus:border-vynal-accent-primary text-slate-800 dark:text-vynal-text-primary placeholder:text-slate-400 dark:placeholder:text-vynal-text-secondary/70"
               placeholder="••••••••"
               {...register('confirmPassword')}
             />
-            <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+            <div className="absolute inset-y-0 right-0 pr-2 sm:pr-3 flex items-center">
               <button
                 type="button"
                 onClick={toggleConfirmPasswordVisibility}
@@ -393,49 +395,20 @@ function SignupForm() {
                 aria-label={showConfirmPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
                 disabled={isLoading}
               >
-                {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
             </div>
           </div>
           {errors.confirmPassword && (
-            <p id="confirm-password-error" className="text-sm text-vynal-status-error">{errors.confirmPassword.message}</p>
+            <p id="confirm-password-error" className="text-xs text-red-500 mt-1">{errors.confirmPassword.message}</p>
           )}
         </div>
         
-        <div className="flex items-start space-x-2">
-          <div className="flex items-center h-5 mt-1">
-            <input
-              id="termsAccepted"
-              type="checkbox"
-              disabled={isLoading}
-              className="h-4 w-4 bg-white/40 dark:bg-vynal-purple-secondary/30 border border-slate-200/50 dark:border-vynal-purple-secondary/50 rounded focus:ring-vynal-accent-primary text-vynal-accent-primary"
-              {...register('termsAccepted')}
-              aria-invalid={errors.termsAccepted ? "true" : "false"}
-              aria-describedby="terms-error"
-            />
-          </div>
-          <div className="text-sm">
-            <label htmlFor="termsAccepted" className="text-slate-600 dark:text-vynal-text-secondary">
-              J'accepte les{" "}
-              <Link href="/terms-of-service" className="text-vynal-accent-primary hover:text-vynal-accent-secondary underline">
-                Conditions d'utilisation
-              </Link>{" "}
-              et la{" "}
-              <Link href="/privacy-policy" className="text-vynal-accent-primary hover:text-vynal-accent-secondary underline">
-                Politique de confidentialité
-              </Link>
-            </label>
-            {errors.termsAccepted && (
-              <p id="terms-error" className="mt-1 text-sm text-vynal-status-error">{errors.termsAccepted.message}</p>
-            )}
-          </div>
-        </div>
-
         <Button
           type="submit"
           disabled={isLoading || cooldownRemaining > 0 || !isValid}
           aria-busy={isLoading}
-          className="w-full flex justify-center bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-vynal-purple-dark font-medium transition-all"
+          className="w-full flex justify-center bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-vynal-purple-dark font-medium transition-all text-xs sm:text-sm py-3 sm:py-2"
         >
           {isLoading ? (
             <div className="flex items-center">
@@ -454,7 +427,18 @@ function SignupForm() {
         </Button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-slate-600 dark:text-vynal-text-secondary">
+      <p className="mt-4 text-center text-[10px] sm:text-[10px] text-slate-700 dark:text-vynal-text-secondary">
+        En vous inscrivant, vous acceptez nos{" "}
+        <Link href="/terms-of-service" className="text-vynal-accent-primary hover:text-vynal-accent-secondary underline">
+          Conditions d'utilisation
+        </Link>{" "}
+        et notre{" "}
+        <Link href="/privacy-policy" className="text-vynal-accent-primary hover:text-vynal-accent-secondary underline">
+          Politique de confidentialité
+        </Link>
+      </p>
+
+      <p className="mt-4 text-center text-xs sm:text-sm text-slate-900 dark:text-vynal-text-secondary">
         Vous avez déjà un compte ?{" "}
         <Link
           href="/auth/login"

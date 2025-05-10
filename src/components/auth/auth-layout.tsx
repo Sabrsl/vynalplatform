@@ -15,7 +15,7 @@ const AuthHeader = memo(({ title }: { title?: string }) => (
     <div className="text-center">
       <Link href="/">
         <h2 className="text-3xl font-extrabold bg-gradient-to-r from-vynal-accent-primary to-vynal-accent-secondary bg-clip-text text-transparent">
-          {title || "Vynal Platform"}
+          Vynal Platform
         </h2>
       </Link>
     </div>

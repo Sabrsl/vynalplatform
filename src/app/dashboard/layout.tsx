@@ -192,9 +192,9 @@ const Logo = memo(() => (
       <div className="bg-gradient-to-br from-purple-600 to-violet-700 h-5 w-5 rounded-lg flex items-center justify-center shadow-md shadow-purple-200/40 dark:from-vynal-accent-primary dark:to-vynal-accent-secondary dark:shadow-vynal-accent-primary/20">
         <span className="text-white font-bold text-[10px] dark:text-vynal-text-primary">VY</span>
       </div>
-      <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 overflow-hidden">
+      <div className="transition-opacity duration-200 overflow-hidden">
         <h1 className="text-[10px] sm:text-xs font-bold bg-gradient-to-r from-purple-600 to-violet-700 bg-clip-text text-transparent dark:from-vynal-accent-primary dark:to-vynal-accent-secondary">VY</h1>
-        <p className="text-[6px] sm:text-[7px] text-slate-500 dark:text-vynal-text-secondary">Espace Freelance</p>
+        <p className="text-[6px] sm:text-[7px] text-slate-500 dark:text-vynal-text-secondary font-medium">Espace Freelance</p>
       </div>
     </div>
   </div>

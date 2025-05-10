@@ -17,6 +17,7 @@ import { RefreshIndicator } from "@/components/ui/refresh-indicator";
 import { useCallback, useMemo, memo, useState, useEffect } from "react";
 import { DashboardPageSkeleton } from "@/components/skeletons/DashboardPageSkeleton";
 import { FREELANCE_ROUTES } from "@/config/routes";
+import { FreelanceGuard } from "@/lib/guards/roleGuards";
 
 // Type pour les statistiques d'un freelance
 interface FreelanceStats {
@@ -501,33 +502,35 @@ export default function DashboardPage() {
   }
   
   return (
-    <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6" data-content="loaded">
-      {/* En-tête du Dashboard */}
-      <div className="flex justify-between items-center">
-        <h1 className="text-base sm:text-lg md:text-xl font-bold text-vynal-purple-light dark:text-vynal-text-primary">
-          {welcomeMessage}
-        </h1>
-        <RefreshButton 
-          onClick={handleRefresh} 
-          isRefreshing={isRefreshing} 
-          lastRefreshText={lastRefreshText}
-        />
-      </div>
-      
-      {/* Section des statistiques */}
-      <DashboardStats stats={freelanceStats} loading={loadingStats} />
-      
-      {/* Section principale avec activités récentes et actions rapides */}
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-        {/* Activités récentes */}
-        <RecentActivities activities={recentActivities} loading={loadingActivities} />
+    <FreelanceGuard>
+      <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6" data-content="loaded">
+        {/* En-tête du Dashboard */}
+        <div className="flex justify-between items-center">
+          <h1 className="text-base sm:text-lg md:text-xl font-bold text-vynal-purple-light dark:text-vynal-text-primary">
+            {welcomeMessage}
+          </h1>
+          <RefreshButton 
+            onClick={handleRefresh} 
+            isRefreshing={isRefreshing} 
+            lastRefreshText={lastRefreshText}
+          />
+        </div>
         
-        {/* Actions rapides et Performance */}
-        <div className="md:col-span-5 space-y-4">
-          <QuickActions />
-          <PerformanceCard />
+        {/* Section des statistiques */}
+        <DashboardStats stats={freelanceStats} loading={loadingStats} />
+        
+        {/* Section principale avec activités récentes et actions rapides */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+          {/* Activités récentes */}
+          <RecentActivities activities={recentActivities} loading={loadingActivities} />
+          
+          {/* Actions rapides et Performance */}
+          <div className="md:col-span-5 space-y-4">
+            <QuickActions />
+            <PerformanceCard />
+          </div>
         </div>
       </div>
-    </div>
+    </FreelanceGuard>
   );
 }
