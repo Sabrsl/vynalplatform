@@ -118,7 +118,7 @@ La plateforme implémente plusieurs niveaux de sécurité :
 
 ## 📄 Licence
 
-**PROPRIÉTAIRE** - © 2024 Vynal Platform. Tous droits réservés.
+**PROPRIÉTAIRE** - © 2025 Vynal Platform. Tous droits réservés.
 
 Ce logiciel est la propriété exclusive de Vynal Platform. Toute utilisation, reproduction, modification ou distribution non autorisée est strictement interdite. Ce code est protégé par les lois sur la propriété intellectuelle et les traités internationaux.
 

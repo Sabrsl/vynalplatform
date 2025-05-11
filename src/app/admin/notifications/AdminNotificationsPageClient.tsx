@@ -9,8 +9,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
-import { Loader2 } from 'lucide-react';
+import { Loader2, RefreshCw } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
+import { getCachedData, setCachedData, CACHE_EXPIRY, CACHE_KEYS } from '@/lib/optimizations';
 
 // Liste des types de notification (côté client uniquement)
 const EMAIL_NOTIFICATION_TYPES = {
@@ -38,9 +39,21 @@ export function AdminNotificationsPageClient() {
   const [testContent, setTestContent] = useState('Ceci est un message de test');
   const [isSendingTest, setIsSendingTest] = useState(false);
   
+  // Clé de cache pour les notifications
+  const NOTIFICATIONS_COUNT_KEY = 'admin_notifications_count_';
+  
   // Vérifier les notifications en attente
-  const checkPendingNotifications = async () => {
+  const checkPendingNotifications = async (forceFetch = false) => {
     try {
+      // Vérifier s'il y a un cache récent (sauf si forceFetch est true)
+      if (!forceFetch) {
+        const cachedCount = getCachedData<number>(NOTIFICATIONS_COUNT_KEY);
+        if (cachedCount !== null && cachedCount !== undefined && typeof cachedCount === 'number') {
+          setPendingCount(cachedCount);
+          return;
+        }
+      }
+      
       // Utiliser la fonctionnalité de comptage de Supabase
       const { count, data, error } = await supabase
         .from('notifications')
@@ -52,12 +65,76 @@ export function AdminNotificationsPageClient() {
       }
       
       // Le count est directement retourné par Supabase
-      setPendingCount(count !== null ? count : 0);
+      const pendingCount = count !== null ? count : 0;
+      setPendingCount(pendingCount);
+      
+      // Mettre en cache le nombre de notifications en attente
+      setCachedData(
+        NOTIFICATIONS_COUNT_KEY,
+        pendingCount,
+        { expiry: CACHE_EXPIRY.QUICK, priority: 'high' } // Cache court car très dynamique
+      );
     } catch (err) {
       console.error('Erreur lors de la vérification des notifications:', err);
       setError('Erreur lors de la vérification des notifications en attente');
+      setPendingCount(0); // Initialiser à zéro en cas d'erreur
     }
   };
+  
+  // Fonction pour invalider le cache des notifications
+  const invalidateNotificationsCache = () => {
+    // Invalider le cache du compteur de notifications
+    setCachedData(
+      NOTIFICATIONS_COUNT_KEY,
+      null,
+      { expiry: 0 }
+    );
+    
+    // Émettre un événement pour informer les autres composants
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('vynal:notifications-updated'));
+      window.dispatchEvent(new CustomEvent('vynal:cache-invalidated', { 
+        detail: { key: NOTIFICATIONS_COUNT_KEY }
+      }));
+    }
+  };
+  
+  // Écouter les événements de mise à jour des notifications
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const handleNotificationsUpdated = () => {
+        console.log('Notifications mises à jour, rafraîchissement des données...');
+        checkPendingNotifications(true);
+      };
+      
+      // Ajouter l'écouteur d'événements
+      window.addEventListener('vynal:notifications-updated', handleNotificationsUpdated);
+      window.addEventListener('vynal:cache-invalidated', (event: Event) => {
+        const customEvent = event as CustomEvent;
+        if (customEvent.detail?.key === NOTIFICATIONS_COUNT_KEY) {
+          handleNotificationsUpdated();
+        }
+      });
+      
+      // Nettoyer l'écouteur lors du démontage
+      return () => {
+        window.removeEventListener('vynal:notifications-updated', handleNotificationsUpdated);
+        window.removeEventListener('vynal:cache-invalidated', handleNotificationsUpdated);
+      };
+    }
+  }, []);
+  
+  // Vérifier initialement les notifications en attente
+  useEffect(() => {
+    checkPendingNotifications();
+    
+    // Auto-vérification périodique
+    const interval = setInterval(() => {
+      checkPendingNotifications();
+    }, 60000); // Vérifier toutes les minutes
+    
+    return () => clearInterval(interval);
+  }, []);
   
   // Processus de traitement des notifications via API
   const processNotifications = async () => {
@@ -80,7 +157,13 @@ export function AdminNotificationsPageClient() {
       }
       
       setLastProcessed(new Date().toISOString());
-      await checkPendingNotifications();
+      
+      // Invalider le cache après le traitement
+      invalidateNotificationsCache();
+      
+      // Rafraîchir les données
+      await checkPendingNotifications(true);
+      
       return true;
     } catch (err) {
       console.error('Erreur:', err);
@@ -89,6 +172,16 @@ export function AdminNotificationsPageClient() {
     } finally {
       setIsProcessing(false);
     }
+  };
+  
+  // Fonction pour rafraîchir manuellement les données
+  const handleRefresh = () => {
+    checkPendingNotifications(true);
+    invalidateNotificationsCache();
+    toast({
+      title: "Actualisation réussie",
+      description: "Les données ont été actualisées"
+    });
   };
   
   // Envoi d'email de test via API
@@ -122,18 +215,6 @@ export function AdminNotificationsPageClient() {
       return false;
     }
   };
-  
-  // Vérifier initialement les notifications en attente
-  useEffect(() => {
-    checkPendingNotifications();
-    
-    // Auto-vérification périodique
-    const interval = setInterval(() => {
-      checkPendingNotifications();
-    }, 60000);
-    
-    return () => clearInterval(interval);
-  }, []);
   
   // Fonction pour traiter manuellement les notifications
   const handleProcessNotifications = async () => {
@@ -249,8 +330,14 @@ export function AdminNotificationsPageClient() {
                 </div>
               </CardContent>
               <CardFooter className="flex justify-between">
-                <Button onClick={checkPendingNotifications} variant="outline">
-                  Actualiser
+                <Button onClick={handleRefresh} disabled={isProcessing}>
+                  {isProcessing ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Traitement...
+                    </>
+                  ) : (
+                    "Rafraîchir les données"
+                  )}
                 </Button>
                 <Button onClick={handleProcessNotifications} disabled={isProcessing}>
                   {isProcessing ? (

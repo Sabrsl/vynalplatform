@@ -1,23 +1,37 @@
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Database } from '@/types/database';
 
+// Cache global pour le client Supabase
+let cachedClient: ReturnType<typeof createClientComponentClient<Database>> | null = null;
+
 // Ce client est utilisé côté client (browser)
 export function createClient() {
+  // Si nous sommes côté serveur, toujours créer un nouveau client
+  if (typeof window === 'undefined') {
+    return createClientComponentClient<Database>({});
+  }
+  
+  // Si nous avons déjà une instance, la réutiliser
+  if (cachedClient) {
+    return cachedClient;
+  }
+  
   try {
-    const client = createClientComponentClient({});
+    cachedClient = createClientComponentClient<Database>({});
     
-    if (!client) {
+    if (!cachedClient) {
       throw new Error('Erreur d\'initialisation du client Supabase');
     }
     
-    return client;
+    return cachedClient;
   } catch (error) {
     // Dernier recours: tenter de créer un nouveau client
-    return createClientComponentClient({});
+    cachedClient = createClientComponentClient<Database>({});
+    return cachedClient;
   }
 }
 
-// Helper pour faciliter l'utilisation
+// Helper pour faciliter l'utilisation - une seule instance sera créée
 export const supabase = createClient();
 
 // Gestionnaire amélioré pour les canaux de souscription

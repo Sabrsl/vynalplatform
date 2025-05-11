@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Card, 
   CardContent
@@ -18,11 +18,18 @@ import {
 import { 
   Search, 
   XCircle,
-  FileSearch 
+  FileSearch,
+  RefreshCw
 } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase/client';
+import { 
+  getCachedData, 
+  setCachedData, 
+  CACHE_EXPIRY, 
+  CACHE_KEYS
+} from '@/lib/optimizations';
 
 // Type pour les services
 interface Service {
@@ -36,6 +43,9 @@ interface Service {
   rejection_reason?: string;
   created_at: string;
 }
+
+// Clé de cache pour les services en validation
+const VALIDATION_SERVICES_KEY = 'admin_validation_services_';
 
 // Composant pour afficher une carte de service
 interface ServiceCardProps {
@@ -77,37 +87,133 @@ export default function ValidationsPage() {
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('pending');
+  const [currentService, setCurrentService] = useState<Service | null>(null);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
 
-  // Créer le client Supabase
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-  );
-
-  // Charger les services depuis Supabase
-  useEffect(() => {
-    async function fetchServices() {
-      try {
-        setLoading(true);
-        const { data, error } = await supabase
-          .from('services')
-          .select('*');
-
-        if (error) {
-          throw error;
+  // Charger les services depuis Supabase avec cache
+  const fetchServices = useCallback(async (forceFetch = false) => {
+    try {
+      setLoading(true);
+      
+      // Vérifier s'il y a un cache récent (sauf si forceFetch est true)
+      if (!forceFetch) {
+        const cachedData = getCachedData<Service[]>(VALIDATION_SERVICES_KEY);
+        if (cachedData) {
+          setServices(cachedData);
+          setLoading(false);
+          return;
         }
-
-        setServices(data || []);
-      } catch (error) {
-        console.error('Erreur lors du chargement des services:', error);
-        setError('Impossible de charger les services. Veuillez réessayer plus tard.');
-      } finally {
-        setLoading(false);
       }
+      
+      const { data, error } = await supabase
+        .from('services')
+        .select(`
+          *,
+          profiles (
+            full_name,
+            email
+          )
+        `)
+        .order('created_at', { ascending: false });
+        
+      if (error) {
+        throw error;
+      }
+      
+      // Mettre en cache les données pour une durée très longue (invalidation par événement)
+      setCachedData(
+        VALIDATION_SERVICES_KEY,
+        data,
+        { expiry: CACHE_EXPIRY.LONG, priority: 'high' }
+      );
+      
+      setServices(data || []);
+    } catch (err: any) {
+      console.error('Erreur lors du chargement des services:', err);
+      toast({
+        title: "Erreur",
+        description: "Impossible de charger les services à valider",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
     }
-
+  }, []);
+  
+  // Fonction pour forcer le rafraîchissement des données
+  const handleRefresh = () => {
+    fetchServices(true);
+    
+    // Invalider explicitement le cache
+    setCachedData(
+      VALIDATION_SERVICES_KEY,
+      null,
+      { expiry: 0 } // Expiration immédiate = invalidation
+    );
+    
+    // Invalider aussi le cache des services admin
+    setCachedData(
+      CACHE_KEYS.ADMIN_SERVICES_LIST,
+      null,
+      { expiry: 0 }
+    );
+    
+    toast({
+      title: "Actualisation",
+      description: "Les services ont été actualisés"
+    });
+  };
+  
+  // Invalider les caches liés aux services
+  const invalidateServiceCaches = () => {
+    // Invalider le cache des validations
+    setCachedData(
+      VALIDATION_SERVICES_KEY,
+      null,
+      { expiry: 0 }
+    );
+    
+    // Invalider aussi le cache des services admin
+    setCachedData(
+      CACHE_KEYS.ADMIN_SERVICES_LIST,
+      null,
+      { expiry: 0 }
+    );
+    
+    // Déclencher des événements pour informer les autres composants
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('vynal:service-updated'));
+      window.dispatchEvent(new CustomEvent('vynal:cache-invalidated', { 
+        detail: { key: VALIDATION_SERVICES_KEY }
+      }));
+    }
+  };
+  
+  // Écouter les événements de mise à jour des services
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const handleServiceUpdated = () => {
+        console.log('Service mis à jour, rafraîchissement des validations...');
+        fetchServices(true);
+      };
+      
+      // Ajouter l'écouteur d'événements
+      window.addEventListener('vynal:service-updated', handleServiceUpdated);
+      window.addEventListener('vynal:cache-invalidated', handleServiceUpdated);
+      
+      // Nettoyer l'écouteur lors du démontage
+      return () => {
+        window.removeEventListener('vynal:service-updated', handleServiceUpdated);
+        window.removeEventListener('vynal:cache-invalidated', handleServiceUpdated);
+      };
+    }
+  }, [fetchServices]);
+  
+  // Charger les services au montage du composant
+  useEffect(() => {
     fetchServices();
-  }, [supabase]);
+  }, [fetchServices]);
 
   // Filtrer les services en fonction de la recherche et de l'onglet actif
   const filteredServices = services.filter((service) => {
@@ -132,7 +238,11 @@ export default function ValidationsPage() {
     try {
       const { error } = await supabase
         .from('services')
-        .update({ status: 'approved' })
+        .update({ 
+          status: 'approved',
+          validated_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
         .eq('id', serviceId);
 
       if (error) {
@@ -140,21 +250,33 @@ export default function ValidationsPage() {
       }
 
       // Mettre à jour l'état local
-      setServices(services.map(service => 
+      const updatedServices = services.map(service => 
         service.id === serviceId 
-          ? { ...service, status: 'approved' } 
+          ? { ...service, status: 'approved' as const } 
           : service
-      ));
-
+      );
+      
+      setServices(updatedServices);
+      
+      // Mettre à jour le cache courant
+      setCachedData(
+        VALIDATION_SERVICES_KEY,
+        updatedServices,
+        { expiry: CACHE_EXPIRY.LONG, priority: 'high' }
+      );
+      
+      // Invalider les autres caches liés
+      invalidateServiceCaches();
+      
       toast({
-        title: "Succès",
-        description: "Le service a été approuvé avec succès."
+        title: "Service approuvé",
+        description: "Le service a été approuvé avec succès"
       });
-    } catch (error) {
-      console.error('Erreur lors de la validation:', error);
+    } catch (err) {
+      console.error('Erreur lors de la validation du service:', err);
       toast({
         title: "Erreur",
-        description: "Impossible de valider ce service.",
+        description: "Impossible de valider le service",
         variant: "destructive"
       });
     }
@@ -167,7 +289,8 @@ export default function ValidationsPage() {
         .from('services')
         .update({ 
           status: 'rejected',
-          rejection_reason: reason 
+          rejection_reason: reason,
+          updated_at: new Date().toISOString()
         })
         .eq('id', serviceId);
 
@@ -176,45 +299,53 @@ export default function ValidationsPage() {
       }
 
       // Mettre à jour l'état local
-      setServices(services.map(service => 
+      const updatedServices = services.map(service => 
         service.id === serviceId 
-          ? { ...service, status: 'rejected', rejection_reason: reason } 
+          ? { ...service, status: 'rejected' as const, rejection_reason: reason } 
           : service
-      ));
-
+      );
+      
+      setServices(updatedServices);
+      
+      // Mettre à jour le cache courant
+      setCachedData(
+        VALIDATION_SERVICES_KEY,
+        updatedServices,
+        { expiry: CACHE_EXPIRY.LONG, priority: 'high' }
+      );
+      
+      // Invalider les autres caches liés
+      invalidateServiceCaches();
+      
       toast({
-        title: "Succès",
-        description: "Le service a été rejeté avec succès."
+        title: "Service rejeté",
+        description: "Le service a été rejeté avec succès"
       });
-    } catch (error) {
-      console.error('Erreur lors du rejet:', error);
+    } catch (err) {
+      console.error('Erreur lors du rejet du service:', err);
       toast({
         title: "Erreur",
-        description: "Impossible de rejeter ce service.",
+        description: "Impossible de rejeter le service",
         variant: "destructive"
       });
     }
   };
 
   // État pour gérer la boîte de dialogue de rejet
-  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
-  const [selectedService, setSelectedService] = useState<Service | null>(null);
-  const [rejectionReason, setRejectionReason] = useState('');
-
   const openRejectDialog = (service: Service) => {
-    setSelectedService(service);
+    setCurrentService(service);
     setRejectionReason('');
     setRejectDialogOpen(true);
   };
 
   const closeRejectDialog = () => {
     setRejectDialogOpen(false);
-    setSelectedService(null);
+    setCurrentService(null);
   };
 
   const confirmReject = () => {
-    if (selectedService && rejectionReason.trim()) {
-      handleReject(selectedService.id, rejectionReason);
+    if (currentService && rejectionReason.trim()) {
+      handleReject(currentService.id, rejectionReason);
       closeRejectDialog();
     }
   };
@@ -243,25 +374,36 @@ export default function ValidationsPage() {
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
               />
             </div>
-            <div className="flex border-b">
-              <button
-                className={`px-4 py-2 ${activeTab === 'pending' ? 'border-b-2 border-blue-500 font-medium' : 'text-gray-500'}`}
-                onClick={() => setActiveTab('pending')}
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleRefresh}
+                className="flex items-center gap-1 mr-2"
               >
-                En attente
-              </button>
-              <button
-                className={`px-4 py-2 ${activeTab === 'approved' ? 'border-b-2 border-blue-500 font-medium' : 'text-gray-500'}`}
-                onClick={() => setActiveTab('approved')}
-              >
-                Approuvés
-              </button>
-              <button
-                className={`px-4 py-2 ${activeTab === 'rejected' ? 'border-b-2 border-blue-500 font-medium' : 'text-gray-500'}`}
-                onClick={() => setActiveTab('rejected')}
-              >
-                Rejetés
-              </button>
+                <RefreshCw size={14} />
+                <span>Actualiser</span>
+              </Button>
+              <div className="flex border-b">
+                <button
+                  className={`px-4 py-2 ${activeTab === 'pending' ? 'border-b-2 border-blue-500 font-medium' : 'text-gray-500'}`}
+                  onClick={() => setActiveTab('pending')}
+                >
+                  En attente
+                </button>
+                <button
+                  className={`px-4 py-2 ${activeTab === 'approved' ? 'border-b-2 border-blue-500 font-medium' : 'text-gray-500'}`}
+                  onClick={() => setActiveTab('approved')}
+                >
+                  Approuvés
+                </button>
+                <button
+                  className={`px-4 py-2 ${activeTab === 'rejected' ? 'border-b-2 border-blue-500 font-medium' : 'text-gray-500'}`}
+                  onClick={() => setActiveTab('rejected')}
+                >
+                  Rejetés
+                </button>
+              </div>
             </div>
           </div>
         </CardContent>
@@ -291,7 +433,7 @@ export default function ValidationsPage() {
         </div>
       )}
 
-      {rejectDialogOpen && selectedService && (
+      {rejectDialogOpen && currentService && (
         <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
           <DialogContent aria-labelledby="rejection-title" aria-describedby="rejection-description">
             <DialogHeader className="pb-2">

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Card, 
   CardContent, 
@@ -49,6 +49,12 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { 
+  getCachedData, 
+  setCachedData, 
+  CACHE_EXPIRY, 
+  CACHE_KEYS
+} from '@/lib/optimizations';
 
 // Interface pour les conversations
 interface Conversation {
@@ -119,68 +125,107 @@ export default function MessagingPage() {
   const [adminMessage, setAdminMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
 
-  // Charger les conversations depuis Supabase
-  useEffect(() => {
-    async function fetchConversations() {
-      try {
-        setLoading(true);
-        
-        // Requête pour récupérer toutes les conversations
-        const { data, error } = await supabase
-          .from('conversations')
-          .select('*')
-          .order('last_message_time', { ascending: false });
-
-        if (error) {
-          throw error;
+  // Charger les conversations depuis Supabase avec cache
+  const fetchConversations = useCallback(async (forceFetch = false) => {
+    try {
+      setLoading(true);
+      
+      // Vérifier s'il y a un cache récent (sauf si forceFetch est true)
+      if (!forceFetch) {
+        const cachedData = getCachedData<Conversation[]>('admin_contact_messages');
+        if (cachedData) {
+          setConversations(cachedData);
+          setLoading(false);
+          return;
         }
-
-        // Pour chaque conversation, vérifier s'il s'agit d'un message de contact
-        const conversationsWithDetails = await Promise.all(
-          data.map(async (conversation: any) => {
-            // Vérifier si cette conversation contient un message de contact
-            const { data: firstMessage } = await supabase
-              .from('messages')
-              .select('*')
-              .eq('conversation_id', conversation.id)
-              .order('created_at', { ascending: true })
-              .limit(1)
-              .single();
-
-            if (firstMessage && firstMessage.sender_id === 'contact') {
-              return {
-                ...conversation,
-                is_contact_form: true,
-                contact_name: firstMessage.sender_name,
-                contact_email: firstMessage.sender_email
-              };
-            }
-            
-            return conversation;
-          })
-        );
-
-        // Filtrer pour ne garder que les messages de contact
-        const contactConversations = conversationsWithDetails.filter(
-          (conversation) => conversation.is_contact_form === true
-        );
-
-        setConversations(contactConversations);
-      } catch (error) {
-        console.error('Erreur lors du chargement des messages de contact:', error);
-        setError('Impossible de charger les messages de contact. Veuillez réessayer plus tard.');
-      } finally {
-        setLoading(false);
       }
-    }
+      
+      // Requête pour récupérer toutes les conversations
+      const { data, error } = await supabase
+        .from('conversations')
+        .select('*')
+        .order('last_message_time', { ascending: false });
 
-    fetchConversations();
+      if (error) {
+        throw error;
+      }
+
+      // Pour chaque conversation, vérifier s'il s'agit d'un message de contact
+      const conversationsWithDetails = await Promise.all(
+        data.map(async (conversation: any) => {
+          // Vérifier si cette conversation contient un message de contact
+          const { data: firstMessage } = await supabase
+            .from('messages')
+            .select('*')
+            .eq('conversation_id', conversation.id)
+            .order('created_at', { ascending: true })
+            .limit(1)
+            .single();
+
+          if (firstMessage && firstMessage.sender_id === 'contact') {
+            return {
+              ...conversation,
+              is_contact_form: true,
+              contact_name: firstMessage.sender_name,
+              contact_email: firstMessage.sender_email
+            };
+          }
+          
+          return conversation;
+        })
+      );
+
+      // Filtrer pour ne garder que les messages de contact
+      const contactConversations = conversationsWithDetails.filter(
+        (conversation) => conversation.is_contact_form === true
+      );
+      
+      // Mettre en cache les données pour 30 minutes (messages semi-dynamiques)
+      setCachedData(
+        'admin_contact_messages', 
+        contactConversations, 
+        { expiry: CACHE_EXPIRY.MEDIUM, priority: 'medium' }
+      );
+
+      setConversations(contactConversations);
+    } catch (error) {
+      console.error('Erreur lors du chargement des messages de contact:', error);
+      setError('Impossible de charger les messages de contact. Veuillez réessayer plus tard.');
+    } finally {
+      setLoading(false);
+    }
   }, [supabase]);
 
-  // Charger les messages d'une conversation
-  const loadMessages = async (conversationId: string) => {
+  // Forcer le rafraîchissement des données
+  const handleRefresh = () => {
+    fetchConversations(true);
+    toast({
+      title: "Actualisation",
+      description: "Les messages ont été actualisés"
+    });
+  };
+  
+  // Chargement initial
+  useEffect(() => {
+    fetchConversations();
+  }, [fetchConversations]);
+
+  // Charger les messages d'une conversation avec cache
+  const loadMessages = async (conversationId: string, forceFetch = false) => {
     try {
       setLoadingMessages(true);
+      
+      // Vérifier s'il y a un cache récent (sauf si forceFetch est true)
+      if (!forceFetch) {
+        const cacheKey = `admin_conversation_messages_${conversationId}`;
+        const cachedMessages = getCachedData<Message[]>(cacheKey);
+        if (cachedMessages) {
+          setMessages(cachedMessages);
+          setLoadingMessages(false);
+          return;
+        }
+      }
+      
       const { data, error } = await supabase
         .from('messages')
         .select('*')
@@ -217,6 +262,14 @@ export default function MessagingPage() {
           };
         }
       });
+      
+      // Mettre en cache les messages pour 15 minutes (conversations actives)
+      const cacheKey = `admin_conversation_messages_${conversationId}`;
+      setCachedData(
+        cacheKey, 
+        transformedData, 
+        { expiry: CACHE_EXPIRY.SHORT, priority: 'low' }
+      );
 
       setMessages(transformedData);
     } catch (error) {
@@ -237,6 +290,17 @@ export default function MessagingPage() {
     setAdminMessage('');
     setShowConversationDialog(true);
     loadMessages(conversation.id);
+  };
+
+  // Forcer le rafraîchissement d'une conversation
+  const refreshCurrentConversation = () => {
+    if (currentConversation) {
+      loadMessages(currentConversation.id, true);
+      toast({
+        title: "Actualisation",
+        description: "La conversation a été actualisée"
+      });
+    }
   };
 
   // Envoyer un message administratif
@@ -266,9 +330,26 @@ export default function MessagingPage() {
         })
         .eq('id', currentConversation.id);
 
-      // Recharger les messages
-      loadMessages(currentConversation.id);
+      // Recharger les messages en ignorant le cache
+      loadMessages(currentConversation.id, true);
       setAdminMessage('');
+      
+      // Invalider spécifiquement le cache des messages pour cette conversation
+      setCachedData(
+        `admin_conversation_messages_${currentConversation.id}`,
+        null,
+        { expiry: 0 } // Expiration immédiate = invalidation
+      );
+      
+      // Émettre un événement pour indiquer qu'un message a été envoyé
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('vynal:message-sent', { 
+          detail: { conversationId: currentConversation.id }
+        }));
+      }
+      
+      // Récupérer les conversations mises à jour
+      fetchConversations(true);
       
       toast({
         title: 'Message envoyé',
@@ -302,8 +383,26 @@ export default function MessagingPage() {
       setConversations(conversations.map(conv => 
         conv.id === conversationId ? { ...conv, status: 'closed' } : conv
       ));
-
+      
+      // Invalider spécifiquement le cache pour cette conversation
+      setCachedData(
+        `admin_conversation_messages_${conversationId}`,
+        null,
+        { expiry: 0 } // Expiration immédiate = invalidation
+      );
+      
+      // Émettre un événement pour la fermeture de conversation
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('vynal:conversation-closed', { 
+          detail: { conversationId }
+        }));
+      }
+      
+      // Fermer la boîte de dialogue
       setShowConversationDialog(false);
+      
+      // Récupérer les conversations mises à jour
+      fetchConversations(true);
       
       toast({
         title: 'Conversation fermée',
@@ -361,10 +460,11 @@ export default function MessagingPage() {
             variant="outline" 
             size="sm" 
             className="h-8 text-xs"
-            onClick={() => window.location.reload()}
+            onClick={handleRefresh}
+            disabled={loading}
           >
-            <RefreshCw className="h-3 w-3 mr-1" />
-            Actualiser
+            <RefreshCw className={`h-3 w-3 mr-1 ${loading ? 'animate-spin' : ''}`} />
+            {loading ? 'Chargement...' : 'Actualiser'}
           </Button>
         </div>
       </div>
@@ -475,9 +575,21 @@ export default function MessagingPage() {
               <span>
                 Date: {currentConversation && formatDate(currentConversation.last_message_time)}
               </span>
-              <span>
-                Statut: {currentConversation && getStatusBadge(currentConversation.status)}
-              </span>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-6 px-2 text-[9px]"
+                  onClick={refreshCurrentConversation}
+                  disabled={loadingMessages}
+                >
+                  <RefreshCw className={`h-2.5 w-2.5 mr-1 ${loadingMessages ? 'animate-spin' : ''}`} />
+                  Actualiser
+                </Button>
+                <span>
+                  Statut: {currentConversation && getStatusBadge(currentConversation.status)}
+                </span>
+              </div>
             </DialogDescription>
           </DialogHeader>
           

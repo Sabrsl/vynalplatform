@@ -608,6 +608,32 @@ export interface Database {
           resolved_by?: string | null
         }
       }
+      order_cancellations: {
+        Row: {
+          id: string
+          order_id: string
+          reason: string
+          cancelled_by: string
+          cancelled_at: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          order_id: string
+          reason: string
+          cancelled_by: string
+          cancelled_at?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          order_id?: string
+          reason?: string
+          cancelled_by?: string
+          cancelled_at?: string
+          created_at?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never

@@ -206,16 +206,20 @@ export default function OrderDetailPage() {
     setError(null);
     
     try {
-      const { error } = await supabase
-        .from('orders')
-        .update({ 
-          status: 'completed',
-          completed_at: new Date().toISOString()
-        })
-        .eq('id', order.id)
-        .eq('client_id', user.id);
+      // Appeler l'API pour compléter la commande et transférer les fonds
+      const response = await fetch('/api/orders/complete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ orderId: order.id }),
+      });
       
-      if (error) throw error;
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Erreur lors de l\'acceptation de la livraison');
+      }
       
       setSuccess("Livraison acceptée avec succès!");
       setOrder(prev => prev ? { ...prev, status: 'completed', completed_at: new Date().toISOString() } : null);
@@ -337,33 +341,29 @@ export default function OrderDetailPage() {
         throw new Error("Vous ne pouvez annuler une commande que si elle est en attente de validation ou si le délai de livraison a été dépassé sans livraison.");
       }
       
-      const { error } = await supabase
-        .from('orders')
-        .update({ 
-          status: 'cancelled',
-          cancel_reason: cancelReason.trim()
+      // Appeler l'API d'annulation
+      const response = await fetch('/api/orders/cancel', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          orderId: order.id,
+          reason: cancelReason.trim()
         })
-        .eq('id', order.id)
-        .eq('client_id', user.id);
+      });
       
-      if (error) throw error;
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Échec de l\'annulation');
+      }
       
       setSuccess("Commande annulée avec succès!");
       setOrder(prev => prev ? { ...prev, status: 'cancelled' } : null);
       setCancelDialogOpen(false);
       setCancelConfirmDialogOpen(false);
       setCancelReason("");
-      
-      // Notification au freelance
-      await supabase.from('notifications').insert({
-        user_id: order.freelance_id,
-        type: 'order_cancelled',
-        content: `Le client a annulé la commande "${order.service.title}"`,
-        data: { 
-          order_id: order.id,
-          reason: cancelReason.trim()
-        }
-      });
       
     } catch (error) {
       console.error("Erreur lors de l'annulation de la commande:", error);

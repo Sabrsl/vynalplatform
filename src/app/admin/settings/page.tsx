@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Card, 
   CardContent, 
@@ -46,8 +46,31 @@ import {
   Lock,
   AlertCircle
 } from 'lucide-react';
+import { getCachedData, setCachedData, CACHE_EXPIRY, CACHE_KEYS } from '@/lib/optimizations';
+import { supabase } from '@/lib/supabase/client';
+import { useToast } from '@/components/ui/use-toast';
+
+// Interface pour les paramètres
+interface SystemSettings {
+  siteName: string;
+  siteDescription: string;
+  contactEmail: string;
+  supportEmail: string;
+  commissionFreelance: number;
+  minOrderValue: number;
+  maxOrderValue: number;
+  welcomeEmailEnabled: boolean;
+  orderConfirmationEnabled: boolean;
+  serviceApprovalEnabled: boolean;
+  maintenanceMode: boolean;
+  maintenanceMessage: string;
+  twoFactorAuth: boolean;
+  passwordExpiryDays: number;
+  maxLoginAttempts: number;
+}
 
 export default function SettingsPage() {
+  const { toast } = useToast();
   // Paramètres généraux
   const [siteName, setSiteName] = useState('Vynal Platform');
   const [siteDescription, setSiteDescription] = useState('Plateforme de services freelance');
@@ -72,23 +95,154 @@ export default function SettingsPage() {
   const [twoFactorAuth, setTwoFactorAuth] = useState(false);
   const [passwordExpiryDays, setPasswordExpiryDays] = useState(90);
   const [maxLoginAttempts, setMaxLoginAttempts] = useState(5);
+  
+  const [loading, setLoading] = useState(true);
+
+  // Charger les paramètres depuis la base de données (simulé avec cache)
+  const fetchSettings = useCallback(async (forceFetch = false) => {
+    try {
+      setLoading(true);
+      
+      // Vérifier s'il y a un cache récent (sauf si forceFetch est true)
+      if (!forceFetch) {
+        const cachedSettings = getCachedData<SystemSettings>(CACHE_KEYS.ADMIN_SYSTEM_CONFIG);
+        if (cachedSettings) {
+          setSiteName(cachedSettings.siteName);
+          setSiteDescription(cachedSettings.siteDescription);
+          setContactEmail(cachedSettings.contactEmail);
+          setSupportEmail(cachedSettings.supportEmail);
+          setCommissionFreelance(cachedSettings.commissionFreelance);
+          setMinOrderValue(cachedSettings.minOrderValue);
+          setMaxOrderValue(cachedSettings.maxOrderValue);
+          setWelcomeEmailEnabled(cachedSettings.welcomeEmailEnabled);
+          setOrderConfirmationEnabled(cachedSettings.orderConfirmationEnabled);
+          setServiceApprovalEnabled(cachedSettings.serviceApprovalEnabled);
+          setMaintenanceMode(cachedSettings.maintenanceMode);
+          setMaintenanceMessage(cachedSettings.maintenanceMessage);
+          setTwoFactorAuth(cachedSettings.twoFactorAuth);
+          setPasswordExpiryDays(cachedSettings.passwordExpiryDays);
+          setMaxLoginAttempts(cachedSettings.maxLoginAttempts);
+          setLoading(false);
+          return;
+        }
+      }
+      
+      // Ici, on simulerait un appel à Supabase pour récupérer les paramètres réels
+      // Pour l'exemple, on utilise les valeurs par défaut
+      
+      // En production, on ferait quelque chose comme:
+      // const { data, error } = await supabase.from('system_settings').select('*').single();
+      
+      // Simuler un délai pour l'exemple
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Mettre en cache les paramètres pour 24 heures (données très statiques)
+      const settings: SystemSettings = {
+        siteName,
+        siteDescription,
+        contactEmail,
+        supportEmail,
+        commissionFreelance,
+        minOrderValue,
+        maxOrderValue,
+        welcomeEmailEnabled,
+        orderConfirmationEnabled,
+        serviceApprovalEnabled,
+        maintenanceMode,
+        maintenanceMessage,
+        twoFactorAuth,
+        passwordExpiryDays,
+        maxLoginAttempts
+      };
+      
+      setCachedData(
+        CACHE_KEYS.ADMIN_SYSTEM_CONFIG, 
+        settings, 
+        { expiry: CACHE_EXPIRY.DAY, priority: 'high' }
+      );
+    } catch (error) {
+      console.error('Erreur lors du chargement des paramètres:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de charger les paramètres du système",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [siteName, siteDescription, contactEmail, supportEmail, commissionFreelance, minOrderValue, maxOrderValue, welcomeEmailEnabled, orderConfirmationEnabled, serviceApprovalEnabled, maintenanceMode, maintenanceMessage, twoFactorAuth, passwordExpiryDays, maxLoginAttempts, toast]);
+  
+  // Fonction pour rafraîchir les données
+  const handleRefresh = () => {
+    fetchSettings(true);
+    toast({
+      title: "Actualisation",
+      description: "Les paramètres ont été actualisés"
+    });
+  };
+  
+  // Charger les paramètres au démarrage
+  useEffect(() => {
+    fetchSettings();
+  }, [fetchSettings]);
 
   // Fonction de sauvegarde (simulée)
   const saveSettings = (category: string) => {
-    console.log(`Saving ${category} settings...`);
+    setLoading(true);
     // Simuler un délai de sauvegarde
     setTimeout(() => {
-      console.log(`${category} settings saved!`);
+      // Mise à jour du cache après sauvegarde
+      const settings: SystemSettings = {
+        siteName,
+        siteDescription,
+        contactEmail,
+        supportEmail,
+        commissionFreelance,
+        minOrderValue,
+        maxOrderValue,
+        welcomeEmailEnabled,
+        orderConfirmationEnabled,
+        serviceApprovalEnabled,
+        maintenanceMode,
+        maintenanceMessage,
+        twoFactorAuth,
+        passwordExpiryDays,
+        maxLoginAttempts
+      };
+      
+      setCachedData(
+        CACHE_KEYS.ADMIN_SYSTEM_CONFIG, 
+        settings, 
+        { expiry: CACHE_EXPIRY.DAY, priority: 'high' }
+      );
+      
+      setLoading(false);
+      toast({
+        title: "Succès",
+        description: `Paramètres ${category} enregistrés avec succès`
+      });
     }, 1000);
   };
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-sm font-bold mb-2 text-gray-800 dark:text-vynal-text-primary">Paramètres administrateur</h1>
-        <p className="text-xs text-gray-500 dark:text-vynal-text-secondary">
-          Configurez les paramètres globaux de la plateforme.
-        </p>
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-sm font-bold mb-2 text-gray-800 dark:text-vynal-text-primary">Paramètres administrateur</h1>
+          <p className="text-xs text-gray-500 dark:text-vynal-text-secondary">
+            Configurez les paramètres globaux de la plateforme.
+          </p>
+        </div>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={handleRefresh}
+          disabled={loading}
+          className="flex items-center gap-1 text-xs"
+        >
+          <RefreshCw className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`} />
+          {loading ? 'Chargement...' : 'Actualiser'}
+        </Button>
       </div>
 
       <Tabs defaultValue="general" className="space-y-3">

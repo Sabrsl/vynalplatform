@@ -54,6 +54,7 @@ import { Alert, fetchAlerts, fetchFilteredAlerts, updateAlertStatus, runSystemCh
 import { getAlerts } from './actions';
 import AlertDetailModal from './AlertDetailModal';
 import { toast, Toaster } from 'sonner';
+import { getCachedData, setCachedData, CACHE_EXPIRY, CACHE_KEYS } from '@/lib/optimizations';
 
 // Fonction pour formater la date
 const formatDate = (dateString: string) => {
@@ -121,11 +122,44 @@ export default function AlertsPage() {
   const itemsPerPage = 20;
 
   // Fonction pour recharger les alertes
-  const reloadAlerts = useCallback(async () => {
+  const reloadAlerts = useCallback(async (forceFetch = false) => {
     setLoading(true);
     setError(null);
 
     try {
+      // Vérifier s'il y a un cache récent (sauf si forceFetch est true)
+      if (!forceFetch) {
+        const cachedAlerts = getCachedData<Alert[]>(CACHE_KEYS.ADMIN_ALERTS);
+        // Vérifier que cachedAlerts est un tableau valide
+        if (Array.isArray(cachedAlerts) && cachedAlerts.length > 0 && 
+            cachedAlerts.every(item => 
+              typeof item === 'object' && 
+              item !== null && 
+              'id' in item && 
+              'title' in item && 
+              'description' in item && 
+              'status' in item
+            )) {
+          setAlerts(cachedAlerts);
+          
+          // Récupérer aussi les méta-informations de pagination si elles existent
+          const paginationInfo = getCachedData<{ totalPages: number, total: number }>(`${CACHE_KEYS.ADMIN_ALERTS}_pagination`);
+          // Utiliser une valeur par défaut si les infos de pagination ne sont pas valides
+          if (paginationInfo && typeof paginationInfo === 'object' && 
+              'totalPages' in paginationInfo && 'total' in paginationInfo) {
+            setTotalPages(paginationInfo.totalPages);
+            setTotalAlerts(paginationInfo.total);
+          } else {
+            // Valeurs par défaut si les données de pagination ne sont pas disponibles
+            setTotalPages(1);
+            setTotalAlerts(cachedAlerts.length);
+          }
+          
+          setLoading(false);
+          return;
+        }
+      }
+
       let result;
 
       if (filterType || filterStatus) {
@@ -142,9 +176,26 @@ export default function AlertsPage() {
       if (result.success && result.data) {
         setAlerts(result.data);
         
+        // Mettre en cache les alertes avec une durée longue et invalidation par événement
+        setCachedData(
+          CACHE_KEYS.ADMIN_ALERTS,
+          result.data,
+          { expiry: CACHE_EXPIRY.LONG, priority: 'high' }
+        );
+        
         if (result.pagination) {
           setTotalPages(result.pagination.totalPages);
           setTotalAlerts(result.pagination.total);
+          
+          // Mettre en cache les informations de pagination
+          setCachedData(
+            `${CACHE_KEYS.ADMIN_ALERTS}_pagination`,
+            {
+              totalPages: result.pagination.totalPages,
+              total: result.pagination.total
+            },
+            { expiry: CACHE_EXPIRY.LONG, priority: 'medium' }
+          );
         }
       } else {
         setError(result.error || 'Une erreur est survenue lors du chargement des alertes');
@@ -157,6 +208,78 @@ export default function AlertsPage() {
       }
   }, [currentPage, filterType, filterStatus, itemsPerPage]);
 
+  // Fonction pour forcer le rafraîchissement des alertes
+  const handleForceRefresh = () => {
+    // Forcer le rafraîchissement des données
+    reloadAlerts(true);
+    
+    // Invalider explicitement le cache
+    setCachedData(
+      CACHE_KEYS.ADMIN_ALERTS,
+      null,
+      { expiry: 0 } // Expiration immédiate = invalidation
+    );
+    
+    // Invalider aussi le cache de pagination
+    setCachedData(
+      `${CACHE_KEYS.ADMIN_ALERTS}_pagination`,
+      null,
+      { expiry: 0 }
+    );
+    
+    toast.success('Données actualisées');
+  };
+  
+  // Fonction pour invalider le cache des alertes
+  const invalidateAlertsCache = () => {
+    // Invalider le cache des alertes
+    setCachedData(
+      CACHE_KEYS.ADMIN_ALERTS,
+      null,
+      { expiry: 0 }
+    );
+    
+    // Invalider aussi le cache de pagination
+    setCachedData(
+      `${CACHE_KEYS.ADMIN_ALERTS}_pagination`,
+      null,
+      { expiry: 0 }
+    );
+    
+    // Émettre un événement pour informer les autres composants
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('vynal:alerts-updated'));
+      window.dispatchEvent(new CustomEvent('vynal:cache-invalidated', { 
+        detail: { key: CACHE_KEYS.ADMIN_ALERTS }
+      }));
+    }
+  };
+
+  // Écouter les événements de mise à jour des alertes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const handleAlertsUpdated = () => {
+        console.log('Alertes mises à jour, rafraîchissement des données...');
+        reloadAlerts(true);
+      };
+      
+      // Ajouter l'écouteur d'événements
+      window.addEventListener('vynal:alerts-updated', handleAlertsUpdated);
+      window.addEventListener('vynal:cache-invalidated', (event: Event) => {
+        const customEvent = event as CustomEvent;
+        if (customEvent.detail?.key === CACHE_KEYS.ADMIN_ALERTS) {
+          handleAlertsUpdated();
+        }
+      });
+      
+      // Nettoyer l'écouteur lors du démontage
+      return () => {
+        window.removeEventListener('vynal:alerts-updated', handleAlertsUpdated);
+        window.removeEventListener('vynal:cache-invalidated', (event) => {});
+      };
+    }
+  }, [reloadAlerts]);
+
   // Charger les alertes depuis l'API
   useEffect(() => {
     reloadAlerts();
@@ -168,14 +291,22 @@ export default function AlertsPage() {
       const result = await updateAlertStatus(id, 'resolved');
       
       if (result.success && result.data) {
-      // Mettre à jour l'état local
-      setAlerts(prevAlerts =>
-        prevAlerts.map(alert =>
+        // Mettre à jour l'état local
+        setAlerts(prevAlerts =>
+          prevAlerts.map(alert =>
             alert.id === id ? result.data as Alert : alert
-        )
-      );
+          )
+        );
         setError('');
         toast.success('Alerte marquée comme résolue');
+        
+        // Invalider le cache des alertes après modification
+        setCachedData(
+          CACHE_KEYS.ADMIN_ALERTS,
+          null,
+          { expiry: 0 }
+        );
+        
         return true;
       } else {
         console.error('Erreur lors de la mise à jour du statut:', result.error);
@@ -197,14 +328,22 @@ export default function AlertsPage() {
       const result = await updateAlertStatus(id, 'investigating');
       
       if (result.success && result.data) {
-      // Mettre à jour l'état local
-      setAlerts(prevAlerts =>
-        prevAlerts.map(alert =>
+        // Mettre à jour l'état local
+        setAlerts(prevAlerts =>
+          prevAlerts.map(alert =>
             alert.id === id ? result.data as Alert : alert
-        )
-      );
+          )
+        );
         setError('');
         toast.success('Alerte marquée comme en cours d\'investigation');
+        
+        // Invalider le cache des alertes après modification
+        setCachedData(
+          CACHE_KEYS.ADMIN_ALERTS,
+          null,
+          { expiry: 0 }
+        );
+        
         return true;
       } else {
         console.error('Erreur lors de la mise à jour du statut:', result.error);
@@ -247,19 +386,24 @@ export default function AlertsPage() {
   const handleRunSystemChecks = async () => {
     try {
       setLoading(true);
+      setError(null);
+      
       const result = await runSystemChecks();
       
       if (result.success) {
-      // Recharger les alertes
-        await reloadAlerts();
-        toast.success('Vérifications système exécutées');
+        toast.success('Vérifications système exécutées avec succès');
+        
+        // Rafraîchir les alertes après les vérifications système
+        invalidateAlertsCache();
+        await reloadAlerts(true);
       } else {
-        setError('Impossible d\'exécuter les vérifications système: ' + (result.error || 'Erreur inconnue'));
+        console.error('Erreur lors de l\'exécution des vérifications système:', result.error);
+        setError(`Erreur lors de l'exécution des vérifications système: ${result.error}`);
         toast.error('Erreur lors de l\'exécution des vérifications système');
       }
-    } catch (error) {
-      console.error('Erreur lors de l\'exécution des vérifications:', error);
-      setError('Impossible d\'exécuter les vérifications système.');
+    } catch (err) {
+      console.error('Erreur lors de l\'exécution des vérifications système:', err);
+      setError('Erreur lors de l\'exécution des vérifications système');
       toast.error('Erreur lors de l\'exécution des vérifications système');
     } finally {
       setLoading(false);
@@ -267,7 +411,7 @@ export default function AlertsPage() {
   };
 
   // Filtrer les alertes selon les critères
-  const filteredAlerts = alerts.filter(alert => {
+  const filteredAlerts = Array.isArray(alerts) ? alerts.filter(alert => {
     const matchesSearch = 
       searchTerm === '' || 
       alert.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -280,7 +424,7 @@ export default function AlertsPage() {
       (activeTab === 'resolved' && alert.status === 'resolved');
 
     return matchesSearch && matchesStatus;
-  });
+  }) : [];
 
   // Fonction pour fermer le modal
   const closeAlertDetails = () => {
@@ -341,15 +485,15 @@ export default function AlertsPage() {
             <div className="grid grid-cols-3 gap-3 text-center">
               <div>
                 <p className="text-xs text-gray-500">Actives</p>
-                <p className="text-sm font-bold text-red-500">{alerts.filter(a => a.status === 'active').length}</p>
+                <p className="text-sm font-bold text-red-500">{Array.isArray(alerts) ? alerts.filter(a => a.status === 'active').length : 0}</p>
               </div>
               <div>
                 <p className="text-xs text-gray-500">En investigation</p>
-                <p className="text-sm font-bold text-blue-500">{alerts.filter(a => a.status === 'investigating').length}</p>
+                <p className="text-sm font-bold text-blue-500">{Array.isArray(alerts) ? alerts.filter(a => a.status === 'investigating').length : 0}</p>
               </div>
               <div>
                 <p className="text-xs text-gray-500">Résolues</p>
-                <p className="text-sm font-bold text-green-500">{alerts.filter(a => a.status === 'resolved').length}</p>
+                <p className="text-sm font-bold text-green-500">{Array.isArray(alerts) ? alerts.filter(a => a.status === 'resolved').length : 0}</p>
               </div>
             </div>
           </div>
@@ -380,13 +524,13 @@ export default function AlertsPage() {
         </div>
         <div className="flex gap-2 items-center">
           <span className="hidden sm:inline-block text-xs text-gray-500 dark:text-vynal-text-secondary">
-            {filteredAlerts.filter(a => a.status === 'active').length} alerte(s) active(s)
+            {Array.isArray(filteredAlerts) ? filteredAlerts.filter(a => a.status === 'active').length : 0} alerte(s) active(s)
           </span>
           <Button 
             variant="outline" 
             size="sm" 
             className="h-8 text-xs"
-            onClick={reloadAlerts}
+            onClick={handleForceRefresh}
           >
             <RefreshCw className="h-3 w-3 mr-1" />
             Actualiser
@@ -418,19 +562,19 @@ export default function AlertsPage() {
         <TabsList className="w-full">
           <TabsTrigger value="all" className="flex gap-1 text-xs flex-1">
             <Bell className="h-3 w-3" />
-            <span>Toutes ({alerts.length})</span>
+            <span>Toutes ({Array.isArray(alerts) ? alerts.length : 0})</span>
           </TabsTrigger>
           <TabsTrigger value="active" className="flex gap-1 text-xs flex-1">
             <AlertCircle className="h-3 w-3" />
-            <span>Actives ({alerts.filter(a => a.status === 'active').length})</span>
+            <span>Actives ({Array.isArray(alerts) ? alerts.filter(a => a.status === 'active').length : 0})</span>
           </TabsTrigger>
           <TabsTrigger value="investigating" className="flex gap-1 text-xs flex-1">
             <Clock className="h-3 w-3" />
-            <span>En investigation ({alerts.filter(a => a.status === 'investigating').length})</span>
+            <span>En investigation ({Array.isArray(alerts) ? alerts.filter(a => a.status === 'investigating').length : 0})</span>
           </TabsTrigger>
           <TabsTrigger value="resolved" className="flex gap-1 text-xs flex-1">
             <CheckCircle2 className="h-3 w-3" />
-            <span>Résolues ({alerts.filter(a => a.status === 'resolved').length})</span>
+            <span>Résolues ({Array.isArray(alerts) ? alerts.filter(a => a.status === 'resolved').length : 0})</span>
           </TabsTrigger>
         </TabsList>
 
@@ -438,7 +582,7 @@ export default function AlertsPage() {
           <CardHeader className="pb-3">
             <CardTitle className="text-sm">Liste des alertes</CardTitle>
             <CardDescription className="text-xs">
-              {filteredAlerts.length} alerte(s) {activeTab !== 'all' ? activeTab : ''}
+              {Array.isArray(filteredAlerts) ? filteredAlerts.length : 0} alerte(s) {activeTab !== 'all' ? activeTab : ''}
             </CardDescription>
           </CardHeader>
           <CardContent>

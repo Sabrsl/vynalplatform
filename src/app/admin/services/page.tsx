@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Card, 
   CardContent, 
@@ -42,7 +42,8 @@ import {
   Send,
   Loader2,
   X,
-  EyeOff
+  EyeOff,
+  RefreshCw
 } from 'lucide-react';
 import {
   Dialog,
@@ -55,6 +56,7 @@ import {
 import { useToast } from '@/components/ui/use-toast';
 import { createClient } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase/client';
+import { getCachedData, setCachedData, CACHE_EXPIRY, CACHE_KEYS } from '@/lib/optimizations';
 
 // Interface pour les services
 interface Service {
@@ -156,10 +158,21 @@ export default function ServicesPage() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Charger les services depuis Supabase
-  const fetchServices = async () => {
+  // Charger les services depuis Supabase avec cache
+  const fetchServices = useCallback(async (forceFetch = false) => {
     try {
       setLoading(true);
+      
+      // Vérifier s'il y a un cache récent (sauf si forceFetch est true)
+      if (!forceFetch) {
+        const cachedServices = getCachedData<Service[]>(CACHE_KEYS.ADMIN_SERVICES_LIST);
+        if (cachedServices && Array.isArray(cachedServices) && cachedServices.length > 0) {
+          setServices(cachedServices);
+          setLoading(false);
+          return;
+        }
+      }
+      
       const { data, error } = await supabase
         .from('services')
         .select('*, profiles(full_name)')
@@ -170,22 +183,88 @@ export default function ServicesPage() {
       }
 
       // Transformer les données pour inclure le nom du freelance
-      const transformedData = data.map((service: any) => ({
+      const transformedData = Array.isArray(data) ? data.map((service: any) => ({
         ...service,
         freelancer_name: service.profiles?.full_name || 'Inconnu'
-      }));
+      })) : [];
 
-      // Afficher les données pour le débogage
-      console.log("Services chargés:", transformedData);
-
+      // Mise en cache des services pour longtemps (7 jours) avec invalidation si modification
+      setCachedData(
+        CACHE_KEYS.ADMIN_SERVICES_LIST,
+        transformedData,
+        { expiry: CACHE_EXPIRY.LONG, priority: 'high' }
+      );
+      
       setServices(transformedData);
     } catch (error) {
       console.error('Erreur lors du chargement des services:', error);
-      setError('Impossible de charger les services. Veuillez réessayer plus tard.');
+      setError('Erreur lors du chargement des services');
+      setServices([]); // Initialiser à un tableau vide en cas d'erreur
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  // Fonction pour rafraîchir manuellement les données
+  const handleRefresh = () => {
+    // Forcer le rafraîchissement des données
+    fetchServices(true);
+    
+    // Invalider explicitement le cache
+    setCachedData(
+      CACHE_KEYS.ADMIN_SERVICES_LIST,
+      null,
+      { expiry: 0 } // Expiration immédiate = invalidation
+    );
+    
+    toast({
+      title: "Actualisation réussie",
+      description: "La liste des services a été actualisée"
+    });
   };
+  
+  // Écouter les événements de mise à jour des services
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const handleServiceUpdated = () => {
+        console.log('Service mis à jour, rafraîchissement des données...');
+        fetchServices(true);
+      };
+      
+      // Ajouter l'écouteur d'événements
+      window.addEventListener('vynal:service-updated', handleServiceUpdated);
+      window.addEventListener('vynal:cache-invalidated', handleServiceUpdated);
+      
+      // Nettoyer l'écouteur lors du démontage
+      return () => {
+        window.removeEventListener('vynal:service-updated', handleServiceUpdated);
+        window.removeEventListener('vynal:cache-invalidated', handleServiceUpdated);
+      };
+    }
+  }, [fetchServices]);
+
+  // Invalider le cache après des opérations de modification
+  const invalidateServicesCache = () => {
+    // Invalider le cache des services
+    setCachedData(
+      CACHE_KEYS.ADMIN_SERVICES_LIST,
+      null,
+      { expiry: 0 }
+    );
+    
+    // Émettre un événement pour informer les autres composants
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('vynal:service-updated'));
+      window.dispatchEvent(new CustomEvent('vynal:cache-invalidated', { 
+        detail: { key: CACHE_KEYS.ADMIN_SERVICES_LIST }
+      }));
+    }
+  };
+  
+  // Charger les services au montage du composant
+  useEffect(() => {
+    fetchServices();
+  }, [fetchServices]);
 
   // Filtrer les services selon les critères
   const filteredServices = services.filter(service => {
@@ -224,6 +303,8 @@ export default function ServicesPage() {
         title: "Service supprimé",
         description: "Le service a été supprimé avec succès."
       });
+      
+      invalidateServicesCache();
     } catch (error) {
       console.error('Erreur lors de la suppression:', error);
       toast({
@@ -370,6 +451,8 @@ export default function ServicesPage() {
       });
       setShowDetailsDialog(false);
       setModerationComment('');
+      
+      invalidateServicesCache();
     } catch (error) {
       console.error('Erreur lors de l\'approbation du service:', error);
       toast({
@@ -438,6 +521,8 @@ export default function ServicesPage() {
       });
       setShowDetailsDialog(false);
       setModerationComment('');
+      
+      invalidateServicesCache();
     } catch (error) {
       console.error('Erreur lors du rejet du service:', error);
       toast({
@@ -488,11 +573,6 @@ export default function ServicesPage() {
         return 'Statut inconnu';
     }
   };
-
-  // Modifier la fonction fetchServices pour charger les services au démarrage
-  useEffect(() => {
-    fetchServices();
-  }, []);
 
   // Ouvrir modal de détails
   const openDetailsModal = (service: Service) => {
@@ -652,6 +732,8 @@ export default function ServicesPage() {
       });
       
       closeUnpublishModal();
+      
+      invalidateServicesCache();
     } catch (error) {
       console.error('Erreur lors de la modification du statut du service:', error);
       toast({
@@ -689,6 +771,16 @@ export default function ServicesPage() {
           />
         </div>
         <div className="flex gap-2 items-center">
+          <Button
+            variant="outline" 
+            size="sm"
+            className="h-7 sm:h-8 text-[10px] sm:text-xs flex items-center gap-1"
+            onClick={handleRefresh}
+            disabled={loading}
+          >
+            <RefreshCw className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`} />
+            <span>{loading ? 'Chargement...' : 'Actualiser'}</span>
+          </Button>
           <Button
             variant={sendEmails ? "default" : "outline"}
             size="sm"
@@ -740,180 +832,182 @@ export default function ServicesPage() {
           </TabsTrigger>
         </TabsList>
 
-        <Card className="border border-gray-200 dark:border-gray-800">
-          <CardHeader className="pb-2 pt-3 px-3">
-            <CardTitle className="text-[11px] sm:text-sm">Liste des services</CardTitle>
-            <CardDescription className="text-[10px] sm:text-xs">
-              {filteredServices.length} service(s) {activeTab !== 'all' ? 
-                activeTab === 'pending' ? 'en attente' : 
-                activeTab === 'approved' ? 'approuvés' : 
-                'rejetés' : 
-                'au total'}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-0">
-            {/* Version mobile - Affichage en cartes */}
-            {mobileView ? (
-              <div className="p-2 space-y-2">
-                {loading ? (
-                  <div className="flex justify-center items-center h-24">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
-                    <span className="ml-2 text-[10px]">Chargement...</span>
-                  </div>
-                ) : filteredServices.length > 0 ? (
-                  filteredServices.map((service) => (
-                    <Card key={service.id} className="overflow-hidden border border-gray-200 dark:border-gray-800">
-                      <CardContent className="p-3">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <h3 className="text-[11px] font-medium truncate">{service.title}</h3>
-                            <p className="text-[9px] text-gray-500 dark:text-vynal-text-secondary">{service.freelancer_name}</p>
+        <TabsContent value="all" className="space-y-2 sm:space-y-3">
+          <Card className="border border-gray-200 dark:border-gray-800">
+            <CardHeader className="pb-2 pt-3 px-3">
+              <CardTitle className="text-[11px] sm:text-sm">Liste des services</CardTitle>
+              <CardDescription className="text-[10px] sm:text-xs">
+                {filteredServices.length} service(s) {activeTab !== 'all' ? 
+                  activeTab === 'pending' ? 'en attente' : 
+                  activeTab === 'approved' ? 'approuvés' : 
+                  'rejetés' : 
+                  'au total'}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-0">
+              {/* Version mobile - Affichage en cartes */}
+              {mobileView ? (
+                <div className="p-2 space-y-2">
+                  {loading ? (
+                    <div className="flex justify-center items-center h-24">
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
+                      <span className="ml-2 text-[10px]">Chargement...</span>
+                    </div>
+                  ) : filteredServices.length > 0 ? (
+                    filteredServices.map((service) => (
+                      <Card key={service.id} className="overflow-hidden border border-gray-200 dark:border-gray-800">
+                        <CardContent className="p-3">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h3 className="text-[11px] font-medium truncate">{service.title}</h3>
+                              <p className="text-[9px] text-gray-500 dark:text-vynal-text-secondary">{service.freelancer_name}</p>
+                            </div>
+                            <div className="flex flex-col gap-1 items-end">
+                              {getStatusBadge(service.status)}
+                              {getPublicationBadge(service)}
+                            </div>
                           </div>
-                          <div className="flex flex-col gap-1 items-end">
-                            {getStatusBadge(service.status)}
-                            {getPublicationBadge(service)}
+                          <div className="mt-2 grid grid-cols-2 gap-1 text-[9px]">
+                            <div>
+                              <span className="font-medium">Prix:</span> {service.price} €
+                            </div>
+                            <div>
+                              <span className="font-medium">Catégorie:</span> {service.category || 'Non spécifié'}
+                            </div>
                           </div>
-                        </div>
-                        <div className="mt-2 grid grid-cols-2 gap-1 text-[9px]">
-                          <div>
-                            <span className="font-medium">Prix:</span> {service.price} €
-                          </div>
-                          <div>
-                            <span className="font-medium">Catégorie:</span> {service.category || 'Non spécifié'}
-                          </div>
-                        </div>
-                        <div className="mt-1 flex justify-between items-center text-[9px]">
-                          <span className="text-gray-500">{formatDate(service.created_at)}</span>
-                          <div className="flex gap-1">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-6 px-2 text-[9px]"
-                              onClick={() => openDetailsModal(service)}
-                            >
-                              <Eye className="h-2.5 w-2.5 mr-1" />
-                              Détails
-                            </Button>
-                            {service.status === 'approved' && (
+                          <div className="mt-1 flex justify-between items-center text-[9px]">
+                            <span className="text-gray-500">{formatDate(service.created_at)}</span>
+                            <div className="flex gap-1">
                               <Button
                                 variant="outline"
                                 size="sm"
-                                className="h-6 px-2 text-[9px] text-amber-500"
-                                onClick={() => openUnpublishModal(service)}
-                              >
-                                <EyeOff className="h-2.5 w-2.5 mr-1" />
-                                {service.active ? 'Dépublier' : 'Republier'}
-                              </Button>
-                            )}
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-6 w-6 p-0 text-red-500 text-[9px]"
-                              onClick={() => openDeleteModal(service)}
-                            >
-                              <Trash2 className="h-2.5 w-2.5" />
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))
-                ) : (
-                  <div className="text-center py-8 text-[10px] text-gray-500 dark:text-vynal-text-secondary">
-                    Aucun service trouvé.
-                  </div>
-                )}
-              </div>
-            ) : (
-              /* Version desktop - Affichage en tableau */
-              <div className="rounded-md">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                      <TableHead className="text-[10px]">Titre</TableHead>
-                      <TableHead className="text-[10px]">Freelance</TableHead>
-                      <TableHead className="text-[10px]">Catégorie</TableHead>
-                      <TableHead className="text-[10px]">Prix</TableHead>
-                      <TableHead className="w-[120px] text-[10px]">
-                      <div className="flex items-center">
-                        Date
-                        <ArrowUpDown className="ml-2 h-3 w-3" />
-                      </div>
-                    </TableHead>
-                      <TableHead className="w-[100px] text-[10px]">Statut</TableHead>
-                      <TableHead className="w-[100px] text-[10px]">Publication</TableHead>
-                      <TableHead className="text-right w-[120px] text-[10px]">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {loading ? (
-                    <TableRow>
-                        <TableCell colSpan={7} className="h-24 text-center text-[10px]">
-                        <div className="flex justify-center items-center">
-                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
-                          <span className="ml-2">Chargement...</span>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ) : filteredServices.length > 0 ? (
-                    filteredServices.map((service) => (
-                      <TableRow key={service.id}>
-                          <TableCell className="font-medium text-[10px] py-2">{service.title}</TableCell>
-                          <TableCell className="text-[10px] py-2">{service.freelancer_name}</TableCell>
-                          <TableCell className="text-[10px] py-2">{service.category || 'Non spécifié'}</TableCell>
-                          <TableCell className="text-[10px] py-2">{service.price} €</TableCell>
-                          <TableCell className="text-[10px] py-2">{formatDate(service.created_at)}</TableCell>
-                          <TableCell className="text-[10px] py-2">{getStatusBadge(service.status)}</TableCell>
-                          <TableCell className="text-[10px] py-2">{getPublicationBadge(service)}</TableCell>
-                          <TableCell className="text-right py-2">
-                            <div className="flex justify-end gap-1">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                                className="h-6 w-6 p-0"
+                                className="h-6 px-2 text-[9px]"
                                 onClick={() => openDetailsModal(service)}
-                            >
-                              <Eye className="h-3 w-3" />
-                              <span className="sr-only">Détails</span>
-                            </Button>
+                              >
+                                <Eye className="h-2.5 w-2.5 mr-1" />
+                                Détails
+                              </Button>
                               {service.status === 'approved' && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                                  className={`h-6 w-6 p-0 ${service.active ? 'text-amber-500' : 'text-green-500'}`}
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-6 px-2 text-[9px] text-amber-500"
                                   onClick={() => openUnpublishModal(service)}
-                                  title={service.active ? 'Dépublier' : 'Republier'}
-                            >
-                                  <EyeOff className="h-3 w-3" />
-                                  <span className="sr-only">{service.active ? 'Dépublier' : 'Republier'}</span>
-                            </Button>
+                                >
+                                  <EyeOff className="h-2.5 w-2.5 mr-1" />
+                                  {service.active ? 'Dépublier' : 'Republier'}
+                                </Button>
                               )}
-                            <Button
-                              variant="outline"
-                              size="sm"
-                                className="h-6 w-6 p-0 text-red-500"
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-6 w-6 p-0 text-red-500 text-[9px]"
                                 onClick={() => openDeleteModal(service)}
-                            >
-                              <Trash2 className="h-3 w-3" />
-                              <span className="sr-only">Supprimer</span>
-                            </Button>
+                              >
+                                <Trash2 className="h-2.5 w-2.5" />
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))
+                  ) : (
+                    <div className="text-center py-8 text-[10px] text-gray-500 dark:text-vynal-text-secondary">
+                      Aucun service trouvé.
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* Version desktop - Affichage en tableau */
+                <div className="rounded-md">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                        <TableHead className="text-[10px]">Titre</TableHead>
+                        <TableHead className="text-[10px]">Freelance</TableHead>
+                        <TableHead className="text-[10px]">Catégorie</TableHead>
+                        <TableHead className="text-[10px]">Prix</TableHead>
+                        <TableHead className="w-[120px] text-[10px]">
+                        <div className="flex items-center">
+                          Date
+                          <ArrowUpDown className="ml-2 h-3 w-3" />
+                        </div>
+                      </TableHead>
+                        <TableHead className="w-[100px] text-[10px]">Statut</TableHead>
+                        <TableHead className="w-[100px] text-[10px]">Publication</TableHead>
+                        <TableHead className="text-right w-[120px] text-[10px]">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {loading ? (
+                      <TableRow>
+                          <TableCell colSpan={7} className="h-24 text-center text-[10px]">
+                          <div className="flex justify-center items-center">
+                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
+                            <span className="ml-2">Chargement...</span>
                           </div>
                         </TableCell>
                       </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                        <TableCell colSpan={7} className="h-24 text-center text-[10px]">
-                        Aucun service trouvé.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-            )}
-          </CardContent>
-        </Card>
+                    ) : filteredServices.length > 0 ? (
+                      filteredServices.map((service) => (
+                        <TableRow key={service.id}>
+                            <TableCell className="font-medium text-[10px] py-2">{service.title}</TableCell>
+                            <TableCell className="text-[10px] py-2">{service.freelancer_name}</TableCell>
+                            <TableCell className="text-[10px] py-2">{service.category || 'Non spécifié'}</TableCell>
+                            <TableCell className="text-[10px] py-2">{service.price} €</TableCell>
+                            <TableCell className="text-[10px] py-2">{formatDate(service.created_at)}</TableCell>
+                            <TableCell className="text-[10px] py-2">{getStatusBadge(service.status)}</TableCell>
+                            <TableCell className="text-[10px] py-2">{getPublicationBadge(service)}</TableCell>
+                            <TableCell className="text-right py-2">
+                              <div className="flex justify-end gap-1">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                  className="h-6 w-6 p-0"
+                                  onClick={() => openDetailsModal(service)}
+                              >
+                                <Eye className="h-3 w-3" />
+                                <span className="sr-only">Détails</span>
+                              </Button>
+                                {service.status === 'approved' && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                    className={`h-6 w-6 p-0 ${service.active ? 'text-amber-500' : 'text-green-500'}`}
+                                    onClick={() => openUnpublishModal(service)}
+                                    title={service.active ? 'Dépublier' : 'Republier'}
+                              >
+                                    <EyeOff className="h-3 w-3" />
+                                    <span className="sr-only">{service.active ? 'Dépublier' : 'Republier'}</span>
+                              </Button>
+                                )}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                  className="h-6 w-6 p-0 text-red-500"
+                                  onClick={() => openDeleteModal(service)}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                                <span className="sr-only">Supprimer</span>
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                          <TableCell colSpan={7} className="h-24 text-center text-[10px]">
+                          Aucun service trouvé.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
 
       {/* Modal de détails du service */}

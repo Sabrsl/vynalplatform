@@ -17,6 +17,13 @@ import { PUBLIC_ROUTES, AUTH_ROUTES } from "@/config/routes";
 import dynamic from 'next/dynamic';
 import { memo } from 'react';
 
+// Chatbot chargé de manière dynamique avec SSR désactivé pour éviter les erreurs d'hydration
+// et ne pas impacter les performances de chargement initiales
+const WelcomeChatbotDynamic = dynamic(() => 
+  import('@/components/ui/WelcomeChatbot').then(mod => mod.WelcomeChatbot),
+  { ssr: false }
+);
+
 const TextRevealSectionDynamic = dynamic(() => 
   import('@/components/sections/TextRevealSection').then(mod => mod.TextRevealSection),
   { ssr: true, loading: () => <div className="h-72" /> }
@@ -128,6 +135,9 @@ export default function Home() {
 
   return (
     <PageLayout fullGradient={true}>
+      {/* Chatbot visible uniquement sur la page d'accueil */}
+      <WelcomeChatbotDynamic />
+      
       {/* Hero Section - LCP */}
       <section className="text-slate-800 dark:text-vynal-text-primary py-16 md:py-24">
         <div className="container mx-auto px-4 flex flex-col lg:flex-row items-center justify-between">

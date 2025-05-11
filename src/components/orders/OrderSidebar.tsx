@@ -112,7 +112,6 @@ export function OrderSidebar({
     
     try {
       setIsProcessing(true);
-      const supabase = createClientComponentClient();
       
       // Indiquer le chargement
       toast({
@@ -120,31 +119,23 @@ export function OrderSidebar({
         description: "Veuillez patienter pendant la mise à jour de la commande..."
       });
       
-      // Mettre à jour le statut de la commande
-      const { error } = await supabase
-        .from('orders')
-        .update({ status: 'cancelled' })
-        .eq('id', order.id);
+      // Appeler l'API d'annulation
+      const response = await fetch('/api/orders/cancel', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          orderId: order.id,
+          reason: "Annulation par le freelance"
+        })
+      });
       
-      if (error) {
-        console.error("Erreur lors de l'annulation:", error);
-        toast({
-          title: "Erreur",
-          description: "Impossible d'annuler la commande: " + error.message,
-          variant: "destructive"
-        });
-        return;
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Échec de l\'annulation');
       }
-      
-      // Envoyer un message
-      await supabase
-        .from('messages')
-        .insert({
-          order_id: order.id,
-          sender_id: order.freelance.id,
-          content: "J'ai dû annuler votre commande. Je vous invite à me contacter pour plus d'informations.",
-          read: false
-        });
       
       toast({
         title: "Commande annulée",

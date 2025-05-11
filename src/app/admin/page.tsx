@@ -1,10 +1,17 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { useUser } from '@/hooks/useUser';
+import { 
+  getCachedData, 
+  setCachedData, 
+  CACHE_EXPIRY, 
+  CACHE_KEYS
+} from '@/lib/optimizations';
 import Link from 'next/link';
-import { AlertTriangle, Users, Shield, BarChart3, FileText, PieChart, TrendingUp } from 'lucide-react';
+import { AlertTriangle, Users, Shield, BarChart3, FileText, PieChart, TrendingUp, RefreshCw } from 'lucide-react';
+import { useToast } from '@/components/ui/use-toast';
 
 // Types locaux
 interface AdminStats {
@@ -19,6 +26,7 @@ interface AdminStats {
 
 export default function AdminDashboard() {
   const { isAdmin, loading } = useUser();
+  const { toast } = useToast();
   const [stats, setStats] = useState<AdminStats>({
     usersCount: 0,
     clientsCount: 0,
@@ -32,66 +40,131 @@ export default function AdminDashboard() {
   const [error, setError] = useState<string | null>(null);
 
   // Charger les statistiques
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        setLoadingStats(true);
-        
-        // Utilisateurs par rôle
-        const { data: usersData, error: usersError } = await supabase
-          .from('profiles')
-          .select('role', { count: 'exact' });
-          
-        if (usersError) throw usersError;
-        
-        const usersCount = usersData?.length || 0;
-        const clientsCount = usersData?.filter(u => u.role === 'client').length || 0;
-        const freelancesCount = usersData?.filter(u => u.role === 'freelance').length || 0;
-        const adminsCount = usersData?.filter(u => u.role === 'admin').length || 0;
-        
-        // Commandes
-        const { count: ordersCount, error: ordersError } = await supabase
-          .from('orders')
-          .select('*', { count: 'exact', head: true });
-          
-        if (ordersError) throw ordersError;
-        
-        // Services
-        const { count: servicesCount, error: servicesError } = await supabase
-          .from('services')
-          .select('*', { count: 'exact', head: true });
-          
-        if (servicesError) throw servicesError;
-        
-        // Litiges
-        const { count: disputesCount, error: disputesError } = await supabase
-          .from('disputes')
-          .select('*', { count: 'exact', head: true });
-          
-        if (disputesError) throw disputesError;
-        
-        setStats({
-          usersCount: usersCount || 0,
-          clientsCount,
-          freelancesCount,
-          adminsCount,
-          ordersCount: ordersCount || 0,
-          servicesCount: servicesCount || 0,
-          disputesCount: disputesCount || 0
-        });
-        
-      } catch (err: any) {
-        console.error('Erreur lors du chargement des statistiques:', err);
-        setError(err.message);
-      } finally {
-        setLoadingStats(false);
+  const fetchStats = useCallback(async (forceFetch = false) => {
+    try {
+      setLoadingStats(true);
+      
+      // Vérifier s'il y a un cache récent (sauf si forceFetch est true)
+      if (!forceFetch) {
+        const cachedStats = getCachedData<AdminStats>(CACHE_KEYS.ADMIN_STATS);
+        if (cachedStats) {
+          setStats(cachedStats);
+          setLoadingStats(false);
+          return;
+        }
       }
-    };
+      
+      // Utilisateurs par rôle
+      const { data: usersData, error: usersError } = await supabase
+        .from('profiles')
+        .select('role', { count: 'exact' });
+        
+      if (usersError) throw usersError;
+      
+      const usersCount = usersData?.length || 0;
+      const clientsCount = usersData?.filter(u => u.role === 'client').length || 0;
+      const freelancesCount = usersData?.filter(u => u.role === 'freelance').length || 0;
+      const adminsCount = usersData?.filter(u => u.role === 'admin').length || 0;
+      
+      // Commandes
+      const { count: ordersCount, error: ordersError } = await supabase
+        .from('orders')
+        .select('*', { count: 'exact', head: true });
+        
+      if (ordersError) throw ordersError;
+      
+      // Services
+      const { count: servicesCount, error: servicesError } = await supabase
+        .from('services')
+        .select('*', { count: 'exact', head: true });
+        
+      if (servicesError) throw servicesError;
+      
+      // Litiges
+      const { count: disputesCount, error: disputesError } = await supabase
+        .from('disputes')
+        .select('*', { count: 'exact', head: true });
+        
+      if (disputesError) throw disputesError;
+      
+      const newStats = {
+        usersCount: usersCount || 0,
+        clientsCount,
+        freelancesCount,
+        adminsCount,
+        ordersCount: ordersCount || 0,
+        servicesCount: servicesCount || 0,
+        disputesCount: disputesCount || 0
+      };
+      
+      // Mettre en cache les statistiques pour une durée maximale (invalidation manuelle)
+      setCachedData(
+        CACHE_KEYS.ADMIN_STATS, 
+        newStats, 
+        { expiry: CACHE_EXPIRY.LONG, priority: 'high' }
+      );
+      
+      setStats(newStats);
+      
+    } catch (err: any) {
+      console.error('Erreur lors du chargement des statistiques:', err);
+      setError(err.message);
+    } finally {
+      setLoadingStats(false);
+    }
+  }, []);
+  
+  // Fonction pour rafraîchir les données
+  const handleRefresh = () => {
+    // Forcer le rafraîchissement
+    fetchStats(true);
     
+    // Invalider le cache des statistiques explicitement
+    setCachedData(
+      CACHE_KEYS.ADMIN_STATS,
+      null,
+      { expiry: 0 } // Expiration immédiate = invalidation
+    );
+    
+    toast({
+      title: "Actualisation réussie",
+      description: "Les statistiques ont été actualisées"
+    });
+  };
+  
+  // Écouter les événements de mise à jour des services, utilisateurs, etc.
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const handleServiceUpdated = () => {
+        console.log('Service mis à jour, rafraîchissement des statistiques...');
+        // Rafraîchir uniquement les stats des services
+        fetchStats(true);
+      };
+      
+      const handleUserUpdated = () => {
+        console.log('Utilisateur mis à jour, rafraîchissement des statistiques...');
+        // Rafraîchir les stats utilisateurs
+        fetchStats(true);
+      };
+      
+      // Ajouter les écouteurs d'événements
+      window.addEventListener('vynal:service-updated', handleServiceUpdated);
+      window.addEventListener('vynal:user-updated', handleUserUpdated);
+      
+      // Nettoyer les écouteurs lors du démontage
+      return () => {
+        window.removeEventListener('vynal:service-updated', handleServiceUpdated);
+        window.removeEventListener('vynal:user-updated', handleUserUpdated);
+      };
+    }
+  }, [fetchStats]);
+  
+  // Initialisation
+  useEffect(() => {
     if (isAdmin) {
       fetchStats();
     }
-  }, [isAdmin]);
+  }, [isAdmin, fetchStats]);
 
   if (loading || loadingStats) {
     return (
@@ -131,12 +204,21 @@ export default function AdminDashboard() {
     <div className="p-4 text-gray-800 dark:text-vynal-text-primary">
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-sm font-bold">Tableau de bord Admin</h1>
-        <Link 
-          href="/admin/debug" 
-          className="bg-blue-600 hover:bg-blue-700 text-white dark:bg-vynal-accent-primary/80 dark:hover:bg-vynal-accent-primary px-3 py-1 rounded-lg text-xs"
-        >
-          Page de débogage
-        </Link>
+        <div className="flex gap-2">
+          <button
+            onClick={() => handleRefresh()}
+            className="bg-blue-600 hover:bg-blue-700 text-white dark:bg-vynal-accent-primary/80 dark:hover:bg-vynal-accent-primary px-2 py-1 rounded-lg text-xs flex items-center gap-1"
+          >
+            <RefreshCw className="h-3 w-3" />
+            <span className="hidden sm:inline">Actualiser</span>
+          </button>
+          <Link 
+            href="/admin/debug" 
+            className="bg-blue-600 hover:bg-blue-700 text-white dark:bg-vynal-accent-primary/80 dark:hover:bg-vynal-accent-primary px-3 py-1 rounded-lg text-xs"
+          >
+            Page de débogage
+          </Link>
+        </div>
       </div>
       
       {/* Bento grid layout - optimisé pour mobile et desktop */}

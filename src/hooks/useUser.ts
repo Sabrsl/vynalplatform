@@ -109,10 +109,17 @@ export function useUser(): UseUserResult {
     [user?.user_metadata?.role, profile?.role]
   );
   
-  const isAdmin = useMemo(() => 
-    user?.user_metadata?.role === 'admin' || profile?.role === 'admin',
-    [user?.user_metadata?.role, profile?.role]
-  );
+  const isAdmin = useMemo(() => {
+    // Vérifier toutes les sources possibles pour le rôle admin
+    return Boolean(
+      user?.user_metadata?.role === 'admin' || 
+      profile?.role === 'admin' ||
+      profile?.is_admin === true ||
+      (user?.app_metadata?.roles && 
+        Array.isArray(user.app_metadata.roles) && 
+        user.app_metadata.roles.includes('admin'))
+    );
+  }, [user?.user_metadata?.role, user?.app_metadata?.roles, profile?.role, profile?.is_admin]);
 
   // Fonction mémorisée pour vérifier les permissions
   const canAccess = useCallback((requiredRoles: Array<'client' | 'freelance' | 'admin'>): boolean => {

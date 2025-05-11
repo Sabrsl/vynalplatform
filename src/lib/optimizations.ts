@@ -11,6 +11,13 @@ export const CACHE_EXPIRY = {
   LONG: 15 * 60 * 1000, // 15 minutes
   DASHBOARD_DATA: 10 * 60 * 1000, // 10 minutes
   DAY: 24 * 60 * 60 * 1000, // 1 jour
+  // Nouvelles durées optimisées pour les données administratives
+  HOUR: 60 * 60 * 1000, // 1 heure
+  HOURS_3: 3 * 60 * 60 * 1000, // 3 heures
+  HOURS_6: 6 * 60 * 60 * 1000, // 6 heures
+  HOURS_12: 12 * 60 * 60 * 1000, // 12 heures
+  DAYS_3: 3 * 24 * 60 * 60 * 1000, // 3 jours
+  WEEK: 7 * 24 * 60 * 60 * 1000, // 1 semaine
 };
 
 // Clés de cache prédéfinies
@@ -19,6 +26,14 @@ export const CACHE_KEYS = {
   WALLET_DATA: 'wallet_data',
   PAYMENT_METHODS: 'payment_methods',
   DISPUTE_LIST: 'dispute_list',
+  // Nouvelles clés pour les données administratives
+  ADMIN_ALERTS: 'admin_alerts_count',
+  ADMIN_WITHDRAWALS: 'admin_withdrawals',
+  ADMIN_MIN_WITHDRAWAL: 'admin_min_withdrawal',
+  ADMIN_USERS_LIST: 'admin_users_list',
+  ADMIN_SERVICES_LIST: 'admin_services_list',
+  ADMIN_SYSTEM_CONFIG: 'admin_system_config',
+  ADMIN_STATS: 'admin_dashboard_stats',
 };
 
 // Options pour le cache

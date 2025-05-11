@@ -41,15 +41,15 @@ let writeTimer: any = null;
 
 // Durée d'expiration des différents types de données (en ms)
 export const CACHE_EXPIRY = {
-  CATEGORIES: 24 * 60 * 60 * 1000, // 24 heures
-  SERVICES: 20 * 60 * 1000, // 20 minutes (augmenté)
-  USER_DATA: 30 * 60 * 1000, // 30 minutes
-  USER_PROFILE: 60 * 60 * 1000, // 1 heure
-  USER_SESSION: 30 * 60 * 1000, // 30 minutes
-  USER_SESSION_PARTIAL: 5 * 60 * 1000, // 5 minutes
-  EXTENDED_SESSION: 7 * 24 * 60 * 60 * 1000, // 7 jours
-  DASHBOARD_DATA: 15 * 60 * 1000, // 15 minutes (augmenté de 5 à 15 minutes)
-  DYNAMIC: 60 * 1000, // 1 minute (pour les données très dynamiques)
+  CATEGORIES: 7 * 24 * 60 * 60 * 1000, // 7 jours (maximum)
+  SERVICES: 24 * 60 * 60 * 1000,       // 24 heures (maximum)
+  USER_DATA: 24 * 60 * 60 * 1000,      // 24 heures (maximum)
+  USER_PROFILE: 7 * 24 * 60 * 60 * 1000, // 7 jours (maximum)
+  USER_SESSION: 30 * 24 * 60 * 60 * 1000, // 30 jours (maximum mais critique)
+  USER_SESSION_PARTIAL: 24 * 60 * 60 * 1000, // 24 heures (maximum)
+  EXTENDED_SESSION: 90 * 24 * 60 * 60 * 1000, // 90 jours (maximum)
+  DASHBOARD_DATA: 7 * 24 * 60 * 60 * 1000, // 7 jours (maximum)
+  DYNAMIC: 12 * 60 * 60 * 1000, // 12 heures (maximum raisonnable)
   ROUTE_CHANGE: 0, // Invalider immédiatement lors des changements de route
 };
 

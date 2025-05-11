@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { useUser } from '@/hooks/useUser';
+import { getCachedData, setCachedData, CACHE_EXPIRY, CACHE_KEYS } from '@/lib/optimizations';
 import { AlertTriangle, Search, UserCheck, RefreshCw, User, Mail, Calendar, Shield, PencilLine, Eye, X, Loader2, BarChart3, CheckCircle2 } from 'lucide-react';
 import { 
   Select, 
@@ -75,10 +76,21 @@ export default function AdminUsersPage() {
   };
 
   // Charger les utilisateurs
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async (forceFetch = false) => {
     try {
       setLoadingUsers(true);
       
+      // Vérifier d'abord le cache si on ne force pas le rechargement
+      if (!forceFetch) {
+        const cachedUsers = getCachedData<UserData[]>(CACHE_KEYS.ADMIN_USERS_LIST);
+        if (cachedUsers && Array.isArray(cachedUsers) && cachedUsers.length > 0) {
+          setUsers(cachedUsers);
+          setLoadingUsers(false);
+          return;
+        }
+      }
+      
+      // Si pas de cache ou forceFetch, charger depuis l'API
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -86,14 +98,27 @@ export default function AdminUsersPage() {
         
       if (error) throw error;
       
+      // Vérifier que les données sont bien un tableau
+      if (!data || !Array.isArray(data)) {
+        throw new Error('Format de données invalide');
+      }
+      
       setUsers(data as UserData[]);
+      
+      // Mettre en cache les données pour une durée maximale (invalidation manuelle)
+      setCachedData(
+        CACHE_KEYS.ADMIN_USERS_LIST, 
+        data as UserData[], 
+        { expiry: CACHE_EXPIRY.LONG, priority: 'high' }
+      );
     } catch (err: any) {
       console.error('Erreur lors du chargement des utilisateurs:', err);
       setError(err.message);
+      setUsers([]); // Initialiser à un tableau vide en cas d'erreur
     } finally {
       setLoadingUsers(false);
     }
-  };
+  }, []);
 
   // Charger les paramètres de notification d'un utilisateur
   const loadUserNotificationSettings = async (userId: string) => {
@@ -357,11 +382,17 @@ export default function AdminUsersPage() {
     }
   };
 
+  // Initialisation et chargement des données
   useEffect(() => {
     if (isAdmin) {
       fetchUsers();
     }
-  }, [isAdmin]);
+  }, [isAdmin, fetchUsers]);
+  
+  // Fonction pour forcer le rafraîchissement des données
+  const handleRefresh = () => {
+    fetchUsers(true);
+  };
 
   // Filtrer les utilisateurs selon la recherche
   const filteredUsers = users.filter(user => 
@@ -443,14 +474,11 @@ export default function AdminUsersPage() {
     }
   };
 
-  if (loading || loadingUsers) {
+  // Si l'utilisateur n'est pas administrateur ou que les données sont en cours de chargement
+  if (loading) {
     return (
-      <div className="p-2 sm:p-4">
-        <h1 className="text-sm font-bold mb-3 text-gray-800 dark:text-vynal-text-primary">Gestion des utilisateurs</h1>
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 dark:bg-vynal-purple-secondary/20 rounded-md mb-3"></div>
-          <div className="h-48 bg-gray-200 dark:bg-vynal-purple-secondary/20 rounded-md"></div>
-        </div>
+      <div className="flex items-center justify-center h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -464,7 +492,7 @@ export default function AdminUsersPage() {
           <span>Erreur: {error}</span>
         </div>
         <button 
-          onClick={fetchUsers}
+          onClick={handleRefresh}
           className="mt-3 bg-blue-600 hover:bg-blue-700 text-white dark:bg-vynal-accent-primary/80 dark:hover:bg-vynal-accent-primary px-3 py-1 rounded-md flex items-center gap-1 text-xs"
         >
           <RefreshCw className="h-3 w-3" />
@@ -497,7 +525,7 @@ export default function AdminUsersPage() {
         
         <div className="flex gap-2 w-full sm:w-auto">
           <button 
-            onClick={fetchUsers}
+            onClick={() => handleRefresh()}
             className="bg-blue-600 hover:bg-blue-700 text-white dark:bg-vynal-accent-primary/80 dark:hover:bg-vynal-accent-primary px-3 py-1 rounded-md flex items-center gap-1 w-full sm:w-auto justify-center text-xs"
           >
             <RefreshCw className="h-3 w-3" />

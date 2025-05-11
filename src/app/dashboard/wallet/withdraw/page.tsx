@@ -85,7 +85,7 @@ export default function WithdrawPage() {
     if (isNaN(amountValue) || amountValue <= 0) return;
     
     // Application d'un taux fixe de 20%
-    const feePercentage = 20; // Taux fixe de 20%
+    const feePercentage = wallet?.withdrawal_fee_percentage || 20; // Taux de frais depuis le wallet ou 20% par défaut
     const calculatedFee = (amountValue * feePercentage) / 100;
     const calculatedNet = amountValue - calculatedFee;
     
@@ -171,14 +171,31 @@ export default function WithdrawPage() {
       
       setWithdrawalProcessing(true);
       
-      // Simulation du traitement (remplacer par l'intégration réelle avec l'API)
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Appel à l'API pour créer une demande de retrait
+      const response = await fetch('/api/wallet/withdraw', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          amount: parseFloat(amount),
+          payment_method: selectedMethod,
+          fee_amount: feeAmount,
+          net_amount: netAmount
+        }),
+      });
       
-      // Simuler un retrait réussi
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || "Une erreur s'est produite lors de la création de la demande de retrait");
+      }
+      
+      // Retrait réussi
       setWithdrawalSuccess(true);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Erreur lors du retrait", err);
-      setError("Une erreur s'est produite lors du traitement de votre demande de retrait. Veuillez réessayer plus tard.");
+      setError(err.message || "Une erreur s'est produite lors du traitement de votre demande de retrait. Veuillez réessayer plus tard.");
     } finally {
       setWithdrawalProcessing(false);
     }

@@ -7,6 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase/client';
 import Link from 'next/link';
 import { Separator } from '@/components/ui/separator';
+import { getCachedData, setCachedData, CACHE_EXPIRY, CACHE_KEYS } from '@/lib/optimizations';
 import { 
   LayoutDashboard, 
   Users, 
@@ -22,7 +23,15 @@ import {
   ChevronLeft,
   ChevronRight,
   Menu,
-  X
+  X,
+  PackageOpen,
+  Wallet,
+  CreditCard,
+  KeyRound,
+  User,
+  Laptop,
+  Mail,
+  FileQuestion
 } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -110,20 +119,43 @@ export default function AdminLayout({
     }
   }, [pathname, isMobileView]);
 
+  // Redirection des utilisateurs non-admin vers le dashboard
+  useEffect(() => {
+    if (!loading && !isAdmin && !bypassAdminCheck) {
+      router.push('/dashboard');
+    }
+  }, [loading, isAdmin, bypassAdminCheck, router]);
+
   useEffect(() => {
     // Charger le nombre d'alertes actives
     const fetchAlertCount = async () => {
       try {
+        // Vérifier s'il y a un cache récent pour éviter les requêtes fréquentes
+        const cachedCount = getCachedData<number>(CACHE_KEYS.ADMIN_ALERTS);
+        
+        // Si on a des données en cache, les utiliser
+        if (cachedCount !== null) {
+          setActiveAlertsCount(cachedCount);
+          return;
+        }
+        
+        // Sinon, charger depuis l'API
         const count = await AlertService.getActiveAlertsCount();
         setActiveAlertsCount(count);
+        
+        // Mettre en cache le résultat pour 12 heures
+        setCachedData(CACHE_KEYS.ADMIN_ALERTS, count, { 
+          expiry: CACHE_EXPIRY.HOURS_12,
+          priority: 'medium'
+        });
       } catch (error) {
         console.error("Erreur lors du chargement du nombre d'alertes:", error);
       }
     };
 
     fetchAlertCount();
-    // Rafraîchir le compteur toutes les 5 minutes
-    const intervalId = setInterval(fetchAlertCount, 5 * 60 * 1000);
+    // Rafraîchir le compteur toutes les 12 heures
+    const intervalId = setInterval(fetchAlertCount, CACHE_EXPIRY.HOURS_12);
 
     return () => clearInterval(intervalId);
   }, []);
@@ -290,15 +322,45 @@ export default function AdminLayout({
                 </Link>
               </li>
               <li>
-                <Link 
-                  href="/admin/services" 
-                  className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-gray-700 dark:hover:bg-gray-800 transition-colors ${
-                    pathname === "/admin/services" ? "bg-gray-700/80 dark:bg-gray-800/80 text-white" : "text-gray-300"
-                  }`}
-                  onClick={() => isMobileView && setMobileSidebarOpen(false)}
+                <Link
+                  href="/admin/services"
+                  className={cn(
+                    "flex items-center gap-x-2 text-slate-600 dark:text-slate-400 font-medium text-sm hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/50 dark:hover:bg-slate-800/50 rounded px-3 py-2 w-full",
+                    pathname?.includes("/admin/services")
+                      ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white"
+                      : ""
+                  )}
                 >
-                  <Package className="h-4 w-4" />
-                  <span className={sidebarCollapsed && !sidebarHovered && !isMobileView ? 'hidden' : 'block'}>Services</span>
+                  <PackageOpen className="h-4 w-4 text-indigo-500" />
+                  Services
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/admin/withdrawals"
+                  className={cn(
+                    "flex items-center gap-x-2 text-slate-600 dark:text-slate-400 font-medium text-sm hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/50 dark:hover:bg-slate-800/50 rounded px-3 py-2 w-full",
+                    pathname?.includes("/admin/withdrawals")
+                      ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white"
+                      : ""
+                  )}
+                >
+                  <Wallet className="h-4 w-4 text-indigo-500" />
+                  Retraits
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/admin/tools"
+                  className={cn(
+                    "flex items-center gap-x-2 text-slate-600 dark:text-slate-400 font-medium text-sm hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/50 dark:hover:bg-slate-800/50 rounded px-3 py-2 w-full",
+                    pathname?.includes("/admin/tools")
+                      ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white"
+                      : ""
+                  )}
+                >
+                  <Settings className="h-4 w-4 text-indigo-500" />
+                  Outils
                 </Link>
               </li>
               <li>
