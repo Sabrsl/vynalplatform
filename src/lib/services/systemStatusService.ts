@@ -34,22 +34,73 @@ import {
     private static CACHE_EXPIRY = 30 * 1000;
   
     /**
+     * S'assure que le fichier de stockage existe
+     */
+    private static async ensureStorageFile() {
+      if (isServer) {
+        try {
+          // Vérifie si le fichier existe
+          await fs.access(STORAGE_PATH);
+        } catch (error) {
+          // Le fichier n'existe pas, créer le répertoire et le fichier
+          try {
+            // Créer le répertoire parent si nécessaire
+            const dirPath = path.dirname(STORAGE_PATH);
+            await fs.mkdir(dirPath, { recursive: true });
+            
+            // Créer le fichier avec une structure de données vide
+            const initialData = {
+              features: [],
+              incidents: [],
+              last_updated: new Date().toISOString()
+            };
+            
+            await fs.writeFile(STORAGE_PATH, JSON.stringify(initialData, null, 2), 'utf8');
+            console.log("Fichier de stockage créé:", STORAGE_PATH);
+          } catch (createError) {
+            console.error("Erreur lors de la création du fichier de stockage:", createError);
+            // En cas d'erreur de création, utiliser un cache en mémoire temporaire
+            if (!this.cache.features) this.cache.features = [];
+            if (!this.cache.incidents) this.cache.incidents = [];
+            this.cache.lastUpdated = Date.now();
+          }
+        }
+      }
+    }
+  
+    /**
      * Charge les données depuis le fichier JSON
      */
     private static async loadData() {
       try {
         if (isServer) {
+          // S'assurer que le fichier existe avant de le lire
+          await this.ensureStorageFile();
+          
           // Côté serveur, lire le fichier
           console.log("Tentative de lecture du fichier:", STORAGE_PATH);
-          const data = await fs.readFile(STORAGE_PATH, 'utf8');
-          console.log("Fichier lu avec succès");
-          const parsedData = JSON.parse(data);
-          
-          this.cache.features = parsedData.features || [];
-          this.cache.incidents = parsedData.incidents || [];
-          this.cache.lastUpdated = Date.now();
-          
-          return parsedData;
+          try {
+            const data = await fs.readFile(STORAGE_PATH, 'utf8');
+            console.log("Fichier lu avec succès");
+            const parsedData = JSON.parse(data);
+            
+            this.cache.features = parsedData.features || [];
+            this.cache.incidents = parsedData.incidents || [];
+            this.cache.lastUpdated = Date.now();
+            
+            return parsedData;
+          } catch (readError) {
+            console.error("Erreur de lecture, utilisation des données en cache:", readError);
+            // En cas d'erreur de lecture, utiliser le cache ou des données vides
+            if (!this.cache.features) this.cache.features = [];
+            if (!this.cache.incidents) this.cache.incidents = [];
+            this.cache.lastUpdated = Date.now();
+            
+            return {
+              features: this.cache.features,
+              incidents: this.cache.incidents
+            };
+          }
         } else {
           // Côté client, faire une requête à l'API
           const response = await fetch('/api/status');
@@ -67,7 +118,14 @@ import {
       } catch (error) {
         console.error("Erreur lors du chargement des données:", error);
         // En cas d'erreur, retourner des données vides
-        return { features: [], incidents: [] };
+        if (!this.cache.features) this.cache.features = [];
+        if (!this.cache.incidents) this.cache.incidents = [];
+        this.cache.lastUpdated = Date.now();
+        
+        return { 
+          features: this.cache.features, 
+          incidents: this.cache.incidents 
+        };
       }
     }
   
@@ -77,6 +135,9 @@ import {
     private static async saveData() {
       try {
         if (isServer) {
+          // S'assurer que le fichier existe avant d'écrire
+          await this.ensureStorageFile();
+          
           // Côté serveur, écrire dans le fichier
           console.log("Tentative d'écriture dans le fichier:", STORAGE_PATH);
           const data = {
@@ -85,15 +146,18 @@ import {
             last_updated: new Date().toISOString()
           };
           
-          await fs.writeFile(STORAGE_PATH, JSON.stringify(data, null, 2), 'utf8');
-          console.log("Fichier écrit avec succès");
+          try {
+            await fs.writeFile(STORAGE_PATH, JSON.stringify(data, null, 2), 'utf8');
+            console.log("Fichier écrit avec succès");
+          } catch (writeError) {
+            console.error("Erreur d'écriture, données conservées uniquement en cache:", writeError);
+          }
         } else {
           // Côté client, on ne peut pas écrire directement dans le fichier
           console.warn("Tentative d'écriture côté client. Utilisez les API endpoints.");
         }
       } catch (error) {
         console.error("Erreur lors de la sauvegarde des données:", error);
-        throw error;
       }
     }
   
@@ -120,7 +184,7 @@ import {
         return this.cache.features || [];
       } catch (error) {
         console.error("Erreur lors de la récupération des fonctionnalités:", error);
-        throw error;
+        return this.cache.features || [];
       }
     }
     
@@ -147,7 +211,7 @@ import {
         return this.cache.incidents || [];
       } catch (error) {
         console.error("Erreur lors de la récupération des incidents:", error);
-        throw error;
+        return this.cache.incidents || [];
       }
     }
   
@@ -169,7 +233,7 @@ import {
         }
         
         if (!this.cache.features) {
-          throw new Error("Impossible de charger les fonctionnalités");
+          this.cache.features = [];
         }
         
         // Trouver la fonctionnalité
@@ -274,8 +338,12 @@ import {
           await this.getFeatures();
         }
         
-        if (!this.cache.incidents || !this.cache.features) {
-          throw new Error("Impossible de charger les données");
+        if (!this.cache.incidents) {
+          this.cache.incidents = [];
+        }
+        
+        if (!this.cache.features) {
+          this.cache.features = [];
         }
         
         // Générer un ID unique
