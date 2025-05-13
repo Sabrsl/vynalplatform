@@ -1,6 +1,9 @@
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
+import { sendBasicWelcomeEmail } from '@/lib/email';
+import fs from 'fs';
+import path from 'path';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,15 +16,73 @@ export async function GET(request: NextRequest) {
     const cookieStore = cookies();
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
     
-    // Échange du code contre une session
-    await supabase.auth.exchangeCodeForSession(code);
-    
-    // Récupération du rôle utilisateur pour la redirection appropriée
     try {
-      const { data: userRole, error } = await supabase.rpc('get_user_role');
+      // Échange du code contre une session
+      const { error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
       
-      // Si le rôle est récupéré avec succès, rediriger en fonction du rôle
-      if (!error && userRole) {
+      if (sessionError) {
+        console.error('Erreur lors de l\'échange du code pour une session:', sessionError);
+        return NextResponse.redirect(new URL(redirectTo, requestUrl.origin));
+      }
+      
+      // Récupération du rôle utilisateur pour la redirection appropriée
+      const { data: userRole, error: roleError } = await supabase.rpc('get_user_role');
+      
+      if (roleError) {
+        console.error('Erreur lors de la récupération du rôle:', roleError);
+        return NextResponse.redirect(new URL(redirectTo, requestUrl.origin));
+      }
+      
+      // Si le rôle est récupéré avec succès
+      if (userRole) {
+        console.log('Utilisateur authentifié avec le rôle:', userRole);
+        
+        // Récupérer les informations de l'utilisateur pour l'email de bienvenue
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        
+        if (userError) {
+          console.error('Erreur lors de la récupération des informations utilisateur:', userError);
+        }
+        
+        if (user) {
+          console.log('Informations utilisateur récupérées:', user.email);
+          
+          try {
+            // Récupérer le profil pour obtenir le nom complet
+            const { data: profile, error: profileError } = await supabase.from('profiles')
+              .select('full_name')
+              .eq('id', user.id)
+              .single();
+              
+            if (profileError) {
+              console.error('Erreur lors de la récupération du profil:', profileError);
+            }
+            
+            const userName = profile?.full_name || user.email?.split('@')[0] || 'Utilisateur';
+            console.log('Préparation de l\'envoi de l\'email de bienvenue basique à:', user.email, 'Nom:', userName);
+            
+            // Vérification des variables d'environnement email
+            console.log('Variables d\'environnement email:');
+            console.log('- EMAIL_SMTP_HOST:', process.env.EMAIL_SMTP_HOST);
+            console.log('- EMAIL_SMTP_PORT:', process.env.EMAIL_SMTP_PORT);
+            console.log('- EMAIL_SMTP_USER set:', !!process.env.EMAIL_SMTP_USER);
+            console.log('- EMAIL_SMTP_PASSWORD set:', !!process.env.EMAIL_SMTP_PASSWORD);
+            console.log('- NODE_ENV:', process.env.NODE_ENV);
+            
+            // Envoyer l'email de bienvenue
+            const emailResult = await sendBasicWelcomeEmail({
+              to: user.email || '',
+              name: userName,
+              role: userRole as 'client' | 'freelance'
+            });
+            
+            console.log('Résultat de l\'envoi de l\'email de bienvenue:', emailResult ? 'Succès' : 'Échec');
+          } catch (emailError) {
+            console.error('Exception lors de l\'envoi de l\'email de bienvenue:', emailError);
+          }
+        }
+        
+        // Redirection en fonction du rôle
         if (userRole === 'client') {
           return NextResponse.redirect(new URL('/client-dashboard', requestUrl.origin));
         } else if (userRole === 'freelance') {
@@ -31,8 +92,10 @@ export async function GET(request: NextRequest) {
         }
       }
     } catch (err) {
-      console.error('Erreur lors de la récupération du rôle:', err);
+      console.error('Exception générale dans le callback auth:', err);
     }
+  } else {
+    console.log('Aucun code de redirection trouvé dans l\'URL');
   }
 
   // Redirection par défaut si pas de code ou erreur dans la récupération du rôle

@@ -89,4 +89,7 @@ public/workbox-*.js
 .netlify
 
 # Storybook
-/storybook-static 
+/storybook-static
+
+# Notes
+/docs/

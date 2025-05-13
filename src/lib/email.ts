@@ -66,13 +66,69 @@ const createTransporter = (): Transporter => {
   const user = process.env.EMAIL_SMTP_USER;
   const pass = process.env.EMAIL_SMTP_PASSWORD;
 
+  console.log('Configuration du transporteur SMTP:');
+  console.log('- Host:', host || 'NON DÉFINI');
+  console.log('- Port:', port);
+  console.log('- User:', user ? `${user}` : 'NON DÉFINI'); // Pour Resend, le user est 'resend'
+  console.log('- Password:', pass ? 'DÉFINI (masqué)' : 'NON DÉFINI');
+  console.log('- From Address:', process.env.EMAIL_FROM_ADDRESS);
+  console.log('- From Name:', process.env.EMAIL_FROM_NAME);
+
   // Vérifier que les paramètres essentiels sont définis
   if (!host || !user || !pass) {
-    throw new Error(
-      'Configuration SMTP incomplète. Vérifiez les variables d\'environnement EMAIL_SMTP_HOST, EMAIL_SMTP_USER et EMAIL_SMTP_PASSWORD.'
-    );
+    const errorMessage = 'Configuration SMTP incomplète. Vérifiez les variables d\'environnement EMAIL_SMTP_HOST, EMAIL_SMTP_USER et EMAIL_SMTP_PASSWORD.';
+    console.error(errorMessage);
+    
+    // En mode développement, utiliser un transporteur de prévisualisation
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('Utilisation du transporteur de prévisualisation en mode développement');
+      transporter = nodemailer.createTransport({
+        host: 'localhost',
+        port: 1025,
+        secure: false,
+        tls: {
+          rejectUnauthorized: false
+        },
+        auth: {
+          user: 'dev',
+          pass: 'dev'
+        }
+      });
+      return transporter;
+    }
+    
+    throw new Error(errorMessage);
   }
 
+  // Configuration spéciale pour Resend
+  if (host === 'smtp.resend.com') {
+    console.log('Configuration spécifique pour Resend');
+    
+    const transportConfig = {
+      host,
+      port,
+      secure: false, // Pour Resend, toujours false
+      auth: {
+        user, // 'resend' pour Resend
+        pass, // clé API Resend
+      },
+      tls: {
+        rejectUnauthorized: false // Solution possible pour les problèmes SSL avec Resend
+      }
+    };
+    
+    try {
+      // Créer et stocker le transporteur
+      transporter = createTransport(transportConfig);
+      console.log('Transporteur Resend créé avec succès');
+      return transporter;
+    } catch (error) {
+      console.error('Erreur lors de la création du transporteur Resend:', error);
+      throw error;
+    }
+  }
+
+  // Configuration standard pour les autres fournisseurs SMTP
   const transportConfig = {
     host,
     port,
@@ -89,6 +145,7 @@ const createTransporter = (): Transporter => {
 
   // Ajouter une option de pool pour gérer plusieurs connexions simultanées
   if (process.env.NODE_ENV === 'production') {
+    console.log('Mode production: configuration du pool de connexions');
     (transportConfig as any).pool = {
       maxConnections: 5,
       maxMessages: 100,
@@ -97,9 +154,15 @@ const createTransporter = (): Transporter => {
     };
   }
 
-  // Créer et stocker le transporteur
-  transporter = createTransport(transportConfig);
-  return transporter;
+  try {
+    // Créer et stocker le transporteur
+    transporter = createTransport(transportConfig);
+    console.log('Transporteur SMTP créé avec succès');
+    return transporter;
+  } catch (error) {
+    console.error('Erreur lors de la création du transporteur SMTP:', error);
+    throw error;
+  }
 };
 
 // Logger spécifique aux emails pour faciliter le débogage
@@ -114,14 +177,48 @@ const emailLogger = {
   }
 };
 
-// Fonction pour lire un template HTML
+// Lecture d'un template email
 const readEmailTemplate = (templatePath: string): string => {
   try {
-    const fullPath = path.join(process.cwd(), templatePath);
-    return fs.readFileSync(fullPath, 'utf8');
+    console.log('Tentative de lecture du template:', templatePath);
+    
+    // Essayer le chemin relatif d'abord
+    try {
+      const templateContent = fs.readFileSync(templatePath, 'utf8');
+      console.log('Template lu avec succès (chemin relatif)');
+      return templateContent;
+    } catch (error: any) {
+      console.log('Erreur avec le chemin relatif:', error.message);
+      
+      // Si échec, essayer le chemin absolu basé sur process.cwd()
+      const absolutePath = path.join(process.cwd(), templatePath);
+      console.log('Tentative avec le chemin absolu:', absolutePath);
+      
+      try {
+        const templateContent = fs.readFileSync(absolutePath, 'utf8');
+        console.log('Template lu avec succès (chemin absolu)');
+        return templateContent;
+      } catch (error: any) {
+        console.log('Erreur avec le chemin absolu:', error.message);
+        throw new Error(`Impossible de lire le template d'email: ${templatePath}`);
+      }
+    }
   } catch (error) {
-    emailLogger.error(`Erreur lors de la lecture du template ${templatePath}`, error);
-    throw new Error(`Impossible de lire le template d'email: ${templatePath}`);
+    console.error('Erreur lors de la lecture du template:', error);
+    // En cas d'erreur, retourner un template par défaut simple
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Message de ${APP_CONFIG.siteName}</title>
+      </head>
+      <body>
+        <h1>Message de ${APP_CONFIG.siteName}</h1>
+        <p>Une erreur est survenue lors du chargement du template.</p>
+        <p>Veuillez contacter l'administrateur.</p>
+      </body>
+      </html>
+    `;
   }
 };
 
@@ -145,18 +242,45 @@ const replaceTemplateVariables = (template: string, variables: Record<string, st
 // Fonction de base pour l'envoi d'emails
 export const sendEmail = async (options: EmailOptions): Promise<boolean> => {
   try {
+    console.log('Début de sendEmail avec options:', JSON.stringify({
+      to: options.to,
+      subject: options.subject,
+      from: options.from || process.env.EMAIL_FROM_ADDRESS || APP_CONFIG.contactEmail,
+      hasText: !!options.text,
+      hasHtml: !!options.html
+    }));
+    
     const emailTransporter = createTransporter();
 
     // Ajout d'un ID unique pour le traçage
     const messageId = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
     
+    // Définir l'expéditeur en fonction des paramètres d'environnement
+    const fromName = process.env.EMAIL_FROM_NAME || APP_CONFIG.siteName;
+    const fromAddress = process.env.EMAIL_FROM_ADDRESS || APP_CONFIG.contactEmail;
+    
+    // Construire l'adresse From au format "Nom <email>"
+    let from = options.from || `"${fromName}" <${fromAddress}>`;
+    if (!from.includes('<') && !from.includes('>')) {
+      // Si l'adresse ne contient pas le format avec des crochets, on construit le bon format
+      if (from.includes('@')) {
+        // C'est juste une adresse email sans nom
+        from = `"${fromName}" <${from}>`;
+      } else {
+        // C'est juste un nom sans adresse email
+        from = `"${from}" <${fromAddress}>`;
+      }
+    }
+    
+    console.log('From address formatée:', from);
+    
     const mailOptions = {
-      from: options.from || `"${process.env.EMAIL_FROM_NAME || APP_CONFIG.siteName}" <${process.env.EMAIL_FROM_ADDRESS || APP_CONFIG.contactEmail}>`,
+      from: from,
       to: Array.isArray(options.to) ? options.to.join(',') : options.to,
       subject: options.subject,
       text: options.text,
       html: options.html,
-      replyTo: options.replyTo || process.env.EMAIL_REPLY_TO || process.env.EMAIL_FROM_ADDRESS || APP_CONFIG.contactEmail,
+      replyTo: options.replyTo || process.env.EMAIL_REPLY_TO || fromAddress,
       attachments: options.attachments,
       cc: options.cc,
       bcc: options.bcc,
@@ -166,12 +290,26 @@ export const sendEmail = async (options: EmailOptions): Promise<boolean> => {
       },
     };
 
-    emailLogger.info(`Envoi d'email [${messageId}] à ${options.to}`);
-    await emailTransporter.sendMail(mailOptions);
-    emailLogger.info(`Email [${messageId}] envoyé avec succès à ${options.to}`);
+    console.log(`Envoi d'email [${messageId}] à ${options.to}`);
+    
+    // Log the mailOptions with redacted HTML/text content for brevity
+    const loggableOptions = {
+      ...mailOptions,
+      html: mailOptions.html ? `[${mailOptions.html.length} caractères]` : undefined,
+      text: mailOptions.text ? `[${mailOptions.text.length} caractères]` : undefined,
+    };
+    console.log('Options d\'envoi:', JSON.stringify(loggableOptions, null, 2));
+    
+    const info = await emailTransporter.sendMail(mailOptions);
+    console.log(`Email [${messageId}] envoyé avec succès à ${options.to}`);
+    console.log('Réponse du serveur SMTP:', info.response);
+    console.log('Message ID:', info.messageId);
+    console.log('Accepted:', info.accepted);
+    console.log('Rejected:', info.rejected);
+    
     return true;
   } catch (error) {
-    emailLogger.error(`Erreur lors de l'envoi de l'email à ${options.to}:`, error);
+    console.error(`Erreur lors de l'envoi de l'email à ${options.to}:`, error);
     // Enregistrer l'erreur pour analyse ultérieure dans un système de monitoring
     if (process.env.NODE_ENV === 'production') {
       // TODO: Ajouter l'intégration avec un service de monitoring d'erreurs
@@ -262,21 +400,54 @@ export const sendTemplateEmail = async (
 
 // Templates pour les emails courants
 export const sendWelcomeEmail = async (options: WelcomeEmailOptions): Promise<boolean> => {
-  const templatePath = options.role === 'client' 
-    ? 'src/templates/email/client/welcome.html'
-    : 'src/templates/email/freelance/welcome.html';
-  
-  const variables = {
-    clientName: options.name,
-    dashboardLink: `${APP_URLS.baseUrl}/dashboard`,
-  };
-  
-  return await sendTemplateEmail(
-    options.to,
-    `Bienvenue sur ${APP_CONFIG.siteName} !`,
-    templatePath,
-    variables
-  );
+  try {
+    console.log('Début de sendWelcomeEmail avec options:', JSON.stringify({
+      to: options.to,
+      name: options.name,
+      role: options.role
+    }));
+
+    const templatePath = options.role === 'client' 
+      ? 'src/templates/email/client/welcome.html'
+      : 'src/templates/email/freelance/welcome.html';
+    
+    console.log('Template path sélectionné:', templatePath);
+    
+    // Définir le lien du tableau de bord en fonction du rôle
+    let dashboardLink = '';
+    
+    if (options.role === 'client') {
+      dashboardLink = `${APP_URLS.baseUrl}/client-dashboard`;
+    } else if (options.role === 'freelance') {
+      dashboardLink = `${APP_URLS.baseUrl}/dashboard`;
+    } else {
+      // Fallback au cas où
+      dashboardLink = `${APP_URLS.baseUrl}/dashboard`;
+    }
+    
+    const variables = {
+      clientName: options.name,
+      dashboardLink: dashboardLink,
+      userRole: options.role
+    };
+    
+    console.log('Variables du template:', JSON.stringify(variables));
+    console.log('APP_URLS.baseUrl:', APP_URLS.baseUrl);
+    console.log('Dashboard Link:', dashboardLink);
+    
+    const result = await sendTemplateEmail(
+      options.to,
+      `Bienvenue sur ${APP_CONFIG.siteName} !`,
+      templatePath,
+      variables
+    );
+    
+    console.log('Résultat de sendTemplateEmail:', result);
+    return result;
+  } catch (error) {
+    console.error('Erreur dans sendWelcomeEmail:', error);
+    return false;
+  }
 };
 
 export const sendOrderConfirmationEmail = async (options: OrderConfirmationOptions): Promise<boolean> => {
@@ -330,4 +501,90 @@ export const formatDateFr = (date: Date): string => {
 };
 
 // Exporter les URLs de l'application
-import { APP_URLS } from './constants'; 
+import { APP_URLS } from './constants';
+
+// Fonction simplifiée pour un email de bienvenue sans dépendance aux templates
+export const sendBasicWelcomeEmail = async (options: {
+  to: string;
+  name: string;
+  role: 'client' | 'freelance';
+}): Promise<boolean> => {
+  try {
+    console.log('Envoi d\'un email de bienvenue basique à:', options.to);
+    
+    // Définir le lien du tableau de bord en fonction du rôle
+    let dashboardLink = '';
+    let dashboardText = '';
+    
+    if (options.role === 'client') {
+      dashboardLink = `${APP_URLS.baseUrl}/client-dashboard`;
+      dashboardText = 'Espace Client';
+    } else if (options.role === 'freelance') {
+      dashboardLink = `${APP_URLS.baseUrl}/dashboard`;
+      dashboardText = 'Espace Freelance';
+    } else {
+      // Fallback au cas où
+      dashboardLink = `${APP_URLS.baseUrl}/dashboard`;
+      dashboardText = 'Tableau de bord';
+    }
+    
+    // Créer un HTML simple directement dans le code
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>Bienvenue sur ${APP_CONFIG.siteName}</title>
+      </head>
+      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+        <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
+          <h1 style="color: #6554AF;">Bienvenue sur ${APP_CONFIG.siteName} !</h1>
+          
+          <p>Bonjour ${options.name},</p>
+          
+          <p>Nous sommes ravis de vous accueillir sur ${APP_CONFIG.siteName}${options.role === 'freelance' ? ' en tant que freelance' : ' en tant que client'}.</p>
+          
+          <p>Accédez à votre ${dashboardText} : <a href="${dashboardLink}" style="color: #6554AF; text-decoration: none; font-weight: bold; padding: 10px 15px; background-color: #f4f4f9; border-radius: 4px; display: inline-block; margin: 10px 0;">${dashboardText}</a></p>
+          
+          <p>N'hésitez pas à nous contacter à <a href="mailto:${APP_CONFIG.contactEmail}">${APP_CONFIG.contactEmail}</a> si vous avez des questions.</p>
+          
+          <p>Cordialement,<br>L'équipe ${APP_CONFIG.siteName}</p>
+          
+          <p style="font-size: 12px; color: #666; margin-top: 30px; border-top: 1px solid #eaeaea; padding-top: 10px;">
+            © ${new Date().getFullYear()} ${APP_CONFIG.siteName}. Tous droits réservés.
+          </p>
+        </div>
+      </body>
+      </html>
+    `;
+    
+    // Construire un texte simple alternatif
+    const text = `
+      Bienvenue sur ${APP_CONFIG.siteName} !
+      
+      Bonjour ${options.name},
+      
+      Nous sommes ravis de vous accueillir sur ${APP_CONFIG.siteName}${options.role === 'freelance' ? ' en tant que freelance' : ' en tant que client'}.
+      
+      Accédez à votre ${dashboardText} : ${dashboardLink}
+      
+      N'hésitez pas à nous contacter à ${APP_CONFIG.contactEmail} si vous avez des questions.
+      
+      Cordialement,
+      L'équipe ${APP_CONFIG.siteName}
+      
+      © ${new Date().getFullYear()} ${APP_CONFIG.siteName}. Tous droits réservés.
+    `;
+    
+    // Envoyer l'email
+    return await sendEmail({
+      to: options.to,
+      subject: `Bienvenue sur ${APP_CONFIG.siteName} !`,
+      html,
+      text
+    });
+  } catch (error) {
+    console.error('Erreur lors de l\'envoi de l\'email de bienvenue basique:', error);
+    return false;
+  }
+}; 

@@ -106,6 +106,23 @@ export default function UnifiedCheckoutPage({ params }: { params: { serviceId: s
     
     setOrderData({ ...orderData, selectedPaymentMethod: method, error: null });
     
+    // Si l'utilisateur sélectionne le paiement par carte, initialiser Stripe
+    if (method === "card" && service?.price && !paymentData?.clientSecret) {
+      // Initialiser le paiement Stripe
+      (async () => {
+        try {
+          await createPaymentIntent({
+            amount: service.price,
+            serviceId: serviceId,
+            freelanceId: service?.profiles?.id,
+          });
+        } catch (error) {
+          console.error("Erreur lors de l'initialisation du paiement Stripe:", error);
+          setOrderData({ ...orderData, selectedPaymentMethod: method, error: "Erreur lors de l'initialisation du paiement par carte" });
+        }
+      })();
+    }
+    
     // Reset other payment fields
     if (method !== "card") {
       setCardDetails({
@@ -180,10 +197,7 @@ export default function UnifiedCheckoutPage({ params }: { params: { serviceId: s
         return;
       }
     } else if (orderData.selectedPaymentMethod === "paypal") {
-      if (!paypalEmail) {
-        setOrderData({ ...orderData, error: "Veuillez saisir votre email PayPal" });
-        return;
-      }
+      // Aucune validation supplémentaire requise pour PayPal
     } else if (orderData.selectedPaymentMethod === "wave" || orderData.selectedPaymentMethod === "orange-money") {
       if (!mobileNumber) {
         setOrderData({ ...orderData, error: `Veuillez saisir votre numéro ${orderData.selectedPaymentMethod === "wave" ? "Wave" : "Orange Money"}` });
@@ -787,10 +801,11 @@ export default function UnifiedCheckoutPage({ params }: { params: { serviceId: s
                         placeholder="77 123 45 67"
                         value={mobileNumber}
                         onChange={(e) => setMobileNumber(e.target.value)}
-                        className="h-9 sm:h-10 text-[10px] sm:text-sm bg-white dark:bg-vynal-purple-dark/40 border-slate-200 dark:border-vynal-purple-secondary/40 rounded-md"
+                        className="h-9 sm:h-10 text-[10px] sm:text-sm bg-white dark:bg-vynal-purple-dark/40 border-slate-200 dark:border-vynal-purple-secondary/40 rounded-md opacity-50 cursor-not-allowed"
+                        disabled
                       />
-                      <p className="mt-1.5 sm:mt-2 text-[7px] sm:text-[9px] text-slate-500 dark:text-vynal-text-secondary">
-                        Vous recevrez un code sur votre téléphone pour valider le paiement.
+                      <p className="mt-1.5 sm:mt-2 text-[7px] sm:text-[9px] text-amber-600 dark:text-amber-500">
+                        Le paiement par Wave sera disponible prochainement.
                       </p>
                     </div>
                   </motion.div>
@@ -827,10 +842,11 @@ export default function UnifiedCheckoutPage({ params }: { params: { serviceId: s
                         placeholder="77 123 45 67"
                         value={mobileNumber}
                         onChange={(e) => setMobileNumber(e.target.value)}
-                        className="h-9 sm:h-10 text-[10px] sm:text-sm bg-white dark:bg-vynal-purple-dark/40 border-slate-200 dark:border-vynal-purple-secondary/40 rounded-md"
+                        className="h-9 sm:h-10 text-[10px] sm:text-sm bg-white dark:bg-vynal-purple-dark/40 border-slate-200 dark:border-vynal-purple-secondary/40 rounded-md opacity-50 cursor-not-allowed"
+                        disabled
                       />
-                      <p className="mt-1.5 sm:mt-2 text-[7px] sm:text-[9px] text-slate-500 dark:text-vynal-text-secondary">
-                        Vous recevrez un code sur votre téléphone pour valider le paiement.
+                      <p className="mt-1.5 sm:mt-2 text-[7px] sm:text-[9px] text-amber-600 dark:text-amber-500">
+                        Le paiement par Orange Money sera disponible prochainement.
                       </p>
                     </div>
                   </motion.div>
@@ -845,20 +861,6 @@ export default function UnifiedCheckoutPage({ params }: { params: { serviceId: s
                     className="mt-4"
                   >
                     <div className="space-y-3">
-                      <div className="relative">
-                        <Label htmlFor="paypal-email" className="mb-1 block text-[10px] sm:text-xs font-medium">
-                          Email PayPal
-                        </Label>
-                        <Input
-                          id="paypal-email"
-                          type="email"
-                          value={paypalEmail}
-                          onChange={(e) => setPaypalEmail(e.target.value)}
-                          placeholder="votre-email@example.com"
-                          className="w-full py-1.5 sm:py-2 text-[10px] sm:text-xs"
-                        />
-                      </div>
-                      
                       {/* PayPal Buttons */}
                       <PayPalButtonsForm
                         amount={service?.price || 0}
@@ -935,6 +937,7 @@ export default function UnifiedCheckoutPage({ params }: { params: { serviceId: s
                             onError={handleStripePaymentError}
                             loading={stripeLoading}
                             buttonText={`Payer ${formatPrice(service?.price || 0)}`}
+                            hideButton={true}
                           />
                         </StripeElementsProvider>
 
@@ -962,26 +965,39 @@ export default function UnifiedCheckoutPage({ params }: { params: { serviceId: s
                   </label>
                 </div>
                 
-                {/* Pay button - Only show for non-card payment methods or in test mode */}
-                {(orderData.selectedPaymentMethod !== "card" || orderData.isTestMode) && (
-                  <button
-                    onClick={handlePlaceOrder}
-                    disabled={isSubmitting || !orderData.requirements || !orderData.selectedPaymentMethod}
-                    className="w-full h-11 mt-3 bg-vynal-accent-primary hover:bg-vynal-accent-secondary disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-white dark:text-vynal-text-primary font-medium rounded-md text-base sm:text-lg"
-                  >
-                    {isSubmitting ? (
-                      <span className="flex items-center justify-center">
-                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        Traitement en cours...
-                      </span> 
-                    ) : (
-                      `Payer ${formatPrice(service?.price || 0)}`
-                    )}
-                  </button>
-                )}
+                {/* Bouton de paiement unifié - Affiché pour toutes les méthodes de paiement */}
+                <button
+                  onClick={(e) => {
+                    // Si c'est le mode carte et pas le mode test, soumettre le formulaire Stripe
+                    if (orderData.selectedPaymentMethod === "card" && !orderData.isTestMode) {
+                      e.preventDefault();
+                      const form = document.getElementById('stripe-payment-form') as HTMLFormElement;
+                      if (form) {
+                        form.dispatchEvent(new Event('submit', { cancelable: true }));
+                      } else {
+                        console.error("Formulaire Stripe non trouvé");
+                      }
+                    } else {
+                      // Sinon, utiliser le flux standard
+                      handlePlaceOrder();
+                    }
+                  }}
+                  disabled={isSubmitting || !orderData.requirements || !orderData.selectedPaymentMethod || 
+                            (orderData.selectedPaymentMethod === "card" && !orderData.isTestMode && !paymentData?.clientSecret)}
+                  className="w-full h-11 mt-3 bg-vynal-accent-primary hover:bg-vynal-accent-secondary disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-white dark:text-vynal-text-primary font-medium rounded-md text-base sm:text-lg"
+                >
+                  {isSubmitting ? (
+                    <span className="flex items-center justify-center">
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Traitement en cours...
+                    </span> 
+                  ) : (
+                    `Payer ${formatPrice(service?.price || 0)}`
+                  )}
+                </button>
 
                 {/* Stripe logo */}
                 <div className="flex items-center justify-center mt-4 space-x-1">

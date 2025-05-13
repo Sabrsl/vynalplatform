@@ -102,6 +102,7 @@ export function usePayPalButtons({
           color: 'gold',
           shape: 'rect',
           label: 'pay',
+          height: 35,
           tagline: false,
           fundingicons: false
         },
