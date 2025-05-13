@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
-import { Loader2 } from "lucide-react";
+import { Loader2, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -126,21 +126,31 @@ export default function ClientDisputesPage() {
   return (
     <div className="container max-w-6xl mx-auto px-4 py-6">
       <div className="flex flex-col space-y-2 md:flex-row md:items-center md:justify-between md:space-y-0 mb-6">
-        <div>
-          <h1 className={`text-base sm:text-lg md:text-xl font-bold ${titleClasses} flex items-center`}>
-            <AlertTriangle className="mr-2 h-4 w-4 sm:h-5 sm:w-5 text-vynal-accent-primary" />
-            Mes Litiges
-          </h1>
-          <p className={`text-[10px] sm:text-xs ${subtitleClasses}`}>
-            Gérez et suivez vos litiges
-          </p>
-        </div>
-        {isRefreshing && (
-          <div className="flex items-center text-sm text-slate-500">
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Rafraîchissement...
+        <div className="flex items-center justify-between w-full">
+          <div>
+            <h1 className={`text-base sm:text-lg md:text-xl font-bold ${titleClasses} flex items-center`}>
+              <AlertTriangle className="mr-2 h-4 w-4 sm:h-5 sm:w-5 text-vynal-accent-primary" />
+              Mes Litiges
+            </h1>
+            <p className={`text-[10px] sm:text-xs ${subtitleClasses}`}>
+              Gérez et suivez vos litiges
+            </p>
           </div>
-        )}
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => refresh()}
+            disabled={isRefreshing}
+            className="text-gray-600 dark:text-gray-400 hover:text-vynal-accent-primary dark:hover:text-vynal-accent-primary flex items-center gap-1 text-xs"
+          >
+            {isRefreshing ? (
+              <Loader2 className="h-3 w-3 animate-spin text-vynal-accent-primary" />
+            ) : (
+              <RefreshCw className="h-3 w-3" />
+            )}
+            <span className="hidden sm:inline">{isRefreshing ? 'Actualisation...' : 'Actualiser'}</span>
+          </Button>
+        </div>
       </div>
 
       {/* Barre de recherche optimisée */}
@@ -165,22 +175,6 @@ export default function ClientDisputesPage() {
                 </button>
               )}
             </div>
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => refresh()}
-              className="text-xs bg-white/20 dark:bg-slate-800/20 border-slate-200/20 dark:border-slate-700/20"
-              disabled={isRefreshing}
-            >
-              {isRefreshing ? (
-                <>
-                  <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                  Actualisation...
-                </>
-              ) : (
-                <>Actualiser</>
-              )}
-            </Button>
           </div>
         </CardContent>
       </Card>

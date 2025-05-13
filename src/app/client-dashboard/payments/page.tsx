@@ -10,7 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PaginationControls } from "@/components/ui/pagination";
 import { 
   ArrowDown, ArrowUp, CreditCard, ExternalLink, Filter, 
-  History, Loader2, Wallet, Search, CheckCircle, AlertCircle, Clock, X
+  History, Loader2, Wallet, Search, CheckCircle, AlertCircle, Clock, X, RefreshCw
 } from "lucide-react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -209,21 +209,31 @@ export default function ClientPaymentsPage() {
   return (
     <div className="container max-w-6xl mx-auto px-4 py-6 space-y-6">
       <div className="flex flex-col space-y-2 md:flex-row md:items-center md:justify-between md:space-y-0 mb-6">
-        <div>
-          <h1 className={`text-base sm:text-lg md:text-xl font-bold ${titleClasses} flex items-center`}>
-            <CreditCard className="mr-2 h-4 w-4 sm:h-5 sm:w-5 text-vynal-accent-primary" />
-            Mes Paiements
-          </h1>
-          <p className={`text-[10px] sm:text-xs ${subtitleClasses}`}>
-            Gérez vos paiements et transactions
-          </p>
-        </div>
-        {isRefreshing && (
-          <div className="flex items-center text-sm text-slate-500">
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Rafraîchissement...
+        <div className="flex items-center justify-between w-full">
+          <div>
+            <h1 className={`text-base sm:text-lg md:text-xl font-bold ${titleClasses} flex items-center`}>
+              <CreditCard className="mr-2 h-4 w-4 sm:h-5 sm:w-5 text-vynal-accent-primary" />
+              Mes Paiements
+            </h1>
+            <p className={`text-[10px] sm:text-xs ${subtitleClasses}`}>
+              Gérez vos paiements et transactions
+            </p>
           </div>
-        )}
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={() => refresh()}
+            className="text-gray-600 dark:text-gray-400 hover:text-vynal-accent-primary dark:hover:text-vynal-accent-primary flex items-center gap-1 text-xs"
+            disabled={isRefreshing}
+          >
+            {isRefreshing ? (
+              <Loader2 className="h-3 w-3 animate-spin text-vynal-accent-primary" />
+            ) : (
+              <RefreshCw className="h-3 w-3" />
+            )}
+            <span className="hidden sm:inline">{isRefreshing ? 'Actualisation...' : 'Actualiser'}</span>
+          </Button>
+        </div>
       </div>
       
       {/* Cartes de statistiques */}
@@ -285,20 +295,18 @@ export default function ClientPaymentsPage() {
               </CardDescription>
             </div>
             <Button 
-              variant="outline" 
+              variant="ghost" 
               size="sm"
               onClick={() => refresh()}
-              className="text-xs bg-white/20 dark:bg-slate-800/20 border-slate-200/20 dark:border-slate-700/20"
+              className="text-gray-600 dark:text-gray-400 hover:text-vynal-accent-primary dark:hover:text-vynal-accent-primary flex items-center gap-1 text-xs"
               disabled={isRefreshing}
             >
               {isRefreshing ? (
-                <>
-                  <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                  Actualisation...
-                </>
+                <Loader2 className="h-3 w-3 animate-spin text-vynal-accent-primary" />
               ) : (
-                <>Actualiser</>
+                <RefreshCw className="h-3 w-3" />
               )}
+              <span className="hidden sm:inline">{isRefreshing ? 'Actualisation...' : 'Actualiser'}</span>
             </Button>
           </div>
         </CardHeader>

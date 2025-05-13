@@ -19,6 +19,11 @@ export type SecurityEventType =
   | 'payment_refunded'
   | 'stripe_webhook_invalid_signature'
   | 'stripe_webhook_processing_error'
+  | 'paypal_order_attempt'
+  | 'paypal_order_created'
+  | 'paypal_order_error'
+  | 'paypal_order_success'
+  | 'paypal_order_failure'
   | 'sensitive_data_access'
   | 'security_violation';
 

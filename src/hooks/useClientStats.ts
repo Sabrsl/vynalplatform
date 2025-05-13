@@ -1,7 +1,16 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { useAuth } from './useAuth';
-import { getCachedData, setCachedData } from '@/lib/optimizations/cache';
+import { 
+  getCachedData, 
+  setCachedData, 
+  invalidateCache,
+  invalidateCachesByEvent,
+  CACHE_KEYS, 
+  CACHE_EVENT_TYPES,
+  CACHE_EXPIRY
+} from '@/lib/optimizations/index';
+import { useLastRefresh } from './useLastRefresh';
 
 export interface ClientStats {
   activeOrders: number;
@@ -22,6 +31,7 @@ interface UseClientStatsOptions {
 export function useClientStats(options: UseClientStatsOptions = {}) {
   const { useCache = true } = options;
   const { user } = useAuth();
+  const { lastRefresh, updateLastRefresh, getLastRefreshText } = useLastRefresh();
   const [stats, setStats] = useState<ClientStats>({
     activeOrders: 0,
     completedOrders: 0,
@@ -33,11 +43,16 @@ export function useClientStats(options: UseClientStatsOptions = {}) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  // Références pour éviter les effets de bord
+  const isFetchingRef = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const lastFetchTimeRef = useRef<number>(0);
 
-  // Clé de cache unique
+  // Clé de cache unique standardisée
   const cacheKey = useMemo(() => {
     if (!useCache || !user?.id) return '';
-    return `client_stats_${user.id}`;
+    return `${CACHE_KEYS.CLIENT_STATS}${user.id}`;
   }, [user?.id, useCache]);
 
   // Fonction pour récupérer les statistiques du client
@@ -46,10 +61,36 @@ export function useClientStats(options: UseClientStatsOptions = {}) {
       setLoading(false);
       return;
     }
-
-    setIsRefreshing(true);
-
+    
+    // Protection contre les requêtes concurrentes
+    if (isFetchingRef.current && !forceRefresh) {
+      console.log("[ClientStats] Requête ignorée: déjà en cours");
+      return;
+    }
+    
+    // Limiter la fréquence des requêtes
+    const now = Date.now();
+    if (!forceRefresh && (now - lastFetchTimeRef.current < 5000)) {
+      console.log("[ClientStats] Requête ignorée: throttling (5s)");
+      return;
+    }
+    
     try {
+      isFetchingRef.current = true;
+      lastFetchTimeRef.current = now;
+      
+      if (forceRefresh) {
+        setIsRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+      
+      // Annuler les requêtes précédentes
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      abortControllerRef.current = new AbortController();
+      
       // Vérifier le cache si activé et pas de forceRefresh
       if (useCache && !forceRefresh) {
         const cachedData = getCachedData<ClientStats>(cacheKey);
@@ -58,133 +99,96 @@ export function useClientStats(options: UseClientStatsOptions = {}) {
           setStats(cachedData);
           setLoading(false);
           setIsRefreshing(false);
+          isFetchingRef.current = false;
           return;
         }
       }
 
-      // La fonction RPC n'existe pas, on passe directement aux requêtes individuelles
-      console.log("[ClientStats] Récupération des stats via requêtes individuelles");
+      console.log("[ClientStats] Récupération des données depuis Supabase...");
+
+      // Utiliser la fonction RPC consolidée
+      const { data: consolidatedData, error: rpcError } = await supabase.rpc('get_client_stats', { 
+        user_id: user.id 
+      });
       
-      // Commandes actives (en cours, en attente, révision demandée)
-      const { data: activeData, error: activeError } = await supabase
-        .from('orders')
-        .select('count')
-        .eq('client_id', user.id)
-        .or('status.eq.in_progress,status.eq.pending,status.eq.revision_requested');
+      if (rpcError) {
+        console.error("[ClientStats] Erreur RPC:", rpcError);
+        setError(rpcError.message);
+        setLoading(false);
+        setIsRefreshing(false);
+      } else if (consolidatedData) {
+        console.log("[ClientStats] Données RPC récupérées:", consolidatedData);
         
-      if (activeError) throw activeError;
-      
-      // Commandes terminées
-      const { data: completedData, error: completedError } = await supabase
-        .from('orders')
-        .select('count')
-        .eq('client_id', user.id)
-        .or('status.eq.completed,status.eq.delivered');
+        // S'assurer que toutes les propriétés sont présentes et avec des valeurs par défaut
+        const statsData = {
+          activeOrders: consolidatedData.activeOrders || 0,
+          completedOrders: consolidatedData.completedOrders || 0,
+          pendingDeliveries: consolidatedData.pendingDeliveries || 0,
+          totalSpent: consolidatedData.totalSpent || 0,
+          unreadMessages: consolidatedData.unreadMessages || 0,
+          favoriteFreelancers: consolidatedData.favoriteFreelancers || 0
+        };
         
-      if (completedError) throw completedError;
-      
-      // Commandes en attente de livraison
-      const { data: pendingDeliveryData, error: pendingDeliveryError } = await supabase
-        .from('orders')
-        .select('count')
-        .eq('client_id', user.id)
-        .eq('status', 'delivered');
+        setStats(statsData);
         
-      if (pendingDeliveryError) throw pendingDeliveryError;
-      
-      // Total dépensé - corriger la requête qui utilise in()
-      const { data: spentData, error: spentError } = await supabase
-        .from('orders')
-        .select('price')
-        .eq('client_id', user.id)
-        .or('status.eq.completed,status.eq.delivered,status.eq.in_progress');
+        // Mettre à jour le cache
+        if (useCache) {
+          setCachedData(cacheKey, statsData, { 
+            expiry: CACHE_EXPIRY.DASHBOARD_STATS || 5 * 60 * 1000 
+          });
+        }
         
-      if (spentError) throw spentError;
-      
-      // Messages non lus
-      // D'abord récupérer les IDs des conversations du client via la table conversation_participants
-      const { data: conversationsData, error: conversationsError } = await supabase
-        .from('conversation_participants')
-        .select('conversation_id')
-        .eq('participant_id', user.id);
-        
-      if (conversationsError) throw conversationsError;
-      
-      const conversationIds = conversationsData ? conversationsData.map(conv => conv.conversation_id) : [];
-      
-      // Si nous avons des conversations, compter les messages non lus dans ces conversations
-      let unreadCount = 0;
-      
-      if (conversationIds.length > 0) {
-        const { data: unreadMessagesData, error: unreadMessagesError } = await supabase
-          .from('messages')
-          .select('count')
-          .eq('read', false)
-          .neq('sender_id', user.id)  // Ne pas compter les messages envoyés par l'utilisateur lui-même
-          .in('conversation_id', conversationIds);
-          
-        if (unreadMessagesError) throw unreadMessagesError;
-        
-        unreadCount = unreadMessagesData && unreadMessagesData[0] ? unreadMessagesData[0].count || 0 : 0;
-      }
-      
-      // Freelancers favoris - compter les services ajoutés aux favoris groupés par freelancer
-      const { data: favoritesData, error: favoritesError } = await supabase
-        .from('favorites')
-        .select(`
-          id, 
-          service_id,
-          services:service_id (
-            freelance_id
-          )
-        `)
-        .eq('client_id', user.id);
-        
-      if (favoritesError) throw favoritesError;
-      
-      // Compter le nombre de freelancers uniques dont les services sont favoris
-      const uniqueFreelancerIds = new Set<string>();
-      if (favoritesData && favoritesData.length > 0) {
-        favoritesData.forEach((fav: any) => {
-          if (fav.services && fav.services.freelance_id) {
-            uniqueFreelancerIds.add(fav.services.freelance_id);
-          }
-        });
-      }
-      
-      // Calculer le total dépensé
-      const totalSpent = spentData && spentData.length ? spentData.reduce((total, order) => {
-        return total + (order.price || 0);
-      }, 0) : 0;
-      
-      // Composer les statistiques
-      const statsData = {
-        activeOrders: activeData && activeData[0] ? activeData[0].count || 0 : 0,
-        completedOrders: completedData && completedData[0] ? completedData[0].count || 0 : 0,
-        pendingDeliveries: pendingDeliveryData && pendingDeliveryData[0] ? pendingDeliveryData[0].count || 0 : 0,
-        totalSpent,
-        unreadMessages: unreadCount,
-        favoriteFreelancers: uniqueFreelancerIds.size
-      };
-      
-      // Mettre à jour l'état et le cache
-      setStats(statsData);
-      if (useCache) {
-        setCachedData(cacheKey, statsData, { expiry: 5 * 60 * 1000 }); // Cache de 5 minutes
+        setLoading(false);
+        setIsRefreshing(false);
+        updateLastRefresh();
       }
     } catch (err) {
       console.error("[ClientStats] Exception:", err);
       setError(err instanceof Error ? err.message : "Erreur inconnue");
-      // Ne pas laisser l'état vide en cas d'erreur, garder les valeurs par défaut
-    } finally {
       setLoading(false);
       setIsRefreshing(false);
+    } finally {
+      isFetchingRef.current = false;
+      abortControllerRef.current = null;
     }
-  }, [user, cacheKey, useCache]);
+  }, [user, cacheKey, useCache, updateLastRefresh]);
 
   // Charger les données au montage du composant
   useEffect(() => {
-    fetchClientStats();
+    fetchRecentClientStats();
+  }, [fetchClientStats]);
+  
+  // Alias pour l'ancienne fonction fetchRecentClientStats
+  const fetchRecentClientStats = useCallback(() => {
+    return fetchClientStats();
+  }, [fetchClientStats]);
+  
+  // Écouter les événements de mise à jour pour invalider le cache
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    const handleCacheInvalidated = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const { key, type } = customEvent.detail || {};
+      
+      if (key && key.includes(CACHE_KEYS.CLIENT_STATS)) {
+        console.log("[ClientStats] Cache invalidé par clé:", key);
+        fetchClientStats(true);
+      } else if (type === CACHE_EVENT_TYPES.USERS_UPDATED) {
+        console.log("[ClientStats] Cache invalidé par changement d'authentification");
+        fetchClientStats(true);
+      } else if (type === CACHE_EVENT_TYPES.ORDERS_UPDATED) {
+        console.log("[ClientStats] Cache invalidé par mise à jour de commande");
+        fetchClientStats(true);
+      }
+    };
+    
+    // Écouter les événements d'invalidation du cache
+    window.addEventListener('cache-invalidated', handleCacheInvalidated);
+    
+    return () => {
+      window.removeEventListener('cache-invalidated', handleCacheInvalidated);
+    };
   }, [fetchClientStats]);
 
   return {
@@ -192,6 +196,8 @@ export function useClientStats(options: UseClientStatsOptions = {}) {
     loading,
     error,
     isRefreshing,
-    refresh: () => fetchClientStats(true)
+    refresh: () => fetchClientStats(true),
+    lastRefreshText: getLastRefreshText(),
+    invalidateCache: () => invalidateCache(cacheKey)
   };
 } 

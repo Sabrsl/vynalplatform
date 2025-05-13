@@ -1,7 +1,16 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { useAuth } from './useAuth';
-import { getCachedData, setCachedData } from '@/lib/optimizations/cache';
+import { 
+  getCachedData, 
+  setCachedData, 
+  invalidateCache,
+  invalidateCachesByEvent,
+  CACHE_KEYS, 
+  CACHE_EVENT_TYPES,
+  CACHE_EXPIRY 
+} from '@/lib/optimizations/index';
+import { useLastRefresh } from './useLastRefresh';
 
 export interface RecommendedFreelancer {
   id: string;
@@ -27,15 +36,21 @@ interface UseRecommendedFreelancersOptions {
 export function useRecommendedFreelancers(options: UseRecommendedFreelancersOptions = {}) {
   const { limit = 3, useCache = true } = options;
   const { user } = useAuth();
+  const { lastRefresh, updateLastRefresh, getLastRefreshText } = useLastRefresh();
   const [freelancers, setFreelancers] = useState<RecommendedFreelancer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  // Références pour éviter les effets de bord
+  const isFetchingRef = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const lastFetchTimeRef = useRef<number>(0);
 
-  // Clé de cache unique
+  // Clé de cache standardisée
   const cacheKey = useMemo(() => {
     if (!useCache || !user?.id) return '';
-    return `recommended_freelancers_${user.id}_limit_${limit}`;
+    return `${CACHE_KEYS.CLIENT_RECOMMENDED_FREELANCERS}${user.id}_limit_${limit}`;
   }, [user?.id, limit, useCache]);
 
   // Fonction pour récupérer les freelancers recommandés
@@ -44,10 +59,36 @@ export function useRecommendedFreelancers(options: UseRecommendedFreelancersOpti
       setLoading(false);
       return;
     }
-
-    setIsRefreshing(true);
+    
+    // Protection contre les requêtes concurrentes
+    if (isFetchingRef.current && !forceRefresh) {
+      console.log("[RecommendedFreelancers] Requête ignorée: déjà en cours");
+      return;
+    }
+    
+    // Limiter la fréquence des requêtes
+    const now = Date.now();
+    if (!forceRefresh && (now - lastFetchTimeRef.current < 5000)) {
+      console.log("[RecommendedFreelancers] Requête ignorée: throttling (5s)");
+      return;
+    }
 
     try {
+      isFetchingRef.current = true;
+      lastFetchTimeRef.current = now;
+      
+      if (forceRefresh) {
+        setIsRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+      
+      // Annuler les requêtes précédentes
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      abortControllerRef.current = new AbortController();
+      
       // Vérifier le cache si activé et pas de forceRefresh
       if (useCache && !forceRefresh) {
         const cachedData = getCachedData<RecommendedFreelancer[]>(cacheKey);
@@ -56,9 +97,12 @@ export function useRecommendedFreelancers(options: UseRecommendedFreelancersOpti
           setFreelancers(cachedData);
           setLoading(false);
           setIsRefreshing(false);
+          isFetchingRef.current = false;
           return;
         }
       }
+
+      console.log("[RecommendedFreelancers] Récupération des données depuis Supabase...");
 
       // Récupérer les profils de freelancers
       const { data: profilesData, error: profilesError } = await supabase
@@ -154,8 +198,14 @@ export function useRecommendedFreelancers(options: UseRecommendedFreelancersOpti
       // Mettre à jour l'état et le cache
       setFreelancers(freelancerProfiles);
       if (useCache && freelancerProfiles.length > 0) {
-        setCachedData(cacheKey, freelancerProfiles, { expiry: 10 * 60 * 1000 }); // Cache de 10 minutes
+        setCachedData(cacheKey, freelancerProfiles, { 
+          expiry: CACHE_EXPIRY.DASHBOARD_DATA || 10 * 60 * 1000 
+        });
       }
+      
+      // Mettre à jour l'interface
+      updateLastRefresh();
+      
     } catch (err) {
       console.error("[RecommendedFreelancers] Exception:", err);
       setError(err instanceof Error ? err.message : "Erreur inconnue");
@@ -163,19 +213,65 @@ export function useRecommendedFreelancers(options: UseRecommendedFreelancersOpti
     } finally {
       setLoading(false);
       setIsRefreshing(false);
+      isFetchingRef.current = false;
+      abortControllerRef.current = null;
     }
-  }, [user, cacheKey, limit, useCache]);
+  }, [user, cacheKey, limit, useCache, updateLastRefresh]);
 
   // Charger les données au montage du composant
   useEffect(() => {
     fetchRecommendedFreelancers();
   }, [fetchRecommendedFreelancers]);
+  
+  // Écouter les événements de mise à jour pour invalider le cache
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    const handleCacheInvalidated = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const { key } = customEvent.detail || {};
+      
+      if (key && (
+        key.includes(CACHE_KEYS.CLIENT_RECOMMENDED_FREELANCERS) || 
+        key.includes('profiles_') || 
+        key.includes('freelancers_')
+      )) {
+        console.log("[RecommendedFreelancers] Événement d'invalidation détecté, rechargement des données");
+        fetchRecommendedFreelancers(true);
+      }
+    };
+    
+    // Ajouter les écouteurs d'événements
+    window.addEventListener('vynal:cache-invalidated', handleCacheInvalidated);
+    window.addEventListener('vynal:profile-updated', () => fetchRecommendedFreelancers(true));
+    
+    // Nettoyer les écouteurs
+    return () => {
+      window.removeEventListener('vynal:cache-invalidated', handleCacheInvalidated);
+      window.removeEventListener('vynal:profile-updated', () => fetchRecommendedFreelancers(true));
+    };
+  }, [fetchRecommendedFreelancers]);
+  
+  // Fournir des méthodes d'invalidation du cache
+  const invalidateFreelancersCache = useCallback(() => {
+    if (cacheKey) {
+      invalidateCache(cacheKey);
+      invalidateCachesByEvent(CACHE_EVENT_TYPES.CLIENT_PROFILE_UPDATED);
+      
+      // Émettre un événement pour informer les autres composants
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('vynal:profile-updated'));
+      }
+    }
+  }, [cacheKey]);
 
   return {
     freelancers,
     loading,
     error,
     isRefreshing,
-    refresh: () => fetchRecommendedFreelancers(true)
+    lastRefreshText: getLastRefreshText(),
+    refresh: () => fetchRecommendedFreelancers(true),
+    invalidateCache: invalidateFreelancersCache
   };
 } 

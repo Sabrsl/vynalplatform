@@ -27,6 +27,7 @@ const FOOTER_LINKS = [
     links: [
       { name: "À propos", href: PUBLIC_ROUTES.ABOUT },
       { name: "Comment ça marche", href: PUBLIC_ROUTES.HOW_IT_WORKS },
+      { name: "Statuts", href: "/status" },
       { name: "Carrières", href: "/careers" },
       { name: "Devenir Freelance", href: "/devenir-freelance" },
       { name: "Contact", href: PUBLIC_ROUTES.CONTACT },

@@ -1,5 +1,11 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { supabase } from '@/lib/supabase/client';
+import { 
+  getCachedData, 
+  setCachedData, 
+  CACHE_EXPIRY 
+} from '@/lib/optimizations/cache';
+import { CACHE_KEYS, makeCacheKey } from '@/lib/optimizations/invalidation';
 
 interface UseFreelancerRatingReturn {
   averageRating: number;
@@ -8,19 +14,12 @@ interface UseFreelancerRatingReturn {
   error: string | null;
 }
 
-// Cache global pour les notes des freelances
-const ratingsCache = new Map<string, {
-  averageRating: number;
-  reviewCount: number;
-  timestamp: number;
-}>();
-
-// Durée de validité du cache (5 minutes)
-const CACHE_TTL = 5 * 60 * 1000;
+// Cache global pour éviter des requêtes multiples simultanées vers la même ressource
+const pendingRequests = new Map<string, Promise<{averageRating: number, reviewCount: number}>>();
 
 /**
  * Hook optimisé pour récupérer la note moyenne d'un freelance
- * Version améliorée avec cache et meilleure gestion des requêtes
+ * Version améliorée avec le système de cache avancé et invalidation
  */
 export function useFreelancerRating(freelanceId: string | null | undefined): UseFreelancerRatingReturn {
   // État consolidé
@@ -43,12 +42,23 @@ export function useFreelancerRating(freelanceId: string | null | undefined): Use
     freelanceId: freelanceId // Stocker l'ID actuel pour les comparaisons
   });
   
+  // Génération de la clé de cache standardisée
+  const cacheKey = useMemo(() => 
+    freelanceId ? makeCacheKey(CACHE_KEYS.REVIEWS_RATING, { freelanceId }) : null, 
+  [freelanceId]);
+  
   // Fonction de récupération des notes, mémorisée pour stabilité des références
   const fetchRating = useCallback(async (id: string, useCache = true): Promise<void> => {
-    // Vérifier le cache d'abord
+    if (!id || !cacheKey) return;
+    
+    // Vérifier le cache avancé d'abord
     if (useCache) {
-      const cachedData = ratingsCache.get(id);
-      if (cachedData && (Date.now() - cachedData.timestamp < CACHE_TTL)) {
+      const cachedData = getCachedData<{
+        averageRating: number;
+        reviewCount: number;
+      }>(cacheKey);
+      
+      if (cachedData) {
         if (refs.current.isMounted) {
           setState(prev => ({
             ...prev,
@@ -61,15 +71,6 @@ export function useFreelancerRating(freelanceId: string | null | undefined): Use
       }
     }
     
-    // Annuler toute requête en cours
-    if (refs.current.abortController) {
-      refs.current.abortController.abort();
-    }
-    
-    // Créer un nouveau contrôleur d'annulation
-    refs.current.abortController = new AbortController();
-    const signal = refs.current.abortController.signal;
-    
     // Mettre à jour l'état pour indiquer le chargement
     if (refs.current.isMounted) {
       setState(prev => ({
@@ -80,45 +81,78 @@ export function useFreelancerRating(freelanceId: string | null | undefined): Use
     }
     
     try {
-      // Vérifier si la requête a été annulée
-      if (signal.aborted) return;
+      // Vérifier si une requête est déjà en cours pour cet ID
+      let requestPromise = pendingRequests.get(id);
       
-      // Récupérer tous les avis pour ce freelance
-      const { data, error: reviewsError } = await supabase
-        .from('reviews')
-        .select('rating')
-        .eq('freelance_id', id)
-        .abortSignal(signal);
+      if (!requestPromise) {
+        // Créer un nouveau contrôleur d'annulation uniquement pour cette nouvelle requête
+        if (refs.current.abortController) {
+          refs.current.abortController.abort();
+        }
+        refs.current.abortController = new AbortController();
+        const signal = refs.current.abortController.signal;
         
-      if (signal.aborted) return;
+        // Créer une nouvelle promesse pour cette requête
+        requestPromise = (async () => {
+          try {
+            // Récupérer tous les avis pour ce freelance
+            const { data, error: reviewsError } = await supabase
+              .from('reviews')
+              .select('rating')
+              .eq('freelance_id', id)
+              .abortSignal(signal);
+              
+            if (signal.aborted) {
+              throw new Error("Requête annulée");
+            }
+              
+            if (reviewsError) {
+              throw new Error('Impossible de charger les avis pour ce freelance.');
+            }
+            
+            // Calculer la note moyenne
+            let avgRating = 0;
+            let count = 0;
+            
+            if (data && data.length > 0) {
+              const totalRating = data.reduce((sum: number, review: { rating: number }) => 
+                sum + (review.rating || 0), 0);
+              avgRating = parseFloat((totalRating / data.length).toFixed(1));
+              count = data.length;
+              
+              // Mettre à jour le cache avec le système avancé
+              setCachedData(cacheKey, {
+                averageRating: avgRating,
+                reviewCount: count,
+              }, {
+                expiry: CACHE_EXPIRY.REVIEWS,
+              });
+            }
+            
+            return { averageRating: avgRating, reviewCount: count };
+          } finally {
+            // Supprimer cette requête de la Map dès qu'elle est terminée
+            pendingRequests.delete(id);
+            
+            // Nettoyer la référence du contrôleur
+            if (refs.current.abortController && refs.current.abortController.signal === signal) {
+              refs.current.abortController = null;
+            }
+          }
+        })();
         
-      if (reviewsError) {
-        throw new Error('Impossible de charger les avis pour ce freelance.');
+        // Ajouter cette promesse au Map des requêtes en cours
+        pendingRequests.set(id, requestPromise);
       }
       
-      // Calculer la note moyenne
-      let avgRating = 0;
-      let count = 0;
-      
-      if (data && data.length > 0) {
-        const totalRating = data.reduce((sum: number, review: { rating: number }) => 
-          sum + (review.rating || 0), 0);
-        avgRating = parseFloat((totalRating / data.length).toFixed(1));
-        count = data.length;
-        
-        // Mettre à jour le cache
-        ratingsCache.set(id, {
-          averageRating: avgRating,
-          reviewCount: count,
-          timestamp: Date.now()
-        });
-      }
+      // Attendre le résultat
+      const result = await requestPromise;
       
       // Mettre à jour l'état seulement si le composant est toujours monté
       if (refs.current.isMounted) {
         setState({
-          averageRating: avgRating,
-          reviewCount: count,
+          averageRating: result.averageRating,
+          reviewCount: result.reviewCount,
           loading: false,
           error: null
         });
@@ -126,24 +160,16 @@ export function useFreelancerRating(freelanceId: string | null | undefined): Use
     } catch (err: any) {
       console.error('Erreur lors du chargement des avis:', err);
       
-      // Vérifier si l'erreur est due à une annulation
-      if (signal.aborted) return;
-      
       // Mettre à jour l'état d'erreur seulement si le composant est toujours monté
-      if (refs.current.isMounted) {
+      if (refs.current.isMounted && err.message !== "Requête annulée") {
         setState(prev => ({
           ...prev,
           loading: false,
           error: err.message || 'Une erreur est survenue'
         }));
       }
-    } finally {
-      // Nettoyer la référence du contrôleur
-      if (refs.current.abortController && refs.current.abortController.signal === signal) {
-        refs.current.abortController = null;
-      }
     }
-  }, []);
+  }, [cacheKey]);
   
   // Effet pour charger les données
   useEffect(() => {
@@ -162,6 +188,25 @@ export function useFreelancerRating(freelanceId: string | null | undefined): Use
       });
     }
     
+    // Effet pour écouter les événements d'invalidation de cache
+    const handleCacheInvalidation = (event: CustomEvent) => {
+      // Vérifier si cette clé est concernée par l'invalidation
+      const invalidatedKey = event.detail?.key;
+      const type = event.detail?.type;
+      
+      // Invalider sur des événements spécifiques aux avis
+      if (freelanceId && (
+        (invalidatedKey && (invalidatedKey === cacheKey || invalidatedKey.includes('reviews'))) ||
+        (type && type.includes('review'))
+      )) {
+        fetchRating(freelanceId, false);
+      }
+    };
+    
+    if (typeof window !== 'undefined') {
+      window.addEventListener('vynal:cache-invalidated', handleCacheInvalidation as EventListener);
+    }
+    
     // Nettoyage
     return () => {
       refs.current.isMounted = false;
@@ -171,8 +216,12 @@ export function useFreelancerRating(freelanceId: string | null | undefined): Use
         refs.current.abortController.abort();
         refs.current.abortController = null;
       }
+      
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('vynal:cache-invalidated', handleCacheInvalidation as EventListener);
+      }
     };
-  }, [freelanceId, fetchRating]);
+  }, [freelanceId, fetchRating, cacheKey]);
   
   // Retourner un objet memoïsé
   return useMemo(() => ({

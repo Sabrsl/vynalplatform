@@ -3,19 +3,19 @@ import { useRef, useCallback, useEffect } from 'react';
 interface RefreshControlOptions {
   /**
    * Intervalle minimum entre les rafraîchissements automatiques en millisecondes
-   * @default 10000 (10 secondes)
+   * @default 30000 (30 secondes)
    */
   minInterval?: number;
   
   /**
    * Intervalle minimum pour les rafraîchissements en arrière-plan
-   * @default 30000 (30 secondes)
+   * @default 60000 (60 secondes)
    */
   backgroundRefreshInterval?: number;
   
   /**
    * Délai pour le debounce des événements qui déclenchent un rafraîchissement
-   * @default 1000 (1 seconde)
+   * @default 2000 (2 secondes)
    */
   debounceDelay?: number;
 }
@@ -27,9 +27,9 @@ interface RefreshControlOptions {
  */
 export function useRefreshControl(options: RefreshControlOptions = {}) {
   const {
-    minInterval = 10000,
-    backgroundRefreshInterval = 30000,
-    debounceDelay = 1000
+    minInterval = 30000,
+    backgroundRefreshInterval = 60000,
+    debounceDelay = 2000
   } = options;
   
   // Consolidation des références en un seul objet

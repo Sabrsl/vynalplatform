@@ -1,26 +1,62 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase/client';
+import { RealtimeChannel } from '@supabase/supabase-js';
 
 interface UnreadCounts {
   total: number;
   byConversation: Record<string, number>;
 }
 
+// Cache global pour partager les données entre les instances du hook
+const CACHE = {
+  unreadCounts: null as UnreadCounts | null,
+  lastFetchTime: 0,
+  subscriptionCount: 0,
+  pendingRefresh: false
+};
+
+// Durée en ms entre deux rafraîchissements
+const THROTTLE_DURATION = 30000; // 30 secondes
+
 export const useUnreadMessages = (userId: string | undefined) => {
   const [unreadCounts, setUnreadCounts] = useState<UnreadCounts>({
     total: 0,
     byConversation: {}
   });
+  
+  // Références pour garder trace de l'état de la requête
+  const isActiveRef = useRef(true);
+  const lastFetchTimeRef = useRef(0);
 
   // Fonction pour charger les compteurs de messages non lus
-  const loadUnreadCounts = useCallback(async () => {
+  const loadUnreadCounts = useCallback(async (force = false) => {
     if (!userId) return;
     
+    // Vérifier si nous devons vraiment faire une requête
+    const now = Date.now();
+    const timeSinceLastFetch = now - CACHE.lastFetchTime;
+    
+    // Si nous avons des données en cache et que le temps de throttle n'est pas écoulé
+    if (!force && CACHE.unreadCounts && timeSinceLastFetch < THROTTLE_DURATION) {
+      // Utiliser les données en cache
+      setUnreadCounts(CACHE.unreadCounts);
+      return;
+    }
+    
+    // Si une requête est déjà en cours, ne pas en lancer une autre
+    if (CACHE.pendingRefresh) return;
+    
     try {
+      CACHE.pendingRefresh = true;
+      lastFetchTimeRef.current = now;
+      CACHE.lastFetchTime = now;
+      
       const { data, error } = await supabase
         .from('conversation_participants')
         .select('conversation_id, unread_count')
         .eq('participant_id', userId);
+      
+      CACHE.pendingRefresh = false;
       
       if (error) {
         console.error('Erreur lors du chargement des compteurs:', error);
@@ -38,55 +74,102 @@ export const useUnreadMessages = (userId: string | undefined) => {
       
       const newCounts = { total, byConversation };
       
-      // Mettre à jour l'état
-      setUnreadCounts(newCounts);
+      // Mettre à jour le cache global
+      CACHE.unreadCounts = newCounts;
+      
+      // Mettre à jour l'état uniquement si le composant est toujours monté
+      if (isActiveRef.current) {
+        setUnreadCounts(newCounts);
+      }
       
       // Émettre un événement global pour mettre à jour les interfaces
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('vynal:messages-update', { 
-          detail: { counts: newCounts, timestamp: Date.now() } 
+          detail: { counts: newCounts, timestamp: now } 
         }));
       }
     } catch (err) {
+      CACHE.pendingRefresh = false;
       console.error('Erreur lors du chargement des compteurs:', err);
     }
   }, [userId]);
 
   // Fonction pour permettre de rafraîchir manuellement les compteurs
   const refreshCount = useCallback(() => {
-    loadUnreadCounts();
+    loadUnreadCounts(true); // Force le rafraîchissement
   }, [loadUnreadCounts]);
 
   useEffect(() => {
     if (!userId) return;
-
-    // Charger les compteurs initiaux
-    loadUnreadCounts();
     
-    // S'abonner aux mises à jour des compteurs
-    const subscription = supabase
-      .channel('unread-counters')
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'conversation_participants',
-          filter: `participant_id=eq.${userId}`
-        },
-        (payload) => {
-          // Utiliser setTimeout pour éviter les problèmes de fermeture de canal
-          setTimeout(() => {
-            loadUnreadCounts();
-          }, 0);
-          return undefined; // Ne pas retourner de promesse
+    isActiveRef.current = true;
+    CACHE.subscriptionCount++;
+
+    // Charger depuis le cache si disponible, sinon faire une requête
+    if (CACHE.unreadCounts) {
+      setUnreadCounts(CACHE.unreadCounts);
+      
+      // Vérifier si nous devons rafraîchir en arrière-plan
+      const now = Date.now();
+      if (now - CACHE.lastFetchTime > THROTTLE_DURATION) {
+        loadUnreadCounts();
+      }
+    } else {
+      // Premier chargement
+      loadUnreadCounts();
+    }
+    
+    // S'abonner aux mises à jour des compteurs si c'est la première instance
+    let subscription: RealtimeChannel | undefined;
+    if (CACHE.subscriptionCount === 1) {
+      subscription = supabase
+        .channel('unread-counters')
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'conversation_participants',
+            filter: `participant_id=eq.${userId}`
+          },
+          (payload) => {
+            // Utiliser setTimeout pour éviter les problèmes de fermeture de canal
+            setTimeout(() => {
+              // Vérifier si nous devons throttler
+              const now = Date.now();
+              if (now - CACHE.lastFetchTime > THROTTLE_DURATION) {
+                loadUnreadCounts();
+              }
+            }, 0);
+            return undefined; // Ne pas retourner de promesse
+          }
+        )
+        .subscribe();
+    }
+    
+    // S'abonner aux événements de visibilité pour rafraîchir
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        const now = Date.now();
+        if (now - CACHE.lastFetchTime > THROTTLE_DURATION) {
+          loadUnreadCounts();
         }
-      )
-      .subscribe();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
     
     return () => {
-      // Nettoyer proprement la souscription
-      supabase.removeChannel(subscription);
+      isActiveRef.current = false;
+      CACHE.subscriptionCount--;
+      
+      // Nettoyage
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      
+      // Nettoyer proprement la souscription si c'est la dernière instance
+      if (CACHE.subscriptionCount === 0 && subscription) {
+        supabase.removeChannel(subscription);
+      }
     };
   }, [userId, loadUnreadCounts]);
 
@@ -101,8 +184,8 @@ export const useUnreadMessages = (userId: string | undefined) => {
         p_user_id: userId
       });
       
-      // Mettre à jour l'état local immédiatement pour une UX fluide
-      setUnreadCounts(prev => {
+      // Mettre à jour l'état local et le cache immédiatement pour une UX fluide
+      const updateCounts = (prev: UnreadCounts): UnreadCounts => {
         const prevCount = prev.byConversation[conversationId] || 0;
         
         const newCounts = {
@@ -120,6 +203,14 @@ export const useUnreadMessages = (userId: string | undefined) => {
           }));
         }
         
+        return newCounts;
+      };
+      
+      // Mettre à jour l'état local
+      setUnreadCounts(prev => {
+        const newCounts = updateCounts(prev);
+        // Mettre à jour le cache global également
+        CACHE.unreadCounts = newCounts;
         return newCounts;
       });
       

@@ -54,6 +54,14 @@ export {
   isValidObject
 } from './safeCache';
 
+// Exporter les fonctions de cache client
+export {
+  invalidateClientStats,
+  invalidateClientOrders,
+  invalidateAllClientCache,
+  listenToClientCacheInvalidation
+} from './client-cache';
+
 // Clés pour le système de cache
 export const CACHE_KEYS = {
   // Données générales
@@ -86,7 +94,16 @@ export const CACHE_KEYS = {
   ADMIN_STATS: 'admin_stats_',
   ADMIN_CONTACT_MESSAGES: 'admin_contact_messages_',
   ADMIN_CONVERSATION_MESSAGES: 'admin_conversation_messages_',
-  ADMIN_NOTIFICATIONS_COUNT: 'admin_notifications_count_'
+  ADMIN_NOTIFICATIONS_COUNT: 'admin_notifications_count_',
+  
+  // Clés pour le dashboard client
+  CLIENT_STATS: 'client_stats_',
+  CLIENT_ORDERS: 'client_orders_',
+  CLIENT_RECENT_ORDERS: 'client_recent_orders_', 
+  CLIENT_RECOMMENDED_FREELANCERS: 'client_recommended_freelancers_',
+  CLIENT_DASHBOARD_ACTIVITIES: 'client_dashboard_activities_',
+  CLIENT_PAYMENTS_HISTORY: 'client_payments_history_',
+  CLIENT_DISPUTES: 'client_disputes_'
 } as const;
 
 // Durées d'expiration complètes du cache en millisecondes
@@ -160,7 +177,12 @@ export const CACHE_EVENT_TYPES = {
   ADMIN_STATS_UPDATED: 'admin_stats_updated',
   SETTINGS_UPDATED: 'settings_updated',
   ALERTS_UPDATED: 'alerts_updated',
-  NOTIFICATIONS_UPDATED: 'notifications_updated'
+  NOTIFICATIONS_UPDATED: 'notifications_updated',
+  // Nouveaux événements pour le dashboard client
+  CLIENT_STATS_UPDATED: 'client_stats_updated',
+  CLIENT_ORDERS_UPDATED: 'client_orders_updated',
+  CLIENT_PAYMENTS_UPDATED: 'client_payments_updated',
+  CLIENT_PROFILE_UPDATED: 'client_profile_updated'
 };
 
 // Configuration des groupes de cache par événement
@@ -179,7 +201,10 @@ export const CACHE_EVENT_GROUPS = {
   ],
   [CACHE_EVENT_TYPES.ORDERS_UPDATED]: [
     'admin_orders_list',
-    CACHE_KEYS.ADMIN_STATS // Invalider aussi les statistiques admin qui incluent les commandes
+    CACHE_KEYS.ADMIN_STATS, // Invalider aussi les statistiques admin qui incluent les commandes
+    CACHE_KEYS.CLIENT_STATS, // Invalider les statistiques client
+    CACHE_KEYS.CLIENT_ORDERS, // Invalider les commandes client
+    CACHE_KEYS.CLIENT_RECENT_ORDERS // Invalider les commandes récentes client
   ],
   [CACHE_EVENT_TYPES.ADMIN_STATS_UPDATED]: [
     CACHE_KEYS.ADMIN_STATS,
@@ -195,6 +220,25 @@ export const CACHE_EVENT_GROUPS = {
   [CACHE_EVENT_TYPES.NOTIFICATIONS_UPDATED]: [
     CACHE_KEYS.ADMIN_NOTIFICATIONS_COUNT,
     'admin_notifications_count_'
+  ],
+  // Nouveaux groupes pour le dashboard client
+  [CACHE_EVENT_TYPES.CLIENT_STATS_UPDATED]: [
+    CACHE_KEYS.CLIENT_STATS,
+    CACHE_KEYS.CLIENT_DASHBOARD_ACTIVITIES
+  ],
+  [CACHE_EVENT_TYPES.CLIENT_ORDERS_UPDATED]: [
+    CACHE_KEYS.CLIENT_ORDERS,
+    CACHE_KEYS.CLIENT_RECENT_ORDERS,
+    CACHE_KEYS.CLIENT_STATS // Invalider aussi les statistiques qui dépendent des commandes
+  ],
+  [CACHE_EVENT_TYPES.CLIENT_PAYMENTS_UPDATED]: [
+    CACHE_KEYS.CLIENT_PAYMENTS_HISTORY,
+    CACHE_KEYS.WALLET_DATA,
+    CACHE_KEYS.PAYMENTS_DATA
+  ],
+  [CACHE_EVENT_TYPES.CLIENT_PROFILE_UPDATED]: [
+    CACHE_KEYS.USER_PROFILE,
+    CACHE_KEYS.CLIENT_RECOMMENDED_FREELANCERS // Les recommandations peuvent dépendre du profil
   ]
 };
 

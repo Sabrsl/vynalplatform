@@ -10,6 +10,7 @@ import Image from 'next/image';
 import { Loader } from '@/components/ui/loader';
 import { OrderMessagingProps, OrderDetails } from './messaging-types';
 import { OrderMessage } from '@/types/messages';
+import requestCoordinator from '@/lib/optimizations/requestCoordinator';
 
 // Constantes
 const CACHE_EXPIRY = 60 * 1000; // 1 minute
@@ -18,6 +19,23 @@ const REFRESH_INTERVAL_FREELANCE = 20000; // 20 secondes
 
 // Classe de transition pour les animations
 const slideIn = "animate-in fade-in slide-in-from-bottom-4 duration-300 ease-out";
+
+// Définir la structure des données du cache
+type OrderCache = {
+  orderInfo: OrderDetails;
+  messages: OrderMessage[];
+  timestamp: number;
+};
+
+// Version simplifiée du type OrderDetails pour éviter les erreurs de typage
+type ServiceInfo = {
+  id: string;
+  title: string;
+  price: number;
+  delivery_time: number;
+  description: string;
+  image_url?: string;
+};
 
 const OrderMessagingInterface: React.FC<OrderMessagingProps> = ({
   orderId,
@@ -45,351 +63,294 @@ const OrderMessagingInterface: React.FC<OrderMessagingProps> = ({
     triggerOnce: false
   });
 
-  // Fonction pour charger les messages d'une commande spécifique
-  const fetchOrderData = useCallback(async () => {
+  // Charger les données de la commande avec coordination
+  const fetchOrderDataCoordinated = useCallback(async () => {
     if (!orderId || !user?.id) return;
     
     try {
       setLoadingOrderData(true);
       
-      const supabase = createClientComponentClient();
-      
-      console.log(`Chargement des détails de la commande ${orderId} pour ${isFreelance ? 'freelance' : 'client'}...`);
-      
-      // Récupérer les détails de la commande
-      const { data: orderData, error: orderError } = await supabase
-        .from('orders')
-        .select(`
-          *,
-          services(*),
-          profiles!orders_client_id_fkey(*),
-          freelance:profiles!orders_freelance_id_fkey(*)
-        `)
-        .eq('id', orderId)
-        .single();
-        
-      if (orderError) {
-        throw new Error(`Erreur lors de la récupération de la commande: ${orderError.message}`);
-      }
-      
-      if (!orderData) {
-        throw new Error('Commande introuvable');
-      }
-      
-      // Vérifier que l'utilisateur est bien impliqué dans cette commande
-      const isUserInvolved = 
-        user.id === orderData.client_id || 
-        user.id === orderData.freelance_id;
-      
-      if (!isUserInvolved) {
-        throw new Error("Vous n'êtes pas autorisé à voir cette commande");
-      }
-      
-      // Récupérer les messages associés à cette commande
-      console.log(`Chargement des messages pour la commande ${orderId}...`);
-      const { data: messages, error: messagesError } = await supabase
-        .from('messages')
-        .select('*')
-        .eq('order_id', orderId)
-        .order('created_at', { ascending: true });
-        
-      if (messagesError) {
-        throw new Error(`Erreur lors de la récupération des messages: ${messagesError.message}`);
-      }
-      
-      console.log(`${messages?.length || 0} messages chargés pour la commande ${orderId}`);
-      
-      // Transformer les données
-      const orderInfo = {
-        id: orderData.id,
-        created_at: orderData.created_at,
-        updated_at: orderData.updated_at,
-        status: orderData.status,
-        price: orderData.price,
-        delivery_time: orderData.delivery_time,
-        requirements: orderData.requirements,
-        completed_at: orderData.completed_at,
-        service: {
-          id: orderData.services.id,
-          title: orderData.services.title,
-          price: orderData.services.price,
-          delivery_time: orderData.services.delivery_time,
-          description: orderData.services.description
-        },
-        freelance: {
-          id: orderData.freelance.id,
-          username: orderData.freelance.username,
-          full_name: orderData.freelance.full_name,
-          avatar_url: orderData.freelance.avatar_url
-        },
-        client: {
-          id: orderData.profiles.id,
-          username: orderData.profiles.username,
-          full_name: orderData.profiles.full_name,
-          avatar_url: orderData.profiles.avatar_url
-        }
-      };
-      
-      // Transformer les messages
-      const formattedMessages = messages?.map(msg => ({
-        id: msg.id,
-        sender_id: msg.sender_id,
-        content: msg.content,
-        created_at: msg.created_at,
-        read: msg.read,
-        attachment_url: msg.attachment_url,
-        attachment_type: msg.attachment_type,
-        attachment_name: msg.attachment_name,
-        order_id: msg.order_id,
-        conversation_id: null,
-        is_typing: false,
-        sender: msg.sender_id === orderInfo.freelance.id 
-          ? orderInfo.freelance 
-          : orderInfo.client
-      })) || [];
-      
-      // Marquer les messages comme lus
-      const unreadMessages = formattedMessages.filter(
-        msg => !msg.read && msg.sender_id !== user.id
-      );
-      
-      if (unreadMessages.length > 0) {
-        console.log(`Marquage de ${unreadMessages.length} messages non lus comme lus...`);
-        
-        // Mettre à jour en base de données
-        await supabase
-          .from('messages')
-          .update({ read: true })
-          .in('id', unreadMessages.map(msg => msg.id));
+      // Utiliser le coordinateur pour éviter les requêtes multiples pour la même commande
+      return await requestCoordinator.scheduleRequest(
+        `order_data_${orderId}`,
+        async () => {
+          // Vérifier d'abord si des données sont en cache et récentes (moins de 60 secondes)
+          const cacheKey = `order_messages_${orderId}`;
+          const cachedData = localStorage.getItem(cacheKey);
+          const now = Date.now();
           
-        // Mettre à jour localement
-        formattedMessages.forEach(msg => {
-          if (!msg.read && msg.sender_id !== user.id) {
-            msg.read = true;
+          if (cachedData) {
+            try {
+              const { orderInfo, messages, timestamp } = JSON.parse(cachedData) as OrderCache;
+              
+              // Si le cache est récent, utiliser les données
+              if (now - timestamp < CACHE_EXPIRY) {
+                console.log(`Utilisation du cache pour la commande ${orderId} (${Math.round((now - timestamp)/1000)}s)`);
+                setOrderDetails(orderInfo);
+                setOrderMessages(messages);
+                return { orderInfo, messages };
+              }
+            } catch (e) {
+              console.error("Erreur lors de la lecture du cache des messages de commande:", e);
+            }
           }
-        });
+          
+          // Récupérer les détails de la commande
+          const supabase = createClientComponentClient();
+          const { data: orderData, error: orderError } = await supabase
+            .from('orders')
+            .select('*, freelance:freelance_id(*), service:service_id(*), client:client_id(*)')
+            .eq('id', orderId)
+            .single();
+          
+          if (orderError) throw orderError;
+          if (!orderData) throw new Error("Commande non trouvée");
+          
+          // Créer un objet OrderDetails complet avec tous les champs requis
+          const orderInfo: OrderDetails = {
+            id: orderData.id,
+            status: orderData.status,
+            created_at: orderData.created_at,
+            updated_at: orderData.updated_at || orderData.created_at,
+            price: orderData.price || 0,
+            delivery_time: orderData.delivery_time || 0,
+            requirements: orderData.requirements || '',
+            completed_at: orderData.completed_at || null,
+            service: {
+              id: orderData.service.id,
+              title: orderData.service.title,
+              price: orderData.service.price || 0,
+              delivery_time: orderData.service.delivery_time || 0,
+              description: orderData.service.description || '',
+              // Ignorer l'erreur de typage pour image_url
+            } as ServiceInfo,
+            client: {
+              id: orderData.client.id,
+              username: orderData.client.username || '',
+              full_name: orderData.client.full_name || '',
+              avatar_url: orderData.client.avatar_url || null
+            },
+            freelance: {
+              id: orderData.freelance.id,
+              username: orderData.freelance.username || '',
+              full_name: orderData.freelance.full_name || '',
+              avatar_url: orderData.freelance.avatar_url || null
+            }
+          };
+          
+          // Récupérer les messages de la commande
+          const { data: messagesData, error: messagesError } = await supabase
+            .from('order_messages')
+            .select('*')
+            .eq('order_id', orderId)
+            .order('created_at', { ascending: true });
+          
+          if (messagesError) throw messagesError;
+          
+          // Formater les messages avec le sender requis
+          const formattedMessages = messagesData.map(msg => {
+            const sender = msg.sender_id === orderInfo.freelance.id 
+              ? orderInfo.freelance 
+              : orderInfo.client;
+              
+            return {
+              id: msg.id,
+              content: msg.content,
+              created_at: msg.created_at,
+              sender_id: msg.sender_id,
+              read: msg.read,
+              attachment_url: msg.attachment_url,
+              attachment_type: msg.attachment_type,
+              attachment_name: msg.attachment_name || '',
+              order_id: msg.order_id,
+              conversation_id: null,
+              is_typing: false,
+              sender: sender,
+              message_type: msg.message_type || 'text',
+              metadata: msg.metadata || null
+            } as OrderMessage;
+          });
+          
+          // Marquer les messages non lus comme lus si je ne suis pas l'expéditeur
+          const unreadMessages = formattedMessages.filter(
+            msg => !msg.read && msg.sender_id !== user.id
+          );
+          
+          if (unreadMessages.length > 0) {
+            console.log(`Marquage de ${unreadMessages.length} messages non lus comme lus...`);
+            
+            // Mettre à jour en base de données
+            await supabase
+              .from('order_messages')
+              .update({ read: true })
+              .in('id', unreadMessages.map(msg => msg.id));
+              
+            // Mettre à jour localement
+            formattedMessages.forEach(msg => {
+              if (!msg.read && msg.sender_id !== user.id) {
+                msg.read = true;
+              }
+            });
+          }
+          
+          // Mettre à jour l'état local
+          setOrderDetails(orderInfo);
+          setOrderMessages(formattedMessages);
+          
+          // Mettre en cache les données
+          localStorage.setItem(cacheKey, JSON.stringify({
+            orderInfo,
+            messages: formattedMessages,
+            timestamp: now
+          }));
+          
+          // Réinitialiser le compteur de tentatives
+          retryCountRef.current = 0;
+          setLoadError(null);
+          
+          return { orderInfo, messages: formattedMessages };
+        },
+        'medium' // Priorité moyenne
+      );
+    } catch (error) {
+      console.error("Erreur lors du chargement des données de commande:", error);
+      setLoadError("Impossible de charger les données de la commande. Veuillez réessayer.");
+      
+      // Augmenter le compteur de tentatives
+      if (retryCountRef.current < maxRetries) {
+        retryCountRef.current++;
+        // Nouvelle tentative avec délai exponentiel
+        setTimeout(() => {
+          console.log(`Tentative ${retryCountRef.current}/${maxRetries} de chargement des données de commande...`);
+          fetchOrderDataCoordinated();
+        }, 1000 * Math.pow(2, retryCountRef.current));
       }
       
-      setOrderDetails(orderInfo);
-      setOrderMessages(formattedMessages);
-      
-      // Réinitialiser le compteur de tentatives
-      retryCountRef.current = 0;
-      setLoadError(null);
-      
-      // Configurer un intervalle de rafraîchissement périodique avec une fréquence différente selon le rôle
-      const refreshInterval = isFreelance ? REFRESH_INTERVAL_FREELANCE : REFRESH_INTERVAL_CLIENT;
-      
-      console.log(`Configuration du rafraîchissement périodique des messages de commande (${refreshInterval/1000}s)...`);
-      
+      return null;
+    } finally {
+      setLoadingOrderData(false);
+    }
+  }, [orderId, user?.id]);
+
+  // Remplacer l'ancien fetchOrderData par le nouveau coordonné
+  const fetchOrderData = fetchOrderDataCoordinated;
+
+  // Configurer l'abonnement en temps réel pour les nouveaux messages
+  useEffect(() => {
+    if (!orderId || !user?.id) return;
+    
+    // Initialiser les données de la commande
+    fetchOrderData();
+    
+    // Configurer l'intervalle de rafraîchissement avec une utilisation de requestCoordinator
+    const setupRefreshInterval = () => {
       // Nettoyer l'intervalle précédent si nécessaire
       if (refreshIntervalRef.current) {
         clearInterval(refreshIntervalRef.current);
       }
       
-      // Configurer le nouvel intervalle
+      // Déterminer l'intervalle en fonction du rôle (plus court pour client)
+      const refreshInterval = isFreelance ? REFRESH_INTERVAL_FREELANCE : REFRESH_INTERVAL_CLIENT;
+      
+      console.log(`Configuration du rafraîchissement périodique des messages de commande (${refreshInterval/1000}s)...`);
+      
+      // Configurer un nouvel intervalle qui utilise le coordinateur de requêtes
       refreshIntervalRef.current = setInterval(() => {
-        console.log(`Rafraîchissement périodique des messages de la commande ${orderId}...`);
-        fetchOrderData();
+        // Utiliser requestCoordinator pour éviter de multiples requêtes simultanées
+        requestCoordinator.scheduleRequest(
+          `refresh_order_${orderId}`,
+          async () => {
+            console.log(`Rafraîchissement périodique des messages de la commande ${orderId}...`);
+            await fetchOrderData();
+          },
+          'low' // Priorité basse pour les rafraîchissements automatiques
+        );
       }, refreshInterval);
-    } catch (err) {
-      console.error("Erreur lors du chargement des données de commande:", err);
-      
-      // Incrémenter le compteur de tentatives
-      retryCountRef.current += 1;
-      
-      if (retryCountRef.current < maxRetries) {
-        // Réessayer après un délai exponentiel
-        const retryDelay = 1000 * Math.pow(2, retryCountRef.current - 1);
-        console.log(`Nouvelle tentative dans ${retryDelay / 1000} secondes... (tentative ${retryCountRef.current}/${maxRetries})`);
-        
-        setTimeout(() => {
-          console.log(`Tentative ${retryCountRef.current}/${maxRetries} de chargement des messages de commande...`);
-          fetchOrderData();
-        }, retryDelay);
-      } else {
-        const errorMessage = err instanceof Error ? err.message : "Erreur inconnue";
-        console.error(`Échec après ${maxRetries} tentatives. Erreur: ${errorMessage}`);
-        setLoadError(`Impossible de charger les données de commande après ${maxRetries} tentatives. ${errorMessage}`);
-      }
-    } finally {
-      setLoadingOrderData(false);
-      setMounted(true);
-      setIsInitialLoad(false);
-    }
-  }, [orderId, user?.id, isFreelance]);
-
-  // Configurer l'abonnement en temps réel pour les nouveaux messages
-  const setupRealtimeSubscription = useCallback(() => {
-    if (!orderId || !user?.id || !orderDetails) return null;
+    };
     
+    setupRefreshInterval();
+    
+    // Configurer la connexion temps réel
     try {
       const supabase = createClientComponentClient();
       
-      // Supprimer l'ancien canal s'il existe
+      console.log(`Configuration de l'abonnement temps réel pour les messages de la commande ${orderId}...`);
+      
+      // S'abonner aux nouveaux messages pour cette commande
+      const channel = supabase
+        .channel(`order-messages-${orderId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'order_messages',
+            filter: `order_id=eq.${orderId}`
+          },
+          (payload) => {
+            console.log("Nouveau message de commande reçu:", payload);
+            // Rafraîchir les données
+            fetchOrderData();
+            
+            // Jouer un son de notification si le message n'est pas de l'utilisateur actuel
+            if (payload.new && payload.new.sender_id !== user.id && audioRef.current) {
+              audioRef.current.play().catch(e => console.log("Erreur de lecture audio:", e));
+            }
+          }
+        )
+        .subscribe();
+      
+      // Stocker la référence du canal pour le nettoyage
+      channelRef.current = channel;
+    } catch (error) {
+      console.error("Erreur lors de la configuration de l'abonnement temps réel:", error);
+    }
+    
+    return () => {
+      // Nettoyage à la fermeture
       if (channelRef.current) {
-        console.log(`Suppression de l'ancien canal pour la commande ${orderId}`);
-        supabase.removeChannel(channelRef.current);
+        try {
+          const supabase = createClientComponentClient();
+          supabase.removeChannel(channelRef.current);
+        } catch (error) {
+          console.error("Erreur lors de la déconnexion du canal temps réel:", error);
+        }
         channelRef.current = null;
       }
       
-      console.log(`Configuration de l'abonnement temps réel pour les messages de la commande ${orderId} (${isFreelance ? 'freelance' : 'client'})...`);
-      
-      const channelId = `order_messages_${orderId}_${isFreelance ? 'freelance' : 'client'}_${Date.now()}`;
-      
-      // Créer un nouveau canal spécifique à cette commande
-      const channel = supabase
-        .channel(channelId)
-        .on('postgres_changes', {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
-          filter: `order_id=eq.${orderId}`
-        },
-        (payload) => {
-          console.log(`Nouveau message reçu pour la commande ${orderId}:`, payload);
-          
-          // Typecasting obligatoire avec TypeScript
-          const newMessage = payload.new as any;
-          
-          // Ne pas ajouter les messages de l'utilisateur actuel (ils sont déjà ajoutés lors de l'envoi)
-          if (newMessage.sender_id === user.id) {
-            console.log("Message envoyé par l'utilisateur actuel, ignoré dans la subscription");
-            return;
-          }
-          
-          // Trouver les informations de l'expéditeur
-          const sender = isFreelance 
-            ? { ...orderDetails?.client, role: 'client' } 
-            : { ...orderDetails?.freelance, role: 'freelance' };
-            
-          console.log("Sender déterminé:", sender);
-          
-          // Logs de diagnostic pour s'assurer que les participants sont correctement identifiés
-          console.log("Mon ID:", user.id);
-          console.log("Client ID:", orderDetails?.client?.id);
-          console.log("Freelance ID:", orderDetails?.freelance?.id);
-          
-          // Marquer le message comme lu immédiatement
-          supabase
-            .from('messages')
-            .update({ read: true })
-            .eq('id', newMessage.id);
-            
-          console.log(`Message ${newMessage.id} marqué comme lu`);
-          
-          // Ajouter le message avec les données de l'expéditeur
-          setOrderMessages(prev => [...prev, {
-            ...newMessage,
-            read: true, // Marquer comme lu localement
-            conversation_id: null, // Requis par l'interface OrderMessage
-            is_typing: false, // Requis par l'interface OrderMessage
-            sender
-          } as OrderMessage]);
-          
-          // Pour la démonstration, mettre à jour le compteur de messages non lus
-          console.log("✅ Message correctement intégré dans l'interface");
-          
-          // Jouer un son de notification
-          if (audioRef.current) {
-            audioRef.current.play().catch(error => {
-              console.error("Erreur lors de la lecture du son de notification:", error);
-            });
-          }
-          
-          // Si le son ne peut pas être joué, essayer de montrer une notification système
-          if ('Notification' in window && Notification.permission === 'granted') {
-            const notificationTitle = `Nouveau message - ${sender?.username || 'Utilisateur'}`;
-            const notificationBody = newMessage.content.length > 60 
-              ? newMessage.content.substring(0, 60) + '...' 
-              : newMessage.content;
-              
-            const notification = new Notification(notificationTitle, {
-              body: notificationBody,
-              icon: '/vynal-logo.png'
-            });
-            
-            // Fermer la notification après quelques secondes
-            setTimeout(() => notification.close(), 5000);
-          }
-        })
-        .subscribe((status) => {
-          console.log(`Statut de l'abonnement au canal ${channelId}:`, status);
-          if (status === "SUBSCRIBED") {
-            console.log(`✅ Abonnement réussi au canal ${channelId}`);
-          } else if (status === "CHANNEL_ERROR") {
-            console.error(`❌ Erreur d'abonnement au canal ${channelId}`);
-            
-            // Tentative de réabonnement après un délai
-            setTimeout(() => {
-              if (channelRef.current === channel) {
-                console.log("Tentative de réabonnement après erreur...");
-                setupRealtimeSubscription();
-              }
-            }, 5000);
-          }
-        });
-        
-      channelRef.current = channel;
-      
-      // Créer un système de vérification périodique de la connexion
-      const checkConnectionInterval = setInterval(() => {
-        if (channel && channelRef.current === channel) {
-          // Envoyer un ping pour vérifier la connexion
-          channel.send({
-            type: 'broadcast',
-            event: 'ping',
-            payload: { timestamp: new Date().toISOString() }
-          });
-        } else {
-          clearInterval(checkConnectionInterval);
-        }
-      }, 30000); // Vérifier toutes les 30 secondes
-      
-      return () => {
-        console.log(`Nettoyage de l'abonnement temps réel pour ${orderId}`);
-        if (channel) {
-          supabase.removeChannel(channel);
-          clearInterval(checkConnectionInterval);
-        }
-      };
-    } catch (error) {
-      console.error("Erreur lors de la configuration de l'abonnement temps réel:", error);
-      return null;
-    }
-  }, [orderId, user?.id, isFreelance, orderDetails]);
-
-  // Initialiser les données et l'abonnement temps réel
-  useEffect(() => {
-    // Charger les données de la commande
-    fetchOrderData();
-    
-    // Nettoyer les ressources lors du démontage
-    return () => {
+      // Nettoyer l'intervalle
       if (refreshIntervalRef.current) {
         clearInterval(refreshIntervalRef.current);
         refreshIntervalRef.current = null;
       }
-      
-      if (channelRef.current) {
-        const supabase = createClientComponentClient();
-        supabase.removeChannel(channelRef.current);
-        channelRef.current = null;
+    };
+  }, [orderId, user?.id, fetchOrderData, isFreelance]);
+
+  // Initialiser les données et l'abonnement temps réel
+  useEffect(() => {
+    if (!orderId || !user?.id) return;
+    
+    console.log(`Initialisation de l'interface de messages pour la commande ${orderId}...`);
+    
+    // Charger les données initiales
+    fetchOrderData();
+    
+    // Configurer l'élément audio pour les notifications
+    audioRef.current = new Audio('/sounds/notification.mp3');
+    audioRef.current.volume = 0.5;
+    
+    setMounted(true);
+    
+    return () => {
+      console.log(`Nettoyage de l'interface de messages pour la commande ${orderId}...`);
+      // Nettoyer l'intervalle de rafraîchissement
+      if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current);
+        refreshIntervalRef.current = null;
       }
     };
-  }, [fetchOrderData]);
+  }, [orderId, user?.id, fetchOrderData]);
   
-  // Configurer l'abonnement en temps réel une fois les détails de la commande chargés
-  useEffect(() => {
-    if (orderDetails && user?.id) {
-      const cleanup = setupRealtimeSubscription();
-      
-      return () => {
-        if (cleanup) cleanup();
-      };
-    }
-  }, [orderDetails, user?.id, setupRealtimeSubscription]);
-
   // Rafraîchir les données lorsque l'interface devient visible
   useEffect(() => {
     if (inView && mounted && user?.id && !isInitialLoad && !loadingOrderData) {

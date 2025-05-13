@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { supabase } from "@/lib/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -85,7 +85,6 @@ interface UserProfile {
 }
 
 export default function SettingsPage() {
-  const supabase = createClient();
   const router = useRouter();
   const { toast } = useToast();
   const { user: authUser, signOut } = useAuth();

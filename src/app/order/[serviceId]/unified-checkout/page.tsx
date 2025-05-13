@@ -13,6 +13,10 @@ import {
   CheckCircle
 } from "lucide-react";
 import { useOrderData } from "@/hooks/useOrderData";
+import { useStripePayment } from "@/hooks/useStripePayment";
+import { StripeElementsProvider } from "@/components/StripeElementsProvider";
+import { StripeCardForm } from "@/components/payments/StripeCardForm";
+import { PayPalButtonsForm } from "@/components/payments/PayPalButtonsForm";
 import Image from "next/image";
 import { formatPrice } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
@@ -22,6 +26,7 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { MultiStepLoader } from "@/components/ui/multi-step-loader";
+import { Label } from "@/components/ui/label";
 
 // États de chargement personnalisés pour le paiement
 const paymentLoadingStates = [
@@ -42,6 +47,14 @@ export default function UnifiedCheckoutPage({ params }: { params: { serviceId: s
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPaymentLoader, setShowPaymentLoader] = useState(false);
   const [paymentDuration, setPaymentDuration] = useState(15000); // 15 secondes pour le processus complet
+
+  // Stripe payment state
+  const { 
+    loading: stripeLoading, 
+    error: stripeError, 
+    paymentData,
+    createPaymentIntent
+  } = useStripePayment();
 
   // Payment method states
   const [cardDetails, setCardDetails] = useState({
@@ -161,8 +174,9 @@ export default function UnifiedCheckoutPage({ params }: { params: { serviceId: s
     
     // Check payment method data
     if (orderData.selectedPaymentMethod === "card") {
-      if (!cardDetails.number || !cardDetails.expiry || !cardDetails.cvc || !cardDetails.name) {
-        setOrderData({ ...orderData, error: "Veuillez compléter tous les champs de la carte bancaire" });
+      // Pour Stripe, nous utiliserons maintenant StripeCardForm qui gère sa propre validation
+      if (!paymentData || !paymentData.clientSecret) {
+        setOrderData({ ...orderData, error: "Erreur lors de l'initialisation du paiement par carte" });
         return;
       }
     } else if (orderData.selectedPaymentMethod === "paypal") {
@@ -177,147 +191,245 @@ export default function UnifiedCheckoutPage({ params }: { params: { serviceId: s
       }
     }
 
-    // Démarrer les indicateurs de chargement
+    // Si nous sommes en mode test ou si la méthode n'est pas carte, utiliser l'ancien flux
+    if (orderData.isTestMode || orderData.selectedPaymentMethod !== "card") {
+      // Démarrer les indicateurs de chargement
+      setIsLoading(true);
+      setIsSubmitting(true);
+      setShowPaymentLoader(true);
+      
+      try {
+        const startTime = Date.now();
+        const supabase = createClientComponentClient();
+        
+        // Vérification que l'utilisateur existe
+        if (!user) {
+          throw new Error("Utilisateur non authentifié");
+        }
+        
+        // Générer le numéro de commande une seule fois
+        const orderNumber = `CMD-${Date.now()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
+        
+        if (orderData.isTestMode) {
+          // Créer une commande de test réelle dans la base de données
+          const { data: order, error: orderError } = await supabase
+            .from('orders')
+            .insert({
+              service_id: serviceId,
+              client_id: user.id,
+              freelance_id: service?.profiles?.id,
+              requirements: `[TEST] ${orderData.requirements}`,
+              status: 'pending',
+              price: service?.price || 0,
+              delivery_time: service?.delivery_time || 3,
+              order_number: orderNumber
+            })
+            .select('id, order_number')
+            .single();
+
+          if (orderError) {
+            console.error("Erreur lors de la création de la commande de test:", orderError);
+            throw new Error("Erreur lors de la création de la commande de test");
+          }
+
+          console.log("Commande créée avec succès:", { id: order.id, order_number: order.order_number });
+
+          // Créer une entrée de paiement fictif
+          const { error: processPaymentError } = await supabase
+            .from('payments')
+            .insert({
+              order_id: order.id, // Utiliser l'ID généré par Supabase
+              client_id: user.id,
+              freelance_id: service?.profiles?.id,
+              amount: service?.price || 0,
+              status: 'pending',
+              payment_method: `TEST_${orderData.selectedPaymentMethod}`
+            });
+
+          if (processPaymentError) {
+            console.error("Erreur lors de la création du paiement de test:", processPaymentError);
+          }
+
+          // Préparer les données avant la redirection
+          setOrderData({ 
+            ...orderData,
+            orderId: order.id,
+            orderNumber: order.order_number,
+            testPaymentSuccess: true,
+            error: null
+          });
+          
+          // Attendre que l'animation soit terminée
+          const elapsedTime = Date.now() - startTime;
+          const remainingTime = Math.max(0, paymentDuration - elapsedTime);
+          
+          if (remainingTime > 0) {
+            await new Promise(resolve => setTimeout(resolve, remainingTime));
+          }
+          
+          // Redirection vers la page de confirmation
+          router.push(`/order/${serviceId}/summary`);
+        } else {
+          // Payment data validation
+          const validationError = validatePayment();
+          if (validationError) {
+            setOrderData({ ...orderData, error: validationError });
+            setIsLoading(false);
+            setIsSubmitting(false);
+            setShowPaymentLoader(false);
+            return;
+          }
+          
+          // Create order
+          const { data: order, error: orderError } = await supabase
+            .from('orders')
+            .insert({
+              service_id: serviceId,
+              client_id: user.id,
+              freelance_id: service?.profiles?.id,
+              requirements: orderData.requirements,
+              status: 'pending',
+              price: service?.price || 0,
+              delivery_time: service?.delivery_time || 3,
+              order_number: orderNumber
+            })
+            .select('id, order_number')
+            .single();
+
+          if (orderError) {
+            console.error("Erreur lors de la création de la commande:", orderError);
+            throw new Error("Erreur lors de la création de la commande");
+          }
+
+          console.log("Commande créée avec succès:", { id: order.id, order_number: order.order_number });
+
+          // Process payment
+          const { error: processPaymentError } = await supabase
+            .from('payments')
+            .insert({
+              order_id: order.id,
+              client_id: user.id,
+              freelance_id: service?.profiles?.id,
+              amount: service?.price || 0,
+              status: 'pending',
+              payment_method: orderData.selectedPaymentMethod
+            });
+
+          if (processPaymentError) {
+            throw new Error("Erreur lors du traitement du paiement");
+          }
+
+          // Préparer les données avant la redirection
+          setOrderData({ 
+            ...orderData,
+            orderId: order.id,
+            orderNumber: order.order_number,
+            testPaymentSuccess: false,
+            error: null
+          });
+          
+          // Attendre que l'animation soit terminée
+          const elapsedTime = Date.now() - startTime;
+          const remainingTime = Math.max(0, paymentDuration - elapsedTime);
+          
+          if (remainingTime > 0) {
+            await new Promise(resolve => setTimeout(resolve, remainingTime));
+          }
+          
+          // Redirection vers la page de confirmation
+          router.push(`/order/${serviceId}/summary`);
+        }
+      } catch (err) {
+        console.error("Erreur lors du paiement:", err);
+        setOrderData({ 
+          ...orderData,
+          error: err instanceof Error ? err.message : "Une erreur est survenue",
+          testPaymentSuccess: false
+        });
+        setIsLoading(false);
+        setIsSubmitting(false);
+        setShowPaymentLoader(false);
+      }
+    }
+    // Pour les paiements par carte, Stripe CardForm gère le flux de paiement
+  };
+
+  const handleStripePaymentSuccess = async (paymentIntent: any) => {
     setIsLoading(true);
     setIsSubmitting(true);
     setShowPaymentLoader(true);
-    
+
     try {
       const startTime = Date.now();
       const supabase = createClientComponentClient();
       
+      // Vérification que l'utilisateur existe
+      if (!user) {
+        throw new Error("Utilisateur non authentifié");
+      }
+      
       // Générer le numéro de commande une seule fois
       const orderNumber = `CMD-${Date.now()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
       
-      if (orderData.isTestMode) {
-        // Créer une commande de test réelle dans la base de données
-        const { data: order, error: orderError } = await supabase
-          .from('orders')
-          .insert({
-            service_id: serviceId,
-            client_id: user.id,
-            freelance_id: service?.profiles?.id,
-            requirements: `[TEST] ${orderData.requirements}`,
-            status: 'pending',
-            price: service?.price || 0,
-            delivery_time: service?.delivery_time || 3,
-            order_number: orderNumber
-          })
-          .select('id, order_number')
-          .single();
+      // Create order
+      const { data: order, error: orderError } = await supabase
+        .from('orders')
+        .insert({
+          service_id: serviceId,
+          client_id: user.id,
+          freelance_id: service?.profiles?.id,
+          requirements: orderData.requirements,
+          status: 'pending',
+          price: service?.price || 0,
+          delivery_time: service?.delivery_time || 3,
+          order_number: orderNumber
+        })
+        .select('id, order_number')
+        .single();
 
-        if (orderError) {
-          console.error("Erreur lors de la création de la commande de test:", orderError);
-          throw new Error("Erreur lors de la création de la commande de test");
-        }
-
-        console.log("Commande créée avec succès:", { id: order.id, order_number: order.order_number });
-
-        // Créer une entrée de paiement fictif
-        const { error: processPaymentError } = await supabase
-          .from('payments')
-          .insert({
-            order_id: order.id, // Utiliser l'ID généré par Supabase
-            client_id: user.id,
-            freelance_id: service?.profiles?.id,
-            amount: service?.price || 0,
-            status: 'pending',
-            payment_method: `TEST_${orderData.selectedPaymentMethod}`
-          });
-
-        if (processPaymentError) {
-          console.error("Erreur lors de la création du paiement de test:", processPaymentError);
-        }
-
-        // Préparer les données avant la redirection
-        setOrderData({ 
-          ...orderData,
-          orderId: order.id,
-          orderNumber: order.order_number,
-          testPaymentSuccess: true,
-          error: null
-        });
-        
-        // Attendre que l'animation soit terminée
-        const elapsedTime = Date.now() - startTime;
-        const remainingTime = Math.max(0, paymentDuration - elapsedTime);
-        
-        if (remainingTime > 0) {
-          await new Promise(resolve => setTimeout(resolve, remainingTime));
-        }
-        
-        // Redirection vers la page de confirmation
-        router.push(`/order/${serviceId}/summary`);
-      } else {
-        // Payment data validation
-        const validationError = validatePayment();
-        if (validationError) {
-          setOrderData({ ...orderData, error: validationError });
-          setIsLoading(false);
-          setIsSubmitting(false);
-          setShowPaymentLoader(false);
-          return;
-        }
-        
-        // Create order
-        const { data: order, error: orderError } = await supabase
-          .from('orders')
-          .insert({
-            service_id: serviceId,
-            client_id: user.id,
-            freelance_id: service?.profiles?.id,
-            requirements: orderData.requirements,
-            status: 'pending',
-            price: service?.price || 0,
-            delivery_time: service?.delivery_time || 3,
-            order_number: orderNumber
-          })
-          .select('id, order_number')
-          .single();
-
-        if (orderError) {
-          console.error("Erreur lors de la création de la commande:", orderError);
-          throw new Error("Erreur lors de la création de la commande");
-        }
-
-        console.log("Commande créée avec succès:", { id: order.id, order_number: order.order_number });
-
-        // Process payment
-        const { error: processPaymentError } = await supabase
-          .from('payments')
-          .insert({
-            order_id: order.id,
-            client_id: user.id,
-            freelance_id: service?.profiles?.id,
-            amount: service?.price || 0,
-            status: 'pending',
-            payment_method: orderData.selectedPaymentMethod
-          });
-
-        if (processPaymentError) {
-          throw new Error("Erreur lors du traitement du paiement");
-        }
-
-        // Préparer les données avant la redirection
-        setOrderData({ 
-          ...orderData,
-          orderId: order.id,
-          orderNumber: order.order_number,
-          testPaymentSuccess: false,
-          error: null
-        });
-        
-        // Attendre que l'animation soit terminée
-        const elapsedTime = Date.now() - startTime;
-        const remainingTime = Math.max(0, paymentDuration - elapsedTime);
-        
-        if (remainingTime > 0) {
-          await new Promise(resolve => setTimeout(resolve, remainingTime));
-        }
-        
-        // Redirection vers la page de confirmation
-        router.push(`/order/${serviceId}/summary`);
+      if (orderError) {
+        console.error("Erreur lors de la création de la commande:", orderError);
+        throw new Error("Erreur lors de la création de la commande");
       }
+
+      console.log("Commande créée avec succès:", { id: order.id, order_number: order.order_number });
+
+      // Mettre à jour l'entrée de paiement Stripe avec l'ID de commande
+      const { error: processPaymentError } = await supabase
+        .from('payments')
+        .insert({
+          order_id: order.id,
+          client_id: user.id,
+          freelance_id: service?.profiles?.id,
+          amount: service?.price || 0,
+          status: 'completed',
+          payment_method: 'card',
+          payment_intent_id: paymentIntent.id
+        });
+
+      if (processPaymentError) {
+        throw new Error("Erreur lors du traitement du paiement");
+      }
+
+      // Préparer les données avant la redirection
+      setOrderData({ 
+        ...orderData,
+        orderId: order.id,
+        orderNumber: order.order_number,
+        testPaymentSuccess: false,
+        error: null
+      });
+      
+      // Attendre que l'animation soit terminée
+      const elapsedTime = Date.now() - startTime;
+      const remainingTime = Math.max(0, paymentDuration - elapsedTime);
+      
+      if (remainingTime > 0) {
+        await new Promise(resolve => setTimeout(resolve, remainingTime));
+      }
+      
+      // Redirection vers la page de confirmation
+      router.push(`/order/${serviceId}/summary`);
     } catch (err) {
       console.error("Erreur lors du paiement:", err);
       setOrderData({ 
@@ -331,10 +443,120 @@ export default function UnifiedCheckoutPage({ params }: { params: { serviceId: s
     }
   };
 
+  const handleStripePaymentError = (error: any) => {
+    console.error("Erreur de paiement Stripe:", error);
+    setOrderData({ 
+      ...orderData,
+      error: error.message || "Erreur lors du traitement du paiement",
+      testPaymentSuccess: false
+    });
+  };
+
   const handleCancelPayment = () => {
     setShowPaymentLoader(false);
     setIsSubmitting(false);
     setIsLoading(false);
+  };
+
+  // Ajout des gestionnaires d'événements pour PayPal
+  const handlePayPalPaymentSuccess = (paymentData: any) => {
+    console.log("Paiement PayPal réussi:", paymentData);
+    
+    // Affichage de l'animation de chargement
+    setShowPaymentLoader(true);
+    setPaymentDuration(8000); // 8 secondes pour PayPal
+    
+    try {
+      // Créer une commande directement au lieu d'utiliser validatePayment
+      const createOrder = async () => {
+        setIsLoading(true);
+        setIsSubmitting(true);
+        
+        try {
+          if (!user) {
+            throw new Error("Utilisateur non authentifié");
+          }
+          
+          const supabase = createClientComponentClient();
+          const orderNumber = `CMD-${Date.now()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
+          
+          // Créer l'entrée de commande
+          const { data: order, error: orderError } = await supabase
+            .from('orders')
+            .insert({
+              service_id: serviceId,
+              client_id: user.id,
+              freelance_id: service?.profiles?.id,
+              requirements: orderData.requirements,
+              status: 'pending',
+              price: service?.price || 0,
+              delivery_time: service?.delivery_time || 3,
+              order_number: orderNumber
+            })
+            .select('id, order_number')
+            .single();
+
+          if (orderError) {
+            console.error("Erreur lors de la création de la commande:", orderError);
+            throw new Error("Erreur lors de la création de la commande");
+          }
+
+          // Enregistrer le paiement PayPal
+          const { error: paymentError } = await supabase
+            .from('payments')
+            .insert({
+              order_id: order.id,
+              client_id: user.id,
+              freelance_id: service?.profiles?.id,
+              amount: service?.price || 0,
+              status: 'completed',
+              payment_method: 'paypal',
+              payment_intent_id: paymentData.transactionId,
+              payment_details: JSON.stringify(paymentData)
+            });
+
+          if (paymentError) {
+            console.error("Erreur lors de l'enregistrement du paiement:", paymentError);
+            // On continue quand même car le paiement a réussi
+          }
+          
+          // Redirection vers la commande créée
+          setTimeout(() => {
+            router.push(`/dashboard/orders/${order.id}`);
+          }, 1000);
+          
+          return { success: true, orderId: order.id };
+        } catch (error: any) {
+          console.error("Erreur lors de la création de la commande PayPal:", error);
+          setOrderData({
+            ...orderData,
+            error: error.message || "Une erreur est survenue lors du traitement du paiement"
+          });
+          setShowPaymentLoader(false);
+          setIsLoading(false);
+          setIsSubmitting(false);
+          return { success: false, error: error.message };
+        }
+      };
+      
+      // Exécuter la fonction de création de commande
+      createOrder();
+    } catch (error: any) {
+      console.error("Erreur lors du traitement PayPal:", error);
+      setOrderData({
+        ...orderData,
+        error: "Une erreur est survenue lors de la validation du paiement"
+      });
+      setShowPaymentLoader(false);
+    }
+  };
+
+  const handlePayPalPaymentError = (error: any) => {
+    console.error("Erreur de paiement PayPal:", error);
+    setOrderData({
+      ...orderData,
+      error: error.message || "Une erreur est survenue lors du paiement PayPal"
+    });
   };
 
   if (authLoading || loadingService) {
@@ -616,40 +838,35 @@ export default function UnifiedCheckoutPage({ params }: { params: { serviceId: s
                 
                 {/* PayPal form */}
                 {orderData.selectedPaymentMethod === "paypal" && (
-                  <motion.div 
-                    initial={{ opacity: 0, y: -10 }}
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="mt-3 sm:mt-4 p-3 sm:p-4 bg-slate-50 dark:bg-vynal-purple-dark/20 rounded-md border border-slate-200 dark:border-vynal-purple-secondary/40"
+                    transition={{ duration: 0.3 }}
+                    className="mt-4"
                   >
-                    <div className="flex items-center mb-2 sm:mb-3">
-                      <Image 
-                        src="/images/payment/paypal.svg" 
-                        alt="PayPal" 
-                        width={20} 
-                        height={20}
-                        className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2"
+                    <div className="space-y-3">
+                      <div className="relative">
+                        <Label htmlFor="paypal-email" className="mb-1 block text-[10px] sm:text-xs font-medium">
+                          Email PayPal
+                        </Label>
+                        <Input
+                          id="paypal-email"
+                          type="email"
+                          value={paypalEmail}
+                          onChange={(e) => setPaypalEmail(e.target.value)}
+                          placeholder="votre-email@example.com"
+                          className="w-full py-1.5 sm:py-2 text-[10px] sm:text-xs"
+                        />
+                      </div>
+                      
+                      {/* PayPal Buttons */}
+                      <PayPalButtonsForm
+                        amount={service?.price || 0}
+                        serviceId={serviceId}
+                        onSuccess={handlePayPalPaymentSuccess}
+                        onError={handlePayPalPaymentError}
+                        loading={false}
                       />
-                      <h3 className="text-[10px] sm:text-xs font-medium text-slate-800 dark:text-vynal-text-primary">
-                        PayPal
-                      </h3>
-                    </div>
-                    
-                    <div>
-                      <label htmlFor="paypal-email" className="text-[9px] sm:text-[10px] text-slate-600 dark:text-vynal-text-secondary block mb-1">
-                        Email PayPal
-                      </label>
-                      <Input
-                        id="paypal-email"
-                        type="email"
-                        placeholder="exemple@email.com"
-                        value={paypalEmail}
-                        onChange={(e) => setPaypalEmail(e.target.value)}
-                        className="h-9 sm:h-10 text-[10px] sm:text-sm bg-white dark:bg-vynal-purple-dark/40 border-slate-200 dark:border-vynal-purple-secondary/40 rounded-md"
-                      />
-                      <p className="mt-1.5 sm:mt-2 text-[7px] sm:text-[9px] text-slate-500 dark:text-vynal-text-secondary">
-                        Vous serez redirigé vers PayPal pour finaliser votre paiement.
-                      </p>
                     </div>
                   </motion.div>
                 )}
@@ -709,105 +926,23 @@ export default function UnifiedCheckoutPage({ params }: { params: { serviceId: s
                           />
                         </div>
                         
-                        {/* Card number */}
-                        <div>
-                          <label htmlFor="card-number" className="text-[9px] sm:text-[10px] text-slate-600 dark:text-vynal-text-secondary block mb-1">Numéro de carte</label>
-                          <div className="relative">
-                            <Input
-                              id="card-number"
-                              name="number"
-                              placeholder="1234 5678 9012 3456"
-                              value={cardDetails.number}
-                              onChange={(e) => {
-                                const formatted = formatCardNumber(e.target.value);
-                                setCardDetails(prev => ({ ...prev, number: formatted }));
-                              }}
-                              maxLength={19}
-                              className="h-10 text-xs sm:text-sm bg-transparent border-slate-200 dark:border-vynal-purple-secondary/40 rounded-md pr-10"
-                            />
-                            <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                              <div className="flex">
-                                <Image src="/images/payment/visa.svg" alt="Visa" width={16} height={10} className="h-3.5 opacity-50" />
-                              </div>
-                            </div>
+                        {/* Stripe Card Element */}
+                        <StripeElementsProvider clientSecret={paymentData?.clientSecret}>
+                          <StripeCardForm
+                            amount={service?.price || 0}
+                            clientSecret={paymentData?.clientSecret || ''}
+                            onSuccess={handleStripePaymentSuccess}
+                            onError={handleStripePaymentError}
+                            loading={stripeLoading}
+                            buttonText={`Payer ${formatPrice(service?.price || 0)}`}
+                          />
+                        </StripeElementsProvider>
+
+                        {stripeError && (
+                          <div className="text-red-500 text-xs mt-2">
+                            {stripeError}
                           </div>
-                        </div>
-                        
-                        <div className="grid grid-cols-2 gap-4">
-                          {/* Cardholder name */}
-                          <div>
-                            <label htmlFor="card-name" className="text-[9px] sm:text-[10px] text-slate-600 dark:text-vynal-text-secondary block mb-1">Nom sur la carte</label>
-                            <div className="relative">
-                              <Input
-                                id="card-name"
-                                name="name"
-                                placeholder="Georges Ibrahima GUEYE"
-                                value={cardDetails.name}
-                                onChange={(e) => {
-                                  setCardDetails(prev => ({ ...prev, name: e.target.value.toUpperCase() }));
-                                }}
-                                className="h-10 text-xs sm:text-sm bg-transparent border-slate-200 dark:border-vynal-purple-secondary/40 rounded-md pr-9"
-                              />
-                              <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className="opacity-50">
-                                  <path d="M8 8C9.65685 8 11 6.65685 11 5C11 3.34315 9.65685 2 8 2C6.34315 2 5 3.34315 5 5C5 6.65685 6.34315 8 8 8Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.5"/>
-                                  <path d="M13 14C13 11.2386 10.7614 9 8 9C5.23858 9 3 11.2386 3 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.5"/>
-                                </svg>
-                              </div>
-                            </div>
-                          </div>
-                          
-                          {/* Expiry date */}
-                          <div>
-                            <label htmlFor="card-expiry" className="text-[9px] sm:text-[10px] text-slate-600 dark:text-vynal-text-secondary block mb-1">Date d'expiration</label>
-                            <div className="relative">
-                              <Input
-                                id="card-expiry"
-                                name="expiry"
-                                placeholder="MM/AA"
-                                value={cardDetails.expiry}
-                                onChange={(e) => {
-                                  const formatted = formatExpiry(e.target.value);
-                                  setCardDetails(prev => ({ ...prev, expiry: formatted }));
-                                }}
-                                maxLength={5}
-                                className="h-10 text-xs sm:text-sm bg-transparent border-slate-200 dark:border-vynal-purple-secondary/40 rounded-md pr-9"
-                              />
-                              <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className="opacity-50">
-                                  <rect x="2" y="3" width="12" height="11" rx="2" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.5"/>
-                                  <path d="M2 6H14M5 2V4M11 2V4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-opacity="0.5"/>
-                                  <path d="M4 9H6M8 9H10M12 9H14M4 12H6M8 12H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-opacity="0.5"/>
-                                </svg>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        {/* CVC */}
-                        <div>
-                          <label htmlFor="card-cvc" className="text-[9px] sm:text-[10px] text-slate-600 dark:text-vynal-text-secondary block mb-1">CVC</label>
-                          <div className="relative">
-                            <Input
-                              id="card-cvc"
-                              name="cvc"
-                              placeholder="123"
-                              value={cardDetails.cvc}
-                              onChange={(e) => {
-                                const formatted = formatCVC(e.target.value);
-                                setCardDetails(prev => ({ ...prev, cvc: formatted }));
-                              }}
-                              maxLength={3}
-                              className="h-10 text-xs sm:text-sm bg-transparent border-slate-200 dark:border-vynal-purple-secondary/40 rounded-md pr-9"
-                            />
-                            <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className="opacity-50">
-                                <rect x="1" y="1" width="14" height="14" rx="2" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.5"/>
-                                <path d="M4 4H12M4 8H12M4 12H8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-opacity="0.5"/>
-                              </svg>
-                            </div>
-                          </div>
-                        </div>
+                        )}
                       </div>
                     </motion.div>
                   )}
@@ -827,24 +962,26 @@ export default function UnifiedCheckoutPage({ params }: { params: { serviceId: s
                   </label>
                 </div>
                 
-                {/* Pay button */}
-                <button
-                  onClick={handlePlaceOrder}
-                  disabled={isSubmitting || !orderData.requirements || !orderData.selectedPaymentMethod}
-                  className="w-full h-11 mt-3 bg-vynal-accent-primary hover:bg-vynal-accent-secondary disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-white dark:text-vynal-text-primary font-medium rounded-md text-base sm:text-lg"
-                >
-                  {isSubmitting ? (
-                    <span className="flex items-center justify-center">
-                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Traitement en cours...
-                    </span> 
-                  ) : (
-                    `Payer ${formatPrice(service?.price || 0)}`
-                  )}
-                </button>
+                {/* Pay button - Only show for non-card payment methods or in test mode */}
+                {(orderData.selectedPaymentMethod !== "card" || orderData.isTestMode) && (
+                  <button
+                    onClick={handlePlaceOrder}
+                    disabled={isSubmitting || !orderData.requirements || !orderData.selectedPaymentMethod}
+                    className="w-full h-11 mt-3 bg-vynal-accent-primary hover:bg-vynal-accent-secondary disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-white dark:text-vynal-text-primary font-medium rounded-md text-base sm:text-lg"
+                  >
+                    {isSubmitting ? (
+                      <span className="flex items-center justify-center">
+                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Traitement en cours...
+                      </span> 
+                    ) : (
+                      `Payer ${formatPrice(service?.price || 0)}`
+                    )}
+                  </button>
+                )}
 
                 {/* Stripe logo */}
                 <div className="flex items-center justify-center mt-4 space-x-1">

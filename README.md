@@ -127,6 +127,81 @@ Ce logiciel est la propriété exclusive de Vynal Platform. Toute utilisation, r
 - [Sabrsl](https://github.com/Sabrsl) - Fondateur et développeur principal
 - Équipe Vynal - Design, développement et opérations
 
----
+## Résolution du problème de fonction RPC manquante
+
+Un problème a été identifié dans l'application: l'erreur 404 lors de l'appel à la fonction RPC `get_conversation_messages`. Cette fonction est nécessaire pour récupérer les messages des conversations de manière optimisée.
+
+### Solution temporaire
+
+Une solution temporaire a été mise en place pour utiliser automatiquement la méthode traditionnelle (fetchMessagesLegacy) lorsque la fonction RPC n'est pas disponible.
+
+### Solution permanente
+
+Pour résoudre définitivement ce problème, vous devez déployer la fonction SQL sur votre base de données Supabase:
+
+1. Connectez-vous à votre console Supabase
+2. Allez dans "SQL Editor"
+3. Créez une nouvelle requête
+4. Copiez-collez le contenu du fichier `supabase/functions/get_conversation_messages.sql`
+5. Exécutez la requête
+
+Cette fonction RPC permettra d'optimiser les requêtes et de réduire le nombre d'appels API simultanés, ce qui améliorera les performances de l'application.
+
+## Nouveau problème résolu: fonction RPC get_client_orders_with_counts
+
+Un second problème a été identifié: l'erreur 404 lors de l'appel à la fonction RPC `get_client_orders_with_counts`. Cette fonction est utilisée pour récupérer les commandes d'un client avec des compteurs par statut, optimisant ainsi les performances.
+
+### Solution temporaire
+
+Une solution temporaire a été implémentée dans le hook `useClientOrders` pour:
+- Détecter l'erreur 404 et basculer automatiquement vers une méthode legacy
+- Mettre en cache les résultats pour éviter des requêtes répétées
+- Utiliser le requestCoordinator pour éviter les requêtes multiples simultanées
+
+### Solution permanente
+
+Pour résoudre définitivement ce problème, vous devez déployer la fonction SQL sur votre base de données Supabase:
+
+1. Connectez-vous à votre console Supabase
+2. Allez dans "SQL Editor"
+3. Créez une nouvelle requête
+4. Copiez-collez le contenu du fichier `supabase/functions/get_client_orders_with_counts.sql`
+5. Exécutez la requête
+
+Cette fonction RPC permettra de récupérer toutes les données nécessaires en une seule requête, réduisant considérablement le nombre d'appels API et améliorant les performances.
+
+## Troisième problème résolu: fonction RPC get_user_conversations
+
+Un autre problème a été identifié: l'erreur 404 lors de l'appel à la fonction RPC `get_user_conversations`. Cette fonction est essentielle pour récupérer efficacement les conversations d'un utilisateur avec tous leurs participants et les derniers messages.
+
+### Solution temporaire
+
+Une solution temporaire a été implémentée dans le store `useMessagingStore` pour:
+- Détecter l'erreur 404 et utiliser automatiquement la méthode legacy
+- Afficher un message d'avertissement dans la console
+- Assurer le fonctionnement de l'application même sans la fonction RPC
+
+### Solution permanente
+
+Pour résoudre définitivement ce problème, vous devez déployer la fonction SQL sur votre base de données Supabase:
+
+1. Connectez-vous à votre console Supabase
+2. Allez dans "SQL Editor"
+3. Créez une nouvelle requête
+4. Copiez-collez le contenu du fichier `supabase/functions/get_user_conversations.sql`
+5. Exécutez la requête
+
+Cette fonction RPC permettra de récupérer toutes les conversations, participants et messages en une seule requête, optimisant les performances et réduisant considérablement le nombre d'appels à l'API.
+
+## Autres optimisations de performance
+
+Des améliorations ont également été apportées pour réduire le nombre de requêtes API simultanées:
+
+1. Utilisation du `requestCoordinator` pour gérer les appels concurrents
+2. Mise en cache des données pour éviter les requêtes redondantes
+3. Centralisation des connexions en temps réel dans le `MessagingProvider`
+4. Gestion des intervalles de rafraîchissement en fonction du rôle de l'utilisateur (client/freelance)
+
+Ces optimisations permettent de réduire considérablement la charge sur le serveur Supabase et d'améliorer les performances de l'application.
 
 © 2025 Vynal Platform. Tous droits réservés.

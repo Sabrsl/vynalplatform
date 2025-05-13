@@ -7,6 +7,7 @@ import NotificationListener from '@/components/notifications/NotificationListene
 import { usePathname, useSearchParams, useRouter } from 'next/navigation';
 import { ErrorBoundary, FallbackProps } from 'react-error-boundary';
 import { OrderNotificationProvider } from "@/components/notifications/OrderNotificationProvider";
+import { MessagingProvider } from "@/components/providers/MessagingProvider";
 
 // Clé pour stocker les notifications déjà affichées dans localStorage
 const DISPLAYED_NOTIFICATIONS_KEY = 'vynal_displayed_notifications';
@@ -294,20 +295,22 @@ export function Providers({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-      <ErrorBoundary 
-        FallbackComponent={ErrorFallback} 
-        onError={onError}
-        onReset={onReset}
-      >
-        <OrderNotificationProvider>
-          <VisibilityStateHandler />
-          <NavigationEventHandler />
-          <ToastManager />
-          <Toaster />
-          {children}
-        </OrderNotificationProvider>
-      </ErrorBoundary>
+    <ThemeProvider attribute="class" defaultTheme="dark" disableTransitionOnChange>
+      <MessagingProvider>
+        <ErrorBoundary 
+          FallbackComponent={ErrorFallback} 
+          onError={onError}
+          onReset={onReset}
+        >
+          <OrderNotificationProvider>
+            <VisibilityStateHandler />
+            <NavigationEventHandler />
+            <ToastManager />
+            {children}
+            <Toaster />
+          </OrderNotificationProvider>
+        </ErrorBoundary>
+      </MessagingProvider>
     </ThemeProvider>
   );
 } 

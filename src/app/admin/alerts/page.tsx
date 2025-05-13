@@ -55,6 +55,7 @@ import { getAlerts } from './actions';
 import AlertDetailModal from './AlertDetailModal';
 import { toast, Toaster } from 'sonner';
 import { getCachedData, setCachedData, CACHE_EXPIRY, CACHE_KEYS } from '@/lib/optimizations';
+import { AlertStatus } from '@/utils/alertService';
 
 // Fonction pour formater la date
 const formatDate = (dateString: string) => {
@@ -127,86 +128,47 @@ export default function AlertsPage() {
     setError(null);
 
     try {
-      // Vérifier s'il y a un cache récent (sauf si forceFetch est true)
-      if (!forceFetch) {
-        const cachedAlerts = getCachedData<Alert[]>(CACHE_KEYS.ADMIN_ALERTS);
-        // Vérifier que cachedAlerts est un tableau valide
-        if (Array.isArray(cachedAlerts) && cachedAlerts.length > 0 && 
-            cachedAlerts.every(item => 
-              typeof item === 'object' && 
-              item !== null && 
-              'id' in item && 
-              'title' in item && 
-              'description' in item && 
-              'status' in item
-            )) {
-          setAlerts(cachedAlerts);
-          
-          // Récupérer aussi les méta-informations de pagination si elles existent
-          const paginationInfo = getCachedData<{ totalPages: number, total: number }>(`${CACHE_KEYS.ADMIN_ALERTS}_pagination`);
-          // Utiliser une valeur par défaut si les infos de pagination ne sont pas valides
-          if (paginationInfo && typeof paginationInfo === 'object' && 
-              'totalPages' in paginationInfo && 'total' in paginationInfo) {
-            setTotalPages(paginationInfo.totalPages);
-            setTotalAlerts(paginationInfo.total);
-          } else {
-            // Valeurs par défaut si les données de pagination ne sont pas disponibles
-            setTotalPages(1);
-            setTotalAlerts(cachedAlerts.length);
-          }
-          
-          setLoading(false);
-          return;
-        }
-      }
-
-      let result;
-
-      if (filterType || filterStatus) {
-        result = await fetchFilteredAlerts(
-          currentPage,
-          itemsPerPage,
-          filterType as 'error' | 'warning' | 'info' | undefined,
-          filterStatus as 'active' | 'investigating' | 'resolved' | undefined
-        );
-      } else {
-        result = await fetchAlerts(currentPage, itemsPerPage);
-      }
-
-      if (result.success && result.data) {
-        setAlerts(result.data);
+      // Récupérer les alertes depuis le cache
+      const cachedAlerts = getCachedData<Alert[]>(CACHE_KEYS.ADMIN_ALERTS);
+      
+      // Vérifier que cachedAlerts est un tableau valide
+      if (Array.isArray(cachedAlerts) && cachedAlerts.length > 0 && 
+          cachedAlerts.every(item => 
+            typeof item === 'object' && 
+            item !== null && 
+            'id' in item && 
+            'title' in item && 
+            'description' in item && 
+            'status' in item
+          )) {
+        setAlerts(cachedAlerts);
         
-        // Mettre en cache les alertes avec une durée longue et invalidation par événement
-        setCachedData(
-          CACHE_KEYS.ADMIN_ALERTS,
-          result.data,
-          { expiry: CACHE_EXPIRY.LONG, priority: 'high' }
-        );
-        
-        if (result.pagination) {
-          setTotalPages(result.pagination.totalPages);
-          setTotalAlerts(result.pagination.total);
-          
-          // Mettre en cache les informations de pagination
-          setCachedData(
-            `${CACHE_KEYS.ADMIN_ALERTS}_pagination`,
-            {
-              totalPages: result.pagination.totalPages,
-              total: result.pagination.total
-            },
-            { expiry: CACHE_EXPIRY.LONG, priority: 'medium' }
-          );
+        // Récupérer les méta-informations de pagination
+        const paginationInfo = getCachedData<{ totalPages: number, total: number }>(`${CACHE_KEYS.ADMIN_ALERTS}_pagination`);
+        if (paginationInfo && typeof paginationInfo === 'object' && 
+            'totalPages' in paginationInfo && 'total' in paginationInfo) {
+          setTotalPages(paginationInfo.totalPages);
+          setTotalAlerts(paginationInfo.total);
+        } else {
+          setTotalPages(1);
+          setTotalAlerts(cachedAlerts.length);
         }
       } else {
-        setError(result.error || 'Une erreur est survenue lors du chargement des alertes');
+        // Si pas de données en cache, initialiser avec un tableau vide
+        setAlerts([]);
+        setTotalPages(1);
+        setTotalAlerts(0);
       }
     } catch (err) {
-      setError('Une erreur est survenue lors du chargement des alertes');
-      console.error(err);
-      } finally {
-        setLoading(false);
-      }
-  }, [currentPage, filterType, filterStatus, itemsPerPage]);
+      console.error('Erreur lors du chargement des alertes:', err);
+      setError('Erreur lors du chargement des alertes');
+      setAlerts([]);
+      setTotalPages(1);
+      setTotalAlerts(0);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   // Fonction pour forcer le rafraîchissement des alertes
   const handleForceRefresh = () => {
@@ -288,36 +250,20 @@ export default function AlertsPage() {
   // Fonction pour marquer une alerte comme résolue
   const markAsResolved = async (id: string): Promise<boolean> => {
     try {
-      const result = await updateAlertStatus(id, 'resolved');
+      // Mettre à jour le cache local
+      const cachedAlerts = getCachedData<Alert[]>(CACHE_KEYS.ADMIN_ALERTS) || [];
+      const updatedAlerts = cachedAlerts.map(alert => 
+        alert.id === id ? { ...alert, status: 'resolved' as AlertStatus } : alert
+      );
       
-      if (result.success && result.data) {
-        // Mettre à jour l'état local
-        setAlerts(prevAlerts =>
-          prevAlerts.map(alert =>
-            alert.id === id ? result.data as Alert : alert
-          )
-        );
-        setError('');
-        toast.success('Alerte marquée comme résolue');
-        
-        // Invalider le cache des alertes après modification
-        setCachedData(
-          CACHE_KEYS.ADMIN_ALERTS,
-          null,
-          { expiry: 0 }
-        );
-        
-        return true;
-      } else {
-        console.error('Erreur lors de la mise à jour du statut:', result.error);
-        setError(`Impossible de mettre à jour le statut de l'alerte: ${result.error}`);
-        toast.error('Erreur lors de la mise à jour du statut de l\'alerte');
-        return false;
-      }
-    } catch (error) {
-      console.error('Erreur lors de la mise à jour du statut:', error);
-      setError(`Impossible de mettre à jour le statut de l'alerte: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
-      toast.error('Erreur lors de la mise à jour du statut de l\'alerte');
+      setCachedData(CACHE_KEYS.ADMIN_ALERTS, updatedAlerts, { expiry: CACHE_EXPIRY.LONG, priority: 'high' });
+      setAlerts(updatedAlerts);
+      
+      toast.success('Alerte marquée comme résolue');
+      return true;
+    } catch (err) {
+      console.error('Erreur lors de la mise à jour du statut:', err);
+      toast.error('Erreur lors de la mise à jour du statut');
       return false;
     }
   };
@@ -325,89 +271,32 @@ export default function AlertsPage() {
   // Fonction pour marquer une alerte comme en cours d'investigation
   const markAsInvestigating = async (id: string): Promise<boolean> => {
     try {
-      const result = await updateAlertStatus(id, 'investigating');
+      // Mettre à jour le cache local
+      const cachedAlerts = getCachedData<Alert[]>(CACHE_KEYS.ADMIN_ALERTS) || [];
+      const updatedAlerts = cachedAlerts.map(alert => 
+        alert.id === id ? { ...alert, status: 'investigating' as AlertStatus } : alert
+      );
       
-      if (result.success && result.data) {
-        // Mettre à jour l'état local
-        setAlerts(prevAlerts =>
-          prevAlerts.map(alert =>
-            alert.id === id ? result.data as Alert : alert
-          )
-        );
-        setError('');
-        toast.success('Alerte marquée comme en cours d\'investigation');
-        
-        // Invalider le cache des alertes après modification
-        setCachedData(
-          CACHE_KEYS.ADMIN_ALERTS,
-          null,
-          { expiry: 0 }
-        );
-        
-        return true;
-      } else {
-        console.error('Erreur lors de la mise à jour du statut:', result.error);
-        setError(`Impossible de mettre à jour le statut de l'alerte: ${result.error}`);
-        toast.error('Erreur lors de la mise à jour du statut de l\'alerte');
-        return false;
-      }
-    } catch (error) {
-      console.error('Erreur lors de la mise à jour du statut:', error);
-      setError(`Impossible de mettre à jour le statut de l'alerte: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
-      toast.error('Erreur lors de la mise à jour du statut de l\'alerte');
+      setCachedData(CACHE_KEYS.ADMIN_ALERTS, updatedAlerts, { expiry: CACHE_EXPIRY.LONG, priority: 'high' });
+      setAlerts(updatedAlerts);
+      
+      toast.success('Alerte marquée comme en cours d\'investigation');
+      return true;
+    } catch (err) {
+      console.error('Erreur lors de la mise à jour du statut:', err);
+      toast.error('Erreur lors de la mise à jour du statut');
       return false;
     }
   };
 
   // Fonction pour générer des alertes de test (en développement)
   const handleGenerateTestAlerts = async () => {
-    try {
-      setLoading(true);
-      const result = await generateTestAlerts(5);
-      
-      if (result.success) {
-      // Recharger les alertes
-        await reloadAlerts();
-        toast.success('Alertes de test générées');
-      } else {
-        setError('Impossible de générer des alertes de test: ' + (result.error || 'Erreur inconnue'));
-        toast.error('Erreur lors de la génération des alertes de test');
-      }
-    } catch (error) {
-      console.error('Erreur lors de la génération des alertes:', error);
-      setError('Impossible de générer des alertes de test.');
-      toast.error('Erreur lors de la génération des alertes de test');
-    } finally {
-      setLoading(false);
-    }
+    toast.info('La génération de tests est désactivée');
   };
 
   // Fonction pour exécuter les vérifications système
   const handleRunSystemChecks = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const result = await runSystemChecks();
-      
-      if (result.success) {
-        toast.success('Vérifications système exécutées avec succès');
-        
-        // Rafraîchir les alertes après les vérifications système
-        invalidateAlertsCache();
-        await reloadAlerts(true);
-      } else {
-        console.error('Erreur lors de l\'exécution des vérifications système:', result.error);
-        setError(`Erreur lors de l'exécution des vérifications système: ${result.error}`);
-        toast.error('Erreur lors de l\'exécution des vérifications système');
-      }
-    } catch (err) {
-      console.error('Erreur lors de l\'exécution des vérifications système:', err);
-      setError('Erreur lors de l\'exécution des vérifications système');
-      toast.error('Erreur lors de l\'exécution des vérifications système');
-    } finally {
-      setLoading(false);
-    }
+    toast.info('Les vérifications système sont désactivées');
   };
 
   // Filtrer les alertes selon les critères

@@ -8,16 +8,19 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
 import { useUser } from "@/hooks/useUser";
-import { Loader2, User, Save, Camera, CheckCircle2 } from "lucide-react";
+import { Loader2, User, Save, Camera, CheckCircle2, RefreshCw } from "lucide-react";
 import { ClientDashboardPageSkeleton } from "@/components/skeletons/ClientDashboardPageSkeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { supabase } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useLastRefresh } from "@/hooks/useLastRefresh";
+import { invalidateAllClientCache } from "@/lib/optimizations/client-cache";
 
 export default function ClientProfilePage() {
   const { user } = useAuth();
-  const { profile, loading, updateProfile } = useUser();
+  const { profile, loading, updateProfile, isRefreshing, refreshProfile } = useUser();
+  const { lastRefresh, updateLastRefresh, getLastRefreshText } = useLastRefresh();
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({
@@ -48,6 +51,20 @@ export default function ClientProfilePage() {
     setFormData(prev => ({ ...prev, [field]: e.target.value }));
   }, []);
 
+  // Rafraîchir le profil manuellement
+  const handleRefresh = useCallback(async () => {
+    if (!user) return;
+    
+    // Invalider tous les caches client
+    if (user.id) {
+      invalidateAllClientCache(user.id);
+    }
+    
+    // Rafraîchir le profil
+    await refreshProfile();
+    updateLastRefresh();
+  }, [user, refreshProfile, updateLastRefresh]);
+
   // Optimisation: Utiliser useCallback pour éviter les re-rendus
   const handleAvatarChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -70,12 +87,25 @@ export default function ClientProfilePage() {
 
       setFormData(prev => ({ ...prev, avatar_url: publicUrl }));
       await updateProfile({ avatar_url: publicUrl });
+      
+      // Invalider le cache après la mise à jour de l'avatar
+      invalidateAllClientCache(user.id);
+      updateLastRefresh();
+      
+      toast.success("Photo de profil mise à jour avec succès", {
+        icon: <CheckCircle2 className="h-4 w-4 text-emerald-500" />,
+        duration: 3000,
+        position: "top-center"
+      });
     } catch (error) {
       console.error('Erreur lors du téléchargement de l\'avatar:', error);
+      toast.error("Erreur lors de la mise à jour de l'avatar", {
+        position: "top-center"
+      });
     } finally {
       setIsSaving(false);
     }
-  }, [user?.id, updateProfile]);
+  }, [user?.id, updateProfile, updateLastRefresh]);
 
   // Optimisation: Utiliser useCallback pour le gestionnaire de soumission
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
@@ -85,6 +115,13 @@ export default function ClientProfilePage() {
     try {
       await updateProfile(formData);
       setIsEditing(false);
+      
+      // Invalider le cache après la mise à jour du profil
+      if (user?.id) {
+        invalidateAllClientCache(user.id);
+      }
+      updateLastRefresh();
+      
       toast.success("Profil mis à jour avec succès", {
         icon: <CheckCircle2 className="h-4 w-4 text-emerald-500" />,
         duration: 3000,
@@ -100,7 +137,7 @@ export default function ClientProfilePage() {
     } finally {
       setIsSaving(false);
     }
-  }, [formData, updateProfile, isSaving]);
+  }, [formData, updateProfile, isSaving, user?.id, updateLastRefresh]);
 
   // Calculer le fallback seulement quand nécessaire
   const avatarFallback = useMemo(() => {
@@ -120,14 +157,32 @@ export default function ClientProfilePage() {
   return (
     <div className="container max-w-6xl mx-auto px-4 py-6">
       <div className="flex flex-col space-y-2 md:flex-row md:items-center md:justify-between md:space-y-0 mb-6">
-        <div>
-          <h1 className="text-base sm:text-lg md:text-xl font-bold text-slate-900 dark:text-vynal-text-primary flex items-center">
-            <User className="mr-2 h-4 w-4 sm:h-5 sm:w-5 text-vynal-accent-primary" />
-            Profil
-          </h1>
-          <p className="text-[10px] sm:text-xs text-slate-600 dark:text-vynal-text-secondary">
-            Gérez vos informations personnelles
-          </p>
+        <div className="flex items-center justify-between w-full">
+          <div>
+            <h1 className="text-base sm:text-lg md:text-xl font-bold text-slate-900 dark:text-vynal-text-primary flex items-center">
+              <User className="mr-2 h-4 w-4 sm:h-5 sm:w-5 text-vynal-accent-primary" />
+              Profil
+            </h1>
+            <p className="text-[10px] sm:text-xs text-slate-600 dark:text-vynal-text-secondary">
+              Gérez vos informations personnelles
+            </p>
+          </div>
+          
+          {/* Bouton de rafraîchissement */}
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={handleRefresh} 
+            disabled={isRefreshing}
+            className="text-gray-600 dark:text-gray-400 hover:text-vynal-accent-primary dark:hover:text-vynal-accent-primary flex items-center gap-1 text-xs"
+          >
+            {isRefreshing ? (
+              <Loader2 className="h-3 w-3 animate-spin text-vynal-accent-primary" />
+            ) : (
+              <RefreshCw className="h-3 w-3" />
+            )}
+            <span className="hidden sm:inline">{isRefreshing ? 'Actualisation...' : getLastRefreshText()}</span>
+          </Button>
         </div>
       </div>
 

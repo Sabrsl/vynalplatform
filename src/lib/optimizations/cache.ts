@@ -50,6 +50,7 @@ export const CACHE_EXPIRY = {
   EXTENDED_SESSION: 90 * 24 * 60 * 60 * 1000, // 90 jours (maximum)
   DASHBOARD_DATA: 7 * 24 * 60 * 60 * 1000, // 7 jours (maximum)
   DYNAMIC: 12 * 60 * 60 * 1000, // 12 heures (maximum raisonnable)
+  REVIEWS: 5 * 60 * 1000, // 5 minutes (pour les avis qui peuvent changer fréquemment)
   ROUTE_CHANGE: 0, // Invalider immédiatement lors des changements de route
 };
 
@@ -528,4 +529,208 @@ export function createCacheManager(prefix: string) {
       }
     }
   };
+}
+
+/**
+ * Module de gestion centrale des requêtes et verrouillage distribué
+ * Cette section ajoute des mécanismes pour éviter les race conditions
+ */
+
+// File d'attente globale des requêtes en cours avec priorités
+interface RequestQueueItem {
+  id: string;
+  key: string;
+  timestamp: number;
+  priority: 'high' | 'medium' | 'low';
+  status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
+}
+
+// Gestionnaire central des requêtes
+class RequestManager {
+  private static instance: RequestManager;
+  private requestQueue: Map<string, RequestQueueItem> = new Map();
+  private locks: Map<string, { timestamp: number, requestId: string }> = new Map();
+  
+  // Singleton pattern
+  public static getInstance(): RequestManager {
+    if (!RequestManager.instance) {
+      RequestManager.instance = new RequestManager();
+    }
+    return RequestManager.instance;
+  }
+  
+  // Ajouter une requête à la file d'attente
+  public registerRequest(key: string, priority: 'high' | 'medium' | 'low' = 'medium'): string {
+    const requestId = `req-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    
+    this.requestQueue.set(requestId, {
+      id: requestId,
+      key,
+      timestamp: Date.now(),
+      priority,
+      status: 'pending'
+    });
+    
+    return requestId;
+  }
+  
+  // Acquérir un verrou pour une clé
+  public acquireLock(key: string, requestId: string): boolean {
+    // Si aucun verrou n'existe ou le verrou est trop ancien (5 secondes max)
+    const existingLock = this.locks.get(key);
+    if (!existingLock || (Date.now() - existingLock.timestamp > 5000)) {
+      this.locks.set(key, { 
+        timestamp: Date.now(), 
+        requestId 
+      });
+      
+      if (this.requestQueue.has(requestId)) {
+        const request = this.requestQueue.get(requestId)!;
+        this.requestQueue.set(requestId, { ...request, status: 'in_progress' });
+      }
+      
+      return true;
+    }
+    
+    // Si le verrou appartient déjà à cette requête
+    if (existingLock.requestId === requestId) {
+      // Mettre à jour le timestamp pour prolonger le verrou
+      this.locks.set(key, { ...existingLock, timestamp: Date.now() });
+      return true;
+    }
+    
+    return false;
+  }
+  
+  // Relâcher un verrou
+  public releaseLock(key: string, requestId: string): boolean {
+    const existingLock = this.locks.get(key);
+    
+    // Vérifier que le verrou appartient bien à cette requête
+    if (existingLock && existingLock.requestId === requestId) {
+      this.locks.delete(key);
+      
+      if (this.requestQueue.has(requestId)) {
+        const request = this.requestQueue.get(requestId)!;
+        this.requestQueue.set(requestId, { ...request, status: 'completed' });
+      }
+      
+      return true;
+    }
+    
+    return false;
+  }
+  
+  // Vérifier si une requête doit être annulée
+  public shouldCancelRequest(requestId: string): boolean {
+    const request = this.requestQueue.get(requestId);
+    if (!request) return true; // Par défaut, annuler si non trouvé
+    
+    // Vérifier s'il existe une requête plus récente pour la même clé et avec priorité >= 
+    let shouldCancel = false;
+    this.requestQueue.forEach((item) => {
+      if (item.key === request.key && 
+          item.id !== request.id && 
+          item.timestamp > request.timestamp &&
+          getPriorityValue(item.priority) >= getPriorityValue(request.priority)) {
+        shouldCancel = true;
+      }
+    });
+    
+    if (shouldCancel) {
+      this.requestQueue.set(requestId, { ...request, status: 'cancelled' });
+    }
+    
+    return shouldCancel;
+  }
+  
+  // Marquer une requête comme terminée
+  public completeRequest(requestId: string): void {
+    const request = this.requestQueue.get(requestId);
+    if (request) {
+      this.requestQueue.set(requestId, { ...request, status: 'completed' });
+      
+      // Nettoyage périodique pour limiter la taille de la file
+      this.cleanup();
+    }
+  }
+  
+  // Nettoyage de la file d'attente
+  private cleanup(): void {
+    const now = Date.now();
+    const MAX_AGE = 30 * 60 * 1000; // 30 minutes
+    
+    // Supprimer les requêtes terminées ou trop anciennes
+    this.requestQueue.forEach((request, id) => {
+      if (request.status === 'completed' || request.status === 'cancelled' || now - request.timestamp > MAX_AGE) {
+        this.requestQueue.delete(id);
+      }
+    });
+    
+    // Supprimer les verrous expirés
+    this.locks.forEach((lock, key) => {
+      if (now - lock.timestamp > 5000) {
+        this.locks.delete(key);
+      }
+    });
+  }
+}
+
+// Exporter l'instance singleton
+export const requestManager = RequestManager.getInstance();
+
+// Amélioration de setCachedData avec gestion des requêtes
+export function setCachedDataSafe<T>(
+  key: string, 
+  data: T, 
+  options: CacheOptions = {},
+  requestId?: string
+): boolean {
+  // Si aucun requestId n'est fourni, en créer un nouveau
+  const currentRequestId = requestId || requestManager.registerRequest(key, options.priority);
+  
+  // Vérifier si cette requête doit être annulée
+  if (requestManager.shouldCancelRequest(currentRequestId)) {
+    return false;
+  }
+  
+  try {
+    // Acquérir un verrou pour cette clé
+    if (!requestManager.acquireLock(key, currentRequestId)) {
+      return false; // Impossible d'acquérir le verrou, une autre requête est prioritaire
+    }
+    
+    // Mettre à jour le cache normalement
+    const result = setCachedData(key, data, options);
+    
+    // Relâcher le verrou
+    requestManager.releaseLock(key, currentRequestId);
+    
+    // Marquer la requête comme terminée
+    requestManager.completeRequest(currentRequestId);
+    
+    return result;
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour sécurisée du cache:', error);
+    requestManager.releaseLock(key, currentRequestId);
+    return false;
+  }
+}
+
+// Mécanisme SWR (Stale-While-Revalidate)
+export function useCachedData<T>(
+  key: string,
+  fetchFunction: () => Promise<T>,
+  options: CacheOptions = {}
+): {
+  data: T | null;
+  isStale: boolean;
+  error: Error | null;
+  forceRefresh: () => Promise<void>;
+} {
+  // Cette fonction est conçue pour être utilisée avec un hook React personnalisé
+  // et sera implémentée dans un fichier séparé
+  
+  // Ici, nous nous contentons d'exposer l'interface
+  throw new Error('Implementation required in a React hook');
 } 

@@ -16,6 +16,10 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'react-hot-toast';
 import Image from 'next/image';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Info } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 
 // Type pour les utilisateurs
 interface UserData {
@@ -503,155 +507,172 @@ export default function AdminUsersPage() {
   }
 
   return (
-    <div className="p-2 sm:p-4 text-gray-800 dark:text-vynal-text-primary">
-      <h1 className="text-sm font-bold mb-3">Gestion des utilisateurs</h1>
-      
-      <div className="mb-3 flex flex-col sm:flex-row gap-2 justify-between items-start sm:items-center">
-        <div className="relative w-full sm:w-auto">
-          <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
-            <Search className="h-3 w-3 text-gray-400 dark:text-vynal-text-secondary/50" />
-          </div>
-          <input
-            type="search"
-            placeholder="Rechercher un utilisateur..."
-            className="pl-6 pr-3 py-1 border border-gray-300 dark:border-vynal-purple-secondary/30 rounded-md w-full sm:w-60 text-xs bg-white dark:bg-vynal-purple-darkest/50 dark:text-vynal-text-primary dark:placeholder:text-vynal-text-secondary/70"
-            value={searchTerm}
-            onChange={(e) => {
-              setSearchTerm(e.target.value);
-              setCurrentPage(1); // Réinitialiser la pagination
-            }}
-          />
+    <div className="container max-w-7xl mx-auto px-4 py-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+        <div>
+          <h1 className="text-base font-bold text-gray-900 dark:text-white">Administration - Utilisateurs</h1>
+          <p className="text-[9px] text-gray-600 dark:text-gray-400 mt-0.5">
+            Gestion et surveillance des utilisateurs de la plateforme
+          </p>
         </div>
-        
-        <div className="flex gap-2 w-full sm:w-auto">
-          <button 
-            onClick={() => handleRefresh()}
-            className="bg-blue-600 hover:bg-blue-700 text-white dark:bg-vynal-accent-primary/80 dark:hover:bg-vynal-accent-primary px-3 py-1 rounded-md flex items-center gap-1 w-full sm:w-auto justify-center text-xs"
+
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <span className="text-[9px] font-medium text-gray-700 dark:text-gray-300">Total utilisateurs:</span>
+            <Badge className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800 text-[9px]">
+              {users.length}
+            </Badge>
+          </div>
+
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => fetchUsers(true)}
+            disabled={loadingUsers}
+            className="flex items-center gap-1 h-6 border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
           >
-            <RefreshCw className="h-3 w-3" />
-            Actualiser
-          </button>
+            <RefreshCw className={`h-2.5 w-2.5 ${loadingUsers ? 'animate-spin' : ''}`} />
+            <span className="text-[9px]">Actualiser</span>
+          </Button>
         </div>
       </div>
 
-      {/* Tableau des utilisateurs - version mobile et desktop */}
-      <div className="bg-white dark:bg-vynal-purple-secondary/5 border rounded-md dark:border-vynal-purple-secondary/20 overflow-x-auto shadow-sm">
-        <table className="w-full text-gray-800 dark:text-vynal-text-primary text-[10px] sm:text-xs">
-          <thead className="bg-gray-50 dark:bg-vynal-purple-secondary/10">
-            <tr>
-              <th className="px-2 py-1.5 text-left text-[10px] sm:text-xxs font-medium text-gray-500 dark:text-vynal-text-secondary uppercase tracking-wider">Utilisateur</th>
-              <th className="px-2 py-1.5 text-left text-[10px] sm:text-xxs font-medium text-gray-500 dark:text-vynal-text-secondary uppercase tracking-wider hidden sm:table-cell">Email</th>
-              <th className="px-2 py-1.5 text-left text-[10px] sm:text-xxs font-medium text-gray-500 dark:text-vynal-text-secondary uppercase tracking-wider">Rôle</th>
-              <th className="px-2 py-1.5 text-left text-[10px] sm:text-xxs font-medium text-gray-500 dark:text-vynal-text-secondary uppercase tracking-wider hidden sm:table-cell">Inscription</th>
-              <th className="px-2 py-1.5 text-left text-[10px] sm:text-xxs font-medium text-gray-500 dark:text-vynal-text-secondary uppercase tracking-wider">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200 dark:divide-vynal-purple-secondary/20">
-            {paginatedUsers.map((user) => (
-              <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-vynal-purple-secondary/10">
-                <td className="px-2 py-1.5 whitespace-nowrap">
-                  <div className="flex items-center">
-                    <div className="h-5 w-5 rounded-full bg-gray-200 dark:bg-vynal-purple-secondary/20 flex items-center justify-center">
+      {/* Filtres et recherche */}
+      <div className="mb-6 space-y-4">
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-2.5 top-2.5 h-2.5 w-2.5 text-gray-500 dark:text-gray-400" />
+            <Input
+              placeholder="Rechercher un utilisateur..."
+              className="pl-9 w-full h-6 text-[9px]"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          
+          <Select
+            value={activeTab}
+            onValueChange={(value) => setActiveTab(value as 'profile' | 'activity' | 'settings')}
+          >
+            <SelectTrigger className="w-full sm:w-[220px] h-6 text-[9px]">
+              <SelectValue placeholder="Filtrer par rôle" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all" className="text-[9px]">Tous les rôles</SelectItem>
+              <SelectItem value="client" className="text-[9px]">Clients</SelectItem>
+              <SelectItem value="freelance" className="text-[9px]">Freelances</SelectItem>
+              <SelectItem value="admin" className="text-[9px]">Administrateurs</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* Liste des utilisateurs */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+        {loadingUsers ? (
+          Array(6).fill(0).map((_, index) => (
+            <div key={`skeleton-${index}`} className="p-3 border-b border-gray-200 dark:border-gray-700 last:border-0">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="h-8 w-8 rounded-full" />
+                  <div className="space-y-1">
+                    <Skeleton className="h-3.5 w-32" />
+                    <Skeleton className="h-2.5 w-24" />
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-4 w-20" />
+                  <Skeleton className="h-4 w-16" />
+                </div>
+              </div>
+            </div>
+          ))
+        ) : users.length === 0 ? (
+          <div className="text-center py-6">
+            <Info className="h-6 w-6 mx-auto text-gray-400" />
+            <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">Aucun utilisateur trouvé</h3>
+            <p className="mt-0.5 text-[10px] text-gray-600 dark:text-gray-400">
+              Aucun utilisateur ne correspond à vos critères de recherche.
+            </p>
+            <Button 
+              variant="outline" 
+              size="sm"
+              className="mt-2 text-[10px] h-7 border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800" 
+              onClick={() => {
+                setSearchTerm('');
+                setActiveTab('profile');
+              }}
+            >
+              Réinitialiser les filtres
+            </Button>
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-200 dark:divide-gray-700">
+            {users.map(user => (
+              <div 
+                key={user.id}
+                className={`p-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer transition-colors ${
+                  user.is_suspended 
+                    ? 'bg-red-50/50 dark:bg-red-900/10'
+                    : !user.is_active
+                      ? 'bg-yellow-50/50 dark:bg-yellow-900/10'
+                      : ''
+                }`}
+                onClick={() => openUserDetails(user)}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center overflow-hidden relative">
                       {user.avatar_url ? (
                         <Image 
                           src={user.avatar_url} 
                           alt={user.username || ''} 
-                          className="h-5 w-5 rounded-full" 
-                          width={20}
-                          height={20}
+                          className="object-cover" 
+                          fill
+                          sizes="32px"
                           unoptimized={user.avatar_url.startsWith('data:')}
                         />
                       ) : (
-                        <span className="text-[10px] font-medium text-gray-500 dark:text-vynal-text-secondary">
-                          {user.full_name?.charAt(0) || user.username?.charAt(0) || user.email?.charAt(0) || '?'}
-                        </span>
+                        <User className="h-4 w-4 text-gray-500 dark:text-gray-400" />
                       )}
                     </div>
-                    <div className="ml-2">
-                      <p className="text-[10px] sm:text-xs font-medium text-gray-800 dark:text-vynal-text-primary">{user.full_name || user.username || 'Anonyme'}</p>
-                      <p className="text-[8px] sm:text-xxs text-gray-500 dark:text-vynal-text-secondary/70 hidden sm:block">{user.username ? `@${user.username}` : 'Pas de nom d\'utilisateur'}</p>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-medium text-gray-900 dark:text-white">
+                          {user.full_name || user.username || 'Utilisateur sans nom'}
+                        </span>
+                        {getRoleBadge(user.role)}
+                      </div>
+                      <p className="text-[9px] text-gray-600 dark:text-gray-400">{user.email}</p>
                     </div>
                   </div>
-                </td>
-                <td className="px-2 py-1.5 whitespace-nowrap text-[10px] sm:text-xs text-gray-500 dark:text-vynal-text-secondary hidden sm:table-cell">
-                  {user.email || 'Email non défini'}
-                </td>
-                <td className="px-2 py-1.5 whitespace-nowrap">
-                  {getRoleBadge(user.role)}
-                </td>
-                <td className="px-2 py-1.5 whitespace-nowrap text-[10px] sm:text-xs text-gray-500 dark:text-vynal-text-secondary hidden sm:table-cell">
-                  {new Date(user.created_at).toLocaleDateString('fr-FR')}
-                </td>
-                <td className="px-2 py-1.5 whitespace-nowrap text-[10px] sm:text-xs font-medium">
-                  <div className="flex gap-1 items-center">
-                    <button
-                      onClick={() => openUserDetails(user)}
-                      className="p-1 text-blue-600 hover:text-blue-800 dark:text-vynal-accent-primary/80 dark:hover:text-vynal-accent-primary"
-                      title="Voir détails"
-                    >
-                      <Eye className="h-3 w-3" />
-                    </button>
-                    <Select
-                      value={user.role || "non-défini"}
-                      onValueChange={(value) => {
-                        if (value !== "non-défini") {
-                          changeUserRole(user.id, value as 'client' | 'freelance' | 'admin');
-                        }
-                      }}
-                      disabled={updatingUser === user.id}
-                    >
-                      <SelectTrigger 
-                        className="h-6 w-20 sm:w-24 text-[10px] sm:text-xs border-gray-300 dark:border-vynal-purple-secondary/30 bg-white dark:bg-vynal-purple-darkest/50 dark:text-vynal-text-primary"
-                      >
-                        <SelectValue placeholder="Rôle" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="non-défini" disabled>Sélectionner...</SelectItem>
-                        <SelectItem value="client">Client</SelectItem>
-                        <SelectItem value="freelance">Freelance</SelectItem>
-                        <SelectItem value="admin">Admin</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    
-                    {updatingUser === user.id && (
-                      <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-500 dark:border-vynal-accent-primary"></div>
-                    )}
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1.5">
+                      {user.is_suspended ? (
+                        <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800 text-[9px]">
+                          Suspendu
+                        </Badge>
+                      ) : !user.is_active ? (
+                        <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-800 text-[9px]">
+                          Inactif
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800 text-[9px]">
+                          Actif
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="text-[8px] text-gray-600 dark:text-gray-400 flex items-center gap-1">
+                      <Calendar className="h-2 w-2" />
+                      {formatDate(user.created_at)}
+                    </div>
                   </div>
-                </td>
-              </tr>
+                </div>
+              </div>
             ))}
-          </tbody>
-        </table>
+          </div>
+        )}
       </div>
-      
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex justify-between items-center mt-3 text-[10px] sm:text-xs">
-          <div className="text-gray-500 dark:text-vynal-text-secondary">
-            {filteredUsers.length > 0 ? (
-              <>Affichage {(currentPage - 1) * usersPerPage + 1} à {Math.min(currentPage * usersPerPage, filteredUsers.length)} sur {filteredUsers.length} utilisateurs</>
-            ) : (
-              <>Aucun utilisateur trouvé</>
-            )}
-          </div>
-          <div className="flex gap-1">
-            <button
-              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
-              className="px-2 py-1 border rounded-md disabled:opacity-50 text-[10px] sm:text-xs bg-white dark:bg-vynal-purple-secondary/10 dark:border-vynal-purple-secondary/20 dark:text-vynal-text-primary"
-            >
-              Précédent
-            </button>
-            <button
-              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-              disabled={currentPage === totalPages}
-              className="px-2 py-1 border rounded-md disabled:opacity-50 text-[10px] sm:text-xs bg-white dark:bg-vynal-purple-secondary/10 dark:border-vynal-purple-secondary/20 dark:text-vynal-text-primary"
-            >
-              Suivant
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Modal de détails utilisateur */}
       {showUserDetails && currentUser && (
@@ -672,16 +693,15 @@ export default function AdminUsersPage() {
             {/* En-tête */}
             <div className="mb-4">
               <div className="flex items-center gap-3 mb-3">
-                <div className="h-14 w-14 rounded-full bg-gray-200 dark:bg-vynal-purple-secondary/20 flex items-center justify-center overflow-hidden border-2 border-vynal-accent-primary/30">
+                <div className="h-14 w-14 rounded-full bg-gray-200 dark:bg-vynal-purple-secondary/20 flex items-center justify-center overflow-hidden border-2 border-vynal-accent-primary/30 relative">
                   {currentUser.avatar_url ? (
                     <Image 
                       src={currentUser.avatar_url} 
                       alt={currentUser.username || ''} 
-                      className="h-full w-full object-cover" 
-                      width={56}
-                      height={56}
-                      unoptimized={currentUser.avatar_url.startsWith('data:')}
+                      className="object-cover" 
                       fill
+                      sizes="56px"
+                      unoptimized={currentUser.avatar_url.startsWith('data:')}
                     />
                   ) : (
                     <User className="h-7 w-7 text-gray-500 dark:text-vynal-text-secondary" />

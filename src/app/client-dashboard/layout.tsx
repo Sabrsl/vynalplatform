@@ -26,6 +26,12 @@ import NotificationBadge from "@/components/ui/notification-badge";
 import { NavigationLoadingState } from "@/app/providers";
 import { ClientDashboardPageSkeleton } from "@/components/skeletons/ClientDashboardPageSkeleton";
 import { useUser } from "@/hooks/useUser";
+import { supabase } from "@/lib/supabase/client";
+import { 
+  invalidateClientOrders, 
+  invalidateClientStats, 
+  invalidateAllClientCache 
+} from "@/lib/optimizations/client-cache";
 
 interface NavItemProps {
   href: string;
@@ -153,6 +159,62 @@ export default function ClientDashboardLayout({
   useEffect(() => {
     setActivePath(pathname || "/client-dashboard");
   }, [pathname, setActivePath]);
+
+  // Écouter les changements de base de données qui affectent nos caches
+  useEffect(() => {
+    if (!user?.id || typeof window === 'undefined') return;
+    
+    console.log("[ClientDashboard] Mise en place des écouteurs de BDD pour la mise à jour du cache");
+    
+    // Abonnement aux changements dans les commandes de l'utilisateur
+    const ordersSubscription = supabase
+      .channel('client-orders-changes')
+      .on('postgres_changes', {
+        event: '*', // Tout type d'événement
+        schema: 'public',
+        table: 'orders',
+        filter: `client_id=eq.${user.id}`
+      }, () => {
+        console.log("[ClientDashboard] Changement détecté dans les commandes, invalidation du cache");
+        invalidateClientOrders(user.id);
+      })
+      .subscribe();
+      
+    // Abonnement aux changements dans les messages non lus
+    const messagesSubscription = supabase
+      .channel('client-messages-changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'messages',
+        filter: `recipient_id=eq.${user.id}`
+      }, () => {
+        console.log("[ClientDashboard] Changement détecté dans les messages, invalidation du cache des statistiques");
+        invalidateClientStats(user.id);
+      })
+      .subscribe();
+      
+    // Abonnement aux changements dans les profils
+    const profilesSubscription = supabase
+      .channel('client-profiles-changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'profiles',
+        filter: `id=eq.${user.id}`
+      }, () => {
+        console.log("[ClientDashboard] Changement détecté dans le profil, invalidation des caches associés");
+        invalidateAllClientCache(user.id);
+      })
+      .subscribe();
+      
+    // Nettoyer les abonnements lors du démontage
+    return () => {
+      ordersSubscription.unsubscribe();
+      messagesSubscription.unsubscribe();
+      profilesSubscription.unsubscribe();
+    };
+  }, [user?.id]);
 
   // Afficher un loader pendant le chargement
   if (loading || profileLoading || !isInitialized) {

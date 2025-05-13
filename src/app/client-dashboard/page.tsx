@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { 
   ShoppingBag, MessageSquare, Bell, Package, Clock, LayoutDashboard, 
-  ShoppingCart, CheckCircle, Euro, Star, Users, TrendingUp, User 
+  ShoppingCart, CheckCircle, Euro, Star, Users, TrendingUp, User, RefreshCw 
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useUser } from "@/hooks/useUser";
@@ -71,17 +71,51 @@ interface Stats {
   totalSpent: number;
 }
 
+// Composant de bouton de rafraîchissement
+function RefreshButton({ onClick, isRefreshing, lastRefreshText }: { 
+  onClick: () => void; 
+  isRefreshing: boolean;
+  lastRefreshText: string;
+}) {
+  return (
+    <Button 
+      variant="ghost" 
+      size="sm" 
+      onClick={onClick} 
+      disabled={isRefreshing}
+      className="text-gray-600 dark:text-gray-400 hover:text-vynal-accent-primary dark:hover:text-vynal-accent-primary flex items-center gap-1 text-xs"
+    >
+      {isRefreshing ? (
+        <Loader className="h-3 w-3 animate-spin text-vynal-accent-primary" />
+      ) : (
+        <RefreshCw className="h-3 w-3" />
+      )}
+      <span className="hidden sm:inline">{isRefreshing ? 'Actualisation...' : lastRefreshText}</span>
+    </Button>
+  );
+}
+
 export default function ClientDashboardPage() {
   const { user } = useAuth();
   const { profile, loading: profileLoading } = useUser();
   
   // Utiliser les nouveaux hooks
-  const { stats, loading: statsLoading } = useClientStats();
-  const { recentOrders, loading: ordersLoading } = useRecentClientOrders({ limit: 3 });
-  const { freelancers, loading: freelancersLoading } = useRecommendedFreelancers({ limit: 3 });
+  const { stats, loading: statsLoading, isRefreshing: statsRefreshing, lastRefreshText, refresh: refreshStats } = useClientStats();
+  const { recentOrders, loading: ordersLoading, isRefreshing: ordersRefreshing, refresh: refreshOrders } = useRecentClientOrders({ limit: 3 });
+  const { freelancers, loading: freelancersLoading, isRefreshing: freelancersRefreshing, refresh: refreshFreelancers } = useRecommendedFreelancers({ limit: 3 });
   
   // Variable isLoading unique
   const isLoading = profileLoading || statsLoading || ordersLoading || freelancersLoading;
+  
+  // Variable isRefreshing unique
+  const isRefreshing = statsRefreshing || ordersRefreshing || freelancersRefreshing;
+
+  // Fonction combinée pour rafraîchir toutes les données
+  const handleRefresh = useCallback(() => {
+    refreshStats();
+    refreshOrders();
+    refreshFreelancers();
+  }, [refreshStats, refreshOrders, refreshFreelancers]);
 
   // Helper pour les classes de badges
   const getStatusBadgeClasses = useCallback((status: Order['status']) => {
@@ -124,34 +158,44 @@ export default function ClientDashboardPage() {
     }
   }, []);
 
-  // Classes CSS communes - optimisées pour l'élégance
-  const mainCardClasses = "bg-white/30 dark:bg-slate-900/30 backdrop-blur-sm border border-slate-200/30 dark:border-slate-700/30 shadow-sm rounded-lg transition-all duration-200";
-  const secondaryCardClasses = "bg-white/20 dark:bg-slate-900/20 backdrop-blur-sm border border-slate-200/20 dark:border-slate-700/20 shadow-none rounded-lg transition-all duration-200";
-  const innerCardClasses = "bg-white/25 dark:bg-slate-800/25 backdrop-blur-sm border border-slate-200/30 dark:border-slate-700/40 rounded-lg transition-all duration-200";
-  const titleClasses = "text-slate-800 dark:text-vynal-text-primary";
-  const subtitleClasses = "text-slate-600 dark:text-vynal-text-secondary";
-  const buttonClasses = "text-[8px] sm:text-[8px] text-slate-700 dark:text-vynal-text-primary hover:bg-slate-100/40 dark:hover:bg-slate-700/40 transition-colors";
+  // Classes dynamiques
+  const titleClasses = 'text-vynal-purple-dark dark:text-vynal-text-primary';
+  const subtitleClasses = 'text-vynal-purple-secondary dark:text-vynal-text-secondary';
+  const mainCardClasses = 'bg-white dark:bg-vynal-purple-dark/30 border border-slate-200 dark:border-vynal-purple-secondary/10 hover:border-slate-300 dark:hover:border-vynal-purple-secondary/20 transition-all shadow-sm';  
   
-  // Loading skeleton
+  // Nom d'utilisateur formaté pour l'affichage
+  const userName = useMemo(() => {
+    if (profile?.full_name) return profile.full_name;
+    if (profile?.username) return profile.username;
+    return "client";
+  }, [profile]);
+
+  // Afficher un écran de chargement si nécessaire
   if (isLoading) {
     return <ClientDashboardPageSkeleton />;
   }
-
-  const userName = profile?.full_name || profile?.username || user?.user_metadata?.name || "Client";
 
   return (
     <ClientGuard>
       <div className="container max-w-6xl mx-auto px-4 py-6" data-content="loaded">
         {/* En-tête du tableau de bord */}
         <div className="flex flex-col space-y-2 md:flex-row md:items-center md:justify-between md:space-y-0 mb-6">
-          <div>
-            <h1 className={`text-base sm:text-lg md:text-xl font-bold ${titleClasses} flex items-center`}>
-              <LayoutDashboard className="mr-2 h-4 w-4 sm:h-5 sm:w-5 text-vynal-accent-primary" />
-              Tableau de bord
-            </h1>
-            <p className={`text-[10px] sm:text-xs ${subtitleClasses}`}>
-              Bienvenue, {userName}
-            </p>
+          <div className="flex items-center justify-between w-full">
+            <div>
+              <h1 className={`text-base sm:text-lg md:text-xl font-bold ${titleClasses} flex items-center`}>
+                <LayoutDashboard className="mr-2 h-4 w-4 sm:h-5 sm:w-5 text-vynal-accent-primary" />
+                Tableau de bord
+              </h1>
+              <p className={`text-[10px] sm:text-xs ${subtitleClasses}`}>
+                Bienvenue, {userName}
+              </p>
+            </div>
+            {/* Ajouter le bouton de rafraîchissement */}
+            <RefreshButton 
+              onClick={handleRefresh} 
+              isRefreshing={isRefreshing} 
+              lastRefreshText={lastRefreshText}
+            />
           </div>
         </div>
 
@@ -247,7 +291,7 @@ export default function ClientDashboardPage() {
                 <Button 
                   variant="ghost" 
                   size="sm" 
-                  className={buttonClasses}
+                  className={`${subtitleClasses} text-gray-600 dark:text-gray-400 hover:text-vynal-accent-primary dark:hover:text-vynal-accent-primary flex items-center gap-1 text-xs`}
                   asChild
                 >
                   <Link href={CLIENT_ROUTES.ORDERS}>Voir tout</Link>
@@ -307,7 +351,7 @@ export default function ClientDashboardPage() {
                 <Button 
                   variant="ghost" 
                   size="sm" 
-                  className={buttonClasses}
+                  className={`${subtitleClasses} text-gray-600 dark:text-gray-400 hover:text-vynal-accent-primary dark:hover:text-vynal-accent-primary flex items-center gap-1 text-xs`}
                   asChild
                 >
                   <Link href="/services">Explorer</Link>
@@ -319,7 +363,7 @@ export default function ClientDashboardPage() {
                 {freelancers.map((freelancer) => (
                   <div
                     key={freelancer.id}
-                    className={`p-3 rounded-lg ${innerCardClasses}`}
+                    className={`p-3 rounded-lg ${mainCardClasses}`}
                   >
                     <div className="flex items-center gap-2 sm:gap-3 mb-2">
                       <Avatar className="h-8 w-8 ring-1 ring-slate-200/30 dark:ring-slate-700/30">
@@ -367,7 +411,7 @@ export default function ClientDashboardPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        className={`${buttonClasses} h-4 border-slate-200/20 dark:border-slate-700/20`}
+                        className={`${subtitleClasses} h-4 border-slate-200/20 dark:border-slate-700/20`}
                         asChild
                       >
                         <Link href={`/freelancers/${freelancer.id}`}>Profil</Link>

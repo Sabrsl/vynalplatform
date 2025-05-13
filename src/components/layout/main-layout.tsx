@@ -38,7 +38,8 @@ const Footer = dynamic(() => import("./footer"), {
 const SPECIAL_LAYOUTS = {
   AUTH_PAGES: ["/auth/", "/auth/login", "/auth/signup", "/auth/reset-password", "/auth/verify-email"],
   NO_FOOTER_PAGES: ["/chat", "/messages", "/video-call"],
-  FULL_WIDTH_PAGES: ["/dashboard", "/profile", "/settings"]
+  FULL_WIDTH_PAGES: ["/dashboard", "/profile", "/settings"],
+  NO_HEADER_PAGES: ["/status"]
 };
 
 interface MainLayoutProps {
@@ -84,16 +85,18 @@ AuthLayout.displayName = "AuthLayout";
 const StandardLayout = memo(({ 
   children, 
   isFullWidth, 
-  shouldHideFooter 
+  shouldHideFooter,
+  shouldHideHeader
 }: { 
   children: React.ReactNode, 
   isFullWidth: boolean, 
-  shouldHideFooter: boolean 
+  shouldHideFooter: boolean,
+  shouldHideHeader: boolean
 }) => (
   <div className={`flex flex-col min-h-screen ${
     isFullWidth ? 'max-w-full' : 'max-w-screen-2xl mx-auto'
   }`}>
-    <Header />
+    {!shouldHideHeader && <Header />}
     <main className="flex-grow">
       {children}
     </main>
@@ -117,11 +120,13 @@ function MainLayout({ children }: MainLayoutProps) {
     const isAuthPage = SPECIAL_LAYOUTS.AUTH_PAGES.some(path => pathname?.startsWith(path));
     const shouldHideFooter = SPECIAL_LAYOUTS.NO_FOOTER_PAGES.some(path => pathname?.startsWith(path));
     const isFullWidth = SPECIAL_LAYOUTS.FULL_WIDTH_PAGES.some(path => pathname?.startsWith(path));
+    const shouldHideHeader = SPECIAL_LAYOUTS.NO_HEADER_PAGES.some(path => pathname?.startsWith(path));
     
     return {
       isAuthPage,
       shouldHideFooter,
-      isFullWidth
+      isFullWidth,
+      shouldHideHeader
     };
   }, [pathname]);
   
@@ -194,6 +199,7 @@ function MainLayout({ children }: MainLayoutProps) {
     <StandardLayout
       isFullWidth={layoutConfig.isFullWidth}
       shouldHideFooter={layoutConfig.shouldHideFooter}
+      shouldHideHeader={layoutConfig.shouldHideHeader}
     >
       {children}
     </StandardLayout>

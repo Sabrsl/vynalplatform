@@ -6,13 +6,16 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Settings, Bell, Lock, Globe, Moon, Sun, Loader2 } from "lucide-react";
+import { Settings, Bell, Lock, Globe, Moon, Sun, Loader2, RefreshCw } from "lucide-react";
 import { ClientDashboardPageSkeleton } from "@/components/skeletons/ClientDashboardPageSkeleton";
 import { useUser } from "@/hooks/useUser";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabase/client";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
+import { useLastRefresh } from "@/hooks/useLastRefresh";
+import { invalidateAllClientCache } from "@/lib/optimizations/client-cache";
+import { toast } from "sonner";
 
 interface SettingsState {
   theme: string;
@@ -36,8 +39,9 @@ const languageOptions = [
 
 export default function ClientSettingsPage() {
   const { user } = useAuth();
-  const { profile, updateProfile } = useUser();
+  const { profile, updateProfile, refreshProfile, isRefreshing } = useUser();
   const { theme, setTheme } = useTheme();
+  const { lastRefresh, updateLastRefresh, getLastRefreshText } = useLastRefresh();
   const [settings, setSettings] = useState<SettingsState>({
     theme: "system",
     language: "fr",
@@ -67,6 +71,23 @@ export default function ClientSettingsPage() {
     }
   }, [profile, setTheme]);
 
+  // Rafraîchir les paramètres
+  const handleRefresh = async () => {
+    if (!user) return;
+    
+    // Invalider le cache du profil
+    invalidateAllClientCache(user.id);
+    
+    // Rafraîchir le profil
+    await refreshProfile();
+    updateLastRefresh();
+    
+    toast.success("Paramètres actualisés", {
+      duration: 3000,
+      position: "top-center",
+    });
+  };
+
   // Sauvegarder les paramètres dans la base de données
   const saveSettings = useCallback(async (newSettings: SettingsState) => {
     if (!user) return;
@@ -79,12 +100,27 @@ export default function ClientSettingsPage() {
         .eq('id', user.id);
 
       if (error) throw error;
+      
+      // Invalider le cache après la mise à jour
+      invalidateAllClientCache(user.id);
+      
+      // Mettre à jour la référence de dernier rafraîchissement
+      updateLastRefresh();
+      
+      toast.success("Paramètres sauvegardés", {
+        duration: 3000,
+        position: "top-center",
+      });
     } catch (error) {
       console.error('Erreur lors de la sauvegarde des paramètres:', error);
+      toast.error("Erreur lors de la sauvegarde", {
+        duration: 3000,
+        position: "top-center",
+      });
     } finally {
       setIsSaving(false);
     }
-  }, [user]);
+  }, [user, updateLastRefresh]);
 
   const handleThemeChange = useCallback(async (value: string) => {
     const newSettings = { ...settings, theme: value };
@@ -189,21 +225,42 @@ export default function ClientSettingsPage() {
   return (
     <div className="container max-w-6xl mx-auto px-4 py-6">
       <div className="flex flex-col space-y-2 md:flex-row md:items-center md:justify-between md:space-y-0 mb-6">
-        <div>
-          <h1 className={`text-base sm:text-lg md:text-xl font-bold ${titleClasses} flex items-center`}>
-            <Settings className="mr-2 h-4 w-4 sm:h-5 sm:w-5 text-vynal-accent-primary" />
-            Paramètres
-          </h1>
-          <p className={`text-[10px] sm:text-xs ${subtitleClasses}`}>
-            Personnalisez votre expérience sur la plateforme
-          </p>
-        </div>
-        {isSaving && (
-          <div className="flex items-center gap-2 text-[10px] sm:text-xs text-vynal-accent-primary">
-            <Loader2 className="h-3 w-3 animate-spin" />
-            Enregistrement en cours...
+        <div className="flex items-center justify-between w-full">
+          <div>
+            <h1 className={`text-base sm:text-lg md:text-xl font-bold ${titleClasses} flex items-center`}>
+              <Settings className="mr-2 h-4 w-4 sm:h-5 sm:w-5 text-vynal-accent-primary" />
+              Paramètres
+            </h1>
+            <p className={`text-[10px] sm:text-xs ${subtitleClasses}`}>
+              Personnalisez votre expérience sur la plateforme
+            </p>
           </div>
-        )}
+          
+          <div className="flex items-center space-x-2">
+            {isSaving && (
+              <div className="flex items-center gap-2 text-[10px] sm:text-xs text-vynal-accent-primary">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Enregistrement en cours...
+              </div>
+            )}
+            
+            {/* Bouton de rafraîchissement */}
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={handleRefresh} 
+              disabled={isRefreshing || isSaving}
+              className="text-gray-600 dark:text-gray-400 hover:text-vynal-accent-primary dark:hover:text-vynal-accent-primary flex items-center gap-1 text-xs"
+            >
+              {isRefreshing ? (
+                <Loader2 className="h-3 w-3 animate-spin text-vynal-accent-primary" />
+              ) : (
+                <RefreshCw className="h-3 w-3" />
+              )}
+              <span className="hidden sm:inline">{isRefreshing ? 'Actualisation...' : getLastRefreshText()}</span>
+            </Button>
+          </div>
+        </div>
       </div>
 
       <div className="grid gap-6">

@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase/client';
 import { APP_URLS } from '@/lib/constants';
 import { AUTH_ROUTES } from '@/config/routes';
 import { AuthError, User, Session } from '@supabase/supabase-js';
+import requestCoordinator from '@/lib/optimizations/requestCoordinator';
 
 // Interface pour l'utilisateur avec rôle
 interface EnhancedUser extends User {
@@ -19,6 +20,17 @@ export interface AuthResult {
   error?: AuthError | Error | unknown;
   message?: string;
 }
+
+// Cache des sessions utilisateur avec contrôle des requêtes
+const USER_SESSION_CACHE = {
+  session: null as any | null,
+  timestamp: 0,
+  expiresAt: 0,
+  pendingRequest: false // Ajout d'un indicateur pour éviter les requêtes simultanées
+};
+
+// Durée de validité du cache (5 minutes)
+const SESSION_CACHE_DURATION = 5 * 60 * 1000;
 
 /**
  * Hook optimisé pour gérer l'authentification
@@ -82,43 +94,151 @@ export function useAuth() {
 
   // Vérifier et initialiser la session
   useEffect(() => {
+    // Fonction pour éviter les appels multiples concurrents
+    let isMounted = true;
+    
     const checkSession = async () => {
+      // Si une requête est déjà en cours, ignorer celle-ci
+      if (USER_SESSION_CACHE.pendingRequest) return;
+      
       try {
         setLoading(true);
         
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        
-        if (sessionError) throw sessionError;
-        
-        if (session) {
-          // Si l'utilisateur est connecté, récupérer également son profil pour vérifier le rôle
-          const { data: profile, error: profileError } = await supabase
-            .from('profiles')
-            .select('role')
-            .eq('id', session.user.id)
-            .single();
-            
-          if (!profileError && profile) {
-            // Synchroniser les rôles si nécessaire
-            const userMetadataRole = session.user.user_metadata?.role;
-            const profileRole = profile.role;
-            
-            // Cette synchronisation résout le problème de cohérence des rôles
-            await syncUserRole(session.user.id, userMetadataRole, profileRole);
-            
-            // Récupérer l'utilisateur mis à jour
-            const { data: { user: updatedUser } } = await supabase.auth.getUser();
-            setUser(updatedUser as EnhancedUser);
+        // Vérifier d'abord le cache
+        const now = Date.now();
+        if (USER_SESSION_CACHE.session && now < USER_SESSION_CACHE.expiresAt) {
+          // Utiliser la session en cache
+          if (USER_SESSION_CACHE.session.user) {
+            setUser(USER_SESSION_CACHE.session.user as EnhancedUser);
           } else {
-            setUser(session.user as EnhancedUser);
+            setUser(null);
           }
-        } else {
-          setUser(null);
+          setLoading(false);
+          return;
         }
+        
+        // Marquer comme requête en cours pour éviter les appels simultanés
+        USER_SESSION_CACHE.pendingRequest = true;
+        
+        // Utiliser le coordinateur de requêtes pour éviter les appels multiples
+        await requestCoordinator.scheduleRequest(
+          'check_auth_session',
+          async () => {
+            if (!isMounted) return;
+            
+            const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+            
+            if (sessionError) throw sessionError;
+            
+            // Mettre à jour le cache
+            USER_SESSION_CACHE.session = session;
+            USER_SESSION_CACHE.timestamp = now;
+            USER_SESSION_CACHE.expiresAt = now + SESSION_CACHE_DURATION;
+            
+            if (session) {
+              // Si l'utilisateur est connecté, récupérer également son profil pour vérifier le rôle
+              try {
+                // Utiliser les métadonnées si disponibles pour éviter une requête inutile
+                if (session.user.user_metadata?.role) {
+                  // Récupérer le profil pour s'assurer que les métadonnées sont à jour
+                  const { data: profile, error: profileError } = await supabase
+                    .from('profiles')
+                    .select('full_name, username, avatar_url, role')
+                    .eq('id', session.user.id)
+                    .single();
+                    
+                  if (!profileError && profile) {
+                    // Synchroniser les données du profil avec les métadonnées si nécessaire
+                    const needsMetadataUpdate = 
+                      (profile.full_name && !session.user.user_metadata?.full_name) || 
+                      (profile.full_name && session.user.user_metadata?.full_name !== profile.full_name) ||
+                      (profile.username && !session.user.user_metadata?.username) ||
+                      (profile.username && session.user.user_metadata?.username !== profile.username) ||
+                      (profile.avatar_url && !session.user.user_metadata?.avatar_url) ||
+                      (profile.avatar_url && session.user.user_metadata?.avatar_url !== profile.avatar_url) ||
+                      (profile.role && session.user.user_metadata?.role !== profile.role);
+                    
+                    if (needsMetadataUpdate) {
+                      // Mettre à jour les métadonnées silencieusement
+                      const { data: updatedUser, error: updateError } = await supabase.auth.updateUser({
+                        data: {
+                          full_name: profile.full_name,
+                          username: profile.username,
+                          avatar_url: profile.avatar_url,
+                          role: profile.role
+                        }
+                      });
+                      
+                      if (!updateError && updatedUser) {
+                        // Utiliser les métadonnées mises à jour
+                        setUser(updatedUser.user as EnhancedUser);
+                      } else {
+                        setUser(session.user as EnhancedUser);
+                      }
+                    } else {
+                      setUser(session.user as EnhancedUser);
+                    }
+                  } else {
+                    setUser(session.user as EnhancedUser);
+                  }
+                } else {
+                  // Sinon, vérifier le profil
+                  const { data: profile, error: profileError } = await supabase
+                    .from('profiles')
+                    .select('full_name, username, avatar_url, role')
+                    .eq('id', session.user.id)
+                    .single();
+                    
+                  if (!profileError && profile && profile.role) {
+                    // Synchroniser les rôles si nécessaire
+                    await syncUserRole(session.user.id, session.user.user_metadata?.role, profile.role);
+                    
+                    // Mettre à jour les métadonnées localement pour éviter une autre requête
+                    const { data: updatedUser, error: updateError } = await supabase.auth.updateUser({
+                      data: {
+                        full_name: profile.full_name,
+                        username: profile.username,
+                        avatar_url: profile.avatar_url,
+                        role: profile.role
+                      }
+                    });
+                    
+                    if (!updateError && updatedUser) {
+                      setUser(updatedUser.user as EnhancedUser);
+                    } else {
+                      const updatedUser = {
+                        ...session.user,
+                        user_metadata: {
+                          ...session.user.user_metadata,
+                          full_name: profile.full_name,
+                          username: profile.username,
+                          avatar_url: profile.avatar_url,
+                          role: profile.role
+                        }
+                      };
+                      
+                      setUser(updatedUser as EnhancedUser);
+                    }
+                  } else {
+                    setUser(session.user as EnhancedUser);
+                  }
+                }
+              } catch (profileError) {
+                console.error("Erreur lors de la récupération du profil:", profileError);
+                setUser(session.user as EnhancedUser);
+              }
+            } else {
+              setUser(null);
+            }
+          },
+          'high' // Priorité élevée pour l'authentification
+        );
       } catch (err) {
+        console.error("Erreur lors de la vérification de la session:", err);
         setError(err);
         setUser(null);
       } finally {
+        USER_SESSION_CACHE.pendingRequest = false;
         setLoading(false);
       }
     };
@@ -127,11 +247,22 @@ export function useAuth() {
     
     // Écouter les changements d'authentification
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        // Mettre à jour l'utilisateur lors des changements d'état d'authentification
+      (event, session) => {
+        // Optimiser en évitant les mises à jour inutiles
+        if (!isMounted) return;
+        
+        console.log("Événement d'authentification:", event);
+        
+        // Mettre à jour le cache avec la nouvelle session
         if (session) {
+          USER_SESSION_CACHE.session = session;
+          USER_SESSION_CACHE.timestamp = Date.now();
+          USER_SESSION_CACHE.expiresAt = Date.now() + SESSION_CACHE_DURATION;
           setUser(session.user as EnhancedUser);
         } else {
+          USER_SESSION_CACHE.session = null;
+          USER_SESSION_CACHE.timestamp = Date.now();
+          USER_SESSION_CACHE.expiresAt = 0;
           setUser(null);
         }
         
@@ -140,6 +271,7 @@ export function useAuth() {
     );
     
     return () => {
+      isMounted = false;
       subscription.unsubscribe();
     };
   }, [syncUserRole]);

@@ -477,26 +477,57 @@ const MessageNotificationIndicator = memo(() => {
   const { unreadCounts, refreshCount } = useUnreadMessages(user?.id);
   const router = useRouter();
   const [count, setCount] = useState<number>(0);
+  const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastRefreshTimeRef = useRef<number>(0);
+  const didInitialFetchRef = useRef<boolean>(false);
+  
+  // Temps minimum entre deux rafraîchissements (5 secondes)
+  const MIN_REFRESH_INTERVAL = 5000;
   
   // Mettre à jour le compteur local quand les données changent
   useEffect(() => {
     if (unreadCounts?.total !== undefined) {
       setCount(unreadCounts.total);
+      didInitialFetchRef.current = true;
     }
   }, [unreadCounts]);
   
-  // Écouter les événements de mise à jour des messages
+  // Fonction débounce pour rafraîchir avec contrôle du taux
+  const debouncedRefresh = useCallback(() => {
+    // Si un rafraîchissement est déjà planifié, ne rien faire de plus
+    if (refreshTimeoutRef.current) return;
+    
+    const now = Date.now();
+    const timeSinceLastRefresh = now - lastRefreshTimeRef.current;
+    
+    // Si le dernier rafraîchissement était trop récent, programmer un nouveau après le délai
+    if (timeSinceLastRefresh < MIN_REFRESH_INTERVAL) {
+      refreshTimeoutRef.current = setTimeout(() => {
+        refreshTimeoutRef.current = null;
+        lastRefreshTimeRef.current = Date.now();
+        refreshCount();
+      }, MIN_REFRESH_INTERVAL - timeSinceLastRefresh);
+    } else {
+      // Sinon, rafraîchir immédiatement
+      lastRefreshTimeRef.current = now;
+      refreshCount();
+    }
+  }, [refreshCount]);
+  
+  // Écouter les événements de mise à jour des messages, avec débounce
   useEffect(() => {
     if (!user?.id) return;
     
     const handleMessageUpdate = (event: Event) => {
-      // S'assurer que refreshCount est toujours appelé
-      refreshCount();
-      
-      // Également mettre à jour directement le compteur local si l'événement contient les données
       const customEvent = event as CustomEvent;
+      
+      // Mettre à jour directement le compteur si les données sont disponibles
       if (customEvent.detail?.counts?.total !== undefined) {
         setCount(customEvent.detail.counts.total);
+        didInitialFetchRef.current = true;
+      } else {
+        // Uniquement rafraîchir si nécessaire et si pas trop fréquent
+        debouncedRefresh();
       }
     };
     
@@ -505,25 +536,37 @@ const MessageNotificationIndicator = memo(() => {
     window.addEventListener('vynal:messages-update', handleMessageUpdate);
     window.addEventListener('vynal:ui-notifications-update', handleMessageUpdate);
     
-    // Actualiser les compteurs au montage du composant
-    refreshCount();
+    // Actualiser les compteurs au montage du composant uniquement si nécessaire
+    // et si ce n'est pas déjà fait
+    if (!didInitialFetchRef.current && user?.id && unreadCounts?.total === undefined) {
+      lastRefreshTimeRef.current = Date.now() - MIN_REFRESH_INTERVAL; // Permettre un rafraîchissement immédiat
+      debouncedRefresh();
+    }
     
     // S'abonner aux changements de visibilité pour actualiser au retour sur l'onglet
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        refreshCount();
+        // S'il s'est écoulé au moins 30 secondes depuis le dernier rafraîchissement
+        const now = Date.now();
+        if (now - lastRefreshTimeRef.current > 30000) {
+          debouncedRefresh();
+        }
       }
     };
     
     document.addEventListener('visibilitychange', handleVisibilityChange);
     
     return () => {
+      if (refreshTimeoutRef.current) {
+        clearTimeout(refreshTimeoutRef.current);
+        refreshTimeoutRef.current = null;
+      }
       window.removeEventListener('vynal:messages-read', handleMessageUpdate);
       window.removeEventListener('vynal:messages-update', handleMessageUpdate);
       window.removeEventListener('vynal:ui-notifications-update', handleMessageUpdate);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [user?.id, refreshCount]);
+  }, [user?.id, debouncedRefresh, unreadCounts]);
   
   const handleClick = useCallback(() => {
     // Rediriger vers la page des messages
@@ -899,7 +942,7 @@ function Header() {
         } rounded-full blur-3xl opacity-50`}></div>
         
         <div className={`absolute inset-0 bg-[url('/img/grid-pattern.svg')] bg-center ${
-          isDark ? "opacity-5" : "opacity-0 hidden"
+          isDark ? "opacity-0" : "opacity-0"
         }`}></div>
       </div>
       

@@ -99,6 +99,28 @@ export default function TermsOfService() {
           Vynal se réserve le droit de modifier les frais, les montants minimums et les délais de traitement moyennant un préavis raisonnable.
         </p>
         
+        <h3 className="text-base md:text-lg font-medium mt-5 md:mt-6 mb-2 md:mb-3 text-slate-800 dark:text-vynal-text-primary">4.4 Services de paiement tiers</h3>
+        <p className="text-sm md:text-base text-slate-600 dark:text-vynal-text-secondary">
+          Notre plateforme utilise PayPal et Stripe comme services de paiement tiers. En utilisant ces services sur notre site, vous acceptez également les conditions suivantes :
+        </p>
+        <ul className="list-disc pl-4 md:pl-5 space-y-1 md:space-y-2 text-sm md:text-base">
+          <li className="text-slate-600 dark:text-vynal-text-secondary"><strong className="text-slate-700 dark:text-vynal-text-primary">Conditions des prestataires</strong> : Lorsque vous utilisez PayPal ou Stripe pour effectuer ou recevoir des paiements sur notre plateforme, vous êtes également soumis aux conditions d'utilisation et à la politique de confidentialité de ces services.</li>
+          <li className="text-slate-600 dark:text-vynal-text-secondary"><strong className="text-slate-700 dark:text-vynal-text-primary">Connexion avec PayPal</strong> : Notre plateforme vous permet de vous connecter via votre compte PayPal. Cette fonctionnalité est fournie pour votre commodité et est soumise aux conditions de PayPal.</li>
+          <li className="text-slate-600 dark:text-vynal-text-secondary"><strong className="text-slate-700 dark:text-vynal-text-primary">Partage d'informations</strong> : Lorsque vous vous connectez via PayPal, seules votre nom et votre adresse email sont partagées avec notre plateforme. Ces informations sont utilisées uniquement pour vous identifier et faciliter vos transactions.</li>
+          <li className="text-slate-600 dark:text-vynal-text-secondary"><strong className="text-slate-700 dark:text-vynal-text-primary">Paiements par carte bancaire</strong> : Les paiements par carte bancaire sont entièrement gérés par Stripe. Toutes les informations de carte sont traitées directement par Stripe et ne sont jamais stockées sur nos serveurs. Nous ne recevons que les informations nécessaires pour confirmer la transaction.</li>
+          <li className="text-slate-600 dark:text-vynal-text-secondary"><strong className="text-slate-700 dark:text-vynal-text-primary">Responsabilité</strong> : Vynal n'est pas responsable des erreurs, interruptions ou problèmes survenant lors de l'utilisation de PayPal ou Stripe. Toute transaction effectuée via ces services est soumise à leurs politiques et protections respectives.</li>
+        </ul>
+        <p className="text-sm md:text-base text-slate-600 dark:text-vynal-text-secondary">
+          Pour plus d'informations sur les conditions d'utilisation de ces services, veuillez consulter :
+        </p>
+        <ul className="list-disc pl-4 md:pl-5 space-y-1 md:space-y-2 text-xs md:text-sm">
+          <li className="text-slate-600 dark:text-vynal-text-secondary"><a href="https://www.paypal.com/fr/webapps/mpp/ua/useragreement-full" target="_blank" rel="noopener noreferrer" className="text-vynal-accent-primary hover:underline transition-all duration-200 hover:text-vynal-accent-secondary">Conditions d'utilisation de PayPal</a></li>
+          <li className="text-slate-600 dark:text-vynal-text-secondary"><a href="https://stripe.com/fr/legal" target="_blank" rel="noopener noreferrer" className="text-vynal-accent-primary hover:underline transition-all duration-200 hover:text-vynal-accent-secondary">Conditions d'utilisation de Stripe</a></li>
+          <li className="text-slate-600 dark:text-vynal-text-secondary"><a href="https://www.wave.com/fr/legal/terms" target="_blank" rel="noopener noreferrer" className="text-vynal-accent-primary hover:underline transition-all duration-200 hover:text-vynal-accent-secondary">Conditions d'utilisation de Wave</a></li>
+          <li className="text-slate-600 dark:text-vynal-text-secondary"><a href="https://www.orange.sn/actualite/informations-legales" target="_blank" rel="noopener noreferrer" className="text-vynal-accent-primary hover:underline transition-all duration-200 hover:text-vynal-accent-secondary">Conditions d'utilisation d'Orange Money</a></li>
+          <li className="text-slate-600 dark:text-vynal-text-secondary"><a href="https://www.yas.sn/wp-content/uploads/2024/11/CGU_CLIENT-BPA-1.pdf" target="_blank" rel="noopener noreferrer" className="text-vynal-accent-primary hover:underline transition-all duration-200 hover:text-vynal-accent-secondary">Conditions d'utilisation de Free Money</a></li>
+        </ul>
+        
         <h2 className="text-lg md:text-xl font-semibold mt-6 md:mt-8 mb-3 md:mb-4 text-slate-800 dark:text-vynal-text-primary">5. Conditions spécifiques aux Freelances</h2>
         <h3 className="text-base md:text-lg font-medium mt-5 md:mt-6 mb-2 md:mb-3 text-slate-800 dark:text-vynal-text-primary">5.1 Publication de services</h3>
         <p className="text-sm md:text-base text-slate-600 dark:text-vynal-text-secondary">
@@ -136,9 +158,22 @@ export default function TermsOfService() {
           <li className="text-slate-600 dark:text-vynal-text-secondary">Répondre rapidement aux demandes d'informations supplémentaires du Freelance</li>
           <li className="text-slate-600 dark:text-vynal-text-secondary">Examiner les livrables dans un délai raisonnable</li>
           <li className="text-slate-600 dark:text-vynal-text-secondary">Payer le prix convenu pour les services</li>
+          <li className="text-slate-600 dark:text-vynal-text-secondary">Utiliser des méthodes de paiement légitimes et dont vous êtes le titulaire autorisé</li>
         </ul>
         
-        <h3 className="text-base md:text-lg font-medium mt-5 md:mt-6 mb-2 md:mb-3 text-slate-800 dark:text-vynal-text-primary">6.2 Annulations et remboursements</h3>
+        <h3 className="text-base md:text-lg font-medium mt-5 md:mt-6 mb-2 md:mb-3 text-slate-800 dark:text-vynal-text-primary">6.2 Méthodes de paiement</h3>
+        <p className="text-sm md:text-base text-slate-600 dark:text-vynal-text-secondary">
+          Notre plateforme accepte plusieurs méthodes de paiement, notamment :
+        </p>
+        <ul className="list-disc pl-4 md:pl-5 space-y-1 md:space-y-2 text-sm md:text-base">
+          <li className="text-slate-600 dark:text-vynal-text-secondary"><strong className="text-slate-700 dark:text-vynal-text-primary">PayPal</strong> : Vous pouvez vous connecter avec votre compte PayPal et effectuer des paiements sécurisés. Les paiements PayPal sont soumis aux conditions d'utilisation de PayPal.</li>
+          <li className="text-slate-600 dark:text-vynal-text-secondary"><strong className="text-slate-700 dark:text-vynal-text-primary">Autres méthodes</strong> : Nous proposons également d'autres méthodes de paiement selon votre région. Les méthodes disponibles seront affichées lors du processus de paiement.</li>
+        </ul>
+        <p className="text-sm md:text-base text-slate-600 dark:text-vynal-text-secondary">
+          En utilisant l'une de ces méthodes de paiement, vous confirmez que vous êtes légalement autorisé à utiliser la méthode de paiement choisie et que les informations fournies sont exactes et vous appartiennent.
+        </p>
+        
+        <h3 className="text-base md:text-lg font-medium mt-5 md:mt-6 mb-2 md:mb-3 text-slate-800 dark:text-vynal-text-primary">6.3 Annulations et remboursements</h3>
         <p className="text-sm md:text-base text-slate-600 dark:text-vynal-text-secondary">
           Les annulations et les remboursements sont soumis à notre politique d'annulation et de remboursement, 
           qui peut varier en fonction du type de service et du moment de l'annulation. Veuillez consulter notre 

@@ -1,38 +1,147 @@
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Database } from '@/types/database';
 
-// Cache global pour le client Supabase
-let cachedClient: ReturnType<typeof createClientComponentClient<Database>> | null = null;
+// Implémentation simple d'un compteur de requêtes directement dans ce fichier
+class RequestCounter {
+  private stats = {
+    totalRequests: 0,
+    requestsInLastMinute: 0,
+    recentRequests: [] as {timestamp: number, endpoint: string}[],
+    maxRequestsPerMinute: 1000,
+    blocked: false,
+    blockTimeRemaining: 0,
+    lastCalculation: Date.now(),
+    trackingPeriod: 60 * 1000, // 1 minute
+  };
 
-// Ce client est utilisé côté client (browser)
-export function createClient() {
-  // Si nous sommes côté serveur, toujours créer un nouveau client
-  if (typeof window === 'undefined') {
-    return createClientComponentClient<Database>({});
-  }
-  
-  // Si nous avons déjà une instance, la réutiliser
-  if (cachedClient) {
-    return cachedClient;
-  }
-  
-  try {
-    cachedClient = createClientComponentClient<Database>({});
+  trackRequest(endpoint: string): boolean {
+    this.stats.totalRequests++;
+    const now = Date.now();
     
-    if (!cachedClient) {
-      throw new Error('Erreur d\'initialisation du client Supabase');
+    // Ajouter cette requête à l'historique
+    this.stats.recentRequests.push({
+      timestamp: now,
+      endpoint
+    });
+    
+    // Nettoyer les anciennes requêtes
+    this.stats.recentRequests = this.stats.recentRequests.filter(
+      req => now - req.timestamp < this.stats.trackingPeriod
+    );
+    
+    // Calculer le nombre de requêtes dans la dernière minute
+    this.stats.requestsInLastMinute = this.stats.recentRequests.length;
+    
+    // Vérifier si nous devons limiter les requêtes
+    if (this.stats.requestsInLastMinute > this.stats.maxRequestsPerMinute) {
+      return false; // Trop de requêtes
     }
     
-    return cachedClient;
-  } catch (error) {
-    // Dernier recours: tenter de créer un nouveau client
-    cachedClient = createClientComponentClient<Database>({});
-    return cachedClient;
+    return true; // Requête autorisée
   }
 }
 
+// Créer une instance du compteur de requêtes
+const requestCounter = new RequestCounter();
+
+// Cache global pour le client Supabase
+const clientCache = new Map();
+
+// Type pour le cache des handlers de subscription
+interface ChannelHandler {
+  event: string;
+  callback: Function;
+}
+
+// Cache pour les gestionnaires d'événements par canal
+const channelHandlersCache = new Map<string, ChannelHandler[]>();
+
+// Créer le client Supabase pour le composant
+export function createClient() {
+  let client = clientCache.get('client');
+  
+  if (!client) {
+    client = createClientComponentClient<Database>();
+    clientCache.set('client', client);
+  }
+  
+  return client;
+}
+
+// Créer un proxy pour intercepter les appels au client Supabase et surveiller le nombre de requêtes
+function createMonitoredClient() {
+  // Créer le client original
+  const originalClient = createClientComponentClient<Database>();
+  
+  // Créer un proxy pour intercepter les appels
+  return new Proxy(originalClient, {
+    get(target, prop, receiver) {
+      // Obtenir la propriété originale
+      const originalValue = Reflect.get(target, prop, receiver);
+      
+      // Si c'est une fonction, l'envelopper pour surveiller les appels
+      if (typeof originalValue === 'function') {
+        return function(...args: any[]) {
+          // Suivre la requête
+          const isAllowed = requestCounter.trackRequest(`supabase.${String(prop)}`);
+          
+          // Si trop de requêtes, retarder au lieu de bloquer
+          if (!isAllowed) {
+            console.warn(`[Supabase] Requête ${String(prop)} retardée (trop de requêtes)`);
+            return new Promise((resolve) => {
+              setTimeout(() => {
+                console.log(`[Supabase] Réessai de la requête ${String(prop)}`);
+                resolve(originalValue.apply(target, args));
+              }, 1500); // Attendre 1.5 secondes avant de réessayer
+            });
+          }
+          
+          // Sinon, exécuter la requête originale
+          return originalValue.apply(target, args);
+        };
+      }
+      
+      // Si c'est un objet (comme .from(), .auth(), etc.), intercepter récursivement
+      if (originalValue && typeof originalValue === 'object') {
+        return new Proxy(originalValue, {
+          get(subTarget, subProp, subReceiver) {
+            const subValue = Reflect.get(subTarget, subProp, subReceiver);
+            
+            // Intercepter les fonctions comme .select(), .insert(), etc.
+            if (typeof subValue === 'function') {
+              return function(...args: any[]) {
+                // Suivre la requête
+                const endpointName = `supabase.${String(prop)}.${String(subProp)}`;
+                const isAllowed = requestCounter.trackRequest(endpointName);
+                
+                // Si trop de requêtes, retarder au lieu de bloquer
+                if (!isAllowed) {
+                  console.warn(`[Supabase] Requête ${endpointName} retardée (trop de requêtes)`);
+                  return new Promise((resolve) => {
+                    setTimeout(() => {
+                      console.log(`[Supabase] Réessai de la requête ${endpointName}`);
+                      resolve(subValue.apply(subTarget, args));
+                    }, 1500); // Attendre 1.5 secondes avant de réessayer
+                  });
+                }
+                
+                // Sinon, exécuter la requête originale
+                return subValue.apply(subTarget, args);
+              };
+            }
+            
+            return subValue;
+          }
+        });
+      }
+      
+      return originalValue;
+    }
+  });
+}
+
 // Helper pour faciliter l'utilisation - une seule instance sera créée
-export const supabase = createClient();
+export const supabase = createMonitoredClient();
 
 // Gestionnaire amélioré pour les canaux de souscription
 export const channelManager = {

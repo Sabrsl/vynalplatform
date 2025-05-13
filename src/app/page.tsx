@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowRight, Search, Star, Shield } from 'lucide-react';
@@ -16,6 +16,11 @@ import { useUser } from "@/hooks/useUser";
 import { PUBLIC_ROUTES, AUTH_ROUTES } from "@/config/routes";
 import dynamic from 'next/dynamic';
 import { memo } from 'react';
+import { getCachedData, setCachedData, CACHE_EXPIRY } from '@/lib/optimizations';
+import { supabase } from '@/lib/supabase/client';
+
+// Clé de cache pour la page d'accueil
+const HOMEPAGE_CACHE_KEY = 'homepage_data';
 
 // Chatbot chargé de manière dynamique avec SSR désactivé pour éviter les erreurs d'hydration
 // et ne pas impacter les performances de chargement initiales
@@ -59,6 +64,48 @@ export default function Home() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const { isFreelance, isClient, isAdmin, loading: userLoading } = useUser();
+
+  // Référence pour suivre si le composant est monté
+  const mountedRef = useRef(true);
+
+  // Cache simple pour la page d'accueil
+  useEffect(() => {
+    // Fonction pour récupérer ou mettre en cache les données
+    const checkCache = async () => {
+      try {
+        // Vérifier si des données sont en cache
+        const cachedData = getCachedData(HOMEPAGE_CACHE_KEY);
+        
+        if (!cachedData) {
+          // Si pas de cache, créer une entrée de cache avec les catégories
+          setCachedData(
+            HOMEPAGE_CACHE_KEY,
+            {
+              categories,
+              timestamp: Date.now(),
+              version: '1.0'
+            },
+            { 
+              expiry: 14 * 24 * 60 * 60 * 1000, // 14 jours pour une page d'accueil
+              priority: 'high'
+            }
+          );
+        }
+      } catch (error) {
+        console.error('Erreur lors de la vérification du cache:', error);
+      }
+    };
+
+    // Exécuter seulement côté client et si le composant est monté
+    if (typeof window !== 'undefined') {
+      checkCache();
+    }
+
+    return () => {
+      // Marquer le composant comme démonté
+      mountedRef.current = false;
+    };
+  }, [categories]);
 
   // Détecter les appareils mobiles pour optimiser les performances
   useEffect(() => {

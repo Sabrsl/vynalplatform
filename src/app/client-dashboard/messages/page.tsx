@@ -1,15 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import MessagingInterface from "@/components/messaging/MessagingInterface";
 import { ClientDashboardPageSkeleton } from "@/components/skeletons/ClientDashboardPageSkeleton";
 import { MessageSquare } from "lucide-react";
 import { ClientGuard } from "@/lib/guards/roleGuards";
+import { useLastRefresh } from "@/hooks/useLastRefresh";
+import { useMessagingStore } from "@/lib/stores/useMessagingStore";
+import { invalidateCacheKey } from "@/lib/optimizations";
 
 export default function ClientMessagesPage() {
   const { user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
+  const { lastRefresh } = useLastRefresh();
+  const { fetchConversations, loading: fetchingConversations, invalidateCache } = useMessagingStore();
 
   useEffect(() => {
     if (!authLoading) {

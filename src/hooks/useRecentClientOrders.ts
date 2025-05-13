@@ -1,41 +1,80 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { useAuth } from './useAuth';
-import { getCachedData, setCachedData } from '@/lib/optimizations/cache';
-import { Order, OrderService, OrderProfile, OrderStatus } from '@/hooks/useOrders';
+import { 
+  getCachedData, 
+  setCachedData, 
+  invalidateCache,
+  invalidateCachesByEvent,
+  CACHE_KEYS, 
+  CACHE_EVENT_TYPES,
+  CACHE_EXPIRY 
+} from '@/lib/optimizations/index';
+import { useLastRefresh } from './useLastRefresh';
+
+// Types adaptés
+export interface OrderService {
+  id: string;
+  title: string;
+  price: number;
+  description?: string;
+}
+
+export interface OrderProfile {
+  id: string;
+  username: string;
+  full_name: string;
+  avatar_url?: string;
+}
+
+export type OrderStatus = 'pending' | 'in_progress' | 'completed' | 'delivered' | 'revision_requested' | 'cancelled';
+
+export interface Order {
+  id: string;
+  created_at: string;
+  status: OrderStatus;
+  service: OrderService;
+  freelance: OrderProfile;
+  client: OrderProfile;
+  is_client_view: boolean;
+  total_amount?: number;
+  delivery_time: number;
+}
+
+interface RawOrderData {
+  id: string;
+  created_at: string;
+  status: string;
+  service_id: string;
+  client_id: string;
+  freelance_id: string;
+  price: number;
+  delivery_time: number;
+}
 
 interface UseRecentClientOrdersOptions {
   limit?: number;
   useCache?: boolean;
 }
 
-// Interface pour les données brutes reçues de Supabase
-interface RawOrderData {
-  id: string;
-  created_at: string;
-  status: string;
-  service_id?: string;
-  freelance_id?: string;
-  client_id: string;
-  price: number;
-  delivery_time: number;
-}
-
-/**
- * Hook pour récupérer les commandes récentes d'un client
- */
 export function useRecentClientOrders(options: UseRecentClientOrdersOptions = {}) {
   const { limit = 3, useCache = true } = options;
   const { user } = useAuth();
+  const { lastRefresh, updateLastRefresh, getLastRefreshText } = useLastRefresh();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  // Références pour éviter les effets de bord
+  const isFetchingRef = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const lastFetchTimeRef = useRef<number>(0);
 
-  // Clé de cache unique
+  // Clé de cache standardisée
   const cacheKey = useMemo(() => {
     if (!useCache || !user?.id) return '';
-    return `recent_client_orders_${user.id}_limit_${limit}`;
+    return `${CACHE_KEYS.CLIENT_RECENT_ORDERS}${user.id}_limit_${limit}`;
   }, [user?.id, limit, useCache]);
 
   // Fonction pour récupérer les commandes récentes
@@ -44,10 +83,36 @@ export function useRecentClientOrders(options: UseRecentClientOrdersOptions = {}
       setLoading(false);
       return;
     }
-
-    setIsRefreshing(true);
-
+    
+    // Protection contre les requêtes concurrentes
+    if (isFetchingRef.current && !forceRefresh) {
+      console.log("[RecentClientOrders] Requête ignorée: déjà en cours");
+      return;
+    }
+    
+    // Limiter la fréquence des requêtes
+    const now = Date.now();
+    if (!forceRefresh && (now - lastFetchTimeRef.current < 5000)) {
+      console.log("[RecentClientOrders] Requête ignorée: throttling (5s)");
+      return;
+    }
+    
     try {
+      isFetchingRef.current = true;
+      lastFetchTimeRef.current = now;
+      
+      if (forceRefresh) {
+        setIsRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+      
+      // Annuler les requêtes précédentes
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      abortControllerRef.current = new AbortController();
+      
       // Vérifier le cache si activé et pas de forceRefresh
       if (useCache && !forceRefresh) {
         const cachedData = getCachedData<Order[]>(cacheKey);
@@ -56,22 +121,58 @@ export function useRecentClientOrders(options: UseRecentClientOrdersOptions = {}
           setOrders(cachedData);
           setLoading(false);
           setIsRefreshing(false);
+          isFetchingRef.current = false;
           return;
         }
       }
 
-      // Requête simplifiée pour éviter les erreurs
-      const { data, error } = await supabase
+      console.log("[RecentClientOrders] Récupération des données depuis Supabase...");
+
+      // Récupérer les commandes récentes du client avec une seule requête
+      interface OrderDataResponse {
+        id: string;
+        created_at: string;
+        status: OrderStatus;
+        price: number;
+        delivery_time: number;
+        service: {
+          id: string;
+          title: string;
+          price: number;
+          description?: string;
+        };
+        freelance: {
+          id: string;
+          username: string;
+          full_name: string;
+          avatar_url?: string;
+        };
+        client: {
+          id: string;
+          username: string;
+          full_name: string;
+          avatar_url?: string;
+        };
+      }
+
+      const { data, error: ordersError } = await supabase
         .from('orders')
-        .select('id, created_at, status, service_id, freelance_id, price, delivery_time')
+        .select(`
+          id, 
+          created_at, 
+          status, 
+          price, 
+          delivery_time,
+          service:services(id, title, price, description),
+          freelance:profiles!freelance_id(id, username, full_name, avatar_url),
+          client:profiles!client_id(id, username, full_name, avatar_url)
+        `)
         .eq('client_id', user.id)
         .order('created_at', { ascending: false })
         .limit(limit);
 
-      if (error) {
-        console.error("[RecentClientOrders] Erreur:", error);
-        setError(error.message);
-        setOrders([]);
+      if (ordersError) {
+        throw ordersError;
       } else if (data) {
         // Vérifier que les données sont valides
         if (!Array.isArray(data)) {
@@ -79,74 +180,44 @@ export function useRecentClientOrders(options: UseRecentClientOrdersOptions = {}
           setError("Format de données inattendu");
           setOrders([]);
         } else {
-          // Maintenant que nous avons les IDs des commandes, récupérons les détails pour chaque commande
-          const enrichedOrders: Order[] = [];
-          
-          for (const orderBasic of data as RawOrderData[]) {
-            try {
-              if (!orderBasic.service_id || !orderBasic.freelance_id) {
-                console.warn("[RecentClientOrders] Données de commande incomplètes:", orderBasic);
-                continue;
-              }
-              
-              // Récupérer les détails du service
-              const { data: serviceData, error: serviceError } = await supabase
-                .from('services')
-                .select('id, title, price')
-                .eq('id', orderBasic.service_id)
-                .single();
-                
-              if (serviceError) {
-                console.warn("[RecentClientOrders] Erreur service:", serviceError);
-                continue;
-              }
-              
-              // Récupérer les détails du freelance
-              const { data: freelanceData, error: freelanceError } = await supabase
-                .from('profiles')
-                .select('id, username, full_name, avatar_url')
-                .eq('id', orderBasic.freelance_id)
-                .single();
-                
-              if (freelanceError) {
-                console.warn("[RecentClientOrders] Erreur freelance:", freelanceError);
-                continue;
-              }
-              
-              // Récupérer les détails du client (nous-mêmes)
-              const { data: clientData, error: clientError } = await supabase
-                .from('profiles')
-                .select('id, username, full_name, avatar_url')
-                .eq('id', user.id)
-                .single();
-                
-              if (clientError) {
-                console.warn("[RecentClientOrders] Erreur client:", clientError);
-                continue;
-              }
-              
-              // Ajouter la commande enrichie
-              enrichedOrders.push({
-                id: orderBasic.id,
-                created_at: orderBasic.created_at,
-                status: orderBasic.status as OrderStatus,
-                service: serviceData as OrderService,
-                freelance: freelanceData as OrderProfile,
-                client: clientData as OrderProfile,
-                is_client_view: true,
-                total_amount: orderBasic.price,
-                delivery_time: orderBasic.delivery_time
-              });
-            } catch (err) {
-              console.warn("[RecentClientOrders] Erreur enrichissement:", err);
-            }
-          }
+          // Transformer les données en format attendu
+          const enrichedOrders: Order[] = data.map((item: any) => ({
+            id: item.id,
+            created_at: item.created_at,
+            status: item.status as OrderStatus,
+            service: {
+              id: item.service?.id || '',
+              title: item.service?.title || '',
+              price: item.service?.price || 0,
+              description: item.service?.description
+            },
+            freelance: {
+              id: item.freelance?.id || '',
+              username: item.freelance?.username || '',
+              full_name: item.freelance?.full_name || '',
+              avatar_url: item.freelance?.avatar_url
+            },
+            client: {
+              id: item.client?.id || '',
+              username: item.client?.username || '',
+              full_name: item.client?.full_name || '',
+              avatar_url: item.client?.avatar_url
+            },
+            is_client_view: true,
+            total_amount: item.price,
+            delivery_time: item.delivery_time
+          }));
 
           // Mettre à jour l'état avec les commandes enrichies
           setOrders(enrichedOrders);
           if (useCache && enrichedOrders.length > 0) {
-            setCachedData(cacheKey, enrichedOrders, { expiry: 5 * 60 * 1000 }); // Cache de 5 minutes
+            setCachedData(cacheKey, enrichedOrders, { 
+              expiry: CACHE_EXPIRY.DASHBOARD_DATA || 5 * 60 * 1000 
+            });
           }
+          
+          // Mettre à jour l'interface
+          updateLastRefresh();
         }
       }
     } catch (err) {
@@ -156,19 +227,65 @@ export function useRecentClientOrders(options: UseRecentClientOrdersOptions = {}
     } finally {
       setLoading(false);
       setIsRefreshing(false);
+      isFetchingRef.current = false;
+      abortControllerRef.current = null;
     }
-  }, [user, cacheKey, limit, useCache]);
+  }, [user, cacheKey, limit, useCache, updateLastRefresh]);
 
   // Charger les données au montage du composant
   useEffect(() => {
     fetchRecentOrders();
   }, [fetchRecentOrders]);
+  
+  // Écouter les événements de mise à jour pour invalider le cache
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    const handleCacheInvalidated = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const { key } = customEvent.detail || {};
+      
+      if (key && (
+        key.includes(CACHE_KEYS.CLIENT_RECENT_ORDERS) || 
+        key.includes(CACHE_KEYS.CLIENT_ORDERS) || 
+        key.includes('orders_')
+      )) {
+        console.log("[RecentClientOrders] Événement d'invalidation détecté, rechargement des données");
+        fetchRecentOrders(true);
+      }
+    };
+    
+    // Ajouter les écouteurs d'événements
+    window.addEventListener('vynal:cache-invalidated', handleCacheInvalidated);
+    window.addEventListener('vynal:orders-updated', () => fetchRecentOrders(true));
+    
+    // Nettoyer les écouteurs
+    return () => {
+      window.removeEventListener('vynal:cache-invalidated', handleCacheInvalidated);
+      window.removeEventListener('vynal:orders-updated', () => fetchRecentOrders(true));
+    };
+  }, [fetchRecentOrders]);
+  
+  // Fournir des méthodes d'invalidation du cache
+  const invalidateOrdersCache = useCallback(() => {
+    if (cacheKey) {
+      invalidateCache(cacheKey);
+      invalidateCachesByEvent(CACHE_EVENT_TYPES.CLIENT_ORDERS_UPDATED);
+      
+      // Émettre un événement pour informer les autres composants
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('vynal:orders-updated'));
+      }
+    }
+  }, [cacheKey]);
 
   return {
     recentOrders: orders,
     loading,
     error,
     isRefreshing,
-    refresh: () => fetchRecentOrders(true)
+    lastRefreshText: getLastRefreshText(),
+    refresh: () => fetchRecentOrders(true),
+    invalidateCache: invalidateOrdersCache
   };
 } 

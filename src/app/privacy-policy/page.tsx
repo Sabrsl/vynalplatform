@@ -33,7 +33,8 @@ export default function PrivacyPolicy() {
         <ul className="list-disc pl-4 md:pl-5 space-y-1 md:space-y-2 text-sm md:text-base">
           <li className="text-slate-600 dark:text-vynal-text-secondary"><strong className="text-slate-700 dark:text-vynal-text-primary">Informations de compte</strong> : Lorsque vous créez un compte, nous collectons votre nom, adresse e-mail, mot de passe, numéro de téléphone, et votre rôle (client ou freelance).</li>
           <li className="text-slate-600 dark:text-vynal-text-secondary"><strong className="text-slate-700 dark:text-vynal-text-primary">Informations de profil</strong> : Pour les freelances, nous collectons des informations sur vos compétences, expérience, éducation, portfolio, et tarifs. Pour les clients, nous collectons des informations sur votre entreprise ou vos besoins en services.</li>
-          <li className="text-slate-600 dark:text-vynal-text-secondary"><strong className="text-slate-700 dark:text-vynal-text-primary">Informations de paiement</strong> : Nous collectons vos informations de paiement lorsque vous effectuez une transaction sur notre plateforme. Ces informations peuvent inclure votre nom, numéro de carte, date d'expiration, code CVV, adresse de facturation, coordonnées bancaires pour les virements, et informations des portefeuilles mobiles (Wave, Orange Money, Free Money) pour les retraits.</li>
+          <li className="text-slate-600 dark:text-vynal-text-secondary"><strong className="text-slate-700 dark:text-vynal-text-primary">Informations de paiement</strong> : Nous ne stockons aucune information de paiement sur nos serveurs. Pour les paiements via PayPal, nous recevons uniquement votre nom et votre adresse email lors de la connexion. Pour les paiements par carte bancaire via Stripe, toutes les informations sont gérées directement par Stripe. Pour les paiements par Wave, Orange Money et Free Money, toutes les informations sont gérées directement par ces services. Nous ne conservons que les informations nécessaires pour confirmer les transactions (statut, montant, date).</li>
+          <li className="text-slate-600 dark:text-vynal-text-secondary"><strong className="text-slate-700 dark:text-vynal-text-primary">Authentification avec PayPal</strong> : Lorsque vous vous connectez via PayPal, nous recevons uniquement votre nom et votre adresse email de votre compte PayPal. Ces informations sont utilisées pour vous identifier sur notre plateforme et faciliter vos transactions.</li>
           <li className="text-slate-600 dark:text-vynal-text-secondary"><strong className="text-slate-700 dark:text-vynal-text-primary">Historique des transactions</strong> : Nous conservons un historique complet de vos transactions, y compris les paiements reçus, les retraits effectués, les dates, montants, frais appliqués, et méthodes de paiement utilisées.</li>
           <li className="text-slate-600 dark:text-vynal-text-secondary"><strong className="text-slate-700 dark:text-vynal-text-primary">Communications</strong> : Nous conservons les messages que vous échangez avec d'autres utilisateurs via notre système de messagerie, ainsi que vos communications avec notre service client.</li>
           <li className="text-slate-600 dark:text-vynal-text-secondary"><strong className="text-slate-700 dark:text-vynal-text-primary">Contenu généré</strong> : Nous collectons le contenu que vous créez, téléchargez ou partagez sur notre plateforme, comme les descriptions de services, les livrables, les commentaires et les évaluations.</li>
@@ -52,8 +53,8 @@ export default function PrivacyPolicy() {
           Nous pouvons obtenir des informations vous concernant à partir d'autres sources, notamment :
         </p>
         <ul className="list-disc pl-4 md:pl-5 space-y-1 md:space-y-2 text-sm md:text-base">
-          <li className="text-slate-600 dark:text-vynal-text-secondary">Des services d'authentification tiers lorsque vous vous connectez via ces services (comme Google)</li>
-          <li className="text-slate-600 dark:text-vynal-text-secondary">Des partenaires commerciaux, comme les services de paiement</li>
+          <li className="text-slate-600 dark:text-vynal-text-secondary">Des services d'authentification tiers lorsque vous vous connectez via ces services (comme Google ou PayPal)</li>
+          <li className="text-slate-600 dark:text-vynal-text-secondary">Des partenaires commerciaux, comme les services de paiement (PayPal, Wave, Orange Money, Free Money)</li>
           <li className="text-slate-600 dark:text-vynal-text-secondary">Des sources accessibles au public, comme les réseaux sociaux professionnels</li>
         </ul>
         
@@ -78,6 +79,7 @@ export default function PrivacyPolicy() {
           <li className="text-slate-600 dark:text-vynal-text-secondary"><strong className="text-slate-700 dark:text-vynal-text-primary">Partenaires commerciaux</strong> : Nous pouvons partager des informations avec nos partenaires commerciaux pour des offres conjointes, des promotions, ou d'autres collaborations.</li>
           <li className="text-slate-600 dark:text-vynal-text-secondary"><strong className="text-slate-700 dark:text-vynal-text-primary">Conformité légale</strong> : Nous pouvons divulguer des informations si nous estimons de bonne foi que cela est nécessaire pour se conformer à la loi, protéger nos droits ou la sécurité de nos utilisateurs, ou détecter et prévenir les fraudes.</li>
           <li className="text-slate-600 dark:text-vynal-text-secondary"><strong className="text-slate-700 dark:text-vynal-text-primary">Transactions d'entreprise</strong> : Si Vynal Platform est impliqué dans une fusion, acquisition, ou vente d'actifs, vos informations peuvent être transférées dans le cadre de cette transaction.</li>
+          <li className="text-slate-600 dark:text-vynal-text-secondary"><strong className="text-slate-700 dark:text-vynal-text-primary">Prestataires de services de paiement</strong> : Nous partageons uniquement votre nom et votre adresse email avec PayPal pour faciliter les transactions sur notre plateforme. Ces informations sont nécessaires pour identifier votre compte et traiter vos paiements de manière sécurisée.</li>
         </ul>
         <p className="text-sm md:text-base text-slate-600 dark:text-vynal-text-secondary">
           Nous ne vendons pas vos informations personnelles à des tiers.
@@ -155,6 +157,44 @@ export default function PrivacyPolicy() {
           d'une personne de moins de 18 ans, nous prendrons des mesures pour supprimer ces informations dès que possible.
         </p>
         
+        <h2 className="text-lg md:text-xl font-semibold mt-6 md:mt-8 mb-3 md:mb-4 text-slate-800 dark:text-vynal-text-primary">Services de paiement tiers</h2>
+        <p className="text-sm md:text-base text-slate-600 dark:text-vynal-text-secondary">
+          Notre plateforme utilise plusieurs services de paiement tiers : PayPal, Stripe, Wave, Orange Money et Free Money. Lorsque vous effectuez un paiement via ces services ou que vous vous connectez avec votre compte PayPal, vous êtes soumis à leurs politiques de confidentialité et conditions d'utilisation respectives. Nous vous encourageons à consulter leurs politiques pour comprendre comment ils traitent vos informations personnelles.
+        </p>
+        <p className="text-sm md:text-base text-slate-600 dark:text-vynal-text-secondary">
+          Lorsque vous utilisez PayPal sur notre plateforme :
+        </p>
+        <ul className="list-disc pl-4 md:pl-5 space-y-1 md:space-y-2 text-sm md:text-base">
+          <li className="text-slate-600 dark:text-vynal-text-secondary">Nous recevons de PayPal uniquement votre nom et votre adresse email, qui sont nécessaires pour compléter la transaction et vérifier votre identité</li>
+          <li className="text-slate-600 dark:text-vynal-text-secondary">PayPal peut collecter des informations supplémentaires sur votre appareil et vos habitudes de paiement pour prévenir la fraude</li>
+          <li className="text-slate-600 dark:text-vynal-text-secondary">Nous n'avons pas accès à vos identifiants de connexion PayPal ni à l'intégralité de vos informations de paiement</li>
+        </ul>
+        <p className="text-sm md:text-base text-slate-600 dark:text-vynal-text-secondary">
+          Lorsque vous utilisez Stripe pour les paiements par carte bancaire :
+        </p>
+        <ul className="list-disc pl-4 md:pl-5 space-y-1 md:space-y-2 text-sm md:text-base">
+          <li className="text-slate-600 dark:text-vynal-text-secondary">Toutes les informations de carte bancaire sont traitées directement par Stripe et ne sont jamais stockées sur nos serveurs</li>
+          <li className="text-slate-600 dark:text-vynal-text-secondary">Nous ne recevons que les informations nécessaires pour confirmer la transaction (statut, montant, date)</li>
+          <li className="text-slate-600 dark:text-vynal-text-secondary">Stripe est certifié PCI DSS niveau 1, le niveau de sécurité le plus élevé pour le traitement des paiements par carte</li>
+        </ul>
+        <p className="text-sm md:text-base text-slate-600 dark:text-vynal-text-secondary">
+          Lorsque vous utilisez Wave, Orange Money ou Free Money :
+        </p>
+        <ul className="list-disc pl-4 md:pl-5 space-y-1 md:space-y-2 text-sm md:text-base">
+          <li className="text-slate-600 dark:text-vynal-text-secondary">Toutes les informations de paiement sont traitées directement par ces services et ne sont jamais stockées sur nos serveurs</li>
+          <li className="text-slate-600 dark:text-vynal-text-secondary">Nous ne recevons que les informations nécessaires pour confirmer la transaction (statut, montant, date)</li>
+          <li className="text-slate-600 dark:text-vynal-text-secondary">Ces services sont réglementés et sécurisés conformément aux normes en vigueur au Sénégal</li>
+        </ul>
+        <p className="text-sm md:text-base text-slate-600 dark:text-vynal-text-secondary">
+          Pour plus d'informations sur la façon dont ces services traitent vos données, veuillez consulter :
+        </p>
+        <ul className="list-disc pl-4 md:pl-5 space-y-1 md:space-y-2 text-xs md:text-sm">
+          <li className="text-slate-600 dark:text-vynal-text-secondary"><a href="https://www.paypal.com/fr/webapps/mpp/ua/privacy-full" target="_blank" rel="noopener noreferrer" className="text-vynal-accent-primary hover:underline transition-all duration-200 hover:text-vynal-accent-secondary">Politique de confidentialité de PayPal</a></li>
+          <li className="text-slate-600 dark:text-vynal-text-secondary"><a href="https://stripe.com/fr/privacy" target="_blank" rel="noopener noreferrer" className="text-vynal-accent-primary hover:underline transition-all duration-200 hover:text-vynal-accent-secondary">Politique de confidentialité de Stripe</a></li>
+          <li className="text-slate-600 dark:text-vynal-text-secondary"><a href="https://www.wave.com/fr/privacy/" target="_blank" rel="noopener noreferrer" className="text-vynal-accent-primary hover:underline transition-all duration-200 hover:text-vynal-accent-secondary">Politique de confidentialité de Wave</a></li>
+          <li className="text-slate-600 dark:text-vynal-text-secondary"><a href="https://www.orange.sn/actualite/informations-legales" target="_blank" rel="noopener noreferrer" className="text-vynal-accent-primary hover:underline transition-all duration-200 hover:text-vynal-accent-secondary">Politique de confidentialité d'Orange Money</a></li>
+          <li className="text-slate-600 dark:text-vynal-text-secondary"><a href="https://www.yas.sn/wp-content/uploads/2024/11/CGU_CLIENT-BPA-1.pdf" target="_blank" rel="noopener noreferrer" className="text-vynal-accent-primary hover:underline transition-all duration-200 hover:text-vynal-accent-secondary">Politique de confidentialité de Free Money</a></li>
+        </ul>
         <h2 className="text-lg md:text-xl font-semibold mt-6 md:mt-8 mb-3 md:mb-4 text-slate-800 dark:text-vynal-text-primary">Modifications de cette politique</h2>
         <p className="text-sm md:text-base text-slate-600 dark:text-vynal-text-secondary">
           Nous pouvons modifier cette politique de confidentialité de temps à autre. Si nous apportons des modifications importantes, 
