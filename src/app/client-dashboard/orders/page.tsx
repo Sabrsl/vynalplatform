@@ -16,6 +16,7 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase/client";
 import { PaginationControls } from "@/components/ui/pagination";
+import { CurrencyDisplay } from "@/components/ui/CurrencyDisplay";
 
 // Types pour les commandes
 interface Order {
@@ -66,68 +67,6 @@ export default function ClientOrdersPage() {
   const searchQueryRef = useRef(searchQuery);
   const debouncedSearchRef = useRef<NodeJS.Timeout | null>(null);
   const initialLoadRef = useRef(true);
-
-  // Fonction unifiée pour charger à la fois les compteurs et les commandes
-  const loadOrdersData = useCallback(async () => {
-    if (!user) return;
-    
-    if (initialLoadRef.current) {
-      // Ne pas modifier le state loading au début si c'est le chargement initial
-      // Cela évite de déclencher un rendu supplémentaire
-      initialLoadRef.current = false;
-    } else {
-      setLoading(true);
-    }
-
-    try {
-      // 1. Utiliser une RPC unifiée qui retourne à la fois les compteurs et les commandes filtrées
-      const { data: rpcData, error: rpcError } = await supabase.rpc('get_client_orders_with_counts', {
-        p_client_id: user.id,
-        p_status: activeTab === 'all' ? null : 
-                 activeTab === 'active' ? ['in_progress', 'completed', 'delivered'] :
-                 activeTab === 'pending' ? ['pending'] :
-                 activeTab === 'completed' ? ['completed', 'delivered'] :
-                 activeTab === 'cancelled' ? ['cancelled'] : null,
-        p_search_query: searchQuery || null,
-        p_sort_by: sortBy,
-        p_page: currentPage,
-        p_items_per_page: itemsPerPage
-      });
-
-      if (rpcError) {
-        console.error("Erreur RPC:", rpcError);
-        // Méthode de secours: charger séparément les données, mais de manière optimisée
-        await loadDataLegacy();
-        return;
-      }
-
-      if (rpcData) {
-        // Mettre à jour les états en une seule fois pour éviter les rendus multiples
-        const updates = {
-          counts: {
-            totalCount: rpcData.counts.total_count || 0,
-            activeCount: rpcData.counts.active_count || 0,
-            pendingCount: rpcData.counts.pending_count || 0,
-            completedCount: rpcData.counts.completed_count || 0,
-            cancelledCount: rpcData.counts.cancelled_count || 0
-          },
-          orders: rpcData.orders || [],
-          totalCount: rpcData.counts.filtered_count || 0
-        };
-        
-        // Batch update pour minimiser les rendus
-        setCounts(updates.counts);
-        setOrders(updates.orders);
-        setTotalCount(updates.totalCount);
-      }
-    } catch (error) {
-      console.error("Erreur lors du chargement des données:", error);
-      // Méthode de secours en cas d'exception
-      await loadDataLegacy();
-    } finally {
-      setLoading(false);
-    }
-  }, [user, activeTab, searchQuery, sortBy, currentPage, itemsPerPage]);
 
   // Méthode de secours si la RPC échoue
   const loadDataLegacy = useCallback(async () => {
@@ -203,37 +142,100 @@ export default function ClientOrdersPage() {
         completedCount: 0,
         cancelledCount: 0
       };
-      
-      if (countsResult.data) {
-        counts.totalCount = countsResult.data.length;
-        
-        countsResult.data.forEach(item => {
-          if (['in_progress', 'completed', 'delivered'].includes(item.status)) counts.activeCount++;
-          if (item.status === 'pending') counts.pendingCount++;
-          if (['completed', 'delivered'].includes(item.status)) counts.completedCount++;
-          if (item.status === 'cancelled') counts.cancelledCount++;
-        });
-      }
-      
-      // Mettre à jour les données
-      setOrders(ordersResult.data || []);
-      setCounts(counts);
-      setTotalCount(ordersResult.count || 0);
 
-    } catch (error) {
-      console.error("Erreur dans la méthode de secours:", error);
-      // En cas d'échec complet, afficher un état vide mais fonctionnel
-      setOrders([]);
-      setCounts({
-        totalCount: 0,
-        activeCount: 0,
-        pendingCount: 0,
-        completedCount: 0,
-        cancelledCount: 0
+      // Compter les statuts
+      countsResult.data?.forEach((order: { status: Order['status'] }) => {
+        counts.totalCount++;
+        switch(order.status) {
+          case 'in_progress':
+          case 'completed':
+          case 'delivered':
+            counts.activeCount++;
+            break;
+          case 'pending':
+            counts.pendingCount++;
+            break;
+          case 'completed':
+          case 'delivered':
+            counts.completedCount++;
+            break;
+          case 'cancelled':
+            counts.cancelledCount++;
+            break;
+        }
       });
-      setTotalCount(0);
+
+      // Mettre à jour les états
+      setCounts(counts);
+      setOrders(ordersResult.data || []);
+      setTotalCount(ordersResult.count || 0);
+    } catch (error) {
+      console.error("Erreur lors du chargement des données de secours:", error);
+      throw error;
     }
-  }, [user, activeTab, searchQuery, sortBy, currentPage, itemsPerPage]);
+  }, [user, activeTab, searchQuery, sortBy, currentPage, itemsPerPage, setCounts, setOrders, setTotalCount]);
+
+  // Fonction unifiée pour charger à la fois les compteurs et les commandes
+  const loadOrdersData = useCallback(async () => {
+    if (!user) return;
+    
+    if (initialLoadRef.current) {
+      // Ne pas modifier le state loading au début si c'est le chargement initial
+      // Cela évite de déclencher un rendu supplémentaire
+      initialLoadRef.current = false;
+    } else {
+      setLoading(true);
+    }
+
+    try {
+      // 1. Utiliser une RPC unifiée qui retourne à la fois les compteurs et les commandes filtrées
+      const { data: rpcData, error: rpcError } = await supabase.rpc('get_client_orders_with_counts', {
+        p_client_id: user.id,
+        p_status: activeTab === 'all' ? null : 
+                 activeTab === 'active' ? ['in_progress', 'completed', 'delivered'] :
+                 activeTab === 'pending' ? ['pending'] :
+                 activeTab === 'completed' ? ['completed', 'delivered'] :
+                 activeTab === 'cancelled' ? ['cancelled'] : null,
+        p_search_query: searchQuery || null,
+        p_sort_by: sortBy,
+        p_page: currentPage,
+        p_items_per_page: itemsPerPage
+      });
+
+      if (rpcError) {
+        console.error("Erreur RPC:", rpcError);
+        // Méthode de secours: charger séparément les données, mais de manière optimisée
+        await loadDataLegacy();
+        return;
+      }
+
+      if (rpcData) {
+        // Mettre à jour les états en une seule fois pour éviter les rendus multiples
+        const updates = {
+          counts: {
+            totalCount: rpcData.counts.total_count || 0,
+            activeCount: rpcData.counts.active_count || 0,
+            pendingCount: rpcData.counts.pending_count || 0,
+            completedCount: rpcData.counts.completed_count || 0,
+            cancelledCount: rpcData.counts.cancelled_count || 0
+          },
+          orders: rpcData.orders || [],
+          totalCount: rpcData.counts.filtered_count || 0
+        };
+        
+        // Batch update pour minimiser les rendus
+        setCounts(updates.counts);
+        setOrders(updates.orders);
+        setTotalCount(updates.totalCount);
+      }
+    } catch (error) {
+      console.error("Erreur lors du chargement des données:", error);
+      // Méthode de secours en cas d'exception
+      await loadDataLegacy();
+    } finally {
+      setLoading(false);
+    }
+  }, [user, activeTab, searchQuery, sortBy, currentPage, itemsPerPage, loadDataLegacy, setCounts, setOrders, setTotalCount, setLoading]);
 
   // Charger les données au montage et quand les dépendances changent
   useEffect(() => {
@@ -393,9 +395,9 @@ export default function ClientOrdersPage() {
                   </span>
                 </div>
                 <div className="flex items-center gap-1 bg-slate-200/50 dark:bg-slate-800/30 px-1.5 py-0.5 rounded-full">
-                  <span className="text-[8px] sm:text-[8px] text-slate-500 dark:text-vynal-text-secondary">FCFA</span>
+                  <span className="text-[8px] sm:text-[8px] text-slate-500 dark:text-vynal-text-secondary"></span>
                   <span className={`${countClasses} font-bold`}>
-                    {Math.round(order.price)}
+                    <CurrencyDisplay amount={Math.round(order.price)} displayFullName={true} />
                   </span>
                 </div>
               </div>

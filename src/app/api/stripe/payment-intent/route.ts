@@ -4,6 +4,7 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { logSecurityEvent } from '@/lib/security/audit';
 import { isSuspiciousActivity } from '@/lib/security/audit';
 import { cookies } from 'next/headers';
+import { validatePaymentCurrency, detectCurrency } from '@/lib/utils/currency-updater';
 
 /**
  * API pour créer un PaymentIntent Stripe
@@ -182,9 +183,48 @@ export async function POST(req: NextRequest) {
         throw new Error('Montant invalide');
       }
 
+      // Récupérer les informations de localisation de l'utilisateur
+      let userCountry = 'SN'; // Pays par défaut - Sénégal (XOF)
+      let userCurrency = 'eur'; // Devise par défaut pour Stripe
+      let userData: { country?: string; currency_preference?: string } | null = null;
+
+      try {
+        // Récupérer le pays de l'utilisateur depuis son profil
+        const { data: userProfileData, error: userError } = await supabase
+          .from('profiles')
+          .select('country, currency_preference')
+          .eq('id', userId)
+          .single();
+
+        if (!userError && userProfileData) {
+          userData = userProfileData;
+          userCountry = userData.country || userCountry;
+          
+          // Si l'utilisateur a défini une préférence de devise
+          if (userData.currency_preference) {
+            // Valider si cette devise est adaptée au paiement selon le pays
+            const validation = validatePaymentCurrency(userData.currency_preference, userCountry);
+            
+            // Utiliser la devise recommandée (soit celle de l'utilisateur si valide, soit la locale)
+            userCurrency = validation.isValid ? 
+              userData.currency_preference.toLowerCase() : 
+              validation.recommendedCurrency.toLowerCase();
+              
+            console.log(`Validation devise: ${validation.isValid ? 'Valide' : 'Invalide'}, devise choisie pour paiement: ${userCurrency}`);
+          } else {
+            // Pas de préférence définie, utiliser la devise du pays
+            userCurrency = detectCurrency(userCountry).toLowerCase();
+          }
+        }
+      } catch (geoError) {
+        console.error('Erreur lors de la récupération des informations de géolocalisation:', geoError);
+        // En cas d'erreur, conserver la devise par défaut
+      }
+
+      // Création du PaymentIntent avec la devise validée
       const paymentIntent = await createPaymentIntent({
         amount: amountInCents,
-        currency: 'eur',
+        currency: userCurrency,
         metadata: {
           clientId: userId,
           freelanceId: freelanceIdentifier,
@@ -192,7 +232,11 @@ export async function POST(req: NextRequest) {
           userEmail,
           deliveryTime: metadata.deliveryTime || '7',
           requirements: metadata.requirements || '',
-          ...metadata
+          ...metadata,
+          // Ajouter des métadonnées sur la devise et le pays pour traçabilité
+          userCountry,
+          originalCurrency: userData?.currency_preference || 'none',
+          paymentCurrency: userCurrency
         }
       });
       

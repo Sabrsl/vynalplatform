@@ -100,7 +100,7 @@ export default function AdminStatusPage() {
   // Charger les données au montage du composant
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
   // Ouvrir le panneau de détails pour une fonctionnalité
   const handleFeatureClick = async (feature: SystemFeature) => {

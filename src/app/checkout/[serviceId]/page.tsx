@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle, AlertCircle, CreditCard, ArrowLeft, Lock, ShieldCheck } from "lucide-react";
 import Image from "next/image";
 import { logSecurityEvent } from "@/lib/security/audit";
+import { PaymentCurrencyNotice } from "@/components/payments/PaymentCurrencyNotice";
 
 // Type pour les données de service
 interface ServiceData {
@@ -312,7 +313,12 @@ export default function CheckoutPage({ params }: { params: { serviceId: string }
                     </Button>
                   </div>
                 ) : (
-                  renderPaymentForm()
+                  <>
+                    {/* Notification de devise pour le paiement */}
+                    <PaymentCurrencyNotice className="mb-4" />
+                    
+                    {renderPaymentForm()}
+                  </>
                 )}
               </CardContent>
               <CardFooter className="flex justify-between border-t pt-4">

@@ -43,6 +43,10 @@ export interface UserProfile {
       emailVerification: boolean;
     };
   };
+  is_currency_manually_set?: boolean;
+  last_currency_rates_update?: string;
+  custom_currency_rates?: any;
+  [key: string]: any;
 }
 
 interface UpdateProfileResult {
@@ -393,7 +397,10 @@ export function useUser(): UseUserResult {
               is_active: true,
               is_certified: false,
               certified_at: null,
-              certification_type: null
+              certification_type: null,
+              is_currency_manually_set: user.user_metadata?.is_currency_manually_set || false,
+              last_currency_rates_update: user.user_metadata?.last_currency_rates_update || null,
+              custom_currency_rates: user.user_metadata?.custom_currency_rates || null
             };
             
             if (isMounted) {

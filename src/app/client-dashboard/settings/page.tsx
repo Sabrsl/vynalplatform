@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Settings, Bell, Lock, Globe, Moon, Sun, Loader2, RefreshCw } from "lucide-react";
+import { Settings, Bell, Lock, Globe, Moon, Sun, Loader2, RefreshCw, AlertTriangle } from "lucide-react";
 import { ClientDashboardPageSkeleton } from "@/components/skeletons/ClientDashboardPageSkeleton";
 import { useUser } from "@/hooks/useUser";
 import { useAuth } from "@/hooks/useAuth";
@@ -16,6 +16,8 @@ import { cn } from "@/lib/utils";
 import { useLastRefresh } from "@/hooks/useLastRefresh";
 import { invalidateAllClientCache } from "@/lib/optimizations/client-cache";
 import { toast } from "sonner";
+import CurrencySelector from "@/components/settings/CurrencySelector";
+import { refreshPriceComponents, clearCurrencyCache, validatePaymentCurrency } from "@/lib/utils/currency-updater";
 
 interface SettingsState {
   theme: string;
@@ -159,6 +161,42 @@ export default function ClientSettingsPage() {
     await saveSettings(newSettings);
   }, [settings, saveSettings]);
 
+  // Rafraîchir tout le dashboard lorsque la devise est changée
+  const handleCurrencyChange = useCallback(() => {
+    // Invalider le cache du profile et des données pour forcer la mise à jour
+    if (user) {
+      // Invalider tous les caches associés à cet utilisateur
+      invalidateAllClientCache(user.id);
+    }
+    
+    // Rafraîchir les composants qui affichent des prix
+    refreshPriceComponents();
+    
+    // Mettre à jour la référence de dernier rafraîchissement
+    updateLastRefresh();
+    
+    // Forcer la mise à jour des données du tableau de bord
+    try {
+      // Déclencher un événement pour forcer le rafraîchissement des données
+      const refreshEvent = new CustomEvent('force-dashboard-refresh', {
+        detail: { timestamp: Date.now(), source: 'currency-change' },
+        bubbles: true
+      });
+      window.dispatchEvent(refreshEvent);
+    } catch (error) {
+      console.error("Erreur lors du rafraîchissement du tableau de bord:", error);
+    }
+    
+    // Afficher un message pour l'utilisateur
+    toast.success(
+      <div className="space-y-1">
+        <p className="font-medium">Paramètres de devise mis à jour</p>
+        <p className="text-xs opacity-90">Tous les prix sont désormais affichés dans la devise choisie</p>
+      </div>,
+      { duration: 4000 }
+    );
+  }, [user, updateLastRefresh]);
+
   // Classes de style harmonisées avec les autres pages
   const mainCardClasses = "bg-white/30 dark:bg-slate-900/30 backdrop-blur-sm border border-slate-200/30 dark:border-slate-700/30 shadow-sm rounded-lg transition-all duration-200";
   const titleClasses = "text-slate-800 dark:text-vynal-text-primary";
@@ -223,77 +261,80 @@ export default function ClientSettingsPage() {
   }
 
   return (
-    <div className="container max-w-6xl mx-auto px-4 py-6">
-      <div className="flex flex-col space-y-2 md:flex-row md:items-center md:justify-between md:space-y-0 mb-6">
-        <div className="flex items-center justify-between w-full">
-          <div>
-            <h1 className={`text-base sm:text-lg md:text-xl font-bold ${titleClasses} flex items-center`}>
-              <Settings className="mr-2 h-4 w-4 sm:h-5 sm:w-5 text-vynal-accent-primary" />
-              Paramètres
-            </h1>
-            <p className={`text-[10px] sm:text-xs ${subtitleClasses}`}>
-              Personnalisez votre expérience sur la plateforme
-            </p>
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            {isSaving && (
-              <div className="flex items-center gap-2 text-[10px] sm:text-xs text-vynal-accent-primary">
-                <Loader2 className="h-3 w-3 animate-spin" />
-                Enregistrement en cours...
-              </div>
+    <div className="container max-w-screen-lg mx-auto p-4 md:p-6 space-y-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-vynal-primary dark:text-vynal-text-primary">
+            Paramètres
+          </h1>
+          <p className="text-sm text-slate-600 dark:text-vynal-text-secondary">
+            Configurez votre expérience sur la plateforme
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="h-8 text-xs"
+          >
+            {isRefreshing ? (
+              <Loader2 className="h-3 w-3 mr-2 animate-spin" />
+            ) : (
+              <RefreshCw className="h-3 w-3 mr-2" />
             )}
-            
-            {/* Bouton de rafraîchissement */}
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={handleRefresh} 
-              disabled={isRefreshing || isSaving}
-              className="text-gray-600 dark:text-gray-400 hover:text-vynal-accent-primary dark:hover:text-vynal-accent-primary flex items-center gap-1 text-xs"
-            >
-              {isRefreshing ? (
-                <Loader2 className="h-3 w-3 animate-spin text-vynal-accent-primary" />
-              ) : (
-                <RefreshCw className="h-3 w-3" />
-              )}
-              <span className="hidden sm:inline">{isRefreshing ? 'Actualisation...' : getLastRefreshText()}</span>
-            </Button>
-          </div>
+            Actualiser
+          </Button>
+          <p className="text-[10px] text-slate-500 dark:text-vynal-text-secondary">
+            {getLastRefreshText()}
+          </p>
         </div>
       </div>
 
-      <div className="grid gap-6">
-        {/* Préférences */}
-        <Card className={mainCardClasses}>
-          <CardHeader className="p-4 border-b border-slate-200/10 dark:border-slate-700/10">
-            <CardTitle className={`text-base sm:text-lg md:text-base flex items-center ${titleClasses}`}>
-              <Globe className="mr-2 h-4 w-4 text-vynal-accent-primary" />
-              Préférences
-            </CardTitle>
-            <CardDescription className={`text-[10px] sm:text-xs ${subtitleClasses}`}>
-              Personnalisez l'apparence et la langue de l'interface
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-4 space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label className={labelClasses}>Thème</Label>
-                <p className={descriptionClasses}>
-                  Choisissez le thème de l'interface
-                </p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Sélecteur de devise avec information sur les taux */}
+        <div className="col-span-1">
+          <CurrencySelector className="mb-4" onSuccess={handleCurrencyChange} />
+          
+          <Card className={cn(mainCardClasses, "bg-amber-50/30 dark:bg-amber-900/10 border-amber-200/50 dark:border-amber-700/30 mt-4")}>
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
+                <div className="space-y-1">
+                  <p className="text-[10px] sm:text-xs font-medium text-amber-700 dark:text-amber-400">
+                    Information sur les taux de change
+                  </p>
+                  <p className="text-[9px] sm:text-[10px] text-amber-600/90 dark:text-amber-300/80">
+                    Les taux de change sont mis à jour périodiquement. Dans le cadre des transactions,
+                    le taux en vigueur au moment du paiement sera appliqué.
+                  </p>
+                </div>
               </div>
-              {themeSelect}
-            </div>
+            </CardContent>
+          </Card>
+        </div>
 
+        {/* Thème */}
+        <Card className={mainCardClasses}>
+          <CardHeader className="p-4 pb-0">
+            <CardTitle className={`flex items-center gap-2 ${titleClasses}`}>
+              <Moon className="h-4 w-4 text-vynal-secondary" />
+              <span className="text-sm">Thème</span>
+            </CardTitle>
+            <p className={`text-xs ${subtitleClasses}`}>
+              Choisissez l'apparence de l'interface
+            </p>
+          </CardHeader>
+          <CardContent className="p-4">
             <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label className={labelClasses}>Langue</Label>
-                <p className={descriptionClasses}>
-                  Choisissez la langue de l'interface
-                </p>
-              </div>
-              {languageSelect}
+              <Label 
+                htmlFor="theme-select" 
+                className={`text-sm font-normal ${labelClasses}`}
+              >
+                Choisir le thème
+              </Label>
+              {themeSelect}
             </div>
           </CardContent>
         </Card>

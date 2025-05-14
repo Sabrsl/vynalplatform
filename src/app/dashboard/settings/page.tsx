@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import { Input } from "@/components/ui/input";
@@ -27,7 +27,7 @@ import {
   Trash2, 
   User, 
   UserCheck,
-  UserCog,
+  UserCog, 
   Mail,
   Lock,
   CreditCard,
@@ -55,6 +55,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { useUser } from "@/hooks/useUser";
 import { useAuth } from "@/hooks/useAuth";
+import { useLastRefresh } from "@/hooks/useLastRefresh";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
@@ -73,6 +74,10 @@ import { QRCode } from "@/components/ui/qrcode";
 import { signDocument } from "@/utils/document-signing";
 import { Loader } from "@/components/ui/loader";
 import { SettingsPageSkeleton } from "@/components/skeletons/SettingsPageSkeleton";
+import CurrencySelector from "@/components/settings/CurrencySelector";
+import { refreshPriceComponents, clearCurrencyCache } from "@/lib/utils/currency-updater";
+import { invalidateAllClientCache } from "@/lib/optimizations/client-cache";
+import { toast } from "sonner";
 
 // Définir une interface pour le profil utilisateur
 interface UserProfile {
@@ -81,14 +86,23 @@ interface UserProfile {
   two_factor_enabled?: boolean;
   last_data_download?: string;
   last_profile_pdf_download?: string;
+  country?: string;
+  continent?: string;
+  currency_preference?: string;
+  last_geo_detection?: string;
+  last_currency_rates_update?: string;
+  is_currency_manually_set?: boolean;
+  custom_currency_rates?: any;
   [key: string]: any; // Pour les autres propriétés qui pourraient exister
 }
 
 export default function SettingsPage() {
+  // Hooks de navigation et état
   const router = useRouter();
   const { toast } = useToast();
   const { user: authUser, signOut } = useAuth();
   const { profile, loading: isUserLoading } = useUser();
+  const { lastRefresh, updateLastRefresh, getLastRefreshText } = useLastRefresh();
   
   // États pour les paramètres de sécurité
   const [isLoading, setIsLoading] = useState(true);
@@ -192,7 +206,63 @@ export default function SettingsPage() {
     return () => {
       isMounted = false;
     };
-  }, [authUser, supabase, toast]);
+  }, [authUser, toast]);
+
+  // Gérer le changement de devise
+  function handleCurrencyChange() {
+    // Invalider le cache et forcer la mise à jour des prix
+    if (authUser) {
+      // Invalider tous les caches associés à cet utilisateur
+      invalidateAllClientCache(authUser.id);
+      console.log("Cache invalidé après changement de devise pour", authUser.id);
+    }
+    
+    // Mettre à jour les prix dans l'interface
+    refreshPriceComponents();
+    
+    // Mettre à jour la référence de dernier rafraîchissement
+    updateLastRefresh();
+    
+    // Forcer la mise à jour des données du tableau de bord
+    try {
+      // Déclencher un événement pour forcer le rafraîchissement des données
+      const refreshEvent = new CustomEvent('force-dashboard-refresh', {
+        detail: { timestamp: Date.now(), source: 'currency-change' },
+        bubbles: true
+      });
+      window.dispatchEvent(refreshEvent);
+    } catch (error) {
+      console.error("Erreur lors du rafraîchissement du tableau de bord:", error);
+    }
+    
+    // Notification à l'utilisateur - utiliser le format correct de toast
+    toast({
+      title: "Devise mise à jour",
+      description: "Tous les prix sont désormais affichés dans la devise choisie",
+    });
+  }
+  
+  // Écouter les événements de changement de devise
+  useEffect(() => {
+    // Fonction de mise à jour du composant lorsque la devise change
+    const handleCurrencyEvent = (event: any) => {
+      console.log("Événement de changement de devise détecté dans la page settings");
+      // Rafraîchir le profil pour obtenir les nouvelles données
+      if (authUser?.id) {
+        invalidateAllClientCache(authUser.id);
+        // Mettre à jour la dernière date de rafraîchissement
+        updateLastRefresh();
+      }
+    };
+    
+    // Ajouter l'écouteur d'événement
+    window.addEventListener('vynal_currency_changed', handleCurrencyEvent);
+    
+    // Nettoyer l'écouteur lors du démontage du composant
+    return () => {
+      window.removeEventListener('vynal_currency_changed', handleCurrencyEvent);
+    };
+  }, [authUser, updateLastRefresh]);
 
   // Display skeleton while loading
   if (isLoading || isUserLoading) {
@@ -1458,11 +1528,57 @@ export default function SettingsPage() {
                   <span className="text-vynal-purple-light dark:text-vynal-text-primary">Fonctionnalités expérimentales</span>
                 </CardTitle>
                 <CardDescription className="text-[10px] sm:text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary/80 mt-1">
-                  Activez les fonctionnalités en version bêta et obtenez un accès anticipé aux nouvelles fonctionnalités.
+                  Activez les fonctionnalités en version bêta et personnalisez vos préférences d'affichage
                 </CardDescription>
               </CardHeader>
               <CardContent className="px-4 sm:px-6 py-4 sm:py-5">
                 <div className="space-y-4">
+                  <div className="p-3 rounded-lg border border-vynal-border bg-slate-50/70 dark:border-vynal-purple-secondary/30 dark:bg-vynal-purple-secondary/10">
+                    <h3 className="text-xs font-medium text-vynal-purple-light dark:text-vynal-text-primary mb-2 flex items-center">
+                      <Globe className="h-3.5 w-3.5 mr-2 text-vynal-accent-primary" />
+                      Paramètres de devise
+                    </h3>
+                    <p className="text-[10px] text-vynal-purple-secondary dark:text-vynal-text-secondary mb-3">
+                      La devise est détectée automatiquement en fonction de votre localisation. Vous pouvez aussi la définir manuellement ci-dessous.
+                    </p>
+                    {/* Sélecteur de devise */}
+                    <CurrencySelector className="mb-4" onSuccess={handleCurrencyChange} />
+                    
+                    <div className="mt-4 pt-4 border-t border-vynal-border/50 dark:border-vynal-purple-secondary/20">
+                      <div className="flex items-start gap-2">
+                        <AlertTriangle className="h-3.5 w-3.5 text-amber-500/80 dark:text-amber-400/80 flex-shrink-0 mt-0.5" />
+                        <div className="space-y-1.5">
+                          <p className="text-[10px] font-medium text-vynal-purple-dark/90 dark:text-vynal-text-primary/90">
+                            Informations sur les taux de change
+                          </p>
+                          <ul className="text-[9px] text-vynal-purple-secondary dark:text-vynal-text-secondary space-y-1 list-disc pl-3">
+                            <li>Les taux sont mis à jour régulièrement</li>
+                            <li>Tous les prix sont stockés en FCFA (XOF) dans notre base de données</li>
+                            <li>Vos préférences de devise sont sauvegardées dans votre profil et utilisées automatiquement</li>
+                            <li>Pour les paiements, le taux de change applicable sera celui en vigueur au moment de la transaction</li>
+                          </ul>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center justify-between space-x-2 mt-4 p-2 rounded-md bg-vynal-accent-primary/5 dark:bg-vynal-purple-secondary/5 border border-vynal-accent-primary/10 dark:border-vynal-purple-secondary/10">
+                        <div className="space-y-0.5">
+                          <div className="flex items-center">
+                            <Label className="text-[9px] font-medium text-vynal-purple-light dark:text-vynal-text-primary">
+                              Mémoriser la devise sur tous les appareils
+                            </Label>
+                          </div>
+                        </div>
+                        <Switch
+                          checked={profile?.is_currency_manually_set}
+                          onCheckedChange={(value: boolean) => {
+                            updateExperimentalSettings("is_currency_manually_set", value);
+                          }}
+                          className="data-[state=checked]:bg-vynal-accent-primary data-[state=unchecked]:bg-slate-300"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="flex items-center justify-between space-x-2 p-3 rounded-lg border border-vynal-border bg-slate-50/70 dark:border-vynal-purple-secondary/30 dark:bg-vynal-purple-secondary/10">
                     <div className="space-y-0.5">
                       <div className="flex items-center">
@@ -1506,7 +1622,7 @@ export default function SettingsPage() {
                       className="data-[state=checked]:bg-vynal-accent-primary data-[state=unchecked]:bg-slate-300"
                     />
                   </div>
-                  
+
                   <div className="flex items-center justify-between space-x-2 p-3 rounded-lg border border-vynal-border bg-slate-50/70 dark:border-vynal-purple-secondary/30 dark:bg-vynal-purple-secondary/10">
                     <div className="space-y-0.5">
                       <div className="flex items-center">

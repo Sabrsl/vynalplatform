@@ -38,51 +38,32 @@ export async function POST(request: NextRequest) {
     const supabase = createRouteHandlerClient({ cookies });
     
     try {
-      // Créer une nouvelle entrée dans la table "conversations"
-      const { data: conversationData, error: conversationError } = await supabase
-        .from('conversations')
+      // Enregistrer le message dans la table "contact_messages"
+      const { data: contactMessage, error: contactMessageError } = await supabase
+        .from('contact_messages')
         .insert({
-          last_message_time: new Date().toISOString(),
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          first_name: firstName,
+          last_name: lastName,
+          email: email,
+          subject: subject,
+          message: message,
+          status: 'unread'
         })
         .select()
         .single();
       
-      if (conversationError) {
+      if (contactMessageError) {
         console.error('Erreur détaillée lors de la création du message de contact:', {
-          error: conversationError,
-          message: conversationError.message,
-          details: conversationError.details,
-          hint: conversationError.hint
+          error: contactMessageError,
+          message: contactMessageError.message,
+          details: contactMessageError.details,
+          hint: contactMessageError.hint
         });
         return NextResponse.json(
           { 
             error: 'Erreur lors de la création du message de contact',
-            details: conversationError.message
+            details: contactMessageError.message
           },
-          { status: 500 }
-        );
-      }
-      
-      // Enregistrer le message dans la table "messages"
-      const { error: messageError } = await supabase
-        .from('messages')
-        .insert({
-          conversation_id: conversationData.id,
-          sender_id: 'contact',
-          content: message,
-          read: false,
-          sender_name: `${firstName} ${lastName}`,
-          sender_email: email,
-          subject: subject,
-          created_at: new Date().toISOString()
-        });
-      
-      if (messageError) {
-        console.error('Erreur lors de l\'enregistrement du message de contact:', messageError);
-        return NextResponse.json(
-          { error: 'Erreur lors de l\'enregistrement du message de contact', details: messageError },
           { status: 500 }
         );
       }

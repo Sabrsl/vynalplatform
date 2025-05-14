@@ -9,6 +9,10 @@ export function formatDate(date: string | Date): string {
   }).format(dateObj);
 }
 
+/**
+ * Fonction de formatage de devise de base - n'utilise pas la conversion
+ * Utilisée par les composants serveur et les appels qui ne peuvent pas utiliser le hook useCurrency
+ */
 export function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('fr-FR', {
     style: 'currency',

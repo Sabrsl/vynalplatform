@@ -1,6 +1,7 @@
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
 import { CURRENCY } from "./constants"
+import { CURRENCY as CURRENCY_CONSTANTS } from "./constants/currency"
 
 /**
  * Combine et fusionne les classes CSS (avec Tailwind)
@@ -10,14 +11,53 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
- * Formate un prix en FCFA
+ * Formate un prix en FCFA ou dans la devise actuelle
+ * Note: Cette fonction est utilisée pour le formatage côté serveur.
+ * Pour le formatage côté client avec conversion, utilisez le composant CurrencyDisplay
  */
 export function formatPrice(price: number): string {
+  // Pour les applications côté client, vérifier si on peut utiliser la devise du localStorage
+  if (typeof window !== 'undefined') {
+    try {
+      // Récupérer la devise actuelle depuis le localStorage
+      const currencyCode = localStorage.getItem('vynal_current_currency') || CURRENCY_CONSTANTS.primary;
+      
+      // Récupérer le taux de conversion si disponible
+      let rate = 1; // Taux par défaut (XOF)
+      let decimals = 0; // Décimales par défaut pour XOF
+      
+      // Si c'est une devise autre que XOF, chercher le taux dans les CURRENCY_CONSTANTS.rates
+      if (currencyCode !== 'XOF' && CURRENCY_CONSTANTS.rates[currencyCode as keyof typeof CURRENCY_CONSTANTS.rates]) {
+        rate = CURRENCY_CONSTANTS.rates[currencyCode as keyof typeof CURRENCY_CONSTANTS.rates];
+        
+        // Récupérer le nombre de décimales pour cette devise
+        if (CURRENCY_CONSTANTS.info[currencyCode as keyof typeof CURRENCY_CONSTANTS.info]) {
+          decimals = CURRENCY_CONSTANTS.info[currencyCode as keyof typeof CURRENCY_CONSTANTS.info].decimals;
+        }
+      }
+      
+      // Convertir le prix
+      const convertedPrice = price * rate;
+      
+      // Formater avec la devise actuelle
+      return new Intl.NumberFormat(CURRENCY_CONSTANTS.locale, {
+        style: 'currency',
+        currency: currencyCode,
+        maximumFractionDigits: decimals,
+        minimumFractionDigits: decimals,
+      }).format(convertedPrice);
+    } catch (error) {
+      console.error("Erreur lors du formatage du prix avec devise locale:", error);
+      // En cas d'erreur, utiliser le formatage par défaut
+    }
+  }
+  
+  // Formatage par défaut (XOF) pour le rendu côté serveur ou en cas d'erreur
   return new Intl.NumberFormat(CURRENCY.locale, {
     style: 'currency',
     currency: CURRENCY.code,
     maximumFractionDigits: CURRENCY.decimalPlaces,
-  }).format(price)
+  }).format(price);
 }
 
 /**

@@ -15,6 +15,7 @@ import Image from 'next/image';
 import { cn } from "@/lib/utils";
 import { useTheme } from "next-themes"; // Assurez-vous d'avoir installé next-themes
 import { CertificationBadge } from '@/components/ui/certification-badge';
+import { PriceDisplay } from './PriceDisplay';
 
 // Extension du type pour inclure les propriétés supplémentaires
 interface ExtendedService extends ServiceWithFreelanceAndCategories {
@@ -136,20 +137,7 @@ const StatusBadges = memo(({ active, status }: { active?: boolean; status?: stri
 StatusBadges.displayName = 'StatusBadges';
 
 const PriceBadge = memo(({ price }: { price?: number }) => {
-  const formattedPrice = useMemo(() => {
-    return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(price || 0);
-  }, [price]);
-  
-  return (
-    <div className="absolute bottom-0 right-0 p-1 hidden sm:block">
-      <Badge 
-        variant="outline" 
-        className="shadow-sm text-[10px] bg-vynal-accent-primary/90 text-white hover:bg-vynal-accent-primary border-vynal-accent-primary/30"
-      >
-        {formattedPrice} {CURRENCY.symbol}
-      </Badge>
-    </div>
-  );
+  return <PriceDisplay price={price || 0} variant="badge" showFixedIndicator={false} />;
 });
 
 PriceBadge.displayName = 'PriceBadge';
@@ -417,11 +405,13 @@ const ServiceCard = memo<ServiceCardProps>(
             return { ...state, avatarError: true };
           case 'SET_IMAGE_PRIORITY':
             return { ...state, imagePriority: true };
+          case 'FORCE_UPDATE':
+            return { ...state, forceUpdate: true };
           default:
             return state;
         }
       },
-      { imageError: false, avatarError: false, imagePriority: false }
+      { imageError: false, avatarError: false, imagePriority: false, forceUpdate: false }
     );
     
     // Store service data in ref to avoid re-renders when only references needed
@@ -489,11 +479,19 @@ const ServiceCard = memo<ServiceCardProps>(
         };
       };
       
+      // Gestionnaire pour les changements de devise
+      const handleCurrencyChange = (event: Event) => {
+        // Forcer un rafraîchissement du composant pour mettre à jour les prix
+        dispatch({ type: 'FORCE_UPDATE' });
+      };
+      
       // Use type assertion for older browsers compatibility
       window.addEventListener('vynal:service-status-change', handleStatusChange as EventListener);
+      window.addEventListener('vynal_currency_changed', handleCurrencyChange as EventListener);
       
       return () => {
         window.removeEventListener('vynal:service-status-change', handleStatusChange as EventListener);
+        window.removeEventListener('vynal_currency_changed', handleCurrencyChange as EventListener);
       };
     }, [service.id]);
     
@@ -682,7 +680,7 @@ const ServiceCard = memo<ServiceCardProps>(
           <div className="flex flex-col">
             <span className="text-[9px] text-slate-600 dark:text-vynal-text-secondary/80">À partir de</span>
             <span className="text-base font-medium text-slate-800 dark:text-vynal-accent-primary mt-0.5 price-value">
-              {formattedPrice} {CURRENCY.symbol}
+              <PriceDisplay price={service.price || 0} showFixedIndicator={false} />
             </span>
           </div>
           

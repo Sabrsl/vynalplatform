@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -30,7 +30,7 @@ export default function PublicStatusPage() {
   const [activeFilter, setActiveFilter] = useState<FeatureStatus | null>(null);
 
   // Fonction pour charger les données
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
       // Utiliser l'API endpoint pour récupérer les données
@@ -49,12 +49,12 @@ export default function PublicStatusPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   // Charger les données au montage du composant
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
   // Ouvrir le panneau de détails pour une fonctionnalité
   const handleFeatureClick = async (feature: SystemFeature) => {

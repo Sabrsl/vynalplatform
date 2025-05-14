@@ -45,30 +45,34 @@ export const BorderBeamButton = memo(function BorderBeamButton({ href, children,
   // Styles mémorisés pour éviter les recréations à chaque rendu
   const borderTopStyle = useMemo(() => ({
     background: 'linear-gradient(90deg, transparent 0%, #ff71d4 50%, transparent 100%)',
-    animation: 'moveRightToLeft 3s infinite linear',
-    boxShadow: '0 0 15px rgba(255, 113, 212, 1)'
+    animation: 'moveRightToLeft 1.8s infinite linear',
+    boxShadow: '0 0 35px rgba(255, 113, 212, 0.9)',
+    height: '2px'
   }), []);
 
   const borderBottomStyle = useMemo(() => ({
     background: 'linear-gradient(90deg, transparent 0%, #ff52bf 50%, transparent 100%)',
-    animation: 'moveLeftToRight 3s infinite linear',
-    boxShadow: '0 0 15px rgba(255, 82, 191, 1)'
+    animation: 'moveLeftToRight 1.8s infinite linear',
+    boxShadow: '0 0 35px rgba(255, 82, 191, 0.9)',
+    height: '2px'
   }), []);
 
   const borderLeftStyle = useMemo(() => ({
     background: 'linear-gradient(180deg, transparent 0%, #ff71d4 50%, transparent 100%)',
-    animation: 'moveBottomToTop 3.5s infinite linear',
-    boxShadow: '0 0 15px rgba(255, 113, 212, 1)'
+    animation: 'moveBottomToTop 2.2s infinite linear',
+    boxShadow: '0 0 35px rgba(255, 113, 212, 0.9)',
+    width: '2px'
   }), []);
 
   const borderRightStyle = useMemo(() => ({
     background: 'linear-gradient(180deg, transparent 0%, #ff52bf 50%, transparent 100%)',
-    animation: 'moveTopToBottom 3.5s infinite linear',
-    boxShadow: '0 0 15px rgba(255, 82, 191, 1)'
+    animation: 'moveTopToBottom 2.2s infinite linear',
+    boxShadow: '0 0 35px rgba(255, 82, 191, 0.9)',
+    width: '2px'
   }), []);
 
   const beamStyle = useMemo(() => ({
-    background: `radial-gradient(120px circle at ${x}px ${y}px, rgba(255, 109, 196, 0.4), transparent 40%)`,
+    background: `radial-gradient(200px circle at ${x}px ${y}px, rgba(255, 109, 196, 0.7), transparent 40%)`,
   }), [x, y]);
 
   if (!isMounted) {
@@ -89,25 +93,25 @@ export const BorderBeamButton = memo(function BorderBeamButton({ href, children,
         <div className="absolute inset-0 rounded-md overflow-hidden z-0">
           {/* Première ligne horizontale (haut) */}
           <div
-            className="absolute top-0 left-0 w-full h-[3px]"
+            className="absolute top-0 left-0 w-full h-[2px]"
             style={borderTopStyle}
           />
           
           {/* Deuxième ligne horizontale (bas) */}
           <div
-            className="absolute bottom-0 right-0 w-full h-[3px]"
+            className="absolute bottom-0 right-0 w-full h-[2px]"
             style={borderBottomStyle}
           />
           
           {/* Première ligne verticale (gauche) */}
           <div
-            className="absolute top-0 left-0 h-full w-[3px]"
+            className="absolute top-0 left-0 h-full w-[2px]"
             style={borderLeftStyle}
           />
           
           {/* Deuxième ligne verticale (droite) */}
           <div
-            className="absolute top-0 right-0 h-full w-[3px]"
+            className="absolute top-0 right-0 h-full w-[2px]"
             style={borderRightStyle}
           />
         </div>

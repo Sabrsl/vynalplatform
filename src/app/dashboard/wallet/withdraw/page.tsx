@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
@@ -34,6 +34,22 @@ export default function WithdrawPage() {
   
   // Combinaison des états de chargement
   const isLoading = loading || authLoading;
+  
+  // Fonction pour valider l'utilisateur et ses droits
+  const validateUserAccess = useCallback(() => {
+    if (!user) {
+      router.push("/auth/login");
+      return false;
+    }
+    
+    if (!isFreelance) {
+      router.push("/dashboard");
+      setError("Seuls les freelances peuvent effectuer des retraits");
+      return false;
+    }
+    
+    return true;
+  }, [user, isFreelance, router, setError]);
   
   // Fonction de récupération des données du wallet
   const fetchWallet = async () => {
@@ -93,6 +109,13 @@ export default function WithdrawPage() {
     setNetAmount(calculatedNet);
   }, [amount, selectedMethod, wallet]);
 
+  // Sécurité côté client - vérification à chaque étape critique
+  useEffect(() => {
+    if (!authLoading) {
+      validateUserAccess();
+    }
+  }, [authLoading, validateUserAccess]);
+
   // Une fonction pour formater les montants avec la devise FCFA
   const formatAmount = (amount: number) => {
     return `${amount.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} ${CURRENCY.symbol}`;
@@ -110,28 +133,56 @@ export default function WithdrawPage() {
     return true;
   };
   
-  // Fonction pour valider l'utilisateur et ses droits
-  const validateUserAccess = () => {
-    if (!user) {
-      router.push("/auth/login");
-      return false;
+  // Fonction pour gérer la redirection vers la page de paiements
+  const goToWalletPage = useCallback(() => {
+    try {
+      // Vérification de sécurité avant la redirection
+      if (!user) {
+        router.push('/auth/login');
+        return;
+      }
+      
+      if (!isFreelance) {
+        router.push('/dashboard');
+        return;
+      }
+      
+      // Assurer que la redirection se fait vers la page wallet et non vers le dashboard principal
+      router.push('/dashboard/wallet');
+    } catch (error) {
+      console.error("Erreur lors de la redirection:", error);
     }
-    
-    if (!isFreelance) {
-      router.push("/dashboard");
-      setError("Seuls les freelances peuvent effectuer des retraits");
-      return false;
-    }
-    
-    return true;
-  };
+  }, [user, isFreelance, router]);
 
-  // Sécurité côté client - vérification à chaque étape critique
-  useEffect(() => {
-    if (!authLoading) {
-      validateUserAccess();
+  // Fonction pour gérer le clic sur le bouton retour
+  const handleRetour = useCallback((e: React.MouseEvent) => {
+    // Empêcher tout comportement par défaut qui pourrait interférer
+    if (e) e.preventDefault();
+    
+    // Vérification de sécurité avant la redirection
+    if (validateUserAccess()) {
+      goToWalletPage();
     }
-  }, [user, authLoading]);
+  }, [validateUserAccess, goToWalletPage]);
+
+  // Pour gérer la redirection et son nettoyage
+  useEffect(() => {
+    let redirectTimer: NodeJS.Timeout | null = null;
+    
+    if (withdrawalSuccess) {
+      // Vérification de sécurité avant la redirection
+      if (validateUserAccess()) {
+        redirectTimer = setTimeout(() => {
+          goToWalletPage();
+        }, 3000);
+      }
+    }
+    
+    // Nettoyer le timer si le composant est démonté
+    return () => {
+      if (redirectTimer) clearTimeout(redirectTimer);
+    };
+  }, [withdrawalSuccess, validateUserAccess, goToWalletPage]);
 
   const handleWithdraw = async () => {
     // Validation
@@ -200,57 +251,6 @@ export default function WithdrawPage() {
       setWithdrawalProcessing(false);
     }
   };
-
-  // Fonction pour gérer la redirection vers la page de paiements
-  const goToWalletPage = () => {
-    try {
-      // Vérification de sécurité avant la redirection
-      if (!user) {
-        router.push('/auth/login');
-        return;
-      }
-      
-      if (!isFreelance) {
-        router.push('/dashboard');
-        return;
-      }
-      
-      // Assurer que la redirection se fait vers la page wallet et non vers le dashboard principal
-      router.push('/dashboard/wallet');
-    } catch (error) {
-      console.error("Erreur lors de la redirection:", error);
-    }
-  };
-
-  // Fonction pour gérer le clic sur le bouton retour
-  const handleRetour = (e: React.MouseEvent) => {
-    // Empêcher tout comportement par défaut qui pourrait interférer
-    if (e) e.preventDefault();
-    
-    // Vérification de sécurité avant la redirection
-    if (validateUserAccess()) {
-      goToWalletPage();
-    }
-  };
-
-  // Pour gérer la redirection et son nettoyage
-  useEffect(() => {
-    let redirectTimer: NodeJS.Timeout | null = null;
-    
-    if (withdrawalSuccess) {
-      // Vérification de sécurité avant la redirection
-      if (validateUserAccess()) {
-        redirectTimer = setTimeout(() => {
-          goToWalletPage();
-        }, 3000);
-      }
-    }
-    
-    // Nettoyer le timer si le composant est démonté
-    return () => {
-      if (redirectTimer) clearTimeout(redirectTimer);
-    };
-  }, [withdrawalSuccess, router]);
 
   if (isLoading) {
     return (

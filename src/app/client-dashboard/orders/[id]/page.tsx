@@ -18,6 +18,8 @@ import { cn } from "@/lib/utils";
 import { formatDistanceToNow, format } from "date-fns";
 import { fr } from "date-fns/locale";
 import * as DialogRadix from '@radix-ui/react-dialog';
+import Image from "next/image";
+import { CurrencyDisplay } from "@/components/ui/CurrencyDisplay";
 
 // Types pour la commande
 interface OrderDetail {
@@ -708,9 +710,11 @@ export default function OrderDetailPage() {
         <CardHeader className="pb-0">
           <div className="flex items-start gap-3">
             {order.service.images && order.service.images.length > 0 && (
-              <img 
+              <Image 
                 src={order.service.images[0]} 
                 alt={order.service.title}
+                width={48}
+                height={48}
                 className="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 rounded-lg object-cover border border-slate-200/30 dark:border-slate-700/30 flex-shrink-0"
               />
             )}
@@ -721,9 +725,11 @@ export default function OrderDetailPage() {
               <CardContent className="flex items-center text-[8px] sm:text-xs p-0">
                 <div className="flex items-center">
                   {order.freelance.avatar_url ? (
-                    <img 
+                    <Image 
                       src={order.freelance.avatar_url} 
                       alt={order.freelance.full_name || order.freelance.username}
+                      width={32}
+                      height={32}
                       className="h-5 w-5 sm:h-6 sm:w-6 md:h-8 md:w-8 rounded-full mr-1.5 sm:mr-2 object-cover flex-shrink-0"
                     />
                   ) : (
@@ -744,7 +750,7 @@ export default function OrderDetailPage() {
               <div className="flex justify-between items-center mb-2">
                 <span className={`text-[8px] sm:text-xs font-medium ${titleClasses}`}>Prix total</span>
                 <Badge variant="outline" className="bg-vynal-accent-primary/20 text-vynal-accent-primary border-vynal-accent-primary/30 text-[8px] sm:text-[10px]">
-                  {Math.round(order.price)} FCFA
+                  <CurrencyDisplay amount={order.price} displayFullName={true} />
                 </Badge>
               </div>
               <div className="flex justify-between items-center">

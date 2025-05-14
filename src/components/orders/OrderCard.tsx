@@ -12,6 +12,7 @@ import { formatDate, formatPrice } from '@/lib/utils';
 import { Order } from '@/hooks/useOrders';
 import { OrderStatusBadge } from './OrderStatusBadge';
 import { FREELANCE_ROUTES, CLIENT_ROUTES } from "@/config/routes";
+import { CurrencyDisplay } from "@/components/ui/CurrencyDisplay";
 
 interface OrderCardProps {
   order: Order;
@@ -115,7 +116,7 @@ export const OrderCard: React.FC<OrderCardProps> = ({
               </Badge>
             </div>
             <span className="text-[10px] sm:text-[11px] md:text-xs font-semibold mt-1.5 sm:mt-2 md:mt-2.5 text-vynal-purple-light dark:text-vynal-text-primary">
-              {formatPrice(order.total_amount ?? order.service.price)}
+              <CurrencyDisplay amount={order.total_amount ?? order.service.price} />
             </span>
           </div>
         </div>

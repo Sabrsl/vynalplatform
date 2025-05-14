@@ -9,6 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Lock } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { PaymentCurrencyNotice } from "@/components/payments/PaymentCurrencyNotice";
 
 interface StripeCardFormProps {
   amount: number;
@@ -203,9 +204,15 @@ function StripeCardFormContent({
   }
   
   return (
-    <form onSubmit={handleSubmit} className="space-y-4" id="stripe-payment-form">
-      <div className="p-3 border rounded-md bg-white">
-        <CardElement options={cardElementOptions} />
+    <form onSubmit={handleSubmit} className="space-y-5">
+      {/* Notification sur la devise utilisée pour le paiement */}
+      <PaymentCurrencyNotice compact />
+      
+      <div className="p-3 border rounded-md bg-slate-50 dark:bg-vynal-purple-dark/20">
+        <CardElement 
+          options={cardElementOptions} 
+          className="py-2"
+        />
       </div>
       
       {cardError && (

@@ -34,6 +34,7 @@ import ServiceSkeletonLoader from '@/components/services/ServiceSkeletonLoader';
 import { filterServicesBySearchTerm } from '@/lib/search/smartSearch';
 import { PublicServicesPageSkeleton } from '@/components/skeletons/PublicServicesPageSkeleton';
 import React from 'react';
+import { toast } from 'sonner';
 
 // Ordre exact des catégories comme défini dans le seed.sql
 const CATEGORY_ORDER = [
@@ -588,14 +589,41 @@ function ServicesPageContent() {
     return () => window.removeEventListener('error', handleError);
   }, []);
   
-  // Effet combiné pour la gestion de visibilité et du focus
+  // Effet pour la gestion du changement de devise
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    refs.current.mounted = true;
+    if (typeof window === 'undefined' || !refs.current.mounted) return;
     
-    // Nettoyage des états
-    setIsRefreshing(false);
-    refs.current.forceRefresh = false;
+    // Écouter les événements de changement de devise
+    const handleCurrencyChange = (event: Event) => {
+      if (!refs.current.mounted || isRefreshing) return;
+      
+      try {
+        const customEvent = event as CustomEvent;
+        console.log("Page Explorer: Événement de changement de devise détecté", customEvent.detail);
+        
+        // Forcer un rafraîchissement des données sans augmenter les requêtes
+        refs.current.forceRefresh = true;
+        refreshData();
+        
+        // Notification visuelle (optionnelle)
+        toast.info("Mise à jour des prix en cours...", {
+          duration: 1500,
+        });
+      } catch (error) {
+        console.error("Erreur lors de la gestion du changement de devise:", error);
+      }
+    };
+    
+    window.addEventListener('vynal_currency_changed', handleCurrencyChange as EventListener);
+    
+    return () => {
+      window.removeEventListener('vynal_currency_changed', handleCurrencyChange as EventListener);
+    };
+  }, [isRefreshing, refreshData]);
+  
+  // Effet pour la gestion de visibilité et du focus
+  useEffect(() => {
+    if (typeof window === 'undefined' || !refs.current.mounted) return;
     
     // Sauvegarde de l'état
     const saveTabState = () => {
@@ -684,15 +712,7 @@ function ServicesPageContent() {
     window.addEventListener('focus', handleWindowFocus);
     window.addEventListener('vynal:force-refresh-after-tab-return', handleForceRefresh);
     
-    // Nettoyage
     return () => {
-      refs.current.mounted = false;
-      
-      if (refs.current.refreshTimer) {
-        clearTimeout(refs.current.refreshTimer);
-        refs.current.refreshTimer = null;
-      }
-      
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleWindowFocus);
       window.removeEventListener('vynal:force-refresh-after-tab-return', handleForceRefresh);

@@ -5,11 +5,37 @@ import { useAuth } from "@/hooks/useAuth";
 import { useUser } from "@/hooks/useUser";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
-  ArrowUpRight, FileText, Clock, Activity as LucideActivity, Eye, 
-  CreditCard, MessageCircle, Bell, Package, Mail,
-  ShoppingCart, Star, AlertTriangle, Upload, MessageSquare, CheckCircle,
-  Zap, Users, RefreshCw, Wallet, ArrowDown, ArrowUp
-} from "lucide-react";
+  ArrowRight, 
+  ArrowUpRight, 
+  Bell, 
+  Calendar, 
+  CheckCircle, 
+  ChevronLeft, 
+  ChevronRight, 
+  Circle, 
+  Clock, 
+  CreditCard, 
+  DollarSign, 
+  Eye, 
+  HardDrive, 
+  Heart, 
+  Mailbox, 
+  MessageCircle, 
+  Package, 
+  RefreshCcw, 
+  Settings, 
+  ShoppingCart, 
+  Star, 
+  Truck, 
+  User, 
+  Users, 
+  Zap,
+  LucideIcon,
+  AlertTriangle,
+  Upload,
+  MessageSquare,
+  Activity as LucideActivity
+} from 'lucide-react';
 import { formatPrice } from "@/lib/utils";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -18,6 +44,8 @@ import { useCallback, useMemo, memo, useState, useEffect } from "react";
 import { DashboardPageSkeleton } from "@/components/skeletons/DashboardPageSkeleton";
 import { FREELANCE_ROUTES } from "@/config/routes";
 import { FreelanceGuard } from "@/lib/guards/roleGuards";
+import { CurrencyDisplay } from "@/components/ui/CurrencyDisplay";
+import React from "react";
 
 // Type pour les statistiques d'un freelance
 interface FreelanceStats {
@@ -74,10 +102,10 @@ const STAT_CARD_STYLES = {
 
 const STAT_CARD_ICONS = {
   activeOrders: ShoppingCart,
-  unreadMessages: MessageSquare,
+  unreadMessages: MessageCircle,
   pendingDeliveries: Clock,
   totalEarnings: CreditCard,
-  servicesCount: FileText
+  servicesCount: ShoppingCart
 };
 
 // Map des icônes d'activité pour éviter des recalculs répétés
@@ -214,55 +242,70 @@ const RefreshButton = memo(({ onClick, isRefreshing, lastRefreshText }: {
 
 RefreshButton.displayName = 'RefreshButton';
 
-// Composant memoïsé pour les cartes de statistiques
-const StatCard = memo(({ 
-  title, 
-  value, 
-  icon: Icon, 
-  iconBgClass, 
-  iconTextClass,
-  subtitleText,
-  subtitleBgClass,
-  subtitleTextClass,
-  cardBgClass,
-  valueTextClass,
-  isLoading 
-}: { 
+// Props pour les cartes de statistiques
+interface StatCardProps {
   title: string;
-  value: string | number;
-  icon: any;
+  value: number;
+  icon: React.ComponentType<{ className?: string }>;
   iconBgClass: string;
   iconTextClass: string;
-  subtitleText: string;
-  subtitleBgClass: string;
-  subtitleTextClass: string;
   cardBgClass: string;
   valueTextClass: string;
+  subtitleTextClass: string;
+  subtitleBgClass: string;
+  titleClasses?: string;
+  subtitleText?: string;
   isLoading: boolean;
-}) => (
-  <Card className={`rounded-2xl border border-vynal-purple-secondary/10 ${cardBgClass} shadow-sm hover:shadow-md transition-all duration-300`}>
-    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 px-3 pt-3 sm:px-4 sm:pt-4">
-      <CardDescription className="text-[10px] sm:text-xs font-medium text-vynal-purple-light dark:text-vynal-text-primary">
-        {title}
-      </CardDescription>
-      <div className={`p-1.5 rounded-full ${iconBgClass}`}>
-        <Icon className={`h-3 w-3 sm:h-3.5 sm:w-3.5 ${iconTextClass}`} />
+  originalAmount?: number;
+}
+
+// Composant memoïsé pour les cartes de statistiques
+const StatCard = memo(({ title, value, icon: Icon, iconBgClass, iconTextClass, cardBgClass, valueTextClass, subtitleTextClass, subtitleBgClass, titleClasses = "text-[10px] sm:text-xs font-medium", subtitleText, isLoading, originalAmount }: StatCardProps) => {
+  // Formatter la valeur en fonction de son type
+  const formattedValue = useMemo(() => {
+    if (typeof originalAmount === 'number' && originalAmount > 999) {
+      return new Intl.NumberFormat('fr-FR').format(value);
+    }
+    return value.toString();
+  }, [value, originalAmount]);
+
+  return (
+    <div className={`rounded-lg border border-slate-100 shadow-sm p-2 sm:p-3 relative overflow-hidden transition-colors dark:border-vynal-purple-secondary/20 ${cardBgClass}`}>
+      <div className="flex flex-col h-full">
+        <div className="flex justify-between items-start mb-1.5 sm:mb-2">
+          <div className={titleClasses + " text-vynal-purple-light dark:text-vynal-text-primary"}>
+            {title}
+          </div>
+          <div className={`${iconBgClass} p-1 rounded-full`}>
+            <Icon className={`h-3 w-3 sm:h-3.5 sm:w-3.5 ${iconTextClass}`} />
+          </div>
+        </div>
+        
+        <div className="flex-1 flex flex-col justify-between">
+          <div className={`text-sm sm:text-xl font-bold ${valueTextClass}`}>
+            {isLoading ? (
+              <div className="animate-pulse bg-slate-200 dark:bg-slate-700 h-6 w-12 rounded"></div>
+            ) : (
+              typeof originalAmount === 'number' && originalAmount > 100000 ? (
+                <CurrencyDisplay amount={value} />
+              ) : (
+                formattedValue
+              )
+            )}
+          </div>
+          
+          {subtitleText && (
+            <div className="mt-1 sm:mt-2">
+              <span className={`text-[8px] sm:text-[10px] px-1.5 py-0.5 rounded-full ${subtitleBgClass} ${subtitleTextClass}`}>
+                {subtitleText}
+              </span>
+            </div>
+          )}
+        </div>
       </div>
-    </CardHeader>
-    <CardContent className="px-3 pb-3 sm:px-4 sm:pb-4">
-      {isLoading ? (
-        <div className="h-6 w-28 bg-vynal-purple-secondary/30 rounded-md animate-pulse"></div>
-      ) : (
-        <div className={`text-sm sm:text-base font-bold ${valueTextClass}`}>{value}</div>
-      )}
-    </CardContent>
-    <CardContent className="px-3 pb-3 sm:px-4 sm:pb-4">
-      <div className={`text-[10px] sm:text-xs ${subtitleBgClass} ${subtitleTextClass} px-2 py-1 rounded-md inline-block`}>
-        {subtitleText}
-      </div>
-    </CardContent>
-  </Card>
-));
+    </div>
+  );
+});
 
 StatCard.displayName = 'StatCard';
 
@@ -271,70 +314,96 @@ const DashboardStats = memo(({ stats, loading }: {
   stats: FreelanceStats, 
   loading: boolean 
 }) => {
-  const statCards = useMemo(() => [
+  const statCards = useMemo<StatCardProps[]>(() => [
     {
-      key: 'activeOrders',
       title: 'Commandes actives',
       value: stats.activeOrders,
-      icon: STAT_CARD_ICONS.activeOrders,
-      ...STAT_CARD_STYLES.activeOrders,
+      icon: ShoppingCart,
+      iconBgClass: STAT_CARD_STYLES.activeOrders.iconBgClass,
+      iconTextClass: STAT_CARD_STYLES.activeOrders.iconTextClass,
       subtitleText: 'En cours de traitement',
-      mobileColSpan: 'col-span-2'
+      subtitleBgClass: STAT_CARD_STYLES.activeOrders.subtitleBgClass,
+      subtitleTextClass: STAT_CARD_STYLES.activeOrders.subtitleTextClass,
+      cardBgClass: STAT_CARD_STYLES.activeOrders.cardBgClass,
+      valueTextClass: STAT_CARD_STYLES.activeOrders.valueTextClass,
+      isLoading: loading,
+      originalAmount: stats.activeOrders
     },
     {
-      key: 'unreadMessages',
       title: 'Messages non lus',
       value: stats.unreadMessages,
-      icon: STAT_CARD_ICONS.unreadMessages,
-      ...STAT_CARD_STYLES.unreadMessages,
+      icon: MessageCircle,
+      iconBgClass: STAT_CARD_STYLES.unreadMessages.iconBgClass,
+      iconTextClass: STAT_CARD_STYLES.unreadMessages.iconTextClass,
       subtitleText: 'À répondre',
-      mobileColSpan: 'col-span-1'
+      subtitleBgClass: STAT_CARD_STYLES.unreadMessages.subtitleBgClass,
+      subtitleTextClass: STAT_CARD_STYLES.unreadMessages.subtitleTextClass,
+      cardBgClass: STAT_CARD_STYLES.unreadMessages.cardBgClass,
+      valueTextClass: STAT_CARD_STYLES.unreadMessages.valueTextClass,
+      isLoading: loading,
+      originalAmount: stats.unreadMessages
     },
     {
-      key: 'pendingDeliveries',
       title: 'Livraisons en attente',
       value: stats.pendingDeliveries,
-      icon: STAT_CARD_ICONS.pendingDeliveries,
-      ...STAT_CARD_STYLES.pendingDeliveries,
+      icon: Clock,
+      iconBgClass: STAT_CARD_STYLES.pendingDeliveries.iconBgClass,
+      iconTextClass: STAT_CARD_STYLES.pendingDeliveries.iconTextClass,
       subtitleText: 'À livrer',
-      mobileColSpan: 'col-span-1'
+      subtitleBgClass: STAT_CARD_STYLES.pendingDeliveries.subtitleBgClass,
+      subtitleTextClass: STAT_CARD_STYLES.pendingDeliveries.subtitleTextClass,
+      cardBgClass: STAT_CARD_STYLES.pendingDeliveries.cardBgClass,
+      valueTextClass: STAT_CARD_STYLES.pendingDeliveries.valueTextClass,
+      isLoading: loading,
+      originalAmount: stats.pendingDeliveries
     },
     {
-      key: 'totalEarnings',
       title: 'Revenus totaux',
-      value: formatPrice(stats.totalEarnings),
-      icon: STAT_CARD_ICONS.totalEarnings,
-      ...STAT_CARD_STYLES.totalEarnings,
+      value: stats.totalEarnings,
+      icon: CreditCard,
+      iconBgClass: STAT_CARD_STYLES.totalEarnings.iconBgClass,
+      iconTextClass: STAT_CARD_STYLES.totalEarnings.iconTextClass,
       subtitleText: 'Depuis le début',
-      mobileColSpan: 'col-span-2'
+      subtitleBgClass: STAT_CARD_STYLES.totalEarnings.subtitleBgClass,
+      subtitleTextClass: STAT_CARD_STYLES.totalEarnings.subtitleTextClass,
+      cardBgClass: STAT_CARD_STYLES.totalEarnings.cardBgClass,
+      valueTextClass: STAT_CARD_STYLES.totalEarnings.valueTextClass,
+      isLoading: loading,
+      originalAmount: stats.totalEarnings
     },
     {
-      key: 'servicesCount',
       title: 'Services actifs',
       value: stats.servicesCount,
-      icon: STAT_CARD_ICONS.servicesCount,
-      ...STAT_CARD_STYLES.servicesCount,
+      icon: ShoppingCart,
+      iconBgClass: STAT_CARD_STYLES.servicesCount.iconBgClass,
+      iconTextClass: STAT_CARD_STYLES.servicesCount.iconTextClass,
       subtitleText: 'Visibles aux clients',
-      mobileColSpan: 'col-span-2'
+      subtitleBgClass: STAT_CARD_STYLES.servicesCount.subtitleBgClass,
+      subtitleTextClass: STAT_CARD_STYLES.servicesCount.subtitleTextClass,
+      cardBgClass: STAT_CARD_STYLES.servicesCount.cardBgClass,
+      valueTextClass: STAT_CARD_STYLES.servicesCount.valueTextClass,
+      isLoading: loading,
+      originalAmount: stats.servicesCount
     }
-  ], [stats]);
+  ], [stats, loading]);
 
   return (
-    <div className="grid grid-cols-3 gap-2 sm:grid-cols-5 sm:gap-4 mb-4 sm:mb-6">
+    <div className="grid grid-cols-2 md:grid-cols-5 gap-2 md:gap-4 xl:gap-6">
       {statCards.map((card) => (
-        <div key={card.key} className={`${card.mobileColSpan} sm:col-span-1`}>
+        <div key={card.title} className="col-span-1">
           <StatCard
             title={card.title}
             value={card.value}
             icon={card.icon}
             iconBgClass={card.iconBgClass}
             iconTextClass={card.iconTextClass}
-            subtitleText={card.subtitleText}
             subtitleBgClass={card.subtitleBgClass}
             subtitleTextClass={card.subtitleTextClass}
             cardBgClass={card.cardBgClass}
             valueTextClass={card.valueTextClass}
-            isLoading={loading}
+            subtitleText={card.subtitleText}
+            originalAmount={card.originalAmount}
+            isLoading={card.isLoading}
           />
         </div>
       ))}

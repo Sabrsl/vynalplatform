@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useCallback } from "react";
+import React, { useMemo, useCallback, useState, useEffect } from "react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,6 +9,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -17,6 +18,7 @@ import { AlertCircle, ArrowLeft, Calendar, Clock, Tag, CheckCircle, XCircle, Ale
 import { ServiceWithFreelanceAndCategories } from "@/hooks/useServices";
 import { Loader } from "@/components/ui/loader";
 import Image from 'next/image';
+import { PriceDisplay } from './PriceDisplay';
 
 // Extension du type avec vérifications strictes pour la robustesse
 interface ExtendedService extends ServiceWithFreelanceAndCategories {
@@ -242,7 +244,7 @@ const ServiceDetails: React.FC<ServiceDetailsProps> = ({
                   "text-base sm:text-lg text-right whitespace-nowrap mt-2 font-bold",
                   isDarkMode ? "text-vynal-accent-primary" : "text-slate-800"
                 )}>
-                  {formatPrice(service.price || 0)}
+                  <PriceDisplay price={service.price || 0} showFixedIndicator={true} />
                 </div>
               </div>
               

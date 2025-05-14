@@ -15,6 +15,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip/index";
+import { CurrencyDisplay } from "@/components/ui/CurrencyDisplay";
+import useCurrency from "@/hooks/useCurrency";
 
 // Type pour les props
 interface FreelancePricingCalculatorProps {
@@ -68,9 +70,34 @@ export default function FreelancePricingCalculator({ defaultCurrency = "XOF" }: 
   const [monthlyRate, setMonthlyRate] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(false);
   const [currency, setCurrency] = useState<string>(defaultCurrency);
+  const [availableCurrencies, setAvailableCurrencies] = useState<any[]>([]);
 
   // État pour la méthode de calcul
   const [calculationMethod, setCalculationMethod] = useState<string>("market");
+
+  // Hooks de formatage et conversion des devises
+  const { loading: currencyLoading, formatAmount, currency: detectedCurrency } = useCurrency();
+
+  // Charger les devises disponibles depuis le fichier JSON
+  useEffect(() => {
+    const loadCurrencies = async () => {
+      try {
+        const response = await fetch('/data/currencies.json');
+        const currenciesData = await response.json();
+        setAvailableCurrencies(currenciesData);
+      } catch (error) {
+        console.error("Erreur lors du chargement des devises:", error);
+        // Fallback avec les devises par défaut
+        setAvailableCurrencies([
+          { code: "XOF", name: "Franc CFA" },
+          { code: "EUR", name: "Euro" },
+          { code: "USD", name: "Dollar US" }
+        ]);
+      }
+    };
+    
+    loadCurrencies();
+  }, []);
 
   // Calcul des tarifs
   useEffect(() => {
@@ -107,12 +134,9 @@ export default function FreelancePricingCalculator({ defaultCurrency = "XOF" }: 
       
       // Convertir les taux si nécessaire
       let rateMultiplier = 1;
-      if (currency === "EUR" && defaultCurrency === "XOF") {
-        rateMultiplier = 1/655.957;
-      } else if (currency === "USD" && defaultCurrency === "XOF") {
-        rateMultiplier = 1/600;
-      } else if (currency === "XOF" && defaultCurrency !== "XOF") {
-        rateMultiplier = 1;
+      const selectedCurrency = availableCurrencies.find(c => c.code === currency);
+      if (selectedCurrency) {
+        rateMultiplier = selectedCurrency.rate_to_xof;
       }
       
       const finalHourlyRate = calculatedHourlyRate * rateMultiplier;
@@ -125,10 +149,16 @@ export default function FreelancePricingCalculator({ defaultCurrency = "XOF" }: 
     }, 500);
     
     return () => clearTimeout(timer);
-  }, [sector, location, experience, specialization, hours, expenses, calculationMethod, currency, defaultCurrency]);
+  }, [sector, location, experience, specialization, hours, expenses, calculationMethod, currency, defaultCurrency, availableCurrencies]);
 
-  // Formatage de la devise
+  // Formatage de la devise (version locale utilisée uniquement dans le composant pour le partage)
   const formatCurrency = (amount: number) => {
+    // Si le hook a chargé, utiliser sa fonction de formatage
+    if (!currencyLoading) {
+      return formatAmount(amount);
+    }
+    
+    // Fallback au formatage classique
     if (currency === "XOF") {
       return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF', maximumFractionDigits: 0 }).format(amount);
     }
@@ -339,12 +369,10 @@ export default function FreelancePricingCalculator({ defaultCurrency = "XOF" }: 
                 </div>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                    {currency === "EUR" ? (
-                      <Euro className="h-4 w-4 text-vynal-text-secondary" />
-                    ) : currency === "XOF" ? (
-                      <span className="text-xs font-semibold text-vynal-text-secondary">FCFA</span>
-                    ) : (
-                      <DollarSign className="h-4 w-4 text-vynal-text-secondary" />
+                    {availableCurrencies.find(c => c.code === currency)?.symbol && (
+                      <span className="text-xs font-semibold text-vynal-text-secondary">
+                        {availableCurrencies.find(c => c.code === currency)?.symbol}
+                      </span>
                     )}
                   </div>
                   <Input
@@ -352,7 +380,7 @@ export default function FreelancePricingCalculator({ defaultCurrency = "XOF" }: 
                     min={0}
                     value={expenses}
                     onChange={(e) => setExpenses(Number(e.target.value))}
-                    className={`${currency === "XOF" ? "pl-14" : "pl-10"} bg-vynal-purple-darkest/50 border-vynal-purple-secondary/30 text-vynal-text-primary focus:ring-vynal-accent-primary focus-visible:ring-vynal-accent-primary`}
+                    className={`${(availableCurrencies.find(c => c.code === currency)?.symbol?.length || 0) > 1 ? "pl-12" : "pl-10"} bg-vynal-purple-darkest/50 border-vynal-purple-secondary/30 text-vynal-text-primary focus:ring-vynal-accent-primary focus-visible:ring-vynal-accent-primary`}
                   />
                 </div>
               </div>
@@ -425,9 +453,11 @@ export default function FreelancePricingCalculator({ defaultCurrency = "XOF" }: 
                   <SelectValue placeholder="XOF" />
                 </SelectTrigger>
                 <SelectContent className="bg-vynal-purple-darkest border-vynal-purple-secondary/30 text-vynal-text-primary">
-                  <SelectItem value="XOF">FCFA</SelectItem>
-                  <SelectItem value="EUR">EUR</SelectItem>
-                  <SelectItem value="USD">USD</SelectItem>
+                  {availableCurrencies.map((curr) => (
+                    <SelectItem key={curr.code} value={curr.code}>
+                      {curr.symbol} {curr.code}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -446,7 +476,7 @@ export default function FreelancePricingCalculator({ defaultCurrency = "XOF" }: 
                   </CardHeader>
                   <CardContent>
                     <p className="text-3xl font-bold text-vynal-accent-primary">
-                      {formatCurrency(hourlyRate)}
+                      <CurrencyDisplay amount={hourlyRate} displayFullName={true} />
                     </p>
                     <p className="text-sm text-vynal-text-secondary mt-1">par heure</p>
                   </CardContent>
@@ -458,7 +488,7 @@ export default function FreelancePricingCalculator({ defaultCurrency = "XOF" }: 
                   </CardHeader>
                   <CardContent>
                     <p className="text-3xl font-bold text-vynal-accent-primary">
-                      {formatCurrency(dailyRate)}
+                      <CurrencyDisplay amount={dailyRate} displayFullName={true} />
                     </p>
                     <p className="text-sm text-vynal-text-secondary mt-1">par jour (8h)</p>
                   </CardContent>
@@ -470,7 +500,7 @@ export default function FreelancePricingCalculator({ defaultCurrency = "XOF" }: 
                   </CardHeader>
                   <CardContent>
                     <p className="text-3xl font-bold text-vynal-accent-primary">
-                      {formatCurrency(monthlyRate)}
+                      <CurrencyDisplay amount={monthlyRate} displayFullName={true} />
                     </p>
                     <p className="text-sm text-vynal-text-secondary mt-1">par mois ({hours}h)</p>
                   </CardContent>

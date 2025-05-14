@@ -23,6 +23,7 @@ import { useRecommendedFreelancers } from "@/hooks/useRecommendedFreelancers";
 import { ClientGuard } from "@/lib/guards/roleGuards";
 import { useOptimizedDashboard } from "@/hooks/useDashboard";
 import { CLIENT_ROUTES } from "@/config/routes";
+import { CurrencyDisplay } from "@/components/ui/CurrencyDisplay";
 
 // Types définis
 interface Order {
@@ -246,7 +247,9 @@ export default function ClientDashboardPage() {
                 <span className="text-[10px] sm:text-xs font-semibold text-blue-500">₣</span>
               </CardHeader>
               <CardContent className="p-0 pt-1 sm:pt-1">
-                <div className="text-lg sm:text-xl font-bold text-red-600 dark:text-red-400">{formatCurrency(stats.totalSpent)}</div>
+                <div className="text-lg sm:text-xl font-bold text-red-600 dark:text-red-400">
+                  <CurrencyDisplay amount={stats.totalSpent} displayFullName={true} />
+                </div>
                 <p className={`text-[8px] sm:text-[10px] ${subtitleClasses}`}>
                   <span className="flex items-center">
                     <TrendingUp className="h-2 w-2 mr-1 text-emerald-500" />
@@ -319,7 +322,7 @@ export default function ClientDashboardPage() {
                           </div>
                           <div className="flex items-center justify-between mt-2">
                             <span className="text-[8px] sm:text-[10px] font-medium text-vynal-accent-primary">
-                              {order.total_amount} FCFA
+                              <CurrencyDisplay amount={order.total_amount || 0} displayFullName={true} />
                             </span>
                             <div className="flex items-center text-[8px] sm:text-[10px] text-slate-500 dark:text-vynal-text-secondary/70">
                               <Clock className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1 opacity-70" />

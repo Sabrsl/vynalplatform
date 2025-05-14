@@ -9,6 +9,7 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { Order, OrderStatus } from "@/types/orders";
 import { formatPrice } from "@/lib/utils";
 import { FREELANCE_ROUTES, CLIENT_ROUTES } from "@/config/routes";
+import { CurrencyDisplay } from "@/components/ui/CurrencyDisplay";
 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -361,7 +362,7 @@ export function OrderSidebar({
                 Montant
               </p>
               <p className="text-[8px] sm:text-[9px] font-medium text-vynal-purple-light dark:text-vynal-text-primary">
-                {formatPrice(order.price)}
+                <CurrencyDisplay amount={order.price} />
               </p>
             </div>
             <div>
@@ -386,7 +387,9 @@ export function OrderSidebar({
         <div className="space-y-2 border-t border-b border-vynal-purple-secondary/10 dark:border-vynal-purple-secondary/20 py-2 sm:py-3 my-2 sm:my-3">
           <div className="flex justify-between items-center">
             <span className="text-xs sm:text-sm text-vynal-purple-secondary dark:text-vynal-text-secondary">Prix:</span>
-            <span className="font-medium text-sm sm:text-base text-vynal-purple-light dark:text-vynal-text-primary">{order.service.price} €</span>
+            <span className="font-medium text-sm sm:text-base text-vynal-purple-light dark:text-vynal-text-primary">
+              <CurrencyDisplay amount={order.service.price} />
+            </span>
           </div>
           
           {order.payment_status && (

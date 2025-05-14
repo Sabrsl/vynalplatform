@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useUser } from "@/hooks/useUser";
@@ -49,7 +49,7 @@ export default function ServiceDetailsPage({
   const serviceId = typeof params.id === 'string' ? params.id : Array.isArray(params.id) ? params.id[0] : '';
   
   // Charger les détails du service avec gestion des erreurs améliorée
-  const loadServiceDetails = async (force = false) => {
+  const loadServiceDetails = useCallback(async (force = false) => {
     if (!serviceId || !profile) return;
     
     // Limiter la fréquence des actualisations (pas plus d'une fois toutes les 2 secondes)
@@ -102,14 +102,14 @@ export default function ServiceDetailsPage({
       setLoading(false);
       setIsRefreshing(false);
     }
-  };
+  }, [serviceId, profile, getServiceById, setLoading, setIsRefreshing, setError, setService, setLastUpdateTime, setIsPendingValidation]);
   
   // Chargement initial des données
   useEffect(() => {
     if (profile && serviceId) {
       loadServiceDetails(true);
     }
-  }, [serviceId, profile]);
+  }, [serviceId, profile, loadServiceDetails]);
   
   // Configurer la souscription aux mises à jour en temps réel
   useEffect(() => {
@@ -198,19 +198,12 @@ export default function ServiceDetailsPage({
         })
       .subscribe();
     
-    // Ajouter l'écouteur d'événements pour les changements de statut
-    window.addEventListener('vynal:service-status-change', handleStatusChange as EventListener);
-    
-    // Nettoyer à la désinscription
     return () => {
-      window.removeEventListener('vynal:service-status-change', handleStatusChange as EventListener);
-      
       if (supabaseChannel.current) {
         supabase.removeChannel(supabaseChannel.current);
-        supabaseChannel.current = null;
       }
     };
-  }, [serviceId, service, toast]);
+  }, [serviceId, service, loadServiceDetails, toast]);
   
   // Rediriger si l'utilisateur n'est pas connecté
   useEffect(() => {
