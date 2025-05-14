@@ -37,33 +37,25 @@ import {
     private static async ensureStorageFile() {
       if (isServer) {
         try {
-          console.log("Vérification du fichier de stockage:", STORAGE_PATH);
           // Vérifier si le fichier existe
           await fs.access(STORAGE_PATH);
-          console.log("Le fichier de stockage existe déjà");
         } catch (error) {
           // Le fichier n'existe pas, créer le répertoire et le fichier
-          console.log("Le fichier de stockage n'existe pas, création...");
           try {
             // Créer le répertoire parent si nécessaire
             const dirPath = path.dirname(STORAGE_PATH);
-            console.log("Création du répertoire si nécessaire:", dirPath);
             
             try {
               await fs.mkdir(dirPath, { recursive: true });
-              console.log("Répertoire créé ou existant:", dirPath);
             } catch (mkdirError) {
-              console.error("Erreur lors de la création du répertoire:", mkdirError);
               // Vérifier si le répertoire existe malgré l'erreur
               try {
                 const dirStat = await fs.stat(dirPath);
-                if (dirStat.isDirectory()) {
-                  console.log("Le répertoire existe malgré l'erreur");
-                } else {
+                if (!dirStat.isDirectory()) {
                   throw new Error("Le chemin existe mais n'est pas un répertoire");
                 }
               } catch (statError) {
-                console.error("Erreur lors de la vérification du répertoire:", statError);
+                console.error("Erreur lors de l'accès au répertoire de stockage");
                 throw new Error("Impossible de créer ou d'accéder au répertoire");
               }
             }
@@ -75,18 +67,13 @@ import {
               last_updated: new Date().toISOString()
             };
             
-            console.log("Écriture du fichier initial:", STORAGE_PATH);
             await fs.writeFile(STORAGE_PATH, JSON.stringify(initialData, null, 2), 'utf8');
-            console.log("Fichier de stockage créé avec succès:", STORAGE_PATH);
           } catch (createError) {
-            console.error("Erreur lors de la création du fichier de stockage:", createError);
+            console.error("Erreur lors de la création du fichier de stockage");
             // En cas d'erreur de création, utiliser un cache en mémoire temporaire
             if (!this.cache.features) this.cache.features = [];
             if (!this.cache.incidents) this.cache.incidents = [];
             this.cache.lastUpdated = Date.now();
-            
-            // Pas d'erreur remontée pour permettre de continuer avec le cache en mémoire
-            console.log("Initialisation du cache en mémoire suite à l'erreur");
           }
         }
       }
@@ -102,16 +89,13 @@ import {
           await this.ensureStorageFile();
           
           // Côté serveur, lire le fichier
-          console.log("Tentative de lecture du fichier:", STORAGE_PATH);
           try {
             const data = await fs.readFile(STORAGE_PATH, 'utf8');
-            console.log("Fichier lu avec succès:", STORAGE_PATH);
             let parsedData;
             try {
               parsedData = JSON.parse(data);
-              console.log("Données JSON analysées avec succès");
             } catch (parseError) {
-              console.error("Erreur lors de l'analyse JSON:", parseError);
+              console.error("Erreur lors de l'analyse des données JSON");
               parsedData = { features: [], incidents: [] };
             }
             
@@ -119,13 +103,10 @@ import {
             this.cache.incidents = parsedData.incidents || [];
             this.cache.lastUpdated = Date.now();
             
-            console.log(`Données chargées: ${this.cache.features?.length || 0} fonctionnalités, ${this.cache.incidents?.length || 0} incidents`);
             return parsedData;
           } catch (readError) {
-            console.error("Erreur de lecture du fichier:", STORAGE_PATH, readError);
             // Fallback pour la production - données statiques
             if (process.env.NODE_ENV === 'production') {
-              console.log("Utilisation de données statiques de secours en production");
               // Données de secours statiques
               const fallbackData = {
                 features: [
@@ -157,7 +138,6 @@ import {
             }
             
             // En cas d'erreur de lecture, utiliser le cache ou des données vides
-            console.log("Utilisation des données en cache");
             if (!this.cache.features) this.cache.features = [];
             if (!this.cache.incidents) this.cache.incidents = [];
             this.cache.lastUpdated = Date.now();
@@ -182,7 +162,7 @@ import {
           };
         }
       } catch (error) {
-        console.error("Erreur lors du chargement des données:", error);
+        console.error("Erreur lors du chargement des données");
         // En cas d'erreur, retourner des données vides
         if (!this.cache.features) this.cache.features = [];
         if (!this.cache.incidents) this.cache.incidents = [];
@@ -205,7 +185,6 @@ import {
           await this.ensureStorageFile();
           
           // Côté serveur, écrire dans le fichier
-          console.log("Tentative d'écriture dans le fichier:", STORAGE_PATH);
           const data = {
             features: this.cache.features,
             incidents: this.cache.incidents,
@@ -214,16 +193,15 @@ import {
           
           try {
             await fs.writeFile(STORAGE_PATH, JSON.stringify(data, null, 2), 'utf8');
-            console.log("Fichier écrit avec succès");
           } catch (writeError) {
-            console.error("Erreur d'écriture, données conservées uniquement en cache:", writeError);
+            console.error("Erreur d'écriture, données conservées uniquement en cache");
           }
         } else {
           // Côté client, on ne peut pas écrire directement dans le fichier
           console.warn("Tentative d'écriture côté client. Utilisez les API endpoints.");
         }
       } catch (error) {
-        console.error("Erreur lors de la sauvegarde des données:", error);
+        console.error("Erreur lors de la sauvegarde des données");
       }
     }
   
@@ -241,7 +219,6 @@ import {
           this.cache.lastUpdated && 
           now - this.cache.lastUpdated < this.CACHE_EXPIRY
         ) {
-          console.log("Utilisation du cache pour getFeatures");
           return this.cache.features;
         }
   
@@ -249,7 +226,7 @@ import {
         const data = await this.loadData();
         return this.cache.features || [];
       } catch (error) {
-        console.error("Erreur lors de la récupération des fonctionnalités:", error);
+        console.error("Erreur lors de la récupération des fonctionnalités");
         return this.cache.features || [];
       }
     }
@@ -268,7 +245,6 @@ import {
           this.cache.lastUpdated && 
           now - this.cache.lastUpdated < this.CACHE_EXPIRY
         ) {
-          console.log("Utilisation du cache pour getIncidents");
           return this.cache.incidents;
         }
   
@@ -276,7 +252,7 @@ import {
         const data = await this.loadData();
         return this.cache.incidents || [];
       } catch (error) {
-        console.error("Erreur lors de la récupération des incidents:", error);
+        console.error("Erreur lors de la récupération des incidents");
         return this.cache.incidents || [];
       }
     }
@@ -322,7 +298,7 @@ import {
         
         return updatedFeature;
       } catch (error) {
-        console.error("Erreur lors de la mise à jour du statut:", error);
+        console.error("Erreur lors de la mise à jour du statut");
         throw error;
       }
     }
@@ -348,7 +324,7 @@ import {
         const feature = this.cache.features.find(f => f.id === featureId);
         return feature || null;
       } catch (error) {
-        console.error("Erreur lors de la récupération de la fonctionnalité:", error);
+        console.error("Erreur lors de la récupération de la fonctionnalité");
         throw error;
       }
     }
@@ -378,7 +354,7 @@ import {
           new Date(b.started_at).getTime() - new Date(a.started_at).getTime()
         );
       } catch (error) {
-        console.error("Erreur lors de la récupération des incidents:", error);
+        console.error("Erreur lors de la récupération des incidents par fonctionnalité");
         throw error;
       }
     }
@@ -464,7 +440,7 @@ import {
         
         return newIncident;
       } catch (error) {
-        console.error("Erreur lors de la création d'un incident:", error);
+        console.error("Erreur lors de la création d'un incident");
         throw error;
       }
     }
@@ -555,7 +531,7 @@ import {
         
         return updatedIncident;
       } catch (error) {
-        console.error("Erreur lors de la mise à jour de l'incident:", error);
+        console.error("Erreur lors de la mise à jour de l'incident");
         throw error;
       }
     }
