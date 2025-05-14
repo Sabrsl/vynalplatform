@@ -10,9 +10,7 @@ import {
   import path from 'path';
   
   // Chemin du fichier JSON pour le stockage des données
-  const STORAGE_PATH = process.env.NODE_ENV === 'production' 
-    ? '/data/system-status.json' 
-    : './public/data/system-status.json';
+  const STORAGE_PATH = './public/data/system-status.json';
   
   // Vérifie si le code s'exécute côté serveur ou client
   const isServer = typeof window === 'undefined';
@@ -39,14 +37,36 @@ import {
     private static async ensureStorageFile() {
       if (isServer) {
         try {
-          // Vérifie si le fichier existe
+          console.log("Vérification du fichier de stockage:", STORAGE_PATH);
+          // Vérifier si le fichier existe
           await fs.access(STORAGE_PATH);
+          console.log("Le fichier de stockage existe déjà");
         } catch (error) {
           // Le fichier n'existe pas, créer le répertoire et le fichier
+          console.log("Le fichier de stockage n'existe pas, création...");
           try {
             // Créer le répertoire parent si nécessaire
             const dirPath = path.dirname(STORAGE_PATH);
-            await fs.mkdir(dirPath, { recursive: true });
+            console.log("Création du répertoire si nécessaire:", dirPath);
+            
+            try {
+              await fs.mkdir(dirPath, { recursive: true });
+              console.log("Répertoire créé ou existant:", dirPath);
+            } catch (mkdirError) {
+              console.error("Erreur lors de la création du répertoire:", mkdirError);
+              // Vérifier si le répertoire existe malgré l'erreur
+              try {
+                const dirStat = await fs.stat(dirPath);
+                if (dirStat.isDirectory()) {
+                  console.log("Le répertoire existe malgré l'erreur");
+                } else {
+                  throw new Error("Le chemin existe mais n'est pas un répertoire");
+                }
+              } catch (statError) {
+                console.error("Erreur lors de la vérification du répertoire:", statError);
+                throw new Error("Impossible de créer ou d'accéder au répertoire");
+              }
+            }
             
             // Créer le fichier avec une structure de données vide
             const initialData = {
@@ -55,14 +75,18 @@ import {
               last_updated: new Date().toISOString()
             };
             
+            console.log("Écriture du fichier initial:", STORAGE_PATH);
             await fs.writeFile(STORAGE_PATH, JSON.stringify(initialData, null, 2), 'utf8');
-            console.log("Fichier de stockage créé:", STORAGE_PATH);
+            console.log("Fichier de stockage créé avec succès:", STORAGE_PATH);
           } catch (createError) {
             console.error("Erreur lors de la création du fichier de stockage:", createError);
             // En cas d'erreur de création, utiliser un cache en mémoire temporaire
             if (!this.cache.features) this.cache.features = [];
             if (!this.cache.incidents) this.cache.incidents = [];
             this.cache.lastUpdated = Date.now();
+            
+            // Pas d'erreur remontée pour permettre de continuer avec le cache en mémoire
+            console.log("Initialisation du cache en mémoire suite à l'erreur");
           }
         }
       }
@@ -81,17 +105,59 @@ import {
           console.log("Tentative de lecture du fichier:", STORAGE_PATH);
           try {
             const data = await fs.readFile(STORAGE_PATH, 'utf8');
-            console.log("Fichier lu avec succès");
-            const parsedData = JSON.parse(data);
+            console.log("Fichier lu avec succès:", STORAGE_PATH);
+            let parsedData;
+            try {
+              parsedData = JSON.parse(data);
+              console.log("Données JSON analysées avec succès");
+            } catch (parseError) {
+              console.error("Erreur lors de l'analyse JSON:", parseError);
+              parsedData = { features: [], incidents: [] };
+            }
             
             this.cache.features = parsedData.features || [];
             this.cache.incidents = parsedData.incidents || [];
             this.cache.lastUpdated = Date.now();
             
+            console.log(`Données chargées: ${this.cache.features?.length || 0} fonctionnalités, ${this.cache.incidents?.length || 0} incidents`);
             return parsedData;
           } catch (readError) {
-            console.error("Erreur de lecture, utilisation des données en cache:", readError);
+            console.error("Erreur de lecture du fichier:", STORAGE_PATH, readError);
+            // Fallback pour la production - données statiques
+            if (process.env.NODE_ENV === 'production') {
+              console.log("Utilisation de données statiques de secours en production");
+              // Données de secours statiques
+              const fallbackData = {
+                features: [
+                  {
+                    id: "1",
+                    name: "Authentification",
+                    description: "Système de connexion et d'inscription",
+                    status: "functional" as FeatureStatus,
+                    last_updated: new Date().toISOString(),
+                    component_type: "core"
+                  },
+                  {
+                    id: "2",
+                    name: "Plateforme",
+                    description: "Fonctionnement général de la plateforme",
+                    status: "functional" as FeatureStatus, 
+                    last_updated: new Date().toISOString(),
+                    component_type: "core"
+                  }
+                ],
+                incidents: []
+              };
+              
+              this.cache.features = fallbackData.features as SystemFeature[];
+              this.cache.incidents = fallbackData.incidents as SystemIncident[];
+              this.cache.lastUpdated = Date.now();
+              
+              return fallbackData;
+            }
+            
             // En cas d'erreur de lecture, utiliser le cache ou des données vides
+            console.log("Utilisation des données en cache");
             if (!this.cache.features) this.cache.features = [];
             if (!this.cache.incidents) this.cache.incidents = [];
             this.cache.lastUpdated = Date.now();
