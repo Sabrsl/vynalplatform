@@ -98,14 +98,14 @@ export async function middleware(req: NextRequest) {
       const { data, error } = await supabase.rpc('get_user_role');
       
       if (error) {
-        console.error("Erreur lors de la récupération du rôle:", error);
+        console.error("Erreur lors de la récupération du rôle");
         return null;
       }
       
       userRole = data;
       return data;
     } catch (err) {
-      console.error("Exception lors de la récupération du rôle:", err);
+      console.error("Erreur lors de la récupération du rôle");
       return null;
     }
   };

@@ -143,7 +143,7 @@ export function CurrencyDisplay({
       data-force-update={forceUpdate}
       data-currency-code={currency.code}
       data-display-mode={displayFullName ? 'full-name' : 'symbol'}
-      className={cn("currency-display", className)}
+      className={cn("currency-display dark:text-vynal-accent-primary", className)}
       style={{ 
         // Animation CSS pour la mise à jour de devise
         "--highlight-color": "rgba(56, 189, 248, 0.2)",

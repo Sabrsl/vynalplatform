@@ -66,29 +66,23 @@ export function useFreelanceStats(freelanceId: string | undefined): UseFreelance
   const fetchStats = useCallback(async (forceRefresh = false): Promise<void> => {
     // Early return if no freelanceId provided
     if (!freelanceId) {
-      console.log("[useFreelanceStats] No freelanceId provided");
       setError(new Error('No freelance ID provided'));
       return;
     }
     
-    console.log("[useFreelanceStats] Starting fetch for freelanceId:", freelanceId);
-    
     // Prevent too frequent refreshes unless forced
     const now = Date.now();
     if (!forceRefresh && now - lastFetchRef.current < THROTTLE_MS) {
-      console.log("[useFreelanceStats] Throttled, skipping fetch");
       return;
     }
     
     // Cancel any existing request before starting a new one
     if (abortControllerRef.current) {
-      console.log("[useFreelanceStats] Aborting previous request");
       abortControllerRef.current.abort();
     }
     
     // Prevent concurrent fetches
     if (loadingRef.current && !forceRefresh) {
-      console.log("[useFreelanceStats] Already loading, skipping fetch");
       return;
     }
     
@@ -101,8 +95,6 @@ export function useFreelanceStats(freelanceId: string | undefined): UseFreelance
     
     try {
       lastFetchRef.current = now;
-      
-      console.log("[useFreelanceStats] Starting parallel requests");
       
       // Run parallel requests for better performance
       const [
@@ -162,15 +154,8 @@ export function useFreelanceStats(freelanceId: string | undefined): UseFreelance
           .throwOnError()
       ]);
       
-      console.log("[useFreelanceStats] Parallel requests completed");
-      console.log("[useFreelanceStats] Services response:", servicesResponse);
-      console.log("[useFreelanceStats] Orders response:", ordersResponse);
-      console.log("[useFreelanceStats] Conversations response:", conversationsResponse);
-      console.log("[useFreelanceStats] Notifications response:", notificationsResponse);
-      
       // Process services data
       const activeServices = servicesResponse.data?.filter(s => s.active).length || 0;
-      console.log("[useFreelanceStats] Active services:", activeServices);
       
       // Process orders data
       const totalOrders = ordersResponse.data?.length || 0;
@@ -234,7 +219,7 @@ export function useFreelanceStats(freelanceId: string | undefined): UseFreelance
       setLastUpdated(now);
       
     } catch (error) {
-      console.error("[useFreelanceStats] Error fetching stats:", error);
+      console.error("[useFreelanceStats] Erreur lors de la récupération des statistiques");
       setError(error instanceof Error ? error : new Error('Unknown error occurred'));
     } finally {
       loadingRef.current = false;

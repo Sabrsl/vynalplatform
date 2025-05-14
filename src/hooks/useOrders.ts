@@ -74,7 +74,7 @@ async function checkRPCFunctionExists(functionName: string): Promise<boolean> {
     
     return !doesNotExist;
   } catch (e) {
-    console.error(`Erreur lors de la vérification de la fonction RPC ${functionName}:`, e);
+    console.error(`Erreur lors de la vérification de la fonction RPC`);
     return false;
   }
 }
@@ -150,7 +150,7 @@ export function useOrders(options: UseOrdersOptions = {}) {
       });
       
       if (error) {
-        console.error("[Orders] Erreur RPC stats:", error.message, error.details);
+        console.error("Erreur RPC stats");
         return null;
       }
       
@@ -161,7 +161,7 @@ export function useOrders(options: UseOrdersOptions = {}) {
       
       return null;
     } catch (e) {
-      console.error("[Orders] Exception lors de l'appel RPC pour les stats:", e);
+      console.error("Exception lors de l'appel RPC pour les stats");
       return null;
     }
   }, [profile?.id, isFreelance]);
@@ -319,7 +319,7 @@ export function useOrders(options: UseOrdersOptions = {}) {
         const { data, error, count } = await query;
         
         if (error) {
-          console.error("[Orders] Erreur Supabase:", error.message, error.details);
+          console.error("Erreur Supabase");
           setError(`Erreur de récupération: ${error.message}`);
           return;
         }
@@ -387,11 +387,11 @@ export function useOrders(options: UseOrdersOptions = {}) {
           setTotalCount(0);
         }
       } catch (innerError: any) {
-        console.error("[Orders] Exception pendant l'exécution de la requête:", innerError);
+        console.error("Exception pendant l'exécution de la requête");
         setError(`Erreur pendant la récupération: ${innerError.message || 'Erreur inconnue'}`);
       }
     } catch (e: any) {
-      console.error("[Orders] Exception globale:", e);
+      console.error("Exception globale");
       setError(`Erreur générale: ${e.message || 'Erreur inconnue'}`);
     } finally {
       setLoading(false);

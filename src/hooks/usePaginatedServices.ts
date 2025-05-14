@@ -256,7 +256,7 @@ export function usePaginatedServices({
 
         // Gérer les erreurs
         if (supabaseError) {
-          console.error('Erreur Supabase:', supabaseError);
+          console.error('Erreur Supabase');
           throw new Error(`Erreur de recherche: ${supabaseError.message}`);
         }
         if (signal.aborted || refs.current.currentRequestId !== requestId) {

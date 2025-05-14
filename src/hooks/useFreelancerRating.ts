@@ -158,7 +158,7 @@ export function useFreelancerRating(freelanceId: string | null | undefined): Use
         });
       }
     } catch (err: any) {
-      console.error('Erreur lors du chargement des avis:', err);
+      console.error('Erreur lors du chargement des avis');
       
       // Mettre à jour l'état d'erreur seulement si le composant est toujours monté
       if (refs.current.isMounted && err.message !== "Requête annulée") {

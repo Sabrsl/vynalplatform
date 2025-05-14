@@ -64,7 +64,7 @@ export function useOrderData(serviceId: string) {
           .single();
         
         if (error) {
-          console.error("Erreur lors de la récupération du service:", error);
+          console.error("Erreur lors de la récupération du service");
           setError("Impossible de récupérer les détails du service.");
           hotToast.error("Impossible de récupérer les détails du service");
           return;
@@ -74,7 +74,7 @@ export function useOrderData(serviceId: string) {
           setService(data);
         }
       } catch (err) {
-        console.error("Erreur inattendue:", err);
+        console.error("Erreur inattendue");
         setError("Une erreur est survenue lors du chargement des détails du service.");
         hotToast.error("Une erreur est survenue lors du chargement du service");
       } finally {
@@ -97,7 +97,7 @@ export function useOrderData(serviceId: string) {
         }));
       }
     } catch (err) {
-      console.error("Erreur lors de la récupération des données:", err);
+      console.error("Erreur lors de la récupération des données");
       hotToast.error("Erreur lors du chargement des données précédentes");
     }
   }, [serviceId]);
@@ -109,7 +109,7 @@ export function useOrderData(serviceId: string) {
       setOrderData(updatedData);
       localStorage.setItem(`order_${serviceId}`, JSON.stringify(updatedData));
     } catch (err) {
-      console.error("Erreur lors de la sauvegarde des données:", err);
+      console.error("Erreur lors de la sauvegarde des données");
       setError("Erreur lors de la sauvegarde des données");
     }
   }, [orderData, serviceId]);

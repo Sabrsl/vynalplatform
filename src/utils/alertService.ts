@@ -53,7 +53,7 @@ export class AlertService {
       });
       
       if (error) {
-        console.error('Erreur lors de la création de l\'alerte:', error);
+        console.error("Erreur lors de la création de l'alerte");
         return null;
       }
       
@@ -96,7 +96,7 @@ export class AlertService {
       const { data, error } = await query;
       
       if (error) {
-        console.error('Erreur lors de la récupération des alertes:', error);
+        console.error("Erreur lors de la récupération des alertes");
         return [];
       }
       
@@ -120,7 +120,7 @@ export class AlertService {
         .eq('status', 'active');
       
       if (error) {
-        console.error('Erreur lors du comptage des alertes:', error);
+        console.error("Erreur lors du comptage des alertes");
         return 0;
       }
       
@@ -144,7 +144,7 @@ export class AlertService {
         .eq('id', alertId);
       
       if (error) {
-        console.error('Erreur lors de la mise à jour du statut de l\'alerte:', error);
+        console.error("Erreur lors de la mise à jour du statut de l'alerte");
         return false;
       }
       
@@ -168,7 +168,7 @@ export class AlertService {
         .eq('id', alertId);
       
       if (error) {
-        console.error('Erreur lors de la suppression de l\'alerte:', error);
+        console.error("Erreur lors de la suppression de l'alerte");
         return false;
       }
       

@@ -349,7 +349,7 @@ export const processImage = async (
             
             ctx.putImageData(imageData, 0, 0);
           } catch (enhanceError) {
-            console.warn('Échec de l\'amélioration:', enhanceError);
+            console.warn("Échec de l'amélioration de l'image");
             // Continuer sans amélioration en cas d'erreur
           }
         }
@@ -386,7 +386,7 @@ export const processImage = async (
             
             // Si le fichier traité est plus grand, utiliser l'original
             if (blob.size > file.size * 1.1) {
-              console.info('Image traitée plus grande que l\'originale, conservation de l\'original');
+              console.info("Image traitée, taille supérieure à l'originale, conservation de l'original");
               
               resolve({
                 file: file,

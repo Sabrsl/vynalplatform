@@ -138,7 +138,7 @@ export async function processNotifications() {
       .limit(50);
 
     if (error) {
-      console.error('[NotificationWorker] Erreur lors de la récupération des notifications:', error);
+      console.error('[NotificationWorker] Erreur lors de la récupération des notifications');
       return;
     }
 
@@ -147,14 +147,14 @@ export async function processNotifications() {
       return;
     }
 
-    console.log(`[NotificationWorker] Traitement de ${notifications.length} notifications`);
+    console.log('[NotificationWorker] Traitement des notifications');
 
     // Traiter chaque notification
     for (const notification of notifications) {
       await processNotification(notification);
     }
   } catch (error) {
-    console.error('[NotificationWorker] Erreur lors du traitement des notifications:', error);
+    console.error('[NotificationWorker] Erreur lors du traitement des notifications');
   }
 }
 
@@ -177,7 +177,7 @@ export async function processNotification(notification: Notification) {
     
     // Récupérer l'email de l'utilisateur
     if (!context.userEmail) {
-      console.error(`[NotificationWorker] Email manquant pour l'utilisateur ${notification.user_id}`);
+      console.error('[NotificationWorker] Email manquant pour un utilisateur');
       await markNotificationAsEmailed(notification.id, false);
       return;
     }
@@ -216,10 +216,10 @@ export async function processNotification(notification: Notification) {
           context.serviceCategory = contentObj.serviceCategory || 'Non spécifiée';
           context.serviceId = contentObj.serviceId || '';
           
-          console.log(`[NotificationWorker] Contexte pour la notification de service ${notification.id}:`, context);
+          console.log('[NotificationWorker] Contexte pour la notification');
         }
       } catch (parseError) {
-        console.error(`[NotificationWorker] Erreur lors du parsing du contenu JSON de la notification ${notification.id}:`, parseError);
+        console.error('[NotificationWorker] Erreur lors du parsing du contenu JSON de la notification');
         // Si le parsing échoue, on continue avec le contenu brut uniquement
       }
     }
@@ -235,9 +235,9 @@ export async function processNotification(notification: Notification) {
     // Marquer la notification comme traitée
     await markNotificationAsEmailed(notification.id, emailSent);
     
-    console.log(`[NotificationWorker] Email ${emailSent ? 'envoyé' : 'non envoyé'} pour la notification ${notification.id}`);
+    console.log('[NotificationWorker] Email envoyé ou non envoyé pour une notification');
   } catch (error) {
-    console.error(`[NotificationWorker] Erreur lors du traitement de la notification ${notification.id}:`, error);
+    console.error('[NotificationWorker] Erreur lors du traitement d\'une notification');
     await markNotificationAsEmailed(notification.id, false);
   }
 }
@@ -257,6 +257,6 @@ async function markNotificationAsEmailed(notificationId: string, emailSent: bool
       })
       .eq('id', notificationId);
   } catch (error) {
-    console.error(`[NotificationWorker] Erreur lors du marquage de la notification ${notificationId}:`, error);
+    console.error('[NotificationWorker] Erreur lors du marquage d\'une notification');
   }
 } 

@@ -50,7 +50,10 @@ export function PriceDisplay({
       <div className={cn("absolute bottom-0 right-0 p-1 hidden sm:block", className)}>
         <Badge 
           variant="outline" 
-          className={cn("shadow-sm text-[10px] bg-vynal-accent-primary/90 text-white hover:bg-vynal-accent-primary border-vynal-accent-primary/30", badgeClassName)}
+          className={cn(
+            "shadow-sm text-[10px] bg-vynal-accent-primary/90 text-white hover:bg-vynal-accent-primary border-vynal-accent-primary/30 dark:bg-vynal-accent-primary dark:text-white dark:hover:bg-vynal-accent-primary/90 dark:border-vynal-accent-primary/50", 
+            badgeClassName
+          )}
         >
           <CurrencyDisplay 
             amount={price} 

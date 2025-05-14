@@ -35,7 +35,7 @@ export const useNotificationProcessor = (autoProcess = false, intervalMs = 60000
         return null;
       }
     } catch (err) {
-      console.error('Erreur lors de la vérification des notifications:', err);
+      console.error('Erreur lors de la vérification des notifications');
       return null;
     }
   }, [user]);
@@ -66,7 +66,7 @@ export const useNotificationProcessor = (autoProcess = false, intervalMs = 60000
       }
     } catch (err) {
       setError('Erreur de connexion au serveur');
-      console.error('Erreur lors du traitement des notifications:', err);
+      console.error('Erreur lors du traitement des notifications');
       return false;
     } finally {
       setIsProcessing(false);
@@ -95,11 +95,11 @@ export const useNotificationProcessor = (autoProcess = false, intervalMs = 60000
         return true;
       } else {
         const errorData = await response.json();
-        console.error('Erreur lors de l\'envoi de la notification:', errorData.message);
+        console.error('Erreur lors de l\'envoi de la notification');
         return false;
       }
     } catch (err) {
-      console.error('Erreur de connexion au serveur:', err);
+      console.error('Erreur de connexion au serveur');
       return false;
     }
   }, [user]);

@@ -174,7 +174,7 @@ export function useMessageCounts(options: UseMessageCountsOptions = {}): UseMess
         updateLastRefresh();
       }
     } catch (err) {
-      console.error('Erreur lors de la récupération des messages:', err);
+      console.error('Erreur lors de la récupération des messages');
       
       // Gestion améliorée des erreurs - conservation de la structure complète
       if (err instanceof Error) {

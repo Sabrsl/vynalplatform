@@ -126,7 +126,7 @@ export function useClientPayments(options: UseClientPaymentsOptions = {}) {
         .limit(limit);
 
       if (error) {
-        console.error("[ClientPayments] Erreur:", error);
+        console.error("[ClientPayments] Erreur lors de la récupération des données");
         setError(error.message);
       } else if (data) {
         console.log("[ClientPayments] Données reçues:", data);
@@ -257,7 +257,7 @@ export function useClientPayments(options: UseClientPaymentsOptions = {}) {
         setCachedData(summaryKey, summaryData, { expiry: 10 * 60 * 1000 }); // Cache de 10 minutes
       }
     } catch (err) {
-      console.error("[ClientPayments] Exception lors du calcul des statistiques:", err);
+      console.error("[ClientPayments] Erreur lors du calcul des statistiques");
     }
   }, [user, useCache, summaryKey]);
 

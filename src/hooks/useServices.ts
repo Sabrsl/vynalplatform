@@ -333,7 +333,7 @@ export function useServices(params: UseServicesParams = {}): UseServicesResult {
       ) {
         console.log('Requête de services annulée');
       } else {
-        console.error('Erreur lors du chargement des services:', err);
+        console.error('Erreur lors du chargement des services');
         setError(`Erreur lors du chargement des services: ${err.message || 'Erreur inconnue'}`);
       }
     } finally {
@@ -356,7 +356,6 @@ export function useServices(params: UseServicesParams = {}): UseServicesResult {
       // Vérifier d'abord le cache des services individuels
       const cachedService = recentServiceCache.get(id);
       if (cachedService && (Date.now() - cachedService.timestamp) < CACHE_TTL) {
-        console.log(`Service ${id} récupéré depuis le cache individuel`);
         return { service: cachedService.data, error: null };
       }
       
@@ -365,7 +364,6 @@ export function useServices(params: UseServicesParams = {}): UseServicesResult {
       const cachedListService = cachedServices.find(s => s.id === id);
       
       if (cachedListService) {
-        console.log(`Service ${id} récupéré depuis le cache des listes`);
         // Mettre à jour aussi le cache individuel
         recentServiceCache.set(id, {
           timestamp: Date.now(),
@@ -408,7 +406,7 @@ export function useServices(params: UseServicesParams = {}): UseServicesResult {
         if (fetchError.code === 'PGRST116') {
           return { service: null, error: 'Service introuvable' };
         }
-        console.error('Erreur Supabase lors du chargement du service:', fetchError);
+        console.error('Erreur lors du chargement du service');
         return { service: null, error: fetchError.message || 'Erreur lors du chargement du service' };
       }
       
@@ -709,7 +707,7 @@ export function useServices(params: UseServicesParams = {}): UseServicesResult {
       
       return { success: true, service: data };
     } catch (err: any) {
-      console.error('Erreur lors de la création du service:', err);
+      console.error('Erreur lors de la création du service');
       return { 
         success: false, 
         error: err.message || 'Une erreur est survenue lors de la création du service' 
@@ -803,7 +801,7 @@ export function useServices(params: UseServicesParams = {}): UseServicesResult {
         .single();
       
       if (error) {
-        console.error("Erreur lors de la mise à jour des champs du service:", error);
+        console.error("Erreur lors de la mise à jour des champs du service:");
         throw error;
       }
       
@@ -849,7 +847,7 @@ export function useServices(params: UseServicesParams = {}): UseServicesResult {
       
       return { success: true, service: data };
     } catch (err: any) {
-      console.error('Erreur lors de la mise à jour du service:', err);
+      console.error('Erreur lors de la mise à jour du service');
       return { 
         success: false, 
         error: err.message || 'Une erreur est survenue lors de la mise à jour du service' 
@@ -906,7 +904,7 @@ export function useServices(params: UseServicesParams = {}): UseServicesResult {
       
       return { success: true };
     } catch (err: any) {
-      console.error('Erreur lors de la suppression du service:', err);
+      console.error('Erreur lors de la suppression du service');
       return { 
         success: false, 
         error: err.message || 'Une erreur est survenue lors de la suppression du service' 

@@ -54,7 +54,7 @@ export function useReviewReplies({
           .single();
           
         if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 is "no rows returned" error
-          console.error('Erreur lors du chargement de la réponse:', fetchError);
+          console.error('Erreur lors du chargement de la réponse');
           throw new Error('Impossible de charger la réponse à cet avis');
         }
         

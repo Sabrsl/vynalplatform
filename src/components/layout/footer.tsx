@@ -3,10 +3,14 @@
 import React, { useState, useEffect, useCallback, memo } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Facebook, Twitter, Instagram, Linkedin, Mail, Moon, Sun, ClipboardCopy, Check } from "lucide-react";
+import { Facebook, Twitter, Instagram, Linkedin, Mail, Moon, Sun, ClipboardCopy, Check, Globe } from "lucide-react";
 import { useTheme } from "next-themes";
 import { motion, AnimatePresence } from "framer-motion";
 import { FREELANCE_ROUTES, CLIENT_ROUTES, PUBLIC_ROUTES } from "@/config/routes";
+import useCurrency from "@/hooks/useCurrency";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toast } from "sonner";
+import { triggerCurrencyChangeEvent } from "@/lib/utils/currency-updater";
 
 // Données du footer mémorisées en dehors du composant pour éviter les recréations inutiles
 const FOOTER_LINKS = [
@@ -52,6 +56,9 @@ const SOCIAL_LINKS = [
 ];
 
 const CONTACT_EMAIL = "support@vynalplatform.com";
+
+// Liste des devises principales à afficher en priorité dans le footer
+const FOOTER_CURRENCIES = ['XOF', 'EUR', 'USD', 'GBP', 'MAD', 'XAF'];
 
 // Composant pour les icônes sociales (mémorisé)
 const SocialIcons = memo(() => {
@@ -219,6 +226,125 @@ const LinkGroup = memo(({ section }: { section: typeof FOOTER_LINKS[0] }) => {
 
 LinkGroup.displayName = 'LinkGroup';
 
+// Composant pour le sélecteur de devise simplifié (mémorisé)
+const CurrencySelector = memo(() => {
+  const { currency, updateUserCurrencyPreference } = useCurrency();
+  const [availableCurrencies, setAvailableCurrencies] = useState<any[]>([]);
+  const [selectedCurrency, setSelectedCurrency] = useState<string>(currency.code);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Détecter si l'écran est mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+    
+    // Vérifier au chargement initial
+    checkMobile();
+    
+    // Suivre les changements de taille d'écran
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Charger les devises disponibles depuis le fichier JSON
+  useEffect(() => {
+    const loadCurrencies = async () => {
+      try {
+        const response = await fetch('/data/currencies.json');
+        const data = await response.json();
+        
+        // Trier les devises: d'abord les principales, puis le reste par ordre alphabétique
+        const mainCurrencies = FOOTER_CURRENCIES
+          .map(code => data.find((c: any) => c.code === code))
+          .filter(Boolean);
+          
+        setAvailableCurrencies(mainCurrencies);
+        setIsLoading(false);
+      } catch (error) {
+        console.error('Erreur lors du chargement des devises:', error);
+        setIsLoading(false);
+      }
+    };
+    
+    loadCurrencies();
+  }, []);
+
+  // Mettre à jour la devise sélectionnée quand le hook de devise change
+  useEffect(() => {
+    if (currency.code) {
+      setSelectedCurrency(currency.code);
+    }
+  }, [currency.code]);
+
+  // Gérer le changement de devise
+  const handleCurrencyChange = async (value: string) => {
+    if (value === currency.code) return;
+    
+    setSelectedCurrency(value);
+    
+    try {
+      // Mettre à jour la préférence de devise
+      await updateUserCurrencyPreference(value);
+      
+      // Notification de succès avec indication de mise à jour globale
+      toast.success(
+        <div className="flex flex-col gap-1">
+          <div className="font-medium">Devise mise à jour: {value}</div>
+          <div className="text-xs opacity-80">Tous les prix de l'application ont été convertis.</div>
+        </div>,
+        { duration: 3000 }
+      );
+      
+      // Déclencher une propagation globale du changement
+      triggerCurrencyChangeEvent(value);
+      
+    } catch (error) {
+      console.error('Erreur lors du changement de devise:', error);
+    }
+  };
+
+  if (isLoading) return null;
+
+  return (
+    <div className="flex items-center gap-2 w-full md:w-auto">
+      <div className="text-[10px] text-gray-400 dark:text-vynal-text-secondary flex-shrink-0">
+        <Globe className="h-3 w-3 inline-block mr-1 opacity-80" strokeWidth={2} />
+        Devise:
+      </div>
+      <Select
+        value={selectedCurrency}
+        onValueChange={handleCurrencyChange}
+      >
+        <SelectTrigger className="h-6 px-2 min-w-[90px] max-w-[115px] sm:max-w-none text-[10px] bg-transparent border-gray-800 dark:border-vynal-purple-secondary/30 text-gray-400 dark:text-vynal-text-secondary overflow-hidden [&_span]:!text-gray-400 [&_div]:!text-gray-400 [&_.flex]:!text-gray-400 [&_*]:!text-gray-400 dark:[&_*]:!text-vynal-text-secondary">
+          <SelectValue>
+            <div className="flex items-center gap-1 truncate">
+              <span className="font-mono">{availableCurrencies.find(c => c.code === selectedCurrency)?.symbol}</span>
+              <span className="truncate">{selectedCurrency}</span>
+            </div>
+          </SelectValue>
+        </SelectTrigger>
+        <SelectContent className="min-w-fit text-[10px] bg-gray-900 border-gray-800 text-gray-300" position={isMobile ? "popper" : "item-aligned"} side={isMobile ? "top" : "bottom"} align={isMobile ? "center" : "start"} sideOffset={-10}>
+          {availableCurrencies.map((c) => (
+            <SelectItem key={c.code} value={c.code} className="py-1 text-[10px] text-gray-300 hover:bg-gray-800/80 hover:text-vynal-accent-primary data-[state=checked]:bg-gray-800 data-[state=checked]:text-vynal-accent-primary">
+              <div className="flex items-center gap-1.5">
+                <span className="font-mono">{c.symbol}</span>
+                <span>{c.code}</span>
+                <span className="text-[8px] text-gray-400 hidden sm:inline">
+                  ({c.name})
+                </span>
+              </div>
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+});
+
+CurrencySelector.displayName = 'CurrencySelector';
+
 // Composant principal du footer
 function Footer() {
   const [mounted, setMounted] = useState(false);
@@ -309,8 +435,11 @@ function Footer() {
           animate={{ opacity: 1 }}
           transition={{ duration: 0.4, delay: 0.6 }}
         >
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <ContactInfo />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-4">
+            <div className="flex flex-col space-y-2 md:space-y-0 md:flex-row md:items-center md:justify-start md:space-x-4">
+              <ContactInfo />
+              <CurrencySelector />
+            </div>
             <div className="flex items-center justify-start md:justify-end text-gray-400 dark:text-vynal-text-secondary md:text-right">
               <span className="text-[9px] opacity-70">
                 &copy; {currentYear} Vynal Platform. Tous droits réservés.

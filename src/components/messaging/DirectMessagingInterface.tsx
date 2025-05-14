@@ -240,7 +240,6 @@ const DirectMessagingInterface: React.FC<DirectMessagingProps> = ({
         // Vérifier d'abord si des conversations sont disponibles dans le cache
         const cachedConversations = getCachedConversations() as Conversation[] | null;
         if (cachedConversations && Array.isArray(cachedConversations) && cachedConversations.length > 0) {
-          console.log("[DirectMessaging] Utilisation des conversations en cache pendant le chargement initial");
           setConversations(cachedConversations);
           setLoadingConversations(false);
         }
@@ -374,8 +373,6 @@ const DirectMessagingInterface: React.FC<DirectMessagingProps> = ({
       const minTimeBetweenUpdates = 60000; // 1 minute
       
       if (isFirstLoad || !lastUpdate || now - parseInt(lastUpdate) > minTimeBetweenUpdates) {
-        console.log(`Rafraîchissement des conversations directes après ${lastUpdate ? Math.round((now - parseInt(lastUpdate))/1000) : 'inconnu'} secondes d'inactivité`);
-        
         // Rafraîchir les conversations avec le coordinateur de requêtes
         loadConversationsCoordinated(
           user.id,

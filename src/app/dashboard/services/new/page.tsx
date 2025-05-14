@@ -27,17 +27,20 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { slugify } from "@/lib/utils";
-import { AlertCircle, ArrowLeft } from "lucide-react";
+import { AlertCircle, ArrowLeft, Info } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import ServiceImageUploader from "@/components/services/ServiceImageUploader";
 import { Separator } from "@/components/ui/separator";
 import { Loader } from "@/components/ui/loader";
+import useCurrency from "@/hooks/useCurrency";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function NewServicePage() {
   const router = useRouter();
   const { user } = useAuth();
   const { profile, isFreelance } = useUser();
   const { createService } = useServices();
+  const { currency, getUserCountry } = useCurrency();
   
   const [categories, setCategories] = useState<Category[]>([]);
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
@@ -592,28 +595,38 @@ ${newFields.exclusions}`;
                 <CardDescription className="text-[10px] sm:text-xs text-slate-600 dark:text-vynal-text-secondary">Définissez le prix et le délai de livraison de votre service</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                  <ServicePricingValidator
-                    id="price"
-                    type="price"
-                    value={formData.price}
-                    onChange={(value) => handleChange({ target: { name: 'price', value } } as any)}
-                    label="Prix (FCFA)"
-                    placeholder="Ex: 5000"
-                    required={true}
-                    className="bg-slate-100/85 dark:bg-slate-800/40"
-                  />
-                
-                  <ServicePricingValidator
-                    id="delivery_time"
-                    type="deliveryTime"
-                    value={formData.delivery_time}
-                    onChange={(value) => handleChange({ target: { name: 'delivery_time', value } } as any)}
-                    label="Délai de livraison (jours)"
-                    placeholder="Ex: 3"
-                    required={true}
-                    className="bg-slate-100/85 dark:bg-slate-800/40"
-                  />
+                <div className="card-grid">
+                  {/* Prix */}
+                  <div className="space-y-2 col-span-1">
+                    <ServicePricingValidator 
+                      id="pricing_price"
+                      type="price"
+                      value={formData.price}
+                      onChange={(value) => handleChange({ target: { name: 'price', value } } as React.ChangeEvent<HTMLInputElement>)}
+                      label="Prix" 
+                      placeholder={`Ex: 5000 (en ${currency.code})`}
+                      className="text-[10px] sm:text-xs bg-slate-100/85 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700/30"
+                    />
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <Info className="h-3 w-3 text-blue-500 flex-shrink-0" />
+                      <p className="text-[8px] sm:text-[10px] text-blue-600 dark:text-blue-400">
+                        Prix en {currency.name} ({currency.code}) - devise détectée selon vos préréférences
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {/* Délai de livraison */}
+                  <div className="space-y-2 col-span-1">
+                    <ServicePricingValidator 
+                      id="pricing_delivery_time"
+                      type="deliveryTime"
+                      value={formData.delivery_time}
+                      onChange={(value) => handleChange({ target: { name: 'delivery_time', value } } as React.ChangeEvent<HTMLInputElement>)}
+                      label="Délai de livraison" 
+                      placeholder="Ex: 3"
+                      className="text-[10px] sm:text-xs bg-slate-100/85 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700/30"
+                    />
+                  </div>
                 </div>
               </CardContent>
             </Card>

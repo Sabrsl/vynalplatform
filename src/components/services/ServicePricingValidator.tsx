@@ -2,7 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { AlertCircle, CheckCircle } from 'lucide-react';
-import { validatePrice, validateDeliveryTime, PRICE_LIMITS, DELIVERY_TIME_LIMITS } from '@/lib/validators/servicePricing';
+import { 
+  validatePrice, 
+  validateDeliveryTime, 
+  PRICE_LIMITS, 
+  DELIVERY_TIME_LIMITS,
+  getPriceLimitsForCurrency 
+} from '@/lib/validators/servicePricing';
+import useCurrency from '@/hooks/useCurrency';
 
 interface ServicePricingValidatorProps {
   id: string;
@@ -25,22 +32,31 @@ const ServicePricingValidator: React.FC<ServicePricingValidatorProps> = ({
   required = true,
   className = '',
 }) => {
+  const { currency } = useCurrency();
   const [error, setError] = useState<string | null>(null);
   const [touched, setTouched] = useState(false);
   const [isValid, setIsValid] = useState(true);
 
-  // Déterminer les limites selon le type
-  const limits = type === 'price' ? PRICE_LIMITS : DELIVERY_TIME_LIMITS;
-  const validate = type === 'price' ? validatePrice : validateDeliveryTime;
-
+  // Déterminer les limites selon le type et la devise
+  const limits = type === 'price' 
+    ? getPriceLimitsForCurrency(currency.code) 
+    : DELIVERY_TIME_LIMITS;
+  
   // Vérifier la validité lorsque la valeur change
   useEffect(() => {
     if (touched) {
-      const validationResult = validate(value);
+      let validationResult;
+      
+      if (type === 'price') {
+        validationResult = validatePrice(value, currency.code);
+      } else {
+        validationResult = validateDeliveryTime(value);
+      }
+      
       setIsValid(validationResult.isValid);
       setError(validationResult.isValid ? null : validationResult.error);
     }
-  }, [value, touched, validate]);
+  }, [value, touched, type, currency.code]);
 
   // Gérer le changement dans le champ
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -61,7 +77,14 @@ const ServicePricingValidator: React.FC<ServicePricingValidatorProps> = ({
   // Marquer comme touché lors de la perte de focus
   const handleBlur = () => {
     setTouched(true);
-    const validationResult = validate(value);
+    
+    let validationResult;
+    if (type === 'price') {
+      validationResult = validatePrice(value, currency.code);
+    } else {
+      validationResult = validateDeliveryTime(value);
+    }
+    
     setIsValid(validationResult.isValid);
     setError(validationResult.isValid ? null : validationResult.error);
   };
@@ -98,8 +121,8 @@ const ServicePricingValidator: React.FC<ServicePricingValidatorProps> = ({
         
         <span className="text-[8px] sm:text-[10px] text-vynal-purple-dark/80 dark:text-vynal-text-secondary">
           {type === 'price' 
-            ? `Min: ${limits.min} ${PRICE_LIMITS.currency}`
-            : `Min: ${limits.min} ${DELIVERY_TIME_LIMITS.unit}`
+            ? `Min: ${limits.min} - Max: ${limits.max} ${currency.code}`
+            : `Min: ${limits.min} - Max: ${limits.max} ${DELIVERY_TIME_LIMITS.unit}`
           }
         </span>
       </div>

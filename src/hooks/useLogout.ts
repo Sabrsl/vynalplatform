@@ -27,14 +27,14 @@ export function useLogout() {
       
       // Gérer les erreurs
       if (!result.success && result.error) {
-        console.error('Erreur lors de la déconnexion:', result.error);
+        console.error('Erreur lors de la déconnexion');
         setError(result.error instanceof Error ? result.error : new Error('Échec de la déconnexion'));
         NavigationLoadingState.setIsNavigating(false);
       }
       
       // Note: Pas besoin de redirection ici, car la fonction signOut() s'en occupe
     } catch (err) {
-      console.error('Exception lors de la déconnexion:', err);
+      console.error('Erreur lors de la déconnexion');
       setError(err instanceof Error ? err : new Error('Une erreur inattendue est survenue'));
       NavigationLoadingState.setIsNavigating(false);
       setIsLoggingOut(false);

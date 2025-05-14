@@ -51,7 +51,6 @@ const getUserGeoData = async (): Promise<GeoData> => {
     });
     
     if (cachedGeoData) {
-      console.log("Utilisation des données de géolocalisation en cache");
       return cachedGeoData;
     }
     
@@ -71,14 +70,14 @@ const getUserGeoData = async (): Promise<GeoData> => {
       
       // Mettre à jour les informations de géolocalisation au maximum une fois par jour
       if (!lastUpdate || (now - parseInt(lastUpdate)) > 24 * 60 * 60 * 1000) {
-      await supabase
-        .from('profiles')
-        .update({ 
-          country: data.country,
-          continent: data.continent || 'AF',
-          last_geo_detection: new Date().toISOString()
-        })
-        .eq('id', authData.session.user.id);
+        await supabase
+          .from('profiles')
+          .update({ 
+            country: data.country,
+            continent: data.continent || 'AF',
+            last_geo_detection: new Date().toISOString()
+          })
+          .eq('id', authData.session.user.id);
           
         localStorage.setItem(lastUpdateKey, now.toString());
       }
@@ -100,7 +99,6 @@ const getUserGeoData = async (): Promise<GeoData> => {
     
     return geoData;
   } catch (error) {
-    console.error("Erreur de géolocalisation:", error);
     return { country: 'SN', source: 'default' }; // Valeur par défaut
   }
 };
@@ -156,7 +154,6 @@ const fetchCurrencyFromJson = async (currencyCode: string): Promise<CurrencyData
     });
     
     if (cachedCurrency) {
-      console.log(`Utilisation des détails de devise en cache pour ${currencyCode}`);
       return cachedCurrency;
     }
     
@@ -246,7 +243,6 @@ export default function useCurrency(options: UseCurrencyOptions = {}): UseCurren
       
       // Vérifier si la devise a réellement changé
       if (currency.code === currencyCode) {
-        console.log(`La devise ${currencyCode} est déjà active, pas de mise à jour nécessaire`);
         setLoading(false);
         return;
       }
@@ -318,7 +314,7 @@ export default function useCurrency(options: UseCurrencyOptions = {}): UseCurren
         console.log(`Préférence de devise mise à jour: ${currencyCode}`);
       }
     } catch (error) {
-      console.error(`Erreur lors de la mise à jour de la préférence de devise:`, error);
+      console.error("Erreur lors de la mise à jour des préférences");
     } finally {
       setLoading(false);
     }
@@ -341,7 +337,6 @@ export default function useCurrency(options: UseCurrencyOptions = {}): UseCurren
         });
         
         if (cachedCurrency) {
-          console.log(`Utilisation de la devise en cache: ${cachedCurrency.code}`);
           setCurrency(cachedCurrency);
           setLoading(false);
           
@@ -376,14 +371,12 @@ export default function useCurrency(options: UseCurrencyOptions = {}): UseCurren
         
         // Vérifier si une requête est déjà en cours
         if (pendingRequestRef.current) {
-          console.log("Une requête de devise est déjà en cours, en attente...");
           return;
         }
         
         // Vérifier si la dernière requête est assez récente pour être réutilisée
         const now = Date.now();
         if (now - lastFetchTimeRef.current < CURRENCY_FETCH_INTERVAL) {
-          console.log("Dernière requête de devise assez récente, pas besoin de refaire une demande");
           setLoading(false);
           return;
         }
@@ -610,7 +603,7 @@ export default function useCurrency(options: UseCurrencyOptions = {}): UseCurren
         }
 
       } catch (error) {
-        console.error("Erreur lors de la détection de devise:", error);
+        console.error("Erreur lors de la détection de la devise");
         // En cas d'erreur, on utilise XOF par défaut
         setCurrency(DEFAULT_CURRENCY);
       } finally {

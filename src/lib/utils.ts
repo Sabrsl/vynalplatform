@@ -47,7 +47,7 @@ export function formatPrice(price: number): string {
         minimumFractionDigits: decimals,
       }).format(convertedPrice);
     } catch (error) {
-      console.error("Erreur lors du formatage du prix avec devise locale:", error);
+      console.error("Erreur lors du formatage du prix avec devise locale");
       // En cas d'erreur, utiliser le formatage par défaut
     }
   }

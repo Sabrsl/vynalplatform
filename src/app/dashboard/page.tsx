@@ -473,7 +473,7 @@ const PerformanceCard = memo(() => (
               <p className="text-[8px] sm:text-[10px] text-vynal-purple-secondary dark:text-vynal-text-secondary">Sur les 30 derniers jours</p>
             </div>
           </div>
-          <div className="text-[10px] sm:text-lg font-semibold text-vynal-purple-light dark:text-vynal-text-primary">4.9/5</div>
+          <div className="text-[10px] sm:text-lg font-semibold text-vynal-purple-light dark:text-vynal-text-primary">N/A</div>
         </div>
         
         <div className="flex items-center justify-between">
@@ -486,7 +486,7 @@ const PerformanceCard = memo(() => (
               <p className="text-[8px] sm:text-[10px] text-vynal-purple-secondary dark:text-vynal-text-secondary">Sur votre profil</p>
             </div>
           </div>
-          <div className="text-[10px] sm:text-lg font-semibold text-vynal-purple-light dark:text-vynal-text-primary">324</div>
+          <div className="text-[10px] sm:text-lg font-semibold text-vynal-purple-light dark:text-vynal-text-primary">-</div>
         </div>
         
         <div className="flex items-center justify-between">
@@ -499,7 +499,7 @@ const PerformanceCard = memo(() => (
               <p className="text-[8px] sm:text-[10px] text-vynal-purple-secondary dark:text-vynal-text-secondary">Visiteurs → Commandes</p>
             </div>
           </div>
-          <div className="text-[10px] sm:text-lg font-semibold text-vynal-purple-light dark:text-vynal-text-primary">8.2%</div>
+          <div className="text-[10px] sm:text-lg font-semibold text-vynal-purple-light dark:text-vynal-text-primary">0%</div>
         </div>
       </div>
     </CardContent>
