@@ -1,6 +1,34 @@
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Database } from '@/types/database';
 
+// Cache pour les opérations list_changes
+const LIST_CHANGES_CACHE = new Map<string, {
+  data: any,
+  timestamp: number
+}>();
+
+// Cache pour les promesses en cours d'exécution (déduplication)
+const PENDING_REQUESTS = new Map<string, Promise<any>>();
+
+// Durée de vie du cache en ms (30 secondes au lieu de 5)
+const CACHE_TTL = 30000; 
+
+// Nettoyer le cache périodiquement (toutes les minutes)
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, value] of LIST_CHANGES_CACHE.entries()) {
+    if (now - value.timestamp > 300000) { // 5 minutes de durée maximale (au lieu de 1)
+      LIST_CHANGES_CACHE.delete(key);
+    }
+  }
+  // Nettoyer les requêtes en attente qui seraient bloquées
+  for (const [key] of PENDING_REQUESTS.entries()) {
+    if (!LIST_CHANGES_CACHE.has(key)) {
+      PENDING_REQUESTS.delete(key);
+    }
+  }
+}, 60000);
+
 // Implémentation simple d'un compteur de requêtes directement dans ce fichier
 class RequestCounter {
   private stats = {
@@ -17,6 +45,11 @@ class RequestCounter {
   trackRequest(endpoint: string): boolean {
     this.stats.totalRequests++;
     const now = Date.now();
+    
+    // Optimisation: Si l'endpoint est realtime.list_changes, traiter différemment
+    if (endpoint.includes('realtime.list_changes')) {
+      return true; // Toujours autoriser car nous avons une stratégie de cache spécifique
+    }
     
     // Ajouter cette requête à l'historique
     this.stats.recentRequests.push({
@@ -79,6 +112,60 @@ function createMonitoredClient() {
       // Obtenir la propriété originale
       const originalValue = Reflect.get(target, prop, receiver);
       
+      // Intercepter spécifiquement l'appel à rpc pour optimiser list_changes
+      if (prop === 'rpc') {
+        return function(...args: any[]) {
+          // Si c'est un appel à realtime.list_changes, utiliser le cache
+          if (args[0] === 'realtime.list_changes') {
+            // Créer une clé de cache basée sur les arguments
+            const cacheKey = `list_changes_${JSON.stringify(args)}`;
+            
+            // Vérifier si nous avons une version en cache récente
+            const cached = LIST_CHANGES_CACHE.get(cacheKey);
+            const now = Date.now();
+            
+            if (cached && now - cached.timestamp < CACHE_TTL) {
+              // console.log(`[Cache] Utilisation du cache pour realtime.list_changes`);
+              return Promise.resolve(cached.data);
+            }
+            
+            // Vérifier si une requête identique est déjà en cours
+            const pendingRequest = PENDING_REQUESTS.get(cacheKey);
+            if (pendingRequest) {
+              // console.log(`[Cache] Réutilisation d'une requête en cours pour realtime.list_changes`);
+              return pendingRequest;
+            }
+            
+            // Si pas en cache ou cache expiré et pas de requête en cours
+            const result = originalValue.apply(target, args);
+            
+            // Stocker la promesse pour éviter les requêtes dupliquées
+            PENDING_REQUESTS.set(cacheKey, result);
+            
+            // Une fois la requête terminée, mettre en cache et nettoyer
+            result.then(
+              (data: any) => {
+                LIST_CHANGES_CACHE.set(cacheKey, {
+                  data,
+                  timestamp: now
+                });
+                PENDING_REQUESTS.delete(cacheKey);
+                return data;
+              },
+              (error: any) => {
+                PENDING_REQUESTS.delete(cacheKey);
+                throw error;
+              }
+            );
+            
+            return result;
+          }
+          
+          // Pour les autres appels rpc, comportement normal
+          return originalValue.apply(target, args);
+        };
+      }
+      
       // Si c'est une fonction, l'envelopper pour surveiller les appels
       if (typeof originalValue === 'function') {
         return function(...args: any[]) {
@@ -90,7 +177,7 @@ function createMonitoredClient() {
             console.warn(`[Supabase] Requête ${String(prop)} retardée (trop de requêtes)`);
             return new Promise((resolve) => {
               setTimeout(() => {
-                console.log(`[Supabase] Réessai de la requête ${String(prop)}`);
+                // console.log(`[Supabase] Réessai de la requête ${String(prop)}`);
                 resolve(originalValue.apply(target, args));
               }, 1500); // Attendre 1.5 secondes avant de réessayer
             });
@@ -119,7 +206,7 @@ function createMonitoredClient() {
                   console.warn(`[Supabase] Requête ${endpointName} retardée (trop de requêtes)`);
                   return new Promise((resolve) => {
                     setTimeout(() => {
-                      console.log(`[Supabase] Réessai de la requête ${endpointName}`);
+                      // console.log(`[Supabase] Réessai de la requête ${endpointName}`);
                       resolve(subValue.apply(subTarget, args));
                     }, 1500); // Attendre 1.5 secondes avant de réessayer
                   });
@@ -149,7 +236,7 @@ export const channelManager = {
   
   registerChannel(channelName: string, channel: any) {
     this.activeChannels.set(channelName, channel);
-    console.log(`Canal enregistré: ${channelName}`);
+    // console.log(`Canal enregistré: ${channelName}`);
     return channel;
   },
   
@@ -157,18 +244,26 @@ export const channelManager = {
     if (this.activeChannels.has(channelName)) {
       const channel = this.activeChannels.get(channelName);
       this.activeChannels.delete(channelName);
-      console.log(`Canal supprimé: ${channelName}`);
-      return supabase.removeChannel(channel);
+      // console.log(`Canal supprimé: ${channelName}`);
+      try {
+        if (channel && typeof channel.unsubscribe === 'function') {
+          return supabase.removeChannel(channel);
+        }
+      } catch (error) {
+        console.error(`Erreur lors de la suppression du canal ${channelName}:`, error);
+      }
     }
     return false;
   },
   
   removeAllChannels() {
-    console.log(`Nettoyage de ${this.activeChannels.size} canaux actifs`);
+    // console.log(`Nettoyage de ${this.activeChannels.size} canaux actifs`);
     for (const [name, channel] of this.activeChannels.entries()) {
       try {
-        supabase.removeChannel(channel);
-        console.log(`Canal supprimé: ${name}`);
+        if (channel && typeof channel.unsubscribe === 'function') {
+          supabase.removeChannel(channel);
+          // console.log(`Canal supprimé: ${name}`);
+        }
       } catch (error) {
         console.error(`Erreur lors de la suppression du canal ${name}:`, error);
       }
