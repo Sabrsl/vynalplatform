@@ -118,7 +118,7 @@ const loadConversationsCoordinated = (
   setIsLoading: (val: boolean) => void, 
   fetchFunc: (userId: string, options?: any) => Promise<any>
 ) => {
-  if (!userId) return;
+  if (!userId) return Promise.resolve([]);
   
   setIsLoading(true);
   
@@ -127,7 +127,7 @@ const loadConversationsCoordinated = (
     `load_conversations_${userId}`,
     async () => {
       try {
-        await fetchFunc(userId);
+        return await fetchFunc(userId);
       } finally {
         setIsLoading(false);
       }
@@ -142,7 +142,7 @@ const loadMessagesCoordinated = (
   setIsLoadingMessages: (val: boolean) => void, 
   fetchFunc: (conversationId: string) => Promise<any>
 ) => {
-  if (!conversationId) return;
+  if (!conversationId) return Promise.resolve([]);
   
   setIsLoadingMessages(true);
   
@@ -150,7 +150,7 @@ const loadMessagesCoordinated = (
     `load_messages_${conversationId}`,
     async () => {
       try {
-        await fetchFunc(conversationId);
+        return await fetchFunc(conversationId);
       } finally {
         setIsLoadingMessages(false);
       }
@@ -175,6 +175,7 @@ const DirectMessagingInterface: React.FC<DirectMessagingProps> = ({
   const [loadingConversations, setLoadingConversations] = useState(false);
   const [conversationsLoading, setConversationsLoading] = useState(false);
   const [messagesLoading, setMessagesLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   // Référence pour les tentatives de chargement
   const retryCountRef = useRef(0);
@@ -400,15 +401,58 @@ const DirectMessagingInterface: React.FC<DirectMessagingProps> = ({
   useEffect(() => {
     // Supprimer les anciens abonnements de cet utilisateur
     if (user?.id) {
+      // Au lieu d'utiliser cleanupRedundantChannels, implémentons la logique directement ici
+      let cleanedCount = 0;
+      
+      // 1. Réutiliser la logique de nettoyage des canaux existante
+      // Vérifier les canaux qui contiennent l'ID de l'utilisateur
       const userChannelPattern = `messages-for-user-${user.id}`;
       const channels = Array.from(channelManager.activeChannels.keys())
-        .filter(name => name.includes(userChannelPattern) && !name.includes(new Date().getTime().toString()));
+        .filter(name => name.includes(user.id) || name.includes(userChannelPattern));
       
-      if (channels.length > 0) {
-        console.log(`Nettoyage de ${channels.length} canaux obsolètes pour l'utilisateur ${user.id}`);
-        channels.forEach(channelName => {
-          channelManager.removeChannel(channelName);
-        });
+      // 2. Regrouper les canaux par table
+      const channelsByTable = new Map<string, string[]>();
+      
+      channels.forEach(channelName => {
+        // Extraire la table du nom du canal si possible
+        const tableMatch = channelName.match(/postgres_changes.*table=([a-zA-Z_]+)/);
+        const tableName = tableMatch ? tableMatch[1] : 
+                         channelName.includes('messages') ? 'messages' :
+                         channelName.includes('conversations') ? 'conversations' :
+                         channelName.includes('services') ? 'services' :
+                         channelName.includes('reviews') ? 'reviews' : 
+                         channelName.includes('profiles') ? 'profiles' : null;
+        
+        if (tableName) {
+          if (!channelsByTable.has(tableName)) {
+            channelsByTable.set(tableName, []);
+          }
+          channelsByTable.get(tableName)!.push(channelName);
+        }
+      });
+      
+      // 3. Pour chaque table, ne garder que le canal le plus récent
+      for (const [_, tableChannels] of channelsByTable.entries()) {
+        if (tableChannels.length > 1) {
+          // Trier par timestamp (plus récent d'abord)
+          const sortedChannels = [...tableChannels].sort((a, b) => {
+            const tsA = a.includes('_t') ? parseInt(a.split('_t').pop() || '0') : 0;
+            const tsB = b.includes('_t') ? parseInt(b.split('_t').pop() || '0') : 0;
+            return tsB - tsA;
+          });
+          
+          // Garder le plus récent, supprimer les autres
+          const [keep, ...remove] = sortedChannels;
+          
+          for (const channelName of remove) {
+            channelManager.removeChannel(channelName);
+            cleanedCount++;
+          }
+        }
+      }
+      
+      if (cleanedCount > 0) {
+        console.log(`Nettoyage automatique: ${cleanedCount} canaux redondants supprimés pour l'utilisateur ${user.id}`);
       }
     }
     
@@ -426,7 +470,6 @@ const DirectMessagingInterface: React.FC<DirectMessagingProps> = ({
         Array.from(channelManager.activeChannels.keys())
           .filter(name => userChannelPatterns.some(pattern => name.includes(pattern)))
           .forEach(channelName => {
-            console.log(`Nettoyage du canal ${channelName} avant déchargement`);
             channelManager.removeChannel(channelName);
           });
       }
@@ -460,6 +503,58 @@ const DirectMessagingInterface: React.FC<DirectMessagingProps> = ({
       );
     }
   }, [user?.id, fetchConversations, conversationsLoading]);
+
+  // Fonction pour actualiser les conversations de façon optimisée
+  const handleRefreshConversations = useCallback(async () => {
+    if (isRefreshing || !user?.id) return;
+    
+    setIsRefreshing(true);
+    
+    try {
+      // Invalider le cache des conversations pour forcer une nouvelle requête
+      useMessagingStore.getState().invalidateCache('conversations', user.id);
+      
+      // Récupérer les conversations mises à jour
+      await fetchConversations(user.id);
+      
+      // Informer les autres composants via un événement
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('vynal:conversations-refreshed', { 
+          detail: { userId: user.id, timestamp: Date.now() } 
+        }));
+      }
+    } catch (error) {
+      console.error("Erreur lors de l'actualisation des conversations:", error);
+    } finally {
+      // Garantir une animation de chargement visible d'au moins 500ms
+      setTimeout(() => {
+        setIsRefreshing(false);
+      }, 500);
+    }
+  }, [fetchConversations, user?.id, isRefreshing]);
+
+  // Effet pour écouter les événements d'actualisation externes
+  useEffect(() => {
+    if (!user?.id) return;
+
+    // Gestionnaire pour les événements d'actualisation des conversations
+    const handleConversationsRefreshEvent = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      // Vérifier si l'événement concerne cet utilisateur
+      if (customEvent.detail?.userId === user.id && !isRefreshing) {
+        // Actualiser les conversations sans montrer l'animation
+        fetchConversations(user.id);
+      }
+    };
+
+    // Écouter les événements
+    window.addEventListener('vynal:conversations-refreshed', handleConversationsRefreshEvent);
+
+    return () => {
+      // Nettoyer les écouteurs
+      window.removeEventListener('vynal:conversations-refreshed', handleConversationsRefreshEvent);
+    };
+  }, [user?.id, fetchConversations, isRefreshing]);
 
   // Optimiser l'état de chargement
   if (isLoading && !mounted) {
@@ -515,6 +610,8 @@ const DirectMessagingInterface: React.FC<DirectMessagingProps> = ({
           activeConversationId={activeConversation?.id}
           isFreelance={isFreelance}
           showOrderConversations={false}
+          onRefresh={handleRefreshConversations}
+          isRefreshing={isRefreshing}
         />
       </div>
       

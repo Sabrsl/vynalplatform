@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Paperclip, Send, ArrowLeft, MoreVertical, Image, FileText, X, Smile, Check, Circle, Trash, Upload, RefreshCw, ChevronUp, MessageSquare, Loader2, AlertTriangle, Info } from 'lucide-react';
+import { Paperclip, Send, ArrowLeft, MoreVertical, Image, FileText, X, Smile, Check, Circle, Trash, Upload, RefreshCw, ChevronUp, MessageSquare, Loader2, AlertTriangle, Info, ChevronDown } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Textarea } from "@/components/ui/textarea";
@@ -20,7 +20,6 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { FileIcon } from '@/components/ui/icons/FileIcon';
 import { SendHorizontal } from 'lucide-react';
-import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 import { UserProfile } from '@/hooks/useUser';
 import { Conversation as BaseConversation } from '@/components/messaging/messaging-types';
 import EnhancedAvatar from '@/components/ui/enhanced-avatar';
@@ -102,7 +101,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const MESSAGES_PER_PAGE = 20;
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const messagesContainerRef = useRef<VirtuosoHandle>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const visibleMessageIdsRef = useRef<Set<string>>(new Set());
@@ -112,6 +111,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const scrollDebounceRef = useRef<boolean>(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const userHasScrolledRef = useRef<boolean>(false);
+  const visitedConversationsRef = useRef<Set<string>>(new Set());
   
   const { 
     messages,
@@ -129,7 +130,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   useEffect(() => {
     if (conversation?.id) {
       setIsLoadingMessages(true);
+      setPage(1); // Réinitialiser la pagination lors du changement de conversation
+      
       fetchMessages(conversation.id)
+        .then(() => {
+          setIsLoadingMessages(false);
+        })
         .catch(error => {
           // Ignorer les erreurs d'annulation de requête
           if (error?.message?.includes('aborted') || error?.name === 'AbortError') {
@@ -137,8 +143,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           } else {
             console.error("Erreur lors du chargement des messages:", error);
           }
-        })
-        .finally(() => {
           setIsLoadingMessages(false);
         });
     }
@@ -147,9 +151,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   // Initialiser les messages visibles
   useEffect(() => {
     if (messages.length > 0) {
-      // Afficher les messages les plus récents (limité à MESSAGES_PER_PAGE)
-      const startIdx = Math.max(0, messages.length - MESSAGES_PER_PAGE);
-      setHasMoreMessages(startIdx > 0);
+      // S'assurer que nous avons la possibilité de charger plus si nécessaire
+      // Mais ne pas limiter l'affichage des messages déjà chargés
+      setHasMoreMessages(messages.length >= MESSAGES_PER_PAGE);
     } else {
       setHasMoreMessages(false);
     }
@@ -253,111 +257,63 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     if (!hasMoreMessages || isLoadingMore) return;
     
     setIsLoadingMore(true);
-    const nextPage = page + 1;
-    const startIdx = Math.max(0, messages.length - (nextPage * MESSAGES_PER_PAGE));
-    const endIdx = messages.length - ((nextPage - 1) * MESSAGES_PER_PAGE);
+    setPage(prev => prev + 1);
     
-    setPage(nextPage);
-    setHasMoreMessages(startIdx > 0);
+    // Marquer la position actuelle pour la restaurer après le chargement
+    const scrollElement = document.querySelector('.virtuoso-scroller');
+    const currentScrollTop = scrollElement?.scrollTop || 0;
     
-    // Utiliser scrollToIndex pour maintenir la position de défilement
+    // Retarder légèrement pour permettre l'animation
     setTimeout(() => {
-      if (messagesContainerRef.current) {
-        try {
-          messagesContainerRef.current.scrollToIndex({
-            index: endIdx - startIdx,
-            align: 'start'
-          });
-        } catch (error) {
-          console.error("Erreur de défilement:", error);
-          // Continuer sans bloquer l'interface
-        }
-      }
       setIsLoadingMore(false);
-    }, 10);
-  }, [hasMoreMessages, isLoadingMore, messages, page]);
+      
+      // Restaurer la position de défilement
+      setTimeout(() => {
+        if (scrollElement) {
+          scrollElement.scrollTop = currentScrollTop;
+        }
+      }, 50);
+    }, 500);
+  }, [hasMoreMessages, isLoadingMore]);
 
-  // Utiliser Virtuoso pour gérer le scroll
-  const handleVirtuosoScroll = useCallback((e: any) => {
+  // Modifier la fonction de gestion du scroll pour une implémentation plus simple
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
     // Utiliser un debounce simple pour réduire les reflows forcés
     if (!scrollDebounceRef.current) {
       scrollDebounceRef.current = true;
       
       // Exécuter le code de défilement dans requestAnimationFrame
       requestAnimationFrame(() => {
-        // S'assurer que l'élément existe encore avant de manipuler ses propriétés
-        if (!e || e.target?.nodeType !== 1) {
-          scrollDebounceRef.current = false;
-          return;
+        const container = e.currentTarget;
+        
+        // Marquer que l'utilisateur a intentionnellement défilé
+        userHasScrolledRef.current = true;
+        
+        // Mettre à jour le flag de défilement manuel
+        userScrolledUpRef.current = container.scrollTop < (container.scrollHeight - container.clientHeight - 100);
+        
+        // Afficher le bouton "Charger plus" quand on est près du haut et qu'il y a plus de messages
+        setLoadMoreVisible(container.scrollTop < 150 && hasMoreMessages);
+        
+        // Charger automatiquement plus de messages quand on est très près du haut
+        if (container.scrollTop < 50 && hasMoreMessages && !isLoadingMore) {
+          loadMoreMessages();
         }
         
-        try {
-          // Mettre à jour le flag de défilement manuel
-          userScrolledUpRef.current = e.scrollTop < e.scrollHeight - e.clientHeight - 100;
-          
-          if (e.scrollTop < 50 && hasMoreMessages && !isLoadingMore) {
-            loadMoreMessages();
-          }
-          
-          // Vérifier les messages visibles
-          checkVisibleMessages();
-        } catch (error) {
-          console.error("Erreur lors du traitement du défilement:", error);
-        }
+        // Vérifier quels messages sont visibles
+        checkVisibleMessages();
         
-        // Réinitialiser après un délai
+        // Réinitialiser le debounce
         setTimeout(() => {
           scrollDebounceRef.current = false;
         }, 100);
       });
     }
-  }, [loadMoreMessages, hasMoreMessages, isLoadingMore, checkVisibleMessages]);
+  }, [hasMoreMessages, isLoadingMore, loadMoreMessages, checkVisibleMessages]);
 
-  // Gérer le scroll vers le haut pour charger plus de messages
-  const handleScroll = useCallback(() => {
-    // Charger plus de messages si on approche du haut
-    if (hasMoreMessages && !isLoadingMore) {
-      loadMoreMessages();
-    }
-    
-    // Vérifier quels messages sont visibles lors du défilement
-    checkVisibleMessages();
-  }, [loadMoreMessages, hasMoreMessages, isLoadingMore, checkVisibleMessages]);
-  
   // Utiliser le hook simplement - il ignore automatiquement les pages de messagerie
   usePreventScrollReset();
   
-  // Scroll vers le bas quand de nouveaux messages arrivent
-  useEffect(() => {
-    // Ne pas défiler automatiquement lors du chargement d'anciens messages
-    if (!isLoadingMore && messages.length > 0) {
-      // Vérifier si le dernier message est de l'utilisateur actuel
-      const isNewMessageFromUser = messages[messages.length - 1]?.sender_id === user?.id;
-      
-      // Défiler vers le bas seulement si :
-      // 1. C'est un nouveau message de l'utilisateur
-      // 2. L'utilisateur n'a pas scrollé vers le haut manuellement
-      // 3. Le dernier message est visible
-      const lastMessage = messages[messages.length - 1];
-      const isLastMessageVisible = lastMessage && visibleMessageIdsRef.current.has(lastMessage.id);
-      
-      if (isNewMessageFromUser && !userScrolledUpRef.current && isLastMessageVisible) {
-        requestAnimationFrame(() => {
-          if (messagesContainerRef.current) {
-            messagesContainerRef.current.scrollToIndex({
-              index: messages.length - 1,
-              align: 'end',
-              behavior: 'smooth'
-            });
-          }
-        });
-      }
-    }
-    
-    // Vérifier les messages visibles après le rendu des messages
-    setTimeout(checkVisibleMessages, 100);
-  }, [messages, checkVisibleMessages, isLoadingMore, user?.id]);
-
   // Mettre à jour le statut "last_seen" quand l'utilisateur est actif sur le chat
   useEffect(() => {
     const updateLastSeen = async () => {
@@ -501,7 +457,19 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     removeAttachment(index);
   }, []);
 
-  // Gérer l'envoi du message
+  // Remplacer la fonction scrollToBottom pour qu'elle ne fasse rien
+  const scrollToBottom = useCallback(() => {
+    // Ne fait rien - comportement volontairement désactivé
+  }, []);
+
+  // Ajouter un bouton explicite pour aller en bas si nécessaire
+  const handleGoToBottom = useCallback(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, []);
+
+  // Modifier le handleSendMessage pour ne pas défiler automatiquement après envoi
   const handleSendMessage = async () => {
     if ((!messageText || messageText.trim() === '') && attachments.length === 0) return;
     
@@ -641,6 +609,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         if (validationResult.censored) {
           showNotification("Certains mots de votre message ont été censurés.", 'info');
         }
+        
       } catch (error) {
         console.error("Erreur lors de la validation ou de l'envoi du message:", error);
         showNotification("Une erreur est survenue lors de l'envoi du message.", 'error');
@@ -886,176 +855,182 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
       {/* Corps de la conversation avec la zone de défilement */}
       <div className="flex-1 overflow-hidden bg-white/20 dark:bg-slate-800/25 relative">
-        <Virtuoso
+        {/* Bouton flottant pour aller en bas */}
+        {messages.length > 20 && (
+          <button 
+            onClick={handleGoToBottom}
+            className="absolute bottom-5 right-5 bg-gray-100 dark:bg-gray-800 p-2 rounded-full shadow-md hover:bg-gray-200 dark:hover:bg-gray-700 z-10 transition-all opacity-70 hover:opacity-100"
+            aria-label="Aller en bas"
+          >
+            <ChevronDown className="h-4 w-4 text-gray-600 dark:text-gray-300" />
+          </button>
+        )}
+        
+        <div 
           ref={messagesContainerRef}
-          style={{ height: '100%', overflow: 'auto' }}
-          totalCount={messages.length}
-          data={messages}
-          alignToBottom={true}
-          initialTopMostItemIndex={messages.length - 1}
-          followOutput={"auto"}
-          overscan={150}
-          defaultItemHeight={80}
-          onScroll={handleVirtuosoScroll}
-          components={{
-            Header: () => (
-              <>
-                {/* Bouton pour charger plus de messages */}
-                {loadMoreVisible && hasMoreMessages && (
-                  <div className="flex justify-center mb-3">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={loadMoreMessages}
-                      disabled={isLoadingMore}
-                      className="rounded-full text-xs bg-white shadow-sm hover:bg-gray-100 text-gray-700 flex items-center gap-1 h-6 px-2 py-0"
-                    >
-                      {isLoadingMore ? (
-                        <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                      ) : (
-                        <ChevronUp className="h-3 w-3 mr-1" />
-                      )}
-                      Messages précédents
-                    </Button>
-                  </div>
-                )}
-                
-                {/* Loader lors du chargement initial des messages - Amélioration de l'animation */}
-                {isLoadingMessages && messages.length === 0 && (
-                  <div className="flex justify-center items-center h-[150px] animate-in fade-in duration-300 ease-in-out">
-                    <div className="flex flex-col items-center space-y-2">
-                      <div className="flex flex-col space-y-3 w-3/4 max-w-md">
-                        {/* Skeleton message items avec animation douce */}
-                        {[...Array(3)].map((_, i) => (
-                          <div 
-                            key={i} 
-                            className={`flex items-start ${i % 2 === 0 ? 'justify-end' : ''} animate-pulse`}
-                            style={{ animationDelay: `${i * 150}ms`, opacity: 1 - (i * 0.15) }}
-                          >
-                            {i % 2 !== 0 && (
-                              <div className="h-6 w-6 rounded-full bg-vynal-purple-secondary/30 mr-2"></div>
-                            )}
-                            <div 
-                              className={`h-[50px] rounded-2xl ${i % 2 === 0 ? 'bg-vynal-purple-secondary/30 w-[65%]' : 'bg-vynal-purple-secondary/30 w-[70%]'}`}
-                            ></div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-                
-                {/* Liste des messages */}
-                {messages.length === 0 && !isLoadingMessages && (
-                  <div className="flex flex-col items-center justify-center h-[250px] p-3 text-center">
-                    <div className="bg-indigo-100 dark:bg-indigo-900/30 rounded-full p-3 mb-2">
-                      <MessageSquare className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
-                    </div>
-                    <h3 className="text-sm font-semibold mb-1 text-gray-800 dark:text-gray-200">Aucun message</h3>
-                    <p className="text-gray-500 dark:text-gray-400 text-xs max-w-xs">
-                      Démarrez la conversation avec {otherParticipant?.full_name || 'votre contact'} en envoyant un message ci-dessous.
-                    </p>
-                  </div>
-                )}
-              </>
-            ),
-            Footer: () => (
-              <>
-                {/* Indicateur de frappe */}
-                {isOtherParticipantTyping && (
-                  <div className="flex items-start mb-2 animate-fade-in">
-                    <div className="flex items-end">
-                      <EnhancedAvatar
-                        src={otherParticipant?.avatar_url || ''} 
-                        alt={otherParticipant?.full_name || 'Contact'}
-                        fallback={getInitials(otherParticipant?.full_name || otherParticipant?.username || 'User')}
-                        className="h-6 w-6 mr-2"
-                        fallbackClassName="bg-indigo-100 text-indigo-800 text-xs"
-                        onError={() => setTypingAvatarError(true)}
-                      />
-                      <div className="bg-white dark:bg-gray-800 rounded-2xl px-3 py-1 shadow-sm flex items-center">
-                        <div className="flex space-x-1">
-                          <span className="bg-vynal-purple-secondary/30 rounded-full h-1.5 w-1.5 animate-bounce" style={{ animationDelay: '0s' }}></span>
-                          <span className="bg-vynal-purple-secondary/30 rounded-full h-1.5 w-1.5 animate-bounce" style={{ animationDelay: '0.2s' }}></span>
-                          <span className="bg-vynal-purple-secondary/30 rounded-full h-1.5 w-1.5 animate-bounce" style={{ animationDelay: '0.4s' }}></span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                <div ref={messagesEndRef} className="h-0" />
-              </>
-            )
-          }}
-          itemContent={(index, message) => {
-            // Vérifier si le message a toutes les informations nécessaires
-            if (!message || !message.sender_id) {
-              console.error("Message invalide:", message);
-              return null;
-            }
-
-            // Déterminer si le message est de l'utilisateur actuel
-            const isCurrentUser = message.sender_id === user?.id;
-            
-            // Créer une clé de données unique pour ce message
-            const messageKey = `msg-${message.id}`;
-            
-            // Déterminer si nous devons afficher l'avatar (pour les messages groupés)
-            const showAvatar = !isCurrentUser && 
-              (index === 0 || 
-                messages[index - 1].sender_id !== message.sender_id);
-            
-            // Obtenir les messages précédent et suivant pour le groupement
-            const previousMessage = index > 0 ? messages[index - 1] : undefined;
-            const nextMessage = index < messages.length - 1 ? messages[index + 1] : undefined;
-            
-            // Obtenir les informations de l'expéditeur
-            const sender = message.sender || (isCurrentUser ? {
-              id: user?.id || message.sender_id || '',
-              username: user?.user_metadata?.username || 'Vous',
-              full_name: user?.user_metadata?.full_name,
-              avatar_url: user?.user_metadata?.avatar_url,
-            } : {
-              id: otherParticipant?.id || message.sender_id || '',
-              username: otherParticipant?.username || 'Utilisateur',
-              full_name: otherParticipant?.full_name,
-              avatar_url: otherParticipant?.avatar_url
-            });
-            
-            // Vérifier si le message est valide avant de le rendre
-            if (!sender.id && message.sender_id) {
-              // Si sender.id est manquant mais que sender_id existe, on utilise sender_id
-              sender.id = message.sender_id;
-            }
-            
-            if (!sender.id) {
-              console.error("Informations de l'expéditeur manquantes:", message);
-              return null;
-            }
-            
-            return (
-              <div 
-                data-message-id={message.id}
-                data-key={messageKey}
-                className="mb-2 px-3 min-h-[20px]"
-              >
-                <MessageBubble 
-                  key={messageKey}
-                  message={{
-                    ...message,
-                    sender
-                  }}
-                  isCurrentUser={isCurrentUser}
-                  showAvatar={showAvatar}
-                  otherParticipant={sender}
-                  isFreelance={isFreelance}
-                  previousMessage={previousMessage}
-                  nextMessage={nextMessage}
-                />
+          className="h-full overflow-auto px-2 pt-2 pb-1 scroll-smooth scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-transparent"
+          onScroll={handleScroll}
+        >
+          <div className="min-h-full flex flex-col justify-end">
+            {/* Bouton pour charger plus de messages */}
+            {loadMoreVisible && hasMoreMessages && (
+              <div className="flex justify-center sticky top-0 pt-1 pb-3 z-10 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={loadMoreMessages}
+                  disabled={isLoadingMore}
+                  className="rounded-full text-xs bg-white shadow-sm hover:bg-gray-100 text-gray-700 flex items-center gap-1 h-6 px-3 py-1 border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-200"
+                >
+                  {isLoadingMore ? (
+                    <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                  ) : (
+                    <ChevronUp className="h-3 w-3 mr-1" />
+                  )}
+                  {isLoadingMore ? "Chargement..." : "Messages précédents"}
+                </Button>
               </div>
-            );
-          }}
-        />
+            )}
+            
+            {/* Loader lors du chargement initial des messages */}
+            {isLoadingMessages && messages.length === 0 && (
+              <div className="flex justify-center items-center h-[150px] animate-in fade-in duration-300 ease-in-out">
+                <div className="flex flex-col items-center space-y-2">
+                  <div className="flex flex-col space-y-3 w-3/4 max-w-md">
+                    {/* Skeleton message items avec animation douce */}
+                    {[...Array(3)].map((_, i) => (
+                      <div 
+                        key={i} 
+                        className={`flex items-start ${i % 2 === 0 ? 'justify-end' : ''} animate-pulse`}
+                        style={{ animationDelay: `${i * 150}ms`, opacity: 1 - (i * 0.15) }}
+                      >
+                        {i % 2 !== 0 && (
+                          <div className="h-6 w-6 rounded-full bg-vynal-purple-secondary/30 mr-2"></div>
+                        )}
+                        <div 
+                          className={`h-[50px] rounded-2xl ${i % 2 === 0 ? 'bg-vynal-purple-secondary/30 w-[65%]' : 'bg-vynal-purple-secondary/30 w-[70%]'}`}
+                        ></div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* Liste des messages vide */}
+            {messages.length === 0 && !isLoadingMessages && (
+              <div className="flex-1 flex flex-col items-center justify-center h-[250px] p-3 text-center">
+                <div className="bg-indigo-100 dark:bg-indigo-900/30 rounded-full p-3 mb-2">
+                  <MessageSquare className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                </div>
+                <h3 className="text-sm font-semibold mb-1 text-gray-800 dark:text-gray-200">Aucun message</h3>
+                <p className="text-gray-500 dark:text-gray-400 text-xs max-w-xs">
+                  Démarrez la conversation avec {otherParticipant?.full_name || 'votre contact'} en envoyant un message ci-dessous.
+                </p>
+              </div>
+            )}
+            
+            {/* Afficher tous les messages */}
+            {messages.length > 0 && (
+              <div className="flex flex-col w-full space-y-1">
+                {messages.map((message, index) => {
+                  // Vérifier si le message a toutes les informations nécessaires
+                  if (!message || !message.sender_id) {
+                    console.error("Message invalide:", message);
+                    return null;
+                  }
+
+                  // Déterminer si le message est de l'utilisateur actuel
+                  const isCurrentUser = message.sender_id === user?.id;
+                  
+                  // Créer une clé de données unique pour ce message
+                  const messageKey = `msg-${message.id}`;
+                  
+                  // Déterminer si nous devons afficher l'avatar (pour les messages groupés)
+                  const showAvatar = !isCurrentUser && 
+                    (index === 0 || 
+                      messages[index - 1].sender_id !== message.sender_id);
+                  
+                  // Obtenir les messages précédent et suivant pour le groupement
+                  const previousMessage = index > 0 ? messages[index - 1] : undefined;
+                  const nextMessage = index < messages.length - 1 ? messages[index + 1] : undefined;
+                  
+                  // Obtenir les informations de l'expéditeur
+                  const sender = message.sender || (isCurrentUser ? {
+                    id: user?.id || message.sender_id || '',
+                    username: user?.user_metadata?.username || 'Vous',
+                    full_name: user?.user_metadata?.full_name,
+                    avatar_url: user?.user_metadata?.avatar_url,
+                  } : {
+                    id: otherParticipant?.id || message.sender_id || '',
+                    username: otherParticipant?.username || 'Utilisateur',
+                    full_name: otherParticipant?.full_name,
+                    avatar_url: otherParticipant?.avatar_url
+                  });
+                  
+                  // Vérifier si le message est valide avant de le rendre
+                  if (!sender.id && message.sender_id) {
+                    // Si sender.id est manquant mais que sender_id existe, on utilise sender_id
+                    sender.id = message.sender_id;
+                  }
+                  
+                  if (!sender.id) {
+                    console.error("Informations de l'expéditeur manquantes:", message);
+                    return null;
+                  }
+                  
+                  return (
+                    <div 
+                      key={messageKey}
+                      data-message-id={message.id}
+                      data-key={messageKey}
+                      className="w-full mb-2 px-1 min-h-[20px]"
+                    >
+                      <MessageBubble 
+                        message={{
+                          ...message,
+                          sender
+                        }}
+                        isCurrentUser={isCurrentUser}
+                        showAvatar={showAvatar}
+                        otherParticipant={sender}
+                        isFreelance={isFreelance}
+                        previousMessage={previousMessage}
+                        nextMessage={nextMessage}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            
+            {/* Indicateur de frappe */}
+            {isOtherParticipantTyping && (
+              <div className="flex items-start mb-2 animate-fade-in">
+                <div className="flex items-end">
+                  <EnhancedAvatar
+                    src={otherParticipant?.avatar_url || ''} 
+                    alt={otherParticipant?.full_name || 'Contact'}
+                    fallback={getInitials(otherParticipant?.full_name || otherParticipant?.username || 'User')}
+                    className="h-6 w-6 mr-2"
+                    fallbackClassName="bg-indigo-100 text-indigo-800 text-xs"
+                    onError={() => setTypingAvatarError(true)}
+                  />
+                  <div className="bg-white dark:bg-gray-800 rounded-2xl px-3 py-1 shadow-sm flex items-center">
+                    <div className="flex space-x-1">
+                      <span className="bg-vynal-purple-secondary/30 rounded-full h-1.5 w-1.5 animate-bounce" style={{ animationDelay: '0s' }}></span>
+                      <span className="bg-vynal-purple-secondary/30 rounded-full h-1.5 w-1.5 animate-bounce" style={{ animationDelay: '0.2s' }}></span>
+                      <span className="bg-vynal-purple-secondary/30 rounded-full h-1.5 w-1.5 animate-bounce" style={{ animationDelay: '0.4s' }}></span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* Élément de référence pour le défilement vers le bas */}
+            <div ref={messagesEndRef} className="h-1 w-full" />
+          </div>
+        </div>
       </div>
       
       {/* Zone de saisie du message */}

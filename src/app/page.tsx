@@ -3,13 +3,14 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowRight, Search, Star, Shield } from 'lucide-react';
+import { ArrowRight, Search, Star, Shield, Code, Paintbrush, Megaphone, Tractor, Server, Heart, BookOpen, Mail, PieChart, Camera, Globe, Building, Banknote } from 'lucide-react';
 import PageLayout from '@/components/ui/PageLayout';
 import SpotlightCard from '@/components/ui/SpotlightCard';
 import { TextRevealSection } from '@/components/sections/TextRevealSection';
 import { BorderBeamButton } from '@/components/ui/border-beam-button';
 import PartnersSection from '@/components/sections/PartnersSection';
 import { useCategories } from '@/hooks/useCategories';
+import { Subcategory } from '@/hooks/useCategories';
 import { findBestCategoryMatch } from '@/lib/search/searchService';
 import { useAuth } from "@/hooks/useAuth";
 import { useUser } from "@/hooks/useUser";
@@ -18,6 +19,11 @@ import dynamic from 'next/dynamic';
 import { memo } from 'react';
 import { getCachedData, setCachedData, CACHE_EXPIRY } from '@/lib/optimizations';
 import { supabase } from '@/lib/supabase/client';
+import { PlaceholdersAndVanishInput } from '@/components/ui/PlaceholdersAndVanishInput';
+import { WobbleCard } from "@/components/ui/WobbleCard";
+import { GlowingEffect } from "@/components/ui/GlowingEffect";
+import { CURRENCY } from "@/lib/constants";
+import { BentoGridThirdDemo } from "@/components/ui/BentoGridThirdDemo";
 
 // Clé de cache pour la page d'accueil
 const HOMEPAGE_CACHE_KEY = 'homepage_data';
@@ -44,9 +50,10 @@ const PartnersSectionDynamic = dynamic(() =>
   { ssr: true, loading: () => <div className="h-48" /> }
 );
 
+// Titre principal
 const FastLCPTitle = memo(() => (
   <h1 
-    className="text-4xl md:text-5xl font-bold mb-6 leading-tight bg-gradient-to-r from-vynal-accent-secondary to-vynal-accent-primary bg-clip-text text-transparent" 
+    className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 leading-tight bg-gradient-to-r from-vynal-accent-secondary to-vynal-accent-primary bg-clip-text text-transparent" 
     id="lcp-title"
   >
     Trouvez des freelances qualifiés pour tous vos projets
@@ -138,16 +145,20 @@ export default function Home() {
     }
   }, []);
 
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
     if (searchQuery.trim()) {
       setIsSearching(true);
-      
-      // Rediriger directement vers la page de recherche avec le terme de recherche
+      // Toujours rediriger vers PUBLIC_ROUTES.SERVICES
       router.push(`${PUBLIC_ROUTES.SERVICES}?search=${encodeURIComponent(searchQuery.trim())}`);
     }
   };
+
+  // Liste des exemples de recherche qui défileront dans le placeholder
+  const searchPlaceholders = [
+    "Que cherchez vous? Par exemple : Marketing..."
+  ];
 
   // Fonction pour gérer les clics sur les catégories
   const handleCategoryClick = (categorySlug: string) => {
@@ -187,169 +198,446 @@ export default function Home() {
       
       {/* Hero Section - LCP */}
       <section className="text-slate-800 dark:text-vynal-text-primary py-16 md:py-24">
-        <div className="container mx-auto px-4 flex flex-col lg:flex-row items-center justify-between">
-          <div className="lg:w-1/2 mb-10 lg:mb-0" id="lcp-container">
+        <div className="container mx-auto px-4">
+          <div className="w-full max-w-3xl mx-auto mb-10" id="lcp-container">
+            {/* Titre principal */}
             <FastLCPTitle />
-            <p className="text-sm md:text-base lg:text-lg text-slate-600 dark:text-vynal-text-secondary mb-10">
-            La solution idéale pour accéder à des services digitaux fiables, fournis par des professionnels indépendants, à prix fixe.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <Link 
-                href={PUBLIC_ROUTES.SERVICES} 
-                className="bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-vynal-purple-dark py-3 px-6 rounded-lg font-medium flex items-center gap-2 transition-all duration-200 shadow-sm"
-                prefetch={true}
-              >
-                Explorer les services <ArrowRight size={18} />
-              </Link>
-              <BorderBeamButton href="/devenir-freelance" className="force-white-text">
-                Devenir freelance
-              </BorderBeamButton>
-            </div>
           </div>
-          <div className="lg:w-2/5 animate-fade-in">
-            <div className="bg-white/30 dark:bg-vynal-purple-dark/90 backdrop-blur-sm rounded-lg p-6 shadow-sm border border-slate-200 dark:border-vynal-purple-secondary/30">
-              <form onSubmit={handleSearch}>
-                <div className="flex items-center gap-2 mb-4">
-                  <Search size={20} className="text-vynal-accent-primary" />
-                  <input 
-                    type="text" 
-                    placeholder="Que recherchez-vous ?" 
-                    className="w-full py-2 px-3 bg-white/40 dark:bg-vynal-purple-secondary/30 border border-slate-300 dark:border-vynal-purple-secondary/50 rounded-lg text-slate-800 dark:text-vynal-text-primary focus:outline-none focus:ring-2 focus:ring-vynal-accent-primary focus:border-vynal-accent-primary placeholder:text-slate-600 dark:placeholder:text-vynal-text-secondary/70 transition-all duration-200"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
-                </div>
-                <div className="flex flex-wrap gap-2 mb-4">
-                  <Link href={`${PUBLIC_ROUTES.SERVICES}?category=developpement-web-mobile`} 
-                    className="bg-white/25 dark:bg-vynal-purple-dark/90 text-slate-800 dark:text-vynal-text-primary text-sm py-1 px-3 rounded-full border border-slate-300 dark:border-vynal-accent-primary/20 hover:bg-slate-100 dark:hover:bg-vynal-purple-dark/80 transition-all duration-200"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      handleCategoryClick('developpement-web-mobile');
-                    }}>
-                    Développement Web & Mobile
-                  </Link>
-                  <Link href={`${PUBLIC_ROUTES.SERVICES}?category=design-graphique`} 
-                    className="bg-white/25 dark:bg-vynal-purple-dark/90 text-slate-800 dark:text-vynal-text-primary text-sm py-1 px-3 rounded-full border border-slate-300 dark:border-vynal-accent-primary/20 hover:bg-slate-100 dark:hover:bg-vynal-purple-dark/80 transition-all duration-200"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      handleCategoryClick('design-graphique');
-                    }}>
-                    Design Graphique
-                  </Link>
-                  <Link href={`${PUBLIC_ROUTES.SERVICES}?category=marketing-digital`} 
-                    className="bg-white/25 dark:bg-vynal-purple-dark/90 text-slate-800 dark:text-vynal-text-primary text-sm py-1 px-3 rounded-full border border-slate-300 dark:border-vynal-accent-primary/20 hover:bg-slate-100 dark:hover:bg-vynal-purple-dark/80 transition-all duration-200"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      handleCategoryClick('marketing-digital');
-                    }}>
-                    Marketing Digital
-                  </Link>
-                  <Link href={`${PUBLIC_ROUTES.SERVICES}?category=agriculture-elevage`}
-                    className="bg-white/25 dark:bg-vynal-purple-dark/90 text-slate-800 dark:text-vynal-text-primary text-sm py-1 px-3 rounded-full border border-slate-300 dark:border-vynal-accent-primary/20 hover:bg-slate-100 dark:hover:bg-vynal-purple-dark/80 transition-all duration-200"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      handleCategoryClick('agriculture-elevage');
-                    }}>
-                    Agriculture & Élevage
-                  </Link>
-                  <Link href={`${PUBLIC_ROUTES.SERVICES}?category=informatique-reseaux`}
-                    className="bg-white/25 dark:bg-vynal-purple-dark/90 text-slate-800 dark:text-vynal-text-primary text-sm py-1 px-3 rounded-full border border-slate-300 dark:border-vynal-accent-primary/20 hover:bg-slate-100 dark:hover:bg-vynal-purple-dark/80 transition-all duration-200"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      handleCategoryClick('informatique-reseaux');
-                    }}>
-                    Informatique & Réseaux
-                  </Link>
-                  <Link href={`${PUBLIC_ROUTES.SERVICES}?category=sante-bien-etre`}
-                    className="bg-white/25 dark:bg-vynal-purple-dark/90 text-slate-800 dark:text-vynal-text-primary text-sm py-1 px-3 rounded-full border border-slate-300 dark:border-vynal-accent-primary/20 hover:bg-slate-100 dark:hover:bg-vynal-purple-dark/80 transition-all duration-200"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      handleCategoryClick('sante-bien-etre');
-                    }}>
-                    Santé & Bien-être
-                  </Link>
-                </div>
-                <button 
+          
+          {/* Barre de recherche */}
+          <div className="relative w-full max-w-xl mx-auto">
+            <form onSubmit={handleSearch} className="relative">
+              <div className="relative">
+                <input
+                  type="text"
+                  className="w-full py-3 pl-5 pr-14 rounded-full bg-white/40 dark:bg-slate-800/40 text-slate-800 dark:text-white border-2 border-slate-300 dark:border-slate-700/30 shadow-md focus:ring-2 focus:ring-vynal-accent-primary/30 dark:focus:ring-vynal-accent-primary/40 outline-none transition-all text-sm placeholder:text-slate-500"
+                  placeholder={searchPlaceholders[0]}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+                <GlowingEffect disabled={isMobile} spread={30} variant="default" borderWidth={2} />
+                <button
                   type="submit"
-                  className="w-full bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-vynal-purple-dark py-2 rounded-lg font-medium transition-all duration-200 flex items-center justify-center shadow-sm"
-                  disabled={isSearching}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-white p-2 rounded-full transition-all"
+                  aria-label="Rechercher"
                 >
-                  {isSearching ? (
-                    <>
-                      <div className="h-4 w-4 border-2 border-vynal-purple-dark border-t-transparent rounded-full animate-spin mr-2"></div>
-                      Recherche en cours...
-                    </>
-                  ) : (
-                    "Rechercher"
-                  )}
+                  <Search className="h-4 w-4" />
                 </button>
-              </form>
+              </div>
+            </form>
+          </div>
+
+          {/* Section des logos partenaires */}
+          <div className="mt-4 text-center">
+            <div className="flex justify-center items-center overflow-x-auto whitespace-nowrap py-2 px-4 w-full">
+              <div className="flex items-center justify-center space-x-6 md:space-x-8 mx-auto">
+                <img 
+                  src="/assets/partners/logo_free_money.webp" 
+                  alt="Free Money" 
+                  className="h-6 md:h-7 w-auto object-contain grayscale hover:grayscale-0 transition-all duration-300" 
+                />
+                <img 
+                  src="/assets/partners/logo_stripe.webp" 
+                  alt="Stripe" 
+                  className="h-6 md:h-7 w-auto object-contain grayscale hover:grayscale-0 transition-all duration-300" 
+                />
+                <img 
+                  src="/assets/partners/logo_wave_.webp" 
+                  alt="Wave" 
+                  className="h-6 md:h-7 w-auto object-contain grayscale hover:grayscale-0 transition-all duration-300" 
+                />
+                <img 
+                  src="/assets/partners/om_logo_.webp" 
+                  alt="OM" 
+                  className="h-6 md:h-7 w-auto object-contain grayscale hover:grayscale-0 transition-all duration-300" 
+                />
+                <img 
+                  src="/assets/partners/Google_.webp" 
+                  alt="Google" 
+                  className="h-6 md:h-7 w-auto object-contain grayscale hover:grayscale-0 transition-all duration-300" 
+                />
+                <img 
+                  src="/assets/partners/Logo-GitHub-Black.webp" 
+                  alt="GitHub" 
+                  className="h-6 md:h-7 w-auto object-contain dark:invert grayscale hover:grayscale-0 transition-all duration-300" 
+                />
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Features Section - solid background cards */}
-      <section className="py-16 md:py-24">
+
+      {/* Catégories de services Section */}
+      <section className="py-10 md:py-16 bg-gradient-to-b from-white to-slate-50 dark:from-vynal-purple-dark dark:to-vynal-purple-darkest">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-16 bg-gradient-to-r from-vynal-accent-primary to-vynal-accent-secondary bg-clip-text text-transparent">Comment ça fonctionne</h2>
-          <div className="grid md:grid-cols-3 gap-10">
-            <SpotlightCard 
-              className="flex flex-col items-center text-center bg-white/30 dark:bg-vynal-purple-dark/80 backdrop-blur-sm p-8 rounded-lg text-slate-800 dark:text-vynal-text-primary border border-slate-200 dark:border-vynal-purple-secondary/30 shadow-sm min-h-[320px] justify-between transition-all duration-200"
-              disableEffects={isMobile}
-            >
-              <div className="mb-6 flex items-center justify-center">
-                <Search className="w-10 h-10 text-vynal-accent-primary" />
-              </div>
-              <div>
-                <h3 className="text-xl font-semibold mb-3 text-slate-800 dark:text-vynal-text-primary">Recherchez un service</h3>
-                <p className="text-slate-600 dark:text-vynal-text-secondary">
-                  Parcourez notre catalogue de services proposés par des freelances talentueux dans différentes catégories.
-                </p>
-              </div>
-            </SpotlightCard>
-            <SpotlightCard 
-              className="flex flex-col items-center text-center bg-white/30 dark:bg-vynal-purple-dark/80 backdrop-blur-sm p-8 rounded-lg text-slate-800 dark:text-vynal-text-primary border border-slate-200 dark:border-vynal-purple-secondary/30 shadow-sm min-h-[320px] justify-between transition-all duration-200"
-              disableEffects={isMobile}
-            >
-              <div className="mb-6 flex items-center justify-center">
-                <Star className="w-10 h-10 text-vynal-accent-primary" />
-              </div>
-              <div>
-                <h3 className="text-xl font-semibold mb-3 text-slate-800 dark:text-vynal-text-primary">Choisissez votre freelance</h3>
-                <p className="text-slate-600 dark:text-vynal-text-secondary">
-                  Consultez les profils, les avis et les portfolios pour trouver le freelance qui correspond à vos besoins.
-                </p>
-              </div>
-            </SpotlightCard>
-            <SpotlightCard 
-              className="flex flex-col items-center text-center bg-white/30 dark:bg-vynal-purple-dark/80 backdrop-blur-sm p-8 rounded-lg text-slate-800 dark:text-vynal-text-primary border border-slate-200 dark:border-vynal-purple-secondary/30 shadow-sm min-h-[320px] justify-between transition-all duration-200"
-              disableEffects={isMobile}
-            >
-              <div className="mb-6 flex items-center justify-center">
-                <Shield className="w-10 h-10 text-vynal-accent-primary" />
-              </div>
-              <div>
-                <h3 className="text-xl font-semibold mb-3 text-slate-800 dark:text-vynal-text-primary">Commandez en toute sécurité</h3>
-                <p className="text-slate-600 dark:text-vynal-text-secondary">
-                  Passez commande et suivez l'avancement de votre projet. Le paiement est sécurisé et relâché uniquement à la livraison.
-                </p>
-              </div>
-            </SpotlightCard>
+          <h2 className="text-2xl md:text-3xl font-bold text-center mb-8 text-slate-800 dark:bg-gradient-to-r dark:from-vynal-accent-primary dark:to-vynal-accent-secondary dark:bg-clip-text dark:text-transparent">
+            Accédez facilement aux talents selon leurs spécialités
+          </h2>
+          
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-4 md:gap-6">
+            {categories?.length > 0 && 
+              categories
+                .filter(cat => [
+                  'Développement Web & Mobile',
+                  'Design Graphique',
+                  'Marketing Digital',
+                  'Rédaction & Traduction',
+                  'Vidéo & Audio',
+                  'Formation & Éducation',
+                  'Informatique & Réseaux',
+                  'Services Administratifs'
+                ].includes(cat.name))
+                .map((cat) => {
+                  const iconMap = {
+                    'Design': Paintbrush,
+                    'Marketing': Megaphone,
+                    'Rédaction': BookOpen,
+                    'Traduction': BookOpen,
+                    'Vidéo': Camera,
+                    'Audio': Camera,
+                    'Formation': BookOpen,
+                    'Éducation': BookOpen,
+                    'Informatique': Server,
+                    'Développement': Code,
+                    'Administratif': Shield
+                  };
+                  
+                  const Icon = Object.entries(iconMap).find(([key]) => 
+                    cat.name.includes(key)
+                  )?.[1] || Code;
+                  
+                  // Masquer Services Administratifs sur desktop
+                  const isAdmin = cat.name === 'Services Administratifs';
+                  const hideOnDesktop = isAdmin ? 'lg:hidden' : '';
+                  
+                  return (
+                    <Link
+                      key={cat.id}
+                      href={`${PUBLIC_ROUTES.SERVICES}?category=${cat.slug}`}
+                      className={`flex flex-col items-center justify-center p-3 md:p-4 rounded-xl bg-white/30 dark:bg-slate-800/30 backdrop-blur-sm border border-slate-200 dark:border-slate-700/30 shadow-sm hover:shadow-md hover:border-vynal-accent-primary/30 dark:hover:border-vynal-accent-primary/40 hover:-translate-y-1 transition-all duration-200 group ${hideOnDesktop}`}
+                    >
+                      <div className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center rounded-full bg-vynal-accent-10 dark:bg-vynal-accent-10 border border-vynal-accent-primary/20 dark:border-vynal-accent-primary/20 mb-2 md:mb-3 text-vynal-accent-primary group-hover:bg-vynal-accent-20 dark:group-hover:bg-vynal-accent-20 group-hover:border-vynal-accent-primary/30 dark:group-hover:border-vynal-accent-primary/40 transition-all duration-200">
+                        <Icon className="w-5 h-5 md:w-6 md:h-6 stroke-[1.5]" />
+                      </div>
+                      <span className="text-xs md:text-sm font-medium text-center text-slate-600 dark:text-vynal-text-secondary leading-tight">
+                        {cat.name.split(' & ')[0]}
+                      </span>
+                    </Link>
+                  );
+                })
+            }
           </div>
+        </div>
+      </section>
+
+      {/* Bento Grid Section */}
+      <section className="py-16 md:py-24 bg-gradient-to-b from-slate-50 to-white dark:from-vynal-purple-darkest dark:to-vynal-purple-dark">
+        <div className="container mx-auto px-4">
+          <h2 className="text-3xl font-bold text-center mb-16 text-slate-800 dark:bg-gradient-to-r dark:from-vynal-accent-primary dark:to-vynal-accent-secondary dark:bg-clip-text dark:text-transparent">
+            Comment ça marche ?
+          </h2>
+          <BentoGridThirdDemo />
         </div>
       </section>
 
       {/* Text Reveal Section */}
       <TextRevealSectionDynamic />
 
+      {/* Bento Grid Section */}
+      <section className="py-16 md:py-24">
+        <div className="container mx-auto px-4">
+          <h2 className="text-3xl font-bold text-center mb-16 text-slate-800 dark:bg-gradient-to-r dark:from-vynal-accent-primary dark:to-vynal-accent-secondary dark:bg-clip-text dark:text-transparent">
+            Pourquoi les entreprises choisissent 
+            Vynal Platform
+          </h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-6xl mx-auto">
+            {/* Grande carte à gauche */}
+            <WobbleCard
+              containerClassName="bg-gradient-to-br from-pink-500 to-purple-600 dark:from-pink-600 dark:to-purple-700 h-full"
+              className="p-8 md:p-10 h-full"
+            >
+              <div className="flex flex-col justify-between h-full">
+                <div>
+                  <h3 className="text-3xl md:text-4xl font-bold mb-4 text-white">Qualité garantie</h3>
+                  <p className="text-white/90 text-lg md:text-xl">
+                    Propulse l'ensemble de vos projets
+                  </p>
+                </div>
+                
+                <div className="mt-6">
+                  <p className="text-white/90 mb-6">
+                  Accédez à des profils vérifiés, des évaluations authentiques et une vérification d'identité. Vous savez exactement à qui vous avez affaire.
+                  </p>
+                  <div className="overflow-hidden rounded-xl bg-gray-200 dark:bg-gray-800 flex items-center justify-center h-[250px]">
+                    <p className="text-gray-500 dark:text-gray-400 text-sm">Image du tableau de bord Vynal</p>
+                  </div>
+                </div>
+              </div>
+            </WobbleCard>
+            
+            {/* Colonne de droite */}
+            <div className="grid grid-cols-1 gap-6 h-full">
+              {/* Carte supérieure */}
+              <WobbleCard
+                containerClassName="bg-gradient-to-br from-indigo-500 to-blue-600 dark:from-indigo-600 dark:to-blue-700"
+                className="p-8 md:p-10"
+              >
+                <div className="text-center">
+                  <h3 className="text-2xl md:text-3xl font-bold mb-4 text-white">
+                    Zéro contrainte
+                  </h3>
+                  <p className="text-white/90 mb-4">
+                    Aucuns frais avant l'embauche. Vos données sont protégées, votre confidentialité est respectée. Et en cas de besoin, notre assistance est disponible 24/7.
+                  </p>
+                </div>
+              </WobbleCard>
+              
+              {/* Carte inférieure */}
+              <WobbleCard
+                containerClassName="bg-gradient-to-br from-blue-600 to-indigo-800 dark:from-blue-700 dark:to-indigo-900"
+                className="p-8 md:p-10"
+              >
+                <div className="flex flex-col items-center">
+                  <h3 className="text-2xl md:text-3xl font-bold mb-6 text-white text-center">
+                    Inscription rapide
+                  </h3>
+                  <p className="text-white/90 mb-6 text-center">
+                    Rejoignez la plateforme Vynal la plus innovante aujourd'hui!
+                  </p>
+                  <a 
+                    href="/auth/signup?role=client"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      window.location.href = '/auth/signup?role=client';
+                    }}
+                    className="bg-white/25 hover:bg-white/30 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-300 border border-white/30 cursor-pointer z-50 relative"
+                  >
+                    Commencer maintenant
+                  </a>
+                </div>
+              </WobbleCard>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Partners Section */}
-      <PartnersSectionDynamic />
+<PartnersSectionDynamic />
+
+{/* Section des sous-catégories populaires */}
+<section className="py-8 md:py-12 lg:py-16 bg-gradient-to-b from-white to-slate-50 dark:from-vynal-purple-dark dark:to-vynal-purple-darkest">
+  <div className="container mx-auto px-4 sm:px-6">
+    <div className="max-w-4xl mx-auto text-center mb-8">
+      <h2 className="text-2xl md:text-3xl font-bold text-slate-800 dark:bg-gradient-to-r dark:from-vynal-accent-primary dark:to-vynal-accent-secondary dark:bg-clip-text dark:text-transparent">
+        Ce que vous cherchez, nous l'avons déjà
+      </h2>
+    </div>
+    
+    <div className="flex flex-wrap gap-2 md:gap-3 justify-center max-w-5xl mx-auto">
+      {subcategories && subcategories.length > 0 ? (
+        (() => {
+          // Liste des sous-catégories à exclure de la page d'accueil
+          const excludedSubcategories = [
+            // Services administratifs et juridiques
+            'accompagnement-juridique',
+            'aide-declaration-impots',
+            'assistance-administrative',
+            'conseil-fiscal',
+            
+            // Services artisanaux et créatifs
+            'artisanat-local',
+            'broderie-personnalisee',
+            'calligraphie-art-traditionnel',
+            'creation-logos-tissus-africains',
+            'creation-tenues-personnalisees',
+            
+            // Services religieux et spirituels
+            'coaching-religieux',
+            'accompagnement-spirituel',
+            'conception-flyers-religieux',
+            'montage-videos-spirituelles',
+            
+            // Services techniques et spécialisés
+            'conception-poulaillers',
+            'configuration-routeurs',
+            'configuration-cameras',
+            'conseils-agriculture-bio',
+            
+            // Services de bien-être et beauté
+            'medecine-alternative',
+            'mise-en-beaute',
+            
+            // Services généraux
+            'assistance-distance',
+            'conseils-style-vestimentaire'
+          ];
+
+          // Filtrer les sous-catégories exclues
+          const filteredSubcategories = [...subcategories]
+            .filter(sub => !excludedSubcategories.includes(sub.slug));
+          
+          // Liste des slugs des sous-catégories les plus demandées (par ordre de popularité)
+          const topSubcategorySlugs = [
+            'developpement-web',
+            'marketing-digital', 
+            'conception-graphique',
+            'developpement-mobile',
+            'wordpress',
+            'seo',
+            'social-media',
+            'redaction-web',
+            'montage-video',
+            'traduction',
+            'design-ui-ux',
+            'logo-design',
+            'community-management',
+            'copywriting',
+            'motion-design',
+            'developpement-ecommerce',
+            'integration-web',
+            'creation-site-vitrine',
+            'referencement-google',
+            'redaction-article',
+            'developpement-application',
+            'creation-logo',
+            'refonte-site-web',
+            'campagne-adwords',
+            'traduction-francais-anglais',
+            'creation-site-wordpress',
+            'montage-video-youtube',
+            'mise-en-page-catalogue',
+            'redaction-seo',
+            'optimisation-site'
+          ];
+          
+          // Prioriser les sous-catégories populaires, puis ajouter d'autres jusqu'à atteindre la limite
+          let displayedSubcategories: Subcategory[] = [];
+          
+          // D'abord, ajouter les sous-catégories prioritaires (si elles existent dans notre base)
+          topSubcategorySlugs.forEach(slug => {
+            const matchingSubcategory = filteredSubcategories.find(sub => sub.slug === slug);
+            if (matchingSubcategory && !displayedSubcategories.some(sub => sub.id === matchingSubcategory.id)) {
+              displayedSubcategories.push(matchingSubcategory);
+            }
+          });
+          
+          // Si on n'a pas assez de sous-catégories prioritaires, compléter avec d'autres
+          if (displayedSubcategories.length < 24) {
+            const remainingSubcategories = filteredSubcategories.filter(
+              sub => !displayedSubcategories.some(displayedSub => displayedSub.id === sub.id)
+            );
+            
+            // Trier les sous-catégories restantes par ordre alphabétique
+            const sortedRemaining = [...remainingSubcategories]
+              .sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }));
+              
+            // Ajouter autant de sous-catégories que nécessaire pour atteindre la limite
+            const neededCount = 24 - displayedSubcategories.length;
+            displayedSubcategories = [
+              ...displayedSubcategories,
+              ...sortedRemaining.slice(0, neededCount)
+            ];
+          }
+          // Créer les liens pour chaque sous-catégorie
+          return displayedSubcategories.map(subcategory => {
+            // Trouver la catégorie parente pour la sous-catégorie
+            const parentCategory = categories.find(cat => cat.id === subcategory.category_id);
+            const parentSlug = parentCategory ? parentCategory.slug : '';
+            
+            return (
+              <Link
+                key={subcategory.id}
+                href={`/services?category=${parentSlug}&subcategory=${subcategory.slug}`}
+                className={`group inline-flex items-center rounded-full px-2 py-1 
+                  text-[10px] md:text-xs transition-all duration-200
+                  bg-white/30 dark:bg-slate-800/30 
+                  backdrop-blur-sm border border-slate-200 dark:border-slate-700/30
+                  shadow-sm 
+                  text-slate-700 dark:text-vynal-text-primary
+                  hover:bg-white/40 dark:hover:bg-slate-800/40
+                  hover:shadow-md 
+                  hover:border-vynal-accent-primary/30 dark:hover:border-vynal-accent-primary/40
+                  hover:text-vynal-accent-primary dark:hover:text-vynal-accent-primary
+                  hover:-translate-y-0.5`}
+              >
+                {subcategory.name}
+              </Link>
+            );
+          });
+        })()
+      ) : (
+        // Fallback avec des données statiques des services les plus demandés
+        [
+          { name: 'Développement Web', category: 'developpement-web-mobile', subcategory: 'developpement-web' },
+          { name: 'Marketing Digital', category: 'marketing-digital', subcategory: 'marketing-digital' },
+          { name: 'Design UI/UX', category: 'design-graphique', subcategory: 'design-ui-ux' },
+          { name: 'WordPress', category: 'developpement-web-mobile', subcategory: 'wordpress' },
+          { name: 'SEO', category: 'marketing-digital', subcategory: 'seo' },
+          { name: 'Développement Mobile', category: 'developpement-web-mobile', subcategory: 'developpement-mobile' },
+          { name: 'Rédaction Web', category: 'redaction-traduction', subcategory: 'redaction-web' },
+          { name: 'Montage Vidéo', category: 'video-audio', subcategory: 'montage-video' },
+          { name: 'Social Media', category: 'marketing-digital', subcategory: 'social-media' },
+          { name: 'Copywriting', category: 'redaction-traduction', subcategory: 'copywriting' },
+          { name: 'Logo Design', category: 'design-graphique', subcategory: 'logo-design' },
+          { name: 'Motion Design', category: 'video-audio', subcategory: 'motion-design' },
+          { name: 'E-commerce', category: 'developpement-web-mobile', subcategory: 'developpement-ecommerce' },
+          { name: 'Traduction', category: 'redaction-traduction', subcategory: 'traduction' },
+          { name: 'Community Management', category: 'marketing-digital', subcategory: 'community-management' },
+          { name: 'Création Site Vitrine', category: 'developpement-web-mobile', subcategory: 'creation-site-vitrine' },
+          { name: 'Application Mobile', category: 'developpement-web-mobile', subcategory: 'developpement-application' },
+          { name: 'Intégration HTML/CSS', category: 'developpement-web-mobile', subcategory: 'integration-web' },
+          { name: 'Gestion AdWords', category: 'marketing-digital', subcategory: 'campagne-adwords' },
+          { name: 'Montage Photo', category: 'design-graphique', subcategory: 'retouche-photo' },
+          { name: 'Référencement Google', category: 'marketing-digital', subcategory: 'referencement-google' },
+          { name: 'Rédaction SEO', category: 'redaction-traduction', subcategory: 'redaction-seo' },
+          { name: 'Refonte de Site', category: 'developpement-web-mobile', subcategory: 'refonte-site-web' },
+          { name: 'Création d\'identité visuelle', category: 'design-graphique', subcategory: 'identite-visuelle' },
+        ].map((subcat, index) => (
+          <Link
+            key={index}
+            href={`/services?category=${subcat.category}&subcategory=${subcat.subcategory}`}
+            className={`group inline-flex items-center rounded-full px-2 py-1 
+              text-[10px] md:text-xs transition-all duration-200
+              bg-white/30 dark:bg-slate-800/30 
+              backdrop-blur-sm border border-slate-200 dark:border-slate-700/30 
+              shadow-sm 
+              text-slate-700 dark:text-vynal-text-primary
+              hover:bg-white/40 dark:hover:bg-slate-800/40
+              hover:shadow-md 
+              hover:border-vynal-accent-primary/30 dark:hover:border-vynal-accent-primary/40
+              hover:text-vynal-accent-primary dark:hover:text-vynal-accent-primary
+              hover:-translate-y-0.5`}
+          >
+            {subcat.name}
+          </Link>
+        ))
+      )}
+    </div>
+    
+    {/* Bouton "Voir plus" pour accéder à toutes les sous-catégories */}
+    <div className="text-center mt-8">
+      <Link
+        href="/services"
+        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full
+          bg-vynal-accent-primary/20 hover:bg-vynal-accent-primary/30
+          dark:bg-vynal-accent-primary/10 dark:hover:bg-vynal-accent-primary/20
+          text-vynal-accent-primary font-medium text-sm
+          transition-all duration-200 hover:-translate-y-0.5"
+      >
+        Voir tous les services
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+          <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+        </svg>
+      </Link>
+    </div>
+  </div>
+</section>
 
       {/* Call to Action Section */}
       <section className="text-slate-800 dark:text-vynal-text-primary py-16 md:py-24">
         <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl font-bold mb-6 bg-gradient-to-r from-vynal-accent-primary to-vynal-accent-secondary bg-clip-text text-transparent">
+          <h2 className="text-3xl font-bold text-center mb-6 text-slate-800 dark:bg-gradient-to-r dark:from-vynal-accent-primary dark:to-vynal-accent-secondary dark:bg-clip-text dark:text-transparent">
             Prêt à rejoindre notre communauté?
           </h2>
           <p className="max-w-xl mx-auto mb-8 text-slate-600 dark:text-vynal-text-secondary">
@@ -358,7 +646,7 @@ export default function Home() {
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <Link 
               href={`${AUTH_ROUTES.REGISTER}?role=client`}
-              className="bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-vynal-purple-dark py-3 px-8 rounded-lg font-medium transition-all duration-200 shadow-sm"
+              className="bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-white py-3 px-8 rounded-lg font-medium transition-all duration-300 shadow-md hover:shadow-vynal-accent-primary/20"
             >
               S'inscrire comme client
             </Link>
