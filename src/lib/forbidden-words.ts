@@ -12,6 +12,7 @@ interface ForbiddenWordEntry {
   contextExceptions?: string[]; // Expressions où le mot peut être accepté
   regex?: boolean; // Si true, 'word' est traité comme une expression régulière
   action?: 'block' | 'warn' | 'censor' | 'notify_mod'; // Action à prendre quand le mot est détecté
+  shouldCheckAsCompleteWord?: boolean; // Si true, vérifie que le mot est complet et pas une partie d'un autre mot
 }
 
 // Liste détaillée des mots interdits avec contexte
@@ -61,7 +62,8 @@ export const forbiddenWordsConfig: ForbiddenWordEntry[] = [
   { 
     word: "pd", 
     severity: "high", 
-    contextExceptions: ["pédiatre", "pédiatrie"] 
+    contextExceptions: ["pédiatre", "pédiatrie", "pied", "pdt", "pdt que", "pendant"], 
+    shouldCheckAsCompleteWord: true 
   },
   { 
     word: "tapette", 
@@ -469,6 +471,18 @@ export const forbiddenWordsConfig: ForbiddenWordEntry[] = [
     word: "hors de vynal", 
     severity: "high" 
   },
+  // Vérifier le mot "toi" qui pourrait poser problème dans "merci à toi"
+  { 
+    word: "toi", 
+    severity: "low", 
+    contextExceptions: [
+      "merci à toi", "avec toi", "chez toi", "pour toi", "à toi", "de toi", "que toi", 
+      "comme toi", "contre toi", "sans toi", "sur toi", "vers toi", "après toi",
+      "envoie-moi", "dis-moi", "donne-moi", "montre-moi", "toit", "toiture", "toilette"
+    ],
+    action: "warn",
+    shouldCheckAsCompleteWord: true
+  },
 ];
 
 // Pour compatibilité avec le code existant
@@ -484,6 +498,99 @@ export interface ForbiddenWordsResult {
   severity: 'high' | 'medium' | 'low' | 'none';
   possibleQuoteOrReport: boolean;
   recommendedAction?: 'block' | 'warn' | 'censor' | 'notify_mod';
+}
+
+/**
+ * Détecte si le message est un simple message de politesse ou une formule courante
+ * qu'on ne veut pas bloquer même s'il contient des mots qui pourraient être mal interprétés
+ */
+function isPoliteMessage(text: string): boolean {
+  if (!text || typeof text !== 'string') return false;
+  
+  try {
+    const textTrimmed = text.trim().toLowerCase();
+    
+    // Liste de formules de politesse courantes complètes
+    const politePhrases = [
+      "merci", "merci beaucoup", "merci à toi", "merci bien", "merci d'avance",
+      "bonjour", "bonsoir", "salut", "hello", "coucou", "hey",
+      "bonne journée", "bonne soirée", "bon weekend", "bonnes vacances",
+      "à bientôt", "à plus", "à plus tard", "à demain", "à la prochaine",
+      "au revoir", "à tout à l'heure", "bye", "bye bye",
+      "désolé", "je suis désolé", "pardonne-moi", "excuse-moi", "excusez-moi", "pardon",
+      "s'il te plaît", "s'il vous plaît", "svp", "please", "thanks", "thank you",
+      "de rien", "avec plaisir", "pas de problème", "pas de souci",
+      "bien reçu", "bien noté", "je note", "parfait", "super", "génial", "top", "c'est noté",
+      "d'accord", "je comprends", "compris", "entendu", "ça marche", "ok", "okay",
+      "courage", "bonne chance", "bon courage"
+    ];
+    
+    // Vérifier si le message correspond exactement à une formule de politesse
+    for (const phrase of politePhrases) {
+      if (textTrimmed === phrase || 
+          textTrimmed === phrase + "." || 
+          textTrimmed === phrase + "!" || 
+          textTrimmed === phrase + "?" ||
+          textTrimmed.startsWith(phrase + " ") ||
+          textTrimmed.startsWith(phrase + ", ")) {
+        return true;
+      }
+    }
+    
+    // Expressions régulières pour des formules plus complexes
+    const politeRegexes = [
+      /^merci\s+(pour|de|du|des|à)/i,
+      /^je\s+te?\s+remercie/i,
+      /^je\s+vous\s+remercie/i,
+      /^(c'est|c|ça)\s+(très\s+)?(gentil|sympa|cool)/i,
+      /^(je\s+vous\s+souhaite|je\s+te\s+souhaite)/i,
+      /^bon(ne)?\s/i,
+      /^à\s+votre\s+service/i,
+      /^je\s+(vous|te)\s+confirme/i,
+      /^(comme|tel\s+que)\s+(convenu|promis|prévu)/i,
+      /^(je\s+suis\s+|j'ai\s+été\s+)(ravi|enchanté|content|heureux)/i
+    ];
+    
+    // Tester chaque expression régulière
+    for (const regex of politeRegexes) {
+      if (regex.test(textTrimmed)) {
+        return true;
+      }
+    }
+    
+    // Vérifier si le message est très court (moins de 20 caractères)
+    // et ne contient pas de mots hautement offensants
+    if (textTrimmed.length < 20) {
+      // Mots hautement offensants qui, même dans un message court, devraient être bloqués
+      const highlyOffensiveWords = [
+        "connard", "connasse", "salope", "pute", "enculé", "fdp", 
+        "ntm", "nazi", "nègre", "négro", "sale juif", "sale arabe", "sale noir"
+      ];
+      
+      // Si aucun mot hautement offensif n'est présent dans ce court message,
+      // il y a de fortes chances que ce soit un message inoffensif
+      const containsOffensiveWord = highlyOffensiveWords.some(word => 
+        textTrimmed.includes(word.toLowerCase())
+      );
+      
+      if (!containsOffensiveWord) {
+        // Vérifier quelques formules courtes spécifiques
+        const shortMessages = [
+          "ok", "d'accord", "merci", "oui", "non", "bien", "super", "génial",
+          "je vois", "compris", "parfait", "excellente", "excellent"
+        ];
+        
+        if (shortMessages.some(msg => textTrimmed.includes(msg.toLowerCase()))) {
+          return true;
+        }
+      }
+    }
+    
+    return false;
+  } catch (error) {
+    console.error("Erreur lors de la détection de formule de politesse:", error);
+    return false; // En cas d'erreur, ne pas considérer comme formule de politesse
+  }
 }
 
 /**
@@ -518,6 +625,19 @@ export function containsForbiddenWords(message: string): ForbiddenWordsResult {
       possibleQuoteOrReport = false; // Par défaut, ne pas considérer comme citation
     }
     
+    // Détecter si c'est un message de politesse simple
+    const isMessagePolite = isPoliteMessage(message);
+    
+    // Si c'est un message poli simple, ignorer la recherche de mots interdits
+    if (isMessagePolite) {
+      return {
+        hasForbiddenWords: false,
+        foundWords: [],
+        severity: 'none',
+        possibleQuoteOrReport: false
+      };
+    }
+    
     let foundWords: string[] = [];
     let highestSeverity: 'high' | 'medium' | 'low' | 'none' = 'none';
     let recommendedAction: 'block' | 'warn' | 'censor' | 'notify_mod' | undefined = undefined;
@@ -531,9 +651,11 @@ export function containsForbiddenWords(message: string): ForbiddenWordsResult {
     for (const entry of forbiddenWordsConfig) {
       try {
         let found = false;
+        const shouldCheckAsCompleteWord = entry.shouldCheckAsCompleteWord !== undefined ? 
+          entry.shouldCheckAsCompleteWord : true; // Par défaut, vérifier les mots complets
         
         // Vérifier le mot principal
-        if (matchesPattern(messageLower, entry.word, entry.regex)) {
+        if (matchesPattern(messageLower, entry.word, entry.regex, shouldCheckAsCompleteWord)) {
           found = true;
         }
         
@@ -541,7 +663,7 @@ export function containsForbiddenWords(message: string): ForbiddenWordsResult {
         if (!found && entry.aliases && entry.aliases.length > 0) {
           for (const alias of entry.aliases) {
             try {
-              if (matchesPattern(messageLower, alias)) {
+              if (matchesPattern(messageLower, alias, false, shouldCheckAsCompleteWord)) {
                 found = true;
                 break;
               }
@@ -549,20 +671,6 @@ export function containsForbiddenWords(message: string): ForbiddenWordsResult {
               console.error(`Erreur lors de la vérification de l'alias: ${alias}`, e);
               errorCount++;
             }
-          }
-        }
-        
-        // Si toujours pas trouvé mais que la normalisation est activée, vérifier directement 
-        // dans le texte normalisé pour attraper les variantes orthographiques
-        if (!found && !entry.regex) {
-          try {
-            const normalizedWord = normalizeText(entry.word);
-            if (normalizedWord && normalizedMessage.includes(normalizedWord)) {
-              found = true;
-            }
-          } catch (e) {
-            console.error(`Erreur lors de la vérification normalisée pour: ${entry.word}`, e);
-            errorCount++;
           }
         }
         
@@ -583,6 +691,16 @@ export function containsForbiddenWords(message: string): ForbiddenWordsResult {
         // Si c'est une citation/signalement et que le mot est de faible importance, l'ignorer
         if (found && possibleQuoteOrReport && entry.severity === 'low') {
           found = false;
+        }
+        
+        // Vérifier si le message est court et que la détection pourrait être un faux positif
+        const isShortMessage = message.trim().length < 20;
+        if (found && isShortMessage && entry.severity === 'low') {
+          // Cas particulier pour les messages courts avec mots de faible gravité
+          // Plus grande chance de faux positif, donc être plus permissif
+          if (!entry.action || entry.action === 'warn') {
+            found = false; // Ignorer complètement les mots de faible gravité dans les messages courts
+          }
         }
         
         if (found) {
@@ -856,7 +974,7 @@ function normalizeText(text: string): string {
  * Vérifie si un texte correspond à un modèle (mot ou regex)
  * en tenant compte de la normalisation
  */
-function matchesPattern(text: string, pattern: string, isRegex: boolean = false): boolean {
+function matchesPattern(text: string, pattern: string, isRegex: boolean = false, shouldCheckAsCompleteWord: boolean = true): boolean {
   try {
     // Si le texte ou le pattern est vide, retourner false immédiatement
     if (!text || !pattern) return false;
@@ -879,51 +997,53 @@ function matchesPattern(text: string, pattern: string, isRegex: boolean = false)
     // Normaliser également le pattern pour une meilleure correspondance
     const normalizedPattern = normalizeText(pattern);
     
-    // Vérification comme mot entier pour éviter les faux positifs
-    try {
-      // Approche alternative plus sûre pour créer des regex
-      // Vérifier d'abord comme mot entier
-      const textWords = ` ${normalizedText} `.split(' ');
-      const patternWords = normalizedPattern.split(' ');
-      
-      // Vérifier chaque mot du pattern
-      for (const patternWord of patternWords) {
-        if (patternWord && textWords.some(word => 
-            word === patternWord || 
-            word === `${patternWord}s` || 
-            word === `${patternWord}es`)) {
-          return true;
+    // Si on doit vérifier le mot complet
+    if (shouldCheckAsCompleteWord) {
+      try {
+        // Approche alternative plus sûre pour créer des regex
+        // Vérifier d'abord comme mot entier
+        const textWords = ` ${normalizedText} `.split(' ');
+        const patternWords = normalizedPattern.split(' ');
+        
+        // Vérifier chaque mot du pattern
+        for (const patternWord of patternWords) {
+          if (patternWord && textWords.some(word => 
+              word === patternWord || 
+              word === `${patternWord}s` || 
+              word === `${patternWord}es`)) {
+            return true;
+          }
         }
+        
+        // Si la vérification par mots échoue, essayer avec regex avec gestion d'erreur
+        // Échapper les caractères spéciaux regex dans le pattern
+        const escapedPattern = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const escapedNormPattern = normalizedPattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        
+        try {
+          const regex = new RegExp(`\\b${escapedPattern}\\b|\\b${escapedPattern}[es]?\\b|\\b${escapedPattern}[s]?\\b`, 'i');
+          if (regex.test(text)) return true;
+        } catch (regexError) {
+          console.error(`Erreur regex avec pattern original: ${pattern}`, regexError);
+          // Continuer avec l'autre regex
+        }
+        
+        try {
+          const regexNorm = new RegExp(`\\b${escapedNormPattern}\\b|\\b${escapedNormPattern}[es]?\\b|\\b${escapedNormPattern}[s]?\\b`, 'i');
+          if (regexNorm.test(normalizedText)) return true;
+        } catch (regexNormError) {
+          console.error(`Erreur regex avec pattern normalisé: ${normalizedPattern}`, regexNormError);
+        }
+        
+        return false; // Si nous arrivons ici, le mot n'a pas été trouvé comme mot complet
+      } catch (e) {
+        console.error(`Erreur lors de la création de l'expression régulière pour: ${pattern}`, e);
+        // Fallback moins strict
+        return normalizedText.includes(` ${normalizedPattern} `);
       }
-      
-      // Si la vérification par mots échoue, essayer avec regex avec gestion d'erreur
-      // Échapper les caractères spéciaux regex dans le pattern
-      const escapedPattern = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const escapedNormPattern = normalizedPattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      
-      try {
-        const regex = new RegExp(`\\b${escapedPattern}\\b|\\b${escapedPattern}[es]?\\b|\\b${escapedPattern}[s]?\\b`, 'i');
-        if (regex.test(text)) return true;
-      } catch (regexError) {
-        console.error(`Erreur regex avec pattern original: ${pattern}`, regexError);
-        // Continuer avec l'autre regex
-      }
-      
-      try {
-        const regexNorm = new RegExp(`\\b${escapedNormPattern}\\b|\\b${escapedNormPattern}[es]?\\b|\\b${escapedNormPattern}[s]?\\b`, 'i');
-        if (regexNorm.test(normalizedText)) return true;
-      } catch (regexNormError) {
-        console.error(`Erreur regex avec pattern normalisé: ${normalizedPattern}`, regexNormError);
-      }
-      
-      // Dernier recours : recherche simple d'inclusion
+    } else {
+      // Si on ne vérifie pas le mot complet, une simple recherche d'inclusion suffit
       return normalizedText.includes(normalizedPattern);
-      
-    } catch (e) {
-      console.error(`Erreur lors de la création de l'expression régulière pour: ${pattern}`, e);
-      // Fallback: vérification simple si le pattern est présent
-      return text.toLowerCase().includes(pattern.toLowerCase()) || 
-             normalizedText.includes(normalizedPattern);
     }
   } catch (generalError) {
     console.error(`Erreur générale dans matchesPattern pour: ${pattern}`, generalError);
@@ -953,6 +1073,7 @@ function isQuoteOrReport(text: string): boolean {
   if (!text) return false;
   
   try {
+    // Expressions courantes utilisées dans les citations ou signalements
     const reportPatterns = [
       /il[\/\s\.]m[\'e]a\s+dit/i, 
       /elle[\/\s\.]m[\'e]a\s+dit/i,
@@ -967,7 +1088,11 @@ function isQuoteOrReport(text: string): boolean {
       /propos\s+de/i,
       /signaler\s+[a-z]+/i,
       /je\s+signale/i,
-      /message\s+inapproprié/i
+      /message\s+inapproprié/i,
+      /il\s+m['e]?\s*a\s+appelé/i,
+      /elle\s+m['e]?\s*a\s+appelé/i,
+      /il\s+m['e]?\s*a\s+écrit/i,
+      /elle\s+m['e]?\s*a\s+écrit/i
     ];
     
     // Recherche de guillemets qui indiquent souvent une citation

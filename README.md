@@ -104,7 +104,7 @@ La plateforme implémente plusieurs niveaux de sécurité :
 - **Protection des données** : Sanitization des entrées utilisateur, validation stricte
 - **Sécurité des paiements** : Système d'escrow pour protéger les transactions
 - **Sécurité des documents** : Signature HMAC-SHA256 pour la vérification des documents
-- **Protection contre les attaques** : Middleware pour prévenir les attaques CSRF, XSS, et les injections
+- **Protection contre les attaques** : Middleware pour prévenir les attaques CSRF, XSS, et les injections.
 
 ## 🚧 Roadmap
 
