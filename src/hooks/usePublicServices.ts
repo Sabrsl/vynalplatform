@@ -8,6 +8,7 @@ import {
 } from '@/lib/optimizations/invalidation';
 import { PostgrestError } from '@supabase/supabase-js';
 import { ServiceWithFreelanceAndCategories } from './useServices';
+import { CACHE_EXPIRY } from '@/lib/optimizations';
 
 export interface PublicServicesParams {
   categoryId?: string;
@@ -185,7 +186,11 @@ export function usePublicServices({
       revalidateOnMount: true,
       revalidateInterval: 0,
       priority: 'high',
-      expiry: 5 * 60 * 1000, // 5 minutes
+      expiry: featured 
+        ? CACHE_EXPIRY.DAYS_3  // Services mis en avant - cache de 3 jours
+        : (categoryId || subcategoryId)
+          ? CACHE_EXPIRY.WEEK // Services par catégorie - cache d'une semaine
+          : CACHE_EXPIRY.DAYS_3, // Autres services - cache de 3 jours
     }
   );
   

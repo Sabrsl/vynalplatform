@@ -10,6 +10,10 @@ export const metadata: Metadata = {
   description: "Découvrez l'histoire et la mission de Vynal Platform, la plateforme de mise en relation entre freelances et clients au Sénégal",
 };
 
+// Ajouter une configuration de mise en cache pour cette page statique
+export const dynamic = 'force-static';
+export const revalidate = 2592000; // 30 jours en secondes
+
 export default function AboutPage() {
   return (
     <div className="min-h-screen bg-white/30 dark:bg-slate-900/30">

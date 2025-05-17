@@ -23,12 +23,12 @@ interface CacheEntry<T> {
 
 // Configuration du cache
 const CACHE_CONFIG = {
-  MAX_MEMORY_ITEMS: 300,           // Augmenté de 200 à 300
-  MAX_LOCALSTORAGE_SIZE: 15 * 1024 * 1024, // Augmenté à 15 Mo
-  CLEANUP_INTERVAL: 120000,        // Augmenté à 2 minutes
-  QUOTA_EXCEEDED_CLEANUP: 0.25,    // Réduire le nettoyage à 25% au lieu de 30%
+  MAX_MEMORY_ITEMS: 500,           // Augmenté de 300 à 500
+  MAX_LOCALSTORAGE_SIZE: 20 * 1024 * 1024, // Augmenté à 20 Mo
+  CLEANUP_INTERVAL: 300000,        // Augmenté à 5 minutes
+  QUOTA_EXCEEDED_CLEANUP: 0.20,    // Réduire le nettoyage à 20% au lieu de 25%
   PREFIX: 'vynal:cache:',           // Préfixe pour les clés de cache
-  HIGH_PRIORITY_RETENTION: 1.5,    // Multiplicateur de durée pour les entrées haute priorité
+  HIGH_PRIORITY_RETENTION: 2.0,    // Augmenté à 2.0 (doublement de la durée pour les entrées haute priorité)
   DEFER_WRITE_DELAY: 100,          // Délai pour différer les écritures (ms)
 };
 
@@ -41,17 +41,20 @@ let writeTimer: any = null;
 
 // Durée d'expiration des différents types de données (en ms)
 export const CACHE_EXPIRY = {
-  CATEGORIES: 7 * 24 * 60 * 60 * 1000, // 7 jours (maximum)
-  SERVICES: 24 * 60 * 60 * 1000,       // 24 heures (maximum)
-  USER_DATA: 24 * 60 * 60 * 1000,      // 24 heures (maximum)
-  USER_PROFILE: 7 * 24 * 60 * 60 * 1000, // 7 jours (maximum)
-  USER_SESSION: 30 * 24 * 60 * 60 * 1000, // 30 jours (maximum mais critique)
-  USER_SESSION_PARTIAL: 24 * 60 * 60 * 1000, // 24 heures (maximum)
-  EXTENDED_SESSION: 90 * 24 * 60 * 60 * 1000, // 90 jours (maximum)
-  DASHBOARD_DATA: 7 * 24 * 60 * 60 * 1000, // 7 jours (maximum)
-  DYNAMIC: 12 * 60 * 60 * 1000, // 12 heures (maximum raisonnable)
-  REVIEWS: 5 * 60 * 1000, // 5 minutes (pour les avis qui peuvent changer fréquemment)
-  ROUTE_CHANGE: 0, // Invalider immédiatement lors des changements de route
+  CATEGORIES: 30 * 24 * 60 * 60 * 1000, // 30 jours (augmenté de 7 à 30 jours)
+  SUBCATEGORIES: 30 * 24 * 60 * 60 * 1000, // 30 jours (nouvelle constante)
+  SERVICES: 7 * 24 * 60 * 60 * 1000,    // 7 jours (augmenté de 24h à 7 jours)
+  VALIDATED_SERVICES: 14 * 24 * 60 * 60 * 1000, // 14 jours pour les services validés (nouvelle constante)
+  USER_DATA: 24 * 60 * 60 * 1000,      // 24 heures (inchangé)
+  USER_PROFILE: 7 * 24 * 60 * 60 * 1000, // 7 jours (inchangé)
+  USER_SESSION: 30 * 24 * 60 * 60 * 1000, // 30 jours (inchangé)
+  USER_SESSION_PARTIAL: 24 * 60 * 60 * 1000, // 24 heures (inchangé)
+  EXTENDED_SESSION: 90 * 24 * 60 * 60 * 1000, // 90 jours (inchangé)
+  DASHBOARD_DATA: 30 * 24 * 60 * 60 * 1000, // 30 jours (invalidé par événement quand nécessaire)
+  SETTINGS: 30 * 24 * 60 * 60 * 1000, // 30 jours (invalidé par événement quand nécessaire)
+  DYNAMIC: 12 * 60 * 60 * 1000, // 12 heures (inchangé)
+  REVIEWS: 5 * 60 * 1000, // 5 minutes (inchangé)
+  ROUTE_CHANGE: 0, // Invalider immédiatement lors des changements de route (inchangé)
 };
 
 /**

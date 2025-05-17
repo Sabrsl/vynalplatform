@@ -27,7 +27,7 @@ import {
   getCachedData, 
   setCachedData, 
   CACHE_EXPIRY
-} from '@/lib/optimizations';
+} from '@/lib/optimizations/cache';
 import {
   Dialog,
   DialogContent,
@@ -486,7 +486,7 @@ export default function ServicesPage() {
         cacheKey, 
         { services: transformedServices, total: count || 0 },
         { 
-          expiry: CACHE_EXPIRY.SHORT,
+          expiry: CACHE_EXPIRY.DASHBOARD_DATA,
           priority: forceRefresh ? 'medium' : 'high'
         }
       );

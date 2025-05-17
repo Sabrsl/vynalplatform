@@ -5,7 +5,8 @@ import { useLastRefresh } from './useLastRefresh';
 import { 
   getCachedData, 
   setCachedData, 
-  invalidateCache
+  invalidateCache,
+  CACHE_EXPIRY
 } from '@/lib/optimizations/cache';
 import { useUser } from '@/hooks/useUser';
 import { NavigationLoadingState } from '@/app/providers';
@@ -23,12 +24,6 @@ const CACHE_PRIORITIES = {
   HIGH: 'high' as const,
   MEDIUM: 'medium' as const,
   LOW: 'low' as const
-};
-
-// Durées d'expiration pour le dashboard
-const CACHE_EXPIRY = {
-  DASHBOARD_STATS: 20 * 60 * 1000,     // 20 minutes
-  DASHBOARD_ACTIVITIES: 20 * 60 * 1000  // 20 minutes
 };
 
 // Type pour les statistiques d'un client

@@ -134,7 +134,8 @@ export function useClientStats(options: UseClientStatsOptions = {}) {
         // Mettre à jour le cache
         if (useCache) {
           setCachedData(cacheKey, statsData, { 
-            expiry: CACHE_EXPIRY.DASHBOARD_STATS || 5 * 60 * 1000 
+            expiry: CACHE_EXPIRY.DAYS_3, // Cache de 3 jours
+            priority: 'high'
           });
         }
         
@@ -184,10 +185,10 @@ export function useClientStats(options: UseClientStatsOptions = {}) {
     };
     
     // Écouter les événements d'invalidation du cache
-    window.addEventListener('cache-invalidated', handleCacheInvalidated);
+    window.addEventListener('vynal:cache-invalidated', handleCacheInvalidated);
     
     return () => {
-      window.removeEventListener('cache-invalidated', handleCacheInvalidated);
+      window.removeEventListener('vynal:cache-invalidated', handleCacheInvalidated);
     };
   }, [fetchClientStats]);
 

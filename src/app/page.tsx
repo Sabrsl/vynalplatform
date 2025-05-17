@@ -24,6 +24,8 @@ import { WobbleCard } from "@/components/ui/WobbleCard";
 import { GlowingEffect } from "@/components/ui/GlowingEffect";
 import { CURRENCY } from "@/lib/constants";
 import { BentoGridThirdDemo } from "@/components/ui/BentoGridThirdDemo";
+import { Metadata } from "next";
+import Image from "next/image";
 
 // Clé de cache pour la page d'accueil
 const HOMEPAGE_CACHE_KEY = 'homepage_data';
@@ -159,6 +161,27 @@ export default function Home() {
   const searchPlaceholders = [
     "Que cherchez vous? Par exemple : Marketing..."
   ];
+  
+  // Version mobile du placeholder
+  const [mobilePlaceholder, setMobilePlaceholder] = useState(searchPlaceholders[0]);
+  
+  // Mettre à jour le placeholder en fonction de la taille de l'écran
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 640) { // Mobile uniquement
+        setMobilePlaceholder("Que cherchez vous ? Par exemple : IA...");
+      } else {
+        setMobilePlaceholder(searchPlaceholders[0]);
+      }
+    };
+    
+    handleResize(); // Exécuter immédiatement
+    window.addEventListener('resize', handleResize);
+    
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
 
   // Fonction pour gérer les clics sur les catégories
   const handleCategoryClick = (categorySlug: string) => {
@@ -210,8 +233,8 @@ export default function Home() {
               <div className="relative">
                 <input
                   type="text"
-                  className="w-full py-3 pl-5 pr-14 rounded-full bg-white/40 dark:bg-slate-800/40 text-slate-800 dark:text-white border-2 border-slate-300 dark:border-slate-700/30 shadow-md focus:ring-2 focus:ring-vynal-accent-primary/30 dark:focus:ring-vynal-accent-primary/40 outline-none transition-all text-sm placeholder:text-slate-500"
-                  placeholder={searchPlaceholders[0]}
+                  className="w-full py-3 pl-5 pr-14 rounded-full bg-white/40 dark:bg-slate-800/40 text-slate-800 dark:text-white border-2 border-slate-300 dark:border-slate-700/30 shadow-md focus:ring-2 focus:ring-vynal-accent-primary/30 dark:focus:ring-vynal-accent-primary/40 outline-none transition-all text-sm placeholder:text-slate-500 placeholder:text-[10px] xs:placeholder:text-xs sm:placeholder:text-sm"
+                  placeholder={mobilePlaceholder}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
                 <GlowingEffect disabled={isMobile} spread={30} variant="default" borderWidth={2} />
@@ -230,34 +253,46 @@ export default function Home() {
           <div className="mt-4 text-center">
             <div className="flex justify-center items-center overflow-x-auto whitespace-nowrap py-2 px-4 w-full">
               <div className="flex items-center justify-center space-x-6 md:space-x-8 mx-auto">
-                <img 
+                <Image 
                   src="/assets/partners/logo_free_money.webp" 
                   alt="Free Money" 
+                  width={84}
+                  height={18}
                   className="h-6 md:h-7 w-auto object-contain grayscale hover:grayscale-0 transition-all duration-300" 
                 />
-                <img 
+                <Image 
                   src="/assets/partners/logo_stripe.webp" 
                   alt="Stripe" 
+                  width={84}
+                  height={18}
                   className="h-6 md:h-7 w-auto object-contain grayscale hover:grayscale-0 transition-all duration-300" 
                 />
-                <img 
+                <Image 
                   src="/assets/partners/logo_wave_.webp" 
                   alt="Wave" 
+                  width={84}
+                  height={18}
                   className="h-6 md:h-7 w-auto object-contain grayscale hover:grayscale-0 transition-all duration-300" 
                 />
-                <img 
+                <Image 
                   src="/assets/partners/om_logo_.webp" 
                   alt="OM" 
+                  width={84}
+                  height={18}
                   className="h-6 md:h-7 w-auto object-contain grayscale hover:grayscale-0 transition-all duration-300" 
                 />
-                <img 
+                <Image 
                   src="/assets/partners/Google_.webp" 
                   alt="Google" 
+                  width={84}
+                  height={18}
                   className="h-6 md:h-7 w-auto object-contain grayscale hover:grayscale-0 transition-all duration-300" 
                 />
-                <img 
+                <Image 
                   src="/assets/partners/Logo-GitHub-Black.webp" 
                   alt="GitHub" 
+                  width={84}
+                  height={18}
                   className="h-6 md:h-7 w-auto object-contain dark:invert grayscale hover:grayscale-0 transition-all duration-300" 
                 />
               </div>
@@ -283,7 +318,7 @@ export default function Home() {
                   'Marketing Digital',
                   'Rédaction & Traduction',
                   'Vidéo & Audio',
-                  'Formation & Éducation',
+                  'Intelligence Artificielle',
                   'Informatique & Réseaux',
                   'Services Administratifs'
                 ].includes(cat.name))
@@ -295,8 +330,8 @@ export default function Home() {
                     'Traduction': BookOpen,
                     'Vidéo': Camera,
                     'Audio': Camera,
-                    'Formation': BookOpen,
-                    'Éducation': BookOpen,
+                    'Intelligence': Server,
+                    'Artificielle': Server,
                     'Informatique': Server,
                     'Développement': Code,
                     'Administratif': Shield
@@ -493,22 +528,22 @@ export default function Home() {
             'logo-design',
             'community-management',
             'copywriting',
+            'portraits-ia',
+            'redaction-seo-ia',
+            'chatbots-e-commerce',
+            'automatisation-process',
+            'logos-ia',
+            'resumes-documents',
+            'assistants-medias-sociaux',
+            'traduction-specialisee',
+            'analyse-predictive',
+            'videos-ia',
+            'recherche-ia',
+            'voix-synthetiques',
             'motion-design',
             'developpement-ecommerce',
             'integration-web',
-            'creation-site-vitrine',
-            'referencement-google',
-            'redaction-article',
-            'developpement-application',
-            'creation-logo',
-            'refonte-site-web',
-            'campagne-adwords',
-            'traduction-francais-anglais',
-            'creation-site-wordpress',
-            'montage-video-youtube',
-            'mise-en-page-catalogue',
-            'redaction-seo',
-            'optimisation-site'
+            'creation-site-vitrine'
           ];
           
           // Prioriser les sous-catégories populaires, puis ajouter d'autres jusqu'à atteindre la limite
@@ -573,26 +608,26 @@ export default function Home() {
           { name: 'Marketing Digital', category: 'marketing-digital', subcategory: 'marketing-digital' },
           { name: 'Design UI/UX', category: 'design-graphique', subcategory: 'design-ui-ux' },
           { name: 'WordPress', category: 'developpement-web-mobile', subcategory: 'wordpress' },
-          { name: 'SEO', category: 'marketing-digital', subcategory: 'seo' },
+          { name: 'Portraits IA', category: 'intelligence-artificielle', subcategory: 'portraits-ia' },
           { name: 'Développement Mobile', category: 'developpement-web-mobile', subcategory: 'developpement-mobile' },
-          { name: 'Rédaction Web', category: 'redaction-traduction', subcategory: 'redaction-web' },
+          { name: 'Rédaction SEO IA', category: 'intelligence-artificielle', subcategory: 'redaction-seo-ia' },
           { name: 'Montage Vidéo', category: 'video-audio', subcategory: 'montage-video' },
           { name: 'Social Media', category: 'marketing-digital', subcategory: 'social-media' },
-          { name: 'Copywriting', category: 'redaction-traduction', subcategory: 'copywriting' },
-          { name: 'Logo Design', category: 'design-graphique', subcategory: 'logo-design' },
+          { name: 'Chatbots E-commerce', category: 'intelligence-artificielle', subcategory: 'chatbots-e-commerce' },
+          { name: 'Logos IA', category: 'intelligence-artificielle', subcategory: 'logos-ia' },
           { name: 'Motion Design', category: 'video-audio', subcategory: 'motion-design' },
           { name: 'E-commerce', category: 'developpement-web-mobile', subcategory: 'developpement-ecommerce' },
-          { name: 'Traduction', category: 'redaction-traduction', subcategory: 'traduction' },
+          { name: 'Traduction Spécialisée', category: 'intelligence-artificielle', subcategory: 'traduction-specialisee' },
           { name: 'Community Management', category: 'marketing-digital', subcategory: 'community-management' },
           { name: 'Création Site Vitrine', category: 'developpement-web-mobile', subcategory: 'creation-site-vitrine' },
-          { name: 'Application Mobile', category: 'developpement-web-mobile', subcategory: 'developpement-application' },
-          { name: 'Intégration HTML/CSS', category: 'developpement-web-mobile', subcategory: 'integration-web' },
-          { name: 'Gestion AdWords', category: 'marketing-digital', subcategory: 'campagne-adwords' },
-          { name: 'Montage Photo', category: 'design-graphique', subcategory: 'retouche-photo' },
-          { name: 'Référencement Google', category: 'marketing-digital', subcategory: 'referencement-google' },
-          { name: 'Rédaction SEO', category: 'redaction-traduction', subcategory: 'redaction-seo' },
-          { name: 'Refonte de Site', category: 'developpement-web-mobile', subcategory: 'refonte-site-web' },
-          { name: 'Création d\'identité visuelle', category: 'design-graphique', subcategory: 'identite-visuelle' },
+          { name: 'Vidéos IA', category: 'intelligence-artificielle', subcategory: 'videos-ia' },
+          { name: 'Automatisation Process', category: 'intelligence-artificielle', subcategory: 'automatisation-process' },
+          { name: 'Analyse Prédictive', category: 'intelligence-artificielle', subcategory: 'analyse-predictive' },
+          { name: 'Assistants Médias Sociaux', category: 'intelligence-artificielle', subcategory: 'assistants-medias-sociaux' },
+          { name: 'Recherche IA', category: 'intelligence-artificielle', subcategory: 'recherche-ia' },
+          { name: 'Voix Synthétiques', category: 'intelligence-artificielle', subcategory: 'voix-synthetiques' },
+          { name: 'Résumés Documents', category: 'intelligence-artificielle', subcategory: 'resumes-documents' },
+          { name: 'Logo Design', category: 'design-graphique', subcategory: 'logo-design' },
         ].map((subcat, index) => (
           <Link
             key={index}

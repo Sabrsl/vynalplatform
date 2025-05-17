@@ -125,7 +125,7 @@ export function useFreelancerRating(freelanceId: string | null | undefined): Use
                 averageRating: avgRating,
                 reviewCount: count,
               }, {
-                expiry: CACHE_EXPIRY.REVIEWS,
+                expiry: CACHE_EXPIRY.REVIEWS || 7 * 24 * 60 * 60 * 1000, // 7 jours pour les avis
               });
             }
             

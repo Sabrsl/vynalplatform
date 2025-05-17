@@ -38,6 +38,10 @@ export const metadata: Metadata = {
   description: "Découvrez en détail le fonctionnement de Vynal Platform, la marketplace innovante qui connecte les freelances et clients en Afrique avec un système sécurisé et transparent",
 };
 
+// Ajouter une configuration de mise en cache pour cette page statique
+export const dynamic = 'force-static';
+export const revalidate = 2592000; // 30 jours en secondes
+
 export default function HowItWorksPage() {
   return (
     <div className="min-h-screen bg-white/30 dark:bg-vynal-purple-dark">

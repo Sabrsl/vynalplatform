@@ -1008,6 +1008,10 @@ export default function SettingsPage() {
 
       if (error) throw error;
       
+      // Invalider le cache pour forcer le rafraîchissement des données
+      invalidateAllClientCache(authUser?.id);
+      updateLastRefresh();
+      
       toast({
         title: "Paramètres mis à jour",
         description: "Vos préférences ont été enregistrées avec succès.",

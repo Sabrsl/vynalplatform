@@ -92,7 +92,7 @@ const getUserGeoData = async (): Promise<GeoData> => {
     
     // Mettre en cache pour les prochains appels
     setCachedData('user_geo_location', geoData, {
-      expiry: 24 * 60 * 60 * 1000, // 24 heures
+      expiry: CACHE_EXPIRY.USER_DATA,
       storage: 'both',
       priority: 'high'
     });
@@ -165,7 +165,7 @@ const fetchCurrencyFromJson = async (currencyCode: string): Promise<CurrencyData
     if (currency) {
       // Mettre en cache pour les prochains appels
       setCachedData(cacheKey, currency, {
-        expiry: 24 * 60 * 60 * 1000, // 24 heures
+        expiry: CACHE_EXPIRY.USER_DATA,
         storage: 'both',
         priority: 'high'
       });
@@ -265,7 +265,7 @@ export default function useCurrency(options: UseCurrencyOptions = {}): UseCurren
       
       // Mettre en cache globalement avec cache INFINI (pas d'expiration)
       setCachedData(CURRENCY_CACHE_KEY, currencyDetails, {
-        expiry: 365 * 24 * 60 * 60 * 1000, // 1 an (pratiquement infini)
+        expiry: CACHE_EXPIRY.USER_PROFILE,
         storage: 'both',
         priority: 'high'
       });
@@ -297,7 +297,7 @@ export default function useCurrency(options: UseCurrencyOptions = {}): UseCurren
           is_currency_manually_set: true,
           last_update: new Date().toISOString()
         }, {
-          expiry: 365 * 24 * 60 * 60 * 1000, // 1 an (pratiquement infini)
+          expiry: CACHE_EXPIRY.USER_PROFILE,
           storage: 'both',
           priority: 'high'
         });
@@ -410,7 +410,7 @@ export default function useCurrency(options: UseCurrencyOptions = {}): UseCurren
             
             // Mettre en cache global avec durée de vie pratiquement infinie
             setCachedData(CURRENCY_CACHE_KEY, currencyDetails, {
-              expiry: 365 * 24 * 60 * 60 * 1000, // 1 an (pratiquement infini)
+              expiry: CACHE_EXPIRY.USER_PROFILE,
               storage: 'both',
               priority: 'high'
             });
@@ -452,7 +452,7 @@ export default function useCurrency(options: UseCurrencyOptions = {}): UseCurren
             
             // Mettre en cache global
             setCachedData(CURRENCY_CACHE_KEY, currencyDetails, {
-              expiry: 365 * 24 * 60 * 60 * 1000, // 1 an (pratiquement infini)
+              expiry: CACHE_EXPIRY.USER_PROFILE,
               storage: 'both',
               priority: 'high'
             });
@@ -485,7 +485,7 @@ export default function useCurrency(options: UseCurrencyOptions = {}): UseCurren
             } else if (userData) {
               // Mettre en cache pour les futures requêtes (cache infini)
               setCachedData(cacheKey, userData, {
-                expiry: 365 * 24 * 60 * 60 * 1000, // 1 an (pratiquement infini)
+                expiry: CACHE_EXPIRY.USER_PROFILE,
                 storage: 'both',
                 priority: 'high'
               });
@@ -509,7 +509,7 @@ export default function useCurrency(options: UseCurrencyOptions = {}): UseCurren
                 
                 // Mettre en cache global
                 setCachedData(CURRENCY_CACHE_KEY, currencyDetails, {
-                  expiry: 365 * 24 * 60 * 60 * 1000, // 1 an (pratiquement infini)
+                  expiry: CACHE_EXPIRY.USER_PROFILE,
                   storage: 'both',
                   priority: 'high'
                 });

@@ -1,10 +1,18 @@
-"use client";
-
+import { Metadata } from "next";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { MessageSquare, Search } from "lucide-react";
 import { FAQAccordion, type FAQItem } from "@/components/faq/faq-accordion";
+
+export const metadata: Metadata = {
+  title: "FAQ | Vynal Platform",
+  description: "Questions fréquemment posées sur Vynal Platform, la plateforme de mise en relation entre freelances et clients",
+};
+
+// Configuration de mise en cache pour cette page statique
+export const dynamic = 'force-static';
+export const revalidate = 2592000; // 30 jours en secondes
 
 // Les données FAQ pour chaque section
 const accountItems: FAQItem[] = [
@@ -134,6 +142,21 @@ const technicalItems: FAQItem[] = [
   }
 ];
 
+// Composant client pour la barre de recherche
+const FaqSearchbar = () => (
+  <div className="relative">
+    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+      <Search className="h-5 w-5 text-vynal-text-secondary" />
+    </div>
+    <input
+      type="text"
+      className="block w-full pl-12 pr-4 py-3 bg-vynal-purple-secondary/10 border border-vynal-purple-secondary/30 rounded-xl text-vynal-text-primary placeholder-vynal-text-secondary/50 focus:ring-vynal-accent-primary focus:border-vynal-accent-primary"
+      placeholder="Rechercher une question..."
+      readOnly
+    />
+  </div>
+);
+
 // Page FAQ principale
 export default function FAQPage() {
   return (
@@ -156,41 +179,32 @@ export default function FAQPage() {
           </p>
         </div>
 
-        {/* Recherche */}
+        {/* Recherche - Version non interactive côté serveur */}
         <div className="max-w-2xl mx-auto mb-16">
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-              <Search className="h-5 w-5 text-vynal-text-secondary" />
-            </div>
-            <input
-              type="text"
-              className="block w-full pl-12 pr-4 py-3 bg-vynal-purple-secondary/10 border border-vynal-purple-secondary/30 rounded-xl text-vynal-text-primary placeholder-vynal-text-secondary/50 focus:ring-vynal-accent-primary focus:border-vynal-accent-primary"
-              placeholder="Rechercher une question..."
-            />
-          </div>
+          <FaqSearchbar />
         </div>
 
         {/* Catégories */}
         <div className="mb-16">
           <div className="flex flex-wrap justify-center gap-3">
-            <button className="px-6 py-2 bg-vynal-accent-primary text-vynal-purple-dark font-medium rounded-full text-sm">
+            <div className="px-6 py-2 bg-vynal-accent-primary text-vynal-purple-dark font-medium rounded-full text-sm">
               Toutes les questions
-            </button>
-            <button className="px-6 py-2 bg-vynal-purple-secondary/20 text-vynal-text-primary font-medium rounded-full text-sm hover:bg-vynal-purple-secondary/30 transition-colors">
+            </div>
+            <div className="px-6 py-2 bg-vynal-purple-secondary/20 text-vynal-text-primary font-medium rounded-full text-sm">
               Inscription et compte
-            </button>
-            <button className="px-6 py-2 bg-vynal-purple-secondary/20 text-vynal-text-primary font-medium rounded-full text-sm hover:bg-vynal-purple-secondary/30 transition-colors">
+            </div>
+            <div className="px-6 py-2 bg-vynal-purple-secondary/20 text-vynal-text-primary font-medium rounded-full text-sm">
               Paiements
-            </button>
-            <button className="px-6 py-2 bg-vynal-purple-secondary/20 text-vynal-text-primary font-medium rounded-full text-sm hover:bg-vynal-purple-secondary/30 transition-colors">
+            </div>
+            <div className="px-6 py-2 bg-vynal-purple-secondary/20 text-vynal-text-primary font-medium rounded-full text-sm">
               Commandes
-            </button>
-            <button className="px-6 py-2 bg-vynal-purple-secondary/20 text-vynal-text-primary font-medium rounded-full text-sm hover:bg-vynal-purple-secondary/30 transition-colors">
+            </div>
+            <div className="px-6 py-2 bg-vynal-purple-secondary/20 text-vynal-text-primary font-medium rounded-full text-sm">
               Freelances
-            </button>
-            <button className="px-6 py-2 bg-vynal-purple-secondary/20 text-vynal-text-primary font-medium rounded-full text-sm hover:bg-vynal-purple-secondary/30 transition-colors">
+            </div>
+            <div className="px-6 py-2 bg-vynal-purple-secondary/20 text-vynal-text-primary font-medium rounded-full text-sm">
               Problèmes techniques
-            </button>
+            </div>
           </div>
         </div>
 
@@ -275,9 +289,11 @@ export default function FAQPage() {
                   Notre équipe de support est disponible pour vous aider. N'hésitez pas à nous contacter directement.
                 </p>
                 <div className="flex flex-col sm:flex-row justify-center gap-4">
-                  <Button className="bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-vynal-purple-dark">
-                    <MessageSquare className="mr-2 h-4 w-4" /> Contacter le support
-                  </Button>
+                  <Link href="/contact">
+                    <Button className="bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-vynal-purple-dark">
+                      <MessageSquare className="mr-2 h-4 w-4" /> Contacter le support
+                    </Button>
+                  </Link>
                   <Link href="/contact">
                     <Button variant="outline" className="border-vynal-purple-secondary/50 text-vynal-text-primary hover:bg-vynal-purple-secondary/20">
                       Voir la page contact

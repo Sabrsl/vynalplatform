@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { Database } from '@/types/database';
+import { CACHE_EXPIRY } from '@/lib/optimizations/cache';
+import { eventEmitter, EVENTS } from '@/lib/utils/events';
 
 // Type pour les catégories
 export type Category = Database['public']['Tables']['categories']['Row'];
@@ -21,7 +23,8 @@ const CATEGORY_IDS = {
   ADMIN: 'b0000000-0000-0000-0000-00000000000b',
   MODE: 'c0000000-0000-0000-0000-00000000000c',
   RELIGION: 'd0000000-0000-0000-0000-00000000000d',
-  SANTE: 'e0000000-0000-0000-0000-00000000000e'
+  SANTE: 'e0000000-0000-0000-0000-00000000000e',
+  IA: 'f0000000-0000-0000-0000-00000000000f'
 };
 
 // Mapping entre les noms de catégories et leurs IDs
@@ -39,7 +42,8 @@ const CATEGORY_NAMES_TO_IDS: Record<string, string> = {
   'Services Administratifs': CATEGORY_IDS.ADMIN,
   'Mode & Beauté': CATEGORY_IDS.MODE,
   'Religion & Spiritualité': CATEGORY_IDS.RELIGION,
-  'Santé & Bien-être': CATEGORY_IDS.SANTE
+  'Santé & Bien-être': CATEGORY_IDS.SANTE,
+  'Intelligence Artificielle': CATEGORY_IDS.IA
 };
 
 // Cache local pour éviter des requêtes répétées
@@ -49,8 +53,8 @@ const cache = {
   lastUpdate: 0
 };
 
-// TTL du cache (10 minutes)
-const CACHE_TTL = 10 * 60 * 1000;
+// TTL du cache (utilise les constantes du système de cache central)
+const CACHE_TTL = CACHE_EXPIRY.CATEGORIES;
 
 export function useCategories() {
   const [state, setState] = useState<{
@@ -151,6 +155,12 @@ export function useCategories() {
       cache.categories = validatedCategories;
       cache.subcategories = validatedSubcategories;
       cache.lastUpdate = now;
+      
+      // Invalider la page d'accueil statique quand les catégories sont mises à jour pour forcer une revalidation
+      if (forceRefresh) {
+        eventEmitter.emit(EVENTS.INVALIDATE_HOME);
+        console.log('🔄 Invalidation de la page d\'accueil suite à la mise à jour des catégories');
+      }
       
       // Mettre à jour l'état seulement si le composant est toujours monté
       if (mountedRef.current) {

@@ -199,7 +199,8 @@ export function useRecommendedFreelancers(options: UseRecommendedFreelancersOpti
       setFreelancers(freelancerProfiles);
       if (useCache && freelancerProfiles.length > 0) {
         setCachedData(cacheKey, freelancerProfiles, { 
-          expiry: CACHE_EXPIRY.DASHBOARD_DATA || 10 * 60 * 1000 
+          expiry: CACHE_EXPIRY.DAYS_3,
+          priority: 'high'
         });
       }
       

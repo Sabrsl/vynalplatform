@@ -16,6 +16,7 @@ import {
   IconPackage
 } from "@tabler/icons-react";
 import { motion } from "framer-motion";
+import Image from "next/image";
 
 const SkeletonOne = () => {
   const variants = {
@@ -172,11 +173,11 @@ const SkeletonFour = () => {
         variants={first}
         className="h-full w-1/3 rounded-2xl bg-white dark:bg-slate-900/30 backdrop-blur-sm p-4 border-2 dark:border-slate-700/30 border-slate-300 hover:border-vynal-accent-primary/70 dark:hover:border-vynal-accent-secondary/50 hover:bg-white dark:hover:bg-slate-900/40 transition-all duration-200 flex flex-col items-center justify-center"
       >
-        <img
+        <Image
           src="https://pbs.twimg.com/profile_images/1417752099488636931/cs2R59eW_400x400.jpg"
           alt="avatar"
-          height="100"
-          width="100"
+          width={40}
+          height={40}
           className="rounded-full h-10 w-10"
         />
         <p className="sm:text-sm text-xs text-center font-poppins font-semibold text-neutral-600 mt-4">
@@ -187,11 +188,11 @@ const SkeletonFour = () => {
         </p>
       </motion.div>
       <motion.div className="h-full relative z-20 w-1/3 rounded-2xl bg-white dark:bg-slate-900/30 backdrop-blur-sm p-4 border-2 dark:border-slate-700/30 border-slate-300 hover:border-vynal-accent-primary/70 dark:hover:border-vynal-accent-secondary/50 hover:bg-white dark:hover:bg-slate-900/40 transition-all duration-200 flex flex-col items-center justify-center">
-        <img
+        <Image
           src="https://pbs.twimg.com/profile_images/1417752099488636931/cs2R59eW_400x400.jpg"
           alt="avatar"
-          height="100"
-          width="100"
+          width={40}
+          height={40}
           className="rounded-full h-10 w-10"
         />
         <p className="sm:text-sm text-xs text-center font-poppins font-semibold text-neutral-600 mt-4">
@@ -205,11 +206,11 @@ const SkeletonFour = () => {
         variants={second}
         className="h-full w-1/3 rounded-2xl bg-white dark:bg-slate-900/30 backdrop-blur-sm p-4 border-2 dark:border-slate-700/30 border-slate-300 hover:border-vynal-accent-primary/70 dark:hover:border-vynal-accent-secondary/50 hover:bg-white dark:hover:bg-slate-900/40 transition-all duration-200 flex flex-col items-center justify-center"
       >
-        <img
+        <Image
           src="https://pbs.twimg.com/profile_images/1417752099488636931/cs2R59eW_400x400.jpg"
           alt="avatar"
-          height="100"
-          width="100"
+          width={40}
+          height={40}
           className="rounded-full h-10 w-10"
         />
         <p className="sm:text-sm text-xs text-center font-poppins font-semibold text-neutral-600 mt-4">
@@ -259,11 +260,11 @@ const SkeletonFive = () => {
         variants={variants}
         className="flex flex-row rounded-2xl border-2 border-slate-300 dark:border-slate-700/30 p-2 items-start space-x-2 bg-white dark:bg-slate-900/30 backdrop-blur-sm hover:border-vynal-accent-primary/70 dark:hover:border-vynal-accent-secondary/50 hover:bg-white dark:hover:bg-slate-900/40 transition-all duration-200"
       >
-        <img
+        <Image
           src="https://pbs.twimg.com/profile_images/1417752099488636931/cs2R59eW_400x400.jpg"
           alt="avatar"
-          height="100"
-          width="100"
+          width={40}
+          height={40}
           className="rounded-full h-10 w-10"
         />
         <p className="text-xs text-neutral-600 font-poppins">

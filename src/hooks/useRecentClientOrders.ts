@@ -212,7 +212,8 @@ export function useRecentClientOrders(options: UseRecentClientOrdersOptions = {}
           setOrders(enrichedOrders);
           if (useCache && enrichedOrders.length > 0) {
             setCachedData(cacheKey, enrichedOrders, { 
-              expiry: CACHE_EXPIRY.DASHBOARD_DATA || 5 * 60 * 1000 
+              expiry: CACHE_EXPIRY.DAYS_3 || 5 * 60 * 1000,
+              priority: 'high'
             });
           }
           

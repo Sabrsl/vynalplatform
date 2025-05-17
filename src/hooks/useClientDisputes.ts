@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { useAuth } from './useAuth';
 import { getCachedData, setCachedData } from '@/lib/optimizations/cache';
+import { CACHE_EXPIRY } from '@/lib/optimizations';
 
 export interface Dispute {
   id: string;
@@ -182,9 +183,12 @@ export function useClientDisputes(options: UseClientDisputesOptions = {}) {
           freelance: dispute.freelance
         })) as Dispute[];
 
-        // Mettre en cache les données complètes
+        // Mettre en cache
         if (useCache) {
-          setCachedData(cacheKey, transformedData, { expiry: 5 * 60 * 1000 }); // Cache de 5 minutes
+          setCachedData(cacheKey, transformedData, { 
+            expiry: CACHE_EXPIRY.DAYS_3, // Augmenté de 5 minutes à 3 jours
+            priority: 'high'
+          });
         }
         
         // Filtrer et mettre à jour l'état
@@ -227,7 +231,10 @@ export function useClientDisputes(options: UseClientDisputesOptions = {}) {
           console.log("[ClientDisputes] Statistiques récupérées via RPC:", rpcData);
           setSummary(rpcData);
           if (useCache) {
-            setCachedData(summaryKey, rpcData, { expiry: 10 * 60 * 1000 }); // Cache de 10 minutes
+            setCachedData(summaryKey, rpcData, { 
+              expiry: CACHE_EXPIRY.DAYS_3, // Augmenté de 10 minutes à 3 jours
+              priority: 'high'
+            });
           }
           return;
         }
@@ -283,7 +290,10 @@ export function useClientDisputes(options: UseClientDisputesOptions = {}) {
       // Mettre à jour l'état et le cache
       setSummary(summaryData);
       if (useCache) {
-        setCachedData(summaryKey, summaryData, { expiry: 10 * 60 * 1000 }); // Cache de 10 minutes
+        setCachedData(summaryKey, summaryData, { 
+          expiry: CACHE_EXPIRY.DAYS_3, // Augmenté de 10 minutes à 3 jours
+          priority: 'high'
+        });
       }
     } catch (err) {
       console.error("[ClientDisputes] Exception lors du calcul des statistiques:", err);

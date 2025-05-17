@@ -9,12 +9,9 @@ import { APP_CONFIG } from '@/lib/constants';
 const contactFormSchema = z.object({
   firstName: z.string().min(1).max(50),
   lastName: z.string().min(1).max(50),
-  email: z.string().email(),
-  subject: z.string().min(1).max(100),
-  message: z.string().min(10).max(5000),
-  acceptPolicy: z.boolean().refine(val => val === true, {
-    message: "Vous devez accepter la politique de confidentialité"
-  })
+  email: z.string().email("L'email est invalide"),
+  subject: z.string().min(1, "Le sujet est requis").max(100),
+  message: z.string().min(10, "Le message doit contenir au moins 10 caractères").max(5000)
 });
 
 export async function POST(request: NextRequest) {

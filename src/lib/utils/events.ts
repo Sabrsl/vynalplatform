@@ -47,6 +47,19 @@ export const eventEmitter = new EventEmitter();
 // Définir les noms d'événements comme constantes pour éviter les erreurs de typo
 export const EVENTS = {
   NOTIFICATION: 'notification',
+  // Événements d'invalidation de cache pour les pages statiques
+  INVALIDATE_ABOUT: 'invalidate_about',
+  INVALIDATE_HOW_IT_WORKS: 'invalidate_how_it_works',
+  INVALIDATE_STATUS: 'invalidate_status',
+  INVALIDATE_FREELANCE: 'invalidate_freelance',
+  INVALIDATE_CONTACT: 'invalidate_contact',
+  INVALIDATE_FAQ: 'invalidate_faq',
+  INVALIDATE_TERMS: 'invalidate_terms',
+  INVALIDATE_PRIVACY: 'invalidate_privacy',
+  INVALIDATE_CODE_OF_CONDUCT: 'invalidate_code_of_conduct',
+  INVALIDATE_HOME: 'invalidate_home',
+  // Événements génériques pour les types de pages
+  INVALIDATE_STATIC_PAGES: 'invalidate_static_pages',
 };
 
 // Type pour les notifications

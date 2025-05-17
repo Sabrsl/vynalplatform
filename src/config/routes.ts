@@ -49,5 +49,6 @@ export const PUBLIC_ROUTES = {
   HOW_IT_WORKS: "/how-it-works",
   FAQ: "/faq",
   PRIVACY_POLICY: "/privacy-policy",
-  TERMS_OF_SERVICE: "/terms-of-service"
+  TERMS_OF_SERVICE: "/terms-of-service",
+  CODE_OF_CONDUCT: "/code-of-conduct"
 }; 

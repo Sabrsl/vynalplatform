@@ -8,6 +8,7 @@ import { usePathname, useSearchParams, useRouter } from 'next/navigation';
 import { ErrorBoundary, FallbackProps } from 'react-error-boundary';
 import { OrderNotificationProvider } from "@/components/notifications/OrderNotificationProvider";
 import { MessagingProvider } from "@/components/providers/MessagingProvider";
+import { initializeApplication } from '@/lib/services/appInitializationService';
 
 // Clé pour stocker les notifications déjà affichées dans localStorage
 const DISPLAYED_NOTIFICATIONS_KEY = 'vynal_displayed_notifications';
@@ -212,9 +213,14 @@ const NavigationEventHandler = memo(() => {
     const fullPath = pathname + (searchParams?.toString() ? `?${searchParams?.toString()}` : '');
     
     if (prevPathRef.current !== fullPath) {
-      // Utiliser requestAnimationFrame pour une réinitialisation du scroll plus fluide
+      // Utiliser requestAnimationFrame pour une finalisation fluide de la navigation
       requestAnimationFrame(() => {
-        window.scrollTo(0, 0);
+        // Supprimer complètement le défilement vers le haut
+        
+        // Désactiver le comportement de défilement de Next.js
+        if (typeof history.scrollRestoration !== 'undefined') {
+          history.scrollRestoration = 'manual';
+        }
         
         prevPathRef.current = fullPath;
         navigationInProgressRef.current = false;
@@ -276,8 +282,20 @@ VisibilityStateHandler.displayName = 'VisibilityStateHandler';
 
 // Gestionnaire d'erreurs optimisé avec useCallback
 export function Providers({ children }: { children: React.ReactNode }) {
-  // Ajout d'un state pour vérifier si le composant est monté (côté client)
   const [mounted, setMounted] = useState(false);
+  const [appInitialized, setAppInitialized] = useState(false);
+  
+  // Initialiser l'application une seule fois au chargement initial
+  useEffect(() => {
+    // Ne pas exécuter côté serveur
+    if (typeof window === 'undefined') return;
+    
+    if (!appInitialized) {
+      // Initialiser tous les services de l'application
+      initializeApplication();
+      setAppInitialized(true);
+    }
+  }, [appInitialized]);
 
   // Mettre à jour le state après le premier rendu
   useEffect(() => {

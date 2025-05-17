@@ -6,6 +6,8 @@
  * une structure cohérente.
  */
 
+import { CACHE_EXPIRY } from '@/lib/optimizations/cache';
+
 // Types pour les configurations de dashboard
 export type DashboardRoutes = Record<string, string>;
 export type NavigationItem = { label: string, path: string, icon: string };
@@ -23,12 +25,6 @@ export interface DashboardConfig {
   navigation: NavigationGroup;
   cache: CacheConfig;
 }
-
-// Constantes partagées
-const CACHE_EXPIRY = {
-  STATS: 20 * 60 * 1000,     // 20 minutes
-  ACTIVITIES: 20 * 60 * 1000  // 20 minutes
-};
 
 // Configuration du tableau de bord freelance
 export const freelanceDashboardConfig: DashboardConfig = {
@@ -73,8 +69,8 @@ export const freelanceDashboardConfig: DashboardConfig = {
   cache: {
     keyPrefix: 'freelance_dashboard_',
     expiry: {
-      stats: CACHE_EXPIRY.STATS,
-      activities: CACHE_EXPIRY.ACTIVITIES
+      stats: CACHE_EXPIRY.DASHBOARD_DATA,
+      activities: CACHE_EXPIRY.DASHBOARD_DATA
     }
   }
 };
@@ -117,8 +113,8 @@ export const clientDashboardConfig: DashboardConfig = {
   cache: {
     keyPrefix: 'client_dashboard_',
     expiry: {
-      stats: CACHE_EXPIRY.STATS,
-      activities: CACHE_EXPIRY.ACTIVITIES
+      stats: CACHE_EXPIRY.DASHBOARD_DATA,
+      activities: CACHE_EXPIRY.DASHBOARD_DATA
     }
   }
 };

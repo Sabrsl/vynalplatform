@@ -2,11 +2,12 @@ import { useCallback, useEffect } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { useSWRCache } from './useSWRCache';
 import { 
-  CACHE_KEYS, 
-  invalidateCacheGroup, 
-  invalidateUserCache,
-  makeCacheKey
+  CACHE_KEYS,
+  makeCacheKey,
+  invalidateCacheGroup,
+  invalidateUserCache
 } from '@/lib/optimizations/invalidation';
+import { CACHE_EXPIRY } from '@/lib/optimizations/cache';
 import { useUser } from './useUser';
 
 // Types pour les statistiques d'un client
@@ -151,7 +152,7 @@ export function useClientDashboard(options: UseClientDashboardOptions = {}) {
       revalidateOnMount: true,
       revalidateInterval: 0,
       priority: 'high',
-      expiry: 5 * 60 * 1000, // 5 minutes
+      expiry: CACHE_EXPIRY.DASHBOARD_DATA, // 7 jours de cache pour le dashboard
     }
   );
   

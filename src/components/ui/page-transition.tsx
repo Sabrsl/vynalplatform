@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { usePathname } from 'next/navigation';
 import { Skeleton } from './skeleton';
 import { ArrowLeft } from 'lucide-react';
+import './page-transition.css';
 
 // Composant de transition de page amélioré pour un retour immédiat pendant la navigation
 // Enhanced PageTransition component for immediate feedback during navigation
@@ -53,11 +54,10 @@ export default function PageTransition() {
 
     // Vérifier immédiatement puis à intervalles courts
     checkContent();
-    const interval = setInterval(checkContent, 100);
+    const interval = setInterval(checkContent, 50); // Vérification plus fréquente
 
     return () => {
       clearInterval(interval);
-      setContentLoaded(false);
     };
   }, [loading]);
 
@@ -121,15 +121,14 @@ export default function PageTransition() {
   // Configure les écouteurs d'événements
   // Set up event listeners
   useEffect(() => {
-    // Utilise des écouteurs passifs pour de meilleures performances
-    // Use passive listeners for better performance
-    document.addEventListener('click', handleLinkClick, { passive: true });
-    document.addEventListener('click', handleButtonClick, { passive: true });
+    // Utiliser capture à true pour être plus prioritaire que les autres écouteurs
+    document.addEventListener('click', handleLinkClick, { capture: true });
+    document.addEventListener('click', handleButtonClick, { capture: true });
     window.addEventListener('vynal:navigation-start', handleManualNavigation);
 
     return () => {
-      document.removeEventListener('click', handleLinkClick);
-      document.removeEventListener('click', handleButtonClick);
+      document.removeEventListener('click', handleLinkClick, { capture: true });
+      document.removeEventListener('click', handleButtonClick, { capture: true });
       window.removeEventListener('vynal:navigation-start', handleManualNavigation);
     };
   }, [handleLinkClick, handleButtonClick, handleManualNavigation]);
@@ -159,20 +158,20 @@ export default function PageTransition() {
       return (
         <div className="flex flex-col md:flex-row gap-8">
           <div className="w-full md:w-2/3">
-            <Skeleton className="h-[400px] w-full mb-4 bg-vynal-purple-secondary/30" />
+            <Skeleton className="h-[400px] w-full mb-4 bg-vynal-purple-secondary/30" stableAnimation />
             <div className="grid grid-cols-4 gap-2">
               {[1, 2, 3, 4].map((i) => (
-                <Skeleton key={i} className="h-24 w-full bg-vynal-purple-secondary/30" />
+                <Skeleton key={i} className="h-24 w-full bg-vynal-purple-secondary/30" stableAnimation />
               ))}
             </div>
           </div>
           
           <div className="w-full md:w-1/3">
-            <Skeleton className="h-8 w-3/4 mb-4 bg-vynal-purple-secondary/30" />
-            <Skeleton className="h-6 w-1/2 mb-2 bg-vynal-purple-secondary/30" />
-            <Skeleton className="h-32 w-full mb-6 bg-vynal-purple-secondary/30" />
-            <Skeleton className="h-10 w-full mb-2 bg-vynal-purple-secondary/30" />
-            <Skeleton className="h-10 w-full bg-vynal-purple-secondary/30" />
+            <Skeleton className="h-8 w-3/4 mb-4 bg-vynal-purple-secondary/30" stableAnimation />
+            <Skeleton className="h-6 w-1/2 mb-2 bg-vynal-purple-secondary/30" stableAnimation />
+            <Skeleton className="h-32 w-full mb-6 bg-vynal-purple-secondary/30" stableAnimation />
+            <Skeleton className="h-10 w-full mb-2 bg-vynal-purple-secondary/30" stableAnimation />
+            <Skeleton className="h-10 w-full bg-vynal-purple-secondary/30" stableAnimation />
           </div>
         </div>
       );
@@ -184,24 +183,24 @@ export default function PageTransition() {
       return (
         <div className="space-y-6">
           <div className="flex justify-between items-center">
-            <Skeleton className="h-8 w-48 bg-vynal-purple-secondary/30" />
+            <Skeleton className="h-8 w-48 bg-vynal-purple-secondary/30" stableAnimation />
             <div className="flex space-x-3">
-              <Skeleton className="h-8 w-24 bg-vynal-purple-secondary/30" />
-              <Skeleton className="h-8 w-24 bg-vynal-purple-secondary/30" />
+              <Skeleton className="h-8 w-24 bg-vynal-purple-secondary/30" stableAnimation />
+              <Skeleton className="h-8 w-24 bg-vynal-purple-secondary/30" stableAnimation />
             </div>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Skeleton className="h-32 rounded-lg bg-vynal-purple-secondary/30" />
-            <Skeleton className="h-32 rounded-lg bg-vynal-purple-secondary/30" />
-            <Skeleton className="h-32 rounded-lg bg-vynal-purple-secondary/30" />
+            <Skeleton className="h-32 rounded-lg bg-vynal-purple-secondary/30" stableAnimation />
+            <Skeleton className="h-32 rounded-lg bg-vynal-purple-secondary/30" stableAnimation />
+            <Skeleton className="h-32 rounded-lg bg-vynal-purple-secondary/30" stableAnimation />
           </div>
           
           <div className="space-y-4">
-            <Skeleton className="h-8 w-1/3 bg-vynal-purple-secondary/30" />
+            <Skeleton className="h-8 w-1/3 bg-vynal-purple-secondary/30" stableAnimation />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Skeleton className="h-40 rounded-lg bg-vynal-purple-secondary/30" />
-              <Skeleton className="h-40 rounded-lg bg-vynal-purple-secondary/30" />
+              <Skeleton className="h-40 rounded-lg bg-vynal-purple-secondary/30" stableAnimation />
+              <Skeleton className="h-40 rounded-lg bg-vynal-purple-secondary/30" stableAnimation />
             </div>
           </div>
         </div>
@@ -214,24 +213,24 @@ export default function PageTransition() {
       return (
         <div className="space-y-6">
           <div className="flex items-center space-x-4">
-            <Skeleton className="h-20 w-20 rounded-full bg-vynal-purple-secondary/30" />
+            <Skeleton className="h-20 w-20 rounded-full bg-vynal-purple-secondary/30" stableAnimation />
             <div className="space-y-2">
-              <Skeleton className="h-6 w-48 bg-vynal-purple-secondary/30" />
-              <Skeleton className="h-4 w-32 bg-vynal-purple-secondary/30" />
+              <Skeleton className="h-6 w-48 bg-vynal-purple-secondary/30" stableAnimation />
+              <Skeleton className="h-4 w-32 bg-vynal-purple-secondary/30" stableAnimation />
             </div>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="md:col-span-1 space-y-4">
-              <Skeleton className="h-40 rounded-lg bg-vynal-purple-secondary/30" />
-              <Skeleton className="h-40 rounded-lg bg-vynal-purple-secondary/30" />
+              <Skeleton className="h-40 rounded-lg bg-vynal-purple-secondary/30" stableAnimation />
+              <Skeleton className="h-40 rounded-lg bg-vynal-purple-secondary/30" stableAnimation />
             </div>
             <div className="md:col-span-2 space-y-4">
-              <Skeleton className="h-8 w-1/3 bg-vynal-purple-secondary/30" />
-              <Skeleton className="h-32 rounded-lg bg-vynal-purple-secondary/30" />
+              <Skeleton className="h-8 w-1/3 bg-vynal-purple-secondary/30" stableAnimation />
+              <Skeleton className="h-32 rounded-lg bg-vynal-purple-secondary/30" stableAnimation />
               <div className="grid grid-cols-2 gap-4">
-                <Skeleton className="h-24 rounded-lg bg-vynal-purple-secondary/30" />
-                <Skeleton className="h-24 rounded-lg bg-vynal-purple-secondary/30" />
+                <Skeleton className="h-24 rounded-lg bg-vynal-purple-secondary/30" stableAnimation />
+                <Skeleton className="h-24 rounded-lg bg-vynal-purple-secondary/30" stableAnimation />
               </div>
             </div>
           </div>
@@ -245,20 +244,20 @@ export default function PageTransition() {
       return (
         <div className="space-y-6">
           <div className="flex justify-between items-center">
-            <Skeleton className="h-8 w-48 bg-vynal-purple-secondary/30" />
-            <Skeleton className="h-8 w-32 bg-vynal-purple-secondary/30" />
+            <Skeleton className="h-8 w-48 bg-vynal-purple-secondary/30" stableAnimation />
+            <Skeleton className="h-8 w-32 bg-vynal-purple-secondary/30" stableAnimation />
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div className="md:col-span-1 space-y-4">
-              <Skeleton className="h-8 w-full bg-vynal-purple-secondary/30" />
-              <Skeleton className="h-32 rounded-lg bg-vynal-purple-secondary/30" />
-              <Skeleton className="h-24 rounded-lg bg-vynal-purple-secondary/30" />
+              <Skeleton className="h-8 w-full bg-vynal-purple-secondary/30" stableAnimation />
+              <Skeleton className="h-32 rounded-lg bg-vynal-purple-secondary/30" stableAnimation />
+              <Skeleton className="h-24 rounded-lg bg-vynal-purple-secondary/30" stableAnimation />
             </div>
             <div className="md:col-span-3">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {[...Array(6)].map((_, i) => (
-                  <Skeleton key={i} className="h-64 rounded-lg bg-vynal-purple-secondary/30" />
+                  <Skeleton key={i} className="h-64 rounded-lg bg-vynal-purple-secondary/30" stableAnimation />
                 ))}
               </div>
             </div>
@@ -272,29 +271,33 @@ export default function PageTransition() {
     return (
       <div className="flex flex-col md:flex-row gap-8">
         <div className="w-full md:w-2/3">
-          <Skeleton className="h-[400px] w-full mb-4 bg-vynal-purple-secondary/30" />
+          <Skeleton className="h-[400px] w-full mb-4 bg-vynal-purple-secondary/30" stableAnimation />
           <div className="grid grid-cols-4 gap-2 mt-2">
             {[1, 2, 3, 4].map((i) => (
-              <Skeleton key={i} className="h-24 w-full bg-vynal-purple-secondary/30" />
+              <Skeleton key={i} className="h-24 w-full bg-vynal-purple-secondary/30" stableAnimation />
             ))}
           </div>
         </div>
         
         <div className="w-full md:w-1/3">
-          <Skeleton className="h-8 w-3/4 mb-4 bg-vynal-purple-secondary/30" />
-          <Skeleton className="h-6 w-1/2 mb-2 bg-vynal-purple-secondary/30" />
-          <Skeleton className="h-32 w-full mb-6 bg-vynal-purple-secondary/30" />
-          <Skeleton className="h-10 w-full mb-2 bg-vynal-purple-secondary/30" />
-          <Skeleton className="h-10 w-full bg-vynal-purple-secondary/30" />
+          <Skeleton className="h-8 w-3/4 mb-4 bg-vynal-purple-secondary/30" stableAnimation />
+          <Skeleton className="h-6 w-1/2 mb-2 bg-vynal-purple-secondary/30" stableAnimation />
+          <Skeleton className="h-32 w-full mb-6 bg-vynal-purple-secondary/30" stableAnimation />
+          <Skeleton className="h-10 w-full mb-2 bg-vynal-purple-secondary/30" stableAnimation />
+          <Skeleton className="h-10 w-full bg-vynal-purple-secondary/30" stableAnimation />
         </div>
       </div>
     );
   };
 
-  // Utilisons un fond complètement opaque pour éviter tout problème de transparence
+  // Utilisons un conteneur avec un fond complètement opaque et des animations optimisées
   return (
-    <div className="absolute inset-0 z-[9999] bg-white dark:bg-vynal-purple-dark flex flex-col items-center justify-start pt-20 animate-in fade-in duration-500" data-testid="page-transition">
-      <div className="container mx-auto px-4 max-w-5xl">
+    <div 
+      className="fixed inset-0 z-[9999] bg-white dark:bg-vynal-purple-dark flex flex-col items-center justify-start pt-20 page-transition-container"
+      data-testid="page-transition"
+      style={{ animation: 'none', opacity: 1 }} // Rendre visible immédiatement sans animation
+    >
+      <div className="container mx-auto px-4 max-w-5xl skeleton-wrapper" style={{ animation: 'none', opacity: 1 }}>
         {renderSkeleton()}
       </div>
     </div>

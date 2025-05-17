@@ -13,6 +13,10 @@ export const metadata: Metadata = {
   description: "Proposez gratuitement vos talents à de nouveaux clients sur Vynal Platform. Inscription simple, gestion facile et paiements sécurisés.",
 };
 
+// Ajouter une configuration de mise en cache pour cette page statique
+export const dynamic = 'force-static';
+export const revalidate = 2592000; // 30 jours en secondes
+
 export default function DevenirFreelancePage() {
   return (
     <PageLayout 

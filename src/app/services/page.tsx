@@ -51,7 +51,8 @@ const CATEGORY_ORDER = [
   'services-administratifs',
   'mode-beaute',
   'religion-spiritualite',
-  'sante-bien-etre'
+  'sante-bien-etre',
+  'intelligence-artificielle'
 ];
 
 // Statistiques pour la page

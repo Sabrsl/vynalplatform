@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { useAuth } from './useAuth';
 import { getCachedData, setCachedData } from '@/lib/optimizations/cache';
+import { CACHE_EXPIRY } from '@/lib/optimizations';
 
 export interface Payment {
   id: string;
@@ -154,7 +155,10 @@ export function useClientPayments(options: UseClientPaymentsOptions = {}) {
         
         // Mettre en cache
         if (useCache) {
-          setCachedData(cacheKey, transformedData, { expiry: 5 * 60 * 1000 }); // Cache de 5 minutes
+          setCachedData(cacheKey, transformedData, { 
+            expiry: CACHE_EXPIRY.DAYS_3, // Augmenté à 3 jours (au lieu de 5 minutes)
+            priority: 'high' 
+          });
         }
 
         // Récupérer les statistiques de paiement
@@ -194,13 +198,15 @@ export function useClientPayments(options: UseClientPaymentsOptions = {}) {
           console.log("[ClientPayments] Statistiques récupérées via RPC:", rpcData);
           setSummary(rpcData);
           if (useCache) {
-            setCachedData(summaryKey, rpcData, { expiry: 10 * 60 * 1000 }); // Cache de 10 minutes
+            setCachedData(summaryKey, rpcData, { 
+              expiry: CACHE_EXPIRY.DAYS_3, // Augmenté à 3 jours (au lieu de 10 minutes)
+              priority: 'high'
+            });
           }
           return;
         }
       } catch (rpcErr) {
-        console.log("[ClientPayments] RPC non disponible:", rpcErr);
-        // On continue avec les requêtes individuelles
+        console.warn("[ClientPayments] Erreur RPC, retour au mode standard:", rpcErr);
       }
 
       // Si RPC n'est pas disponible, faire des requêtes individuelles
@@ -244,6 +250,7 @@ export function useClientPayments(options: UseClientPaymentsOptions = {}) {
       const totalPending = pendingData.reduce((sum, item) => sum + (item.amount || 0), 0);
       const totalRefunded = refundedData.reduce((sum, item) => sum + (item.amount || 0), 0);
       
+      // Calcul des statistiques manuellement
       const summaryData: PaymentSummary = {
         total_paid: totalPaid,
         total_pending: totalPending,
@@ -251,10 +258,12 @@ export function useClientPayments(options: UseClientPaymentsOptions = {}) {
         total_transactions: totalData[0]?.count || 0
       };
       
-      // Mettre à jour l'état et le cache
       setSummary(summaryData);
       if (useCache) {
-        setCachedData(summaryKey, summaryData, { expiry: 10 * 60 * 1000 }); // Cache de 10 minutes
+        setCachedData(summaryKey, summaryData, { 
+          expiry: CACHE_EXPIRY.DAYS_3, // Augmenté de 10 minutes à 3 jours
+          priority: 'high'
+        });
       }
     } catch (err) {
       console.error("[ClientPayments] Erreur lors du calcul des statistiques");

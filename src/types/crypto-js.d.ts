@@ -19,11 +19,13 @@ declare module 'crypto-js' {
     Base64: any;
   };
   
-  export default {
+  const CryptoJS = {
     SHA256,
     MD5,
     HmacSHA256,
     AES,
     enc
   };
+  
+  export default CryptoJS;
 } 

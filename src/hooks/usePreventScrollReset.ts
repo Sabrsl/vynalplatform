@@ -45,12 +45,7 @@ export function usePreventScrollReset() {
   // Effet pour gérer les changements de route et réinitialiser le scroll
   useEffect(() => {
     if (pathname && prevPathRef.current !== pathname) {
-      if (!isExcludedPath()) {
-        // Réinitialiser la position après que le DOM soit mis à jour
-        requestAnimationFrame(() => {
-          window.scrollTo(0, 0);
-        });
-      }
+      // Ne plus faire défiler la page vers le haut
       prevPathRef.current = pathname;
     }
   }, [pathname, isExcludedPath]);
@@ -82,11 +77,17 @@ export function usePreventScrollReset() {
       // Empêcher les navigations multiples
       if (navigationInProgressRef.current) return;
       
+      // Déclencher immédiatement l'affichage du squelette
+      window.dispatchEvent(new CustomEvent('vynal:navigation-start'));
+      
       // Prévenir le comportement par défaut
       e.preventDefault();
       
       // Marquer la navigation comme en cours
       navigationInProgressRef.current = true;
+      
+      // Sauvegarder la position de défilement actuelle
+      scrollPositionRef.current = window.scrollY;
       
       // Extraire l'URL relative avec gestion des cas particuliers
       let href = link.getAttribute('href') || '';
@@ -97,9 +98,8 @@ export function usePreventScrollReset() {
       // Navigation sans réinitialisation immédiate du défilement
       router.push(href, { scroll: false });
       
-      // Après la navigation, réinitialiser la position
+      // Après la navigation, simplement réinitialiser le flag de navigation
       requestAnimationFrame(() => {
-        window.scrollTo(0, 0);
         navigationInProgressRef.current = false;
       });
     } catch (error) {
@@ -131,10 +131,7 @@ export function usePreventScrollReset() {
       // Réinitialiser l'indicateur de navigation
       navigationInProgressRef.current = false;
       
-      // Défiler vers le haut sauf pour les chemins exclus - méthode performante
-      if (!isExcludedPath()) {
-        window.scrollTo(0, 0);
-      }
+      // Ne plus défiler vers le haut sur popstate
     };
     
     window.addEventListener('popstate', handlePopState);
@@ -145,4 +142,4 @@ export function usePreventScrollReset() {
   }, [isExcludedPath]);
 }
 
-export default usePreventScrollReset; 
+export default usePreventScrollReset;

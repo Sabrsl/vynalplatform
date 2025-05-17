@@ -5,6 +5,10 @@ export const metadata: Metadata = {
   description: "Conditions d'utilisation de la plateforme Vynal",
 };
 
+// Ajouter une configuration de mise en cache pour cette page statique
+export const dynamic = 'force-static';
+export const revalidate = 2592000; // 30 jours en secondes
+
 export default function TermsOfService() {
   return (
     <div className="max-w-4xl mx-auto py-6 md:py-12 px-3 md:px-8 bg-white/30 dark:bg-slate-900/30 rounded-lg shadow-sm backdrop-blur-sm border border-slate-200 dark:border-slate-700/30">

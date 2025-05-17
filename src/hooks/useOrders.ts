@@ -3,7 +3,8 @@ import { supabase } from '@/lib/supabase/client';
 import { useLastRefresh } from './useLastRefresh';
 import { 
   getCachedData, 
-  setCachedData 
+  setCachedData,
+  CACHE_EXPIRY
 } from '@/lib/optimizations/cache';
 import { useUser } from '@/hooks/useUser';
 import { NavigationLoadingState } from '@/app/providers';
@@ -52,12 +53,6 @@ interface UseOrdersOptions {
   itemsPerPage?: number;
   useCache?: boolean;
 }
-
-// Constantes
-const CACHE_EXPIRY = {
-  ORDERS_LIST: 5 * 60 * 1000, // 5 minutes
-  ORDERS_STATS: 5 * 60 * 1000 // 5 minutes
-};
 
 // Vérifier si la fonction RPC existe
 async function checkRPCFunctionExists(functionName: string): Promise<boolean> {
@@ -251,10 +246,10 @@ export function useOrders(options: UseOrdersOptions = {}) {
           if (useCache && statsKey) {
             console.log("[Orders] Mise en cache des statistiques");
             setCachedData(statsKey, rpcStats, {
-              expiry: CACHE_EXPIRY.ORDERS_STATS
+              expiry: CACHE_EXPIRY.DASHBOARD_DATA
             });
             setCachedData(`${statsKey}_timestamp`, Date.now(), {
-              expiry: CACHE_EXPIRY.ORDERS_STATS
+              expiry: CACHE_EXPIRY.DASHBOARD_DATA
             });
           }
           
@@ -353,10 +348,10 @@ export function useOrders(options: UseOrdersOptions = {}) {
               if (useCache && statsKey && (activeTab === 'all' && !searchQuery)) {
                 console.log("[Orders] Mise en cache des statistiques calculées localement");
                 setCachedData(statsKey, localStats, {
-                  expiry: CACHE_EXPIRY.ORDERS_STATS
+                  expiry: CACHE_EXPIRY.DASHBOARD_DATA
                 });
                 setCachedData(`${statsKey}_timestamp`, Date.now(), {
-                  expiry: CACHE_EXPIRY.ORDERS_STATS
+                  expiry: CACHE_EXPIRY.DASHBOARD_DATA
                 });
               }
             }
@@ -372,10 +367,10 @@ export function useOrders(options: UseOrdersOptions = {}) {
               orders: transformedOrders, 
               total: count || 0 
             }, {
-              expiry: CACHE_EXPIRY.ORDERS_LIST
+              expiry: CACHE_EXPIRY.DASHBOARD_DATA
             });
             setCachedData(`${cacheKey}_timestamp`, Date.now(), {
-              expiry: CACHE_EXPIRY.ORDERS_LIST
+              expiry: CACHE_EXPIRY.DASHBOARD_DATA
             });
           }
           

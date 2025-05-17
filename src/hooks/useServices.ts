@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase/client';
 import { PostgrestError } from '@supabase/supabase-js';
 import { Database } from '@/types/database';
 import { useUser } from './useUser';
+import { CACHE_EXPIRY } from '@/lib/optimizations/cache';
 
 // Types pour les services
 export type Service = Database['public']['Tables']['services']['Row'];
@@ -94,6 +95,10 @@ const DEFAULT_SERVICE_FIELDS = `
   subcategories (id, name, slug)
 `;
 
+// Durée de validité du cache en ms (mise à jour pour utiliser les constantes)
+const CACHE_TTL = CACHE_EXPIRY.SERVICES;
+const VALIDATED_SERVICES_CACHE_TTL = CACHE_EXPIRY.VALIDATED_SERVICES;
+
 // Cache en mémoire pour stocker les services transformés
 const servicesCache = new Map<string, {
   timestamp: number;
@@ -105,9 +110,6 @@ const recentServiceCache = new Map<string, {
   timestamp: number;
   data: ServiceWithFreelanceAndCategories;
 }>();
-
-// Durée de validité du cache en ms (réduite à 2 minutes pour plus de fraîcheur)
-const CACHE_TTL = 2 * 60 * 1000;
 
 // Fonction globale pour invalider le cache d'un service spécifique
 export const invalidateServiceCache = (serviceId: string) => {
@@ -128,6 +130,22 @@ export const invalidateServiceCache = (serviceId: string) => {
       detail: { serviceId, type: 'status-change' }
     }));
   }
+};
+
+/**
+ * Détermine la durée de cache appropriée pour un service
+ * @param service Le service à évaluer
+ * @returns La durée de cache en ms
+ */
+const getServiceCacheTTL = (service: ServiceWithFreelanceAndCategories | null): number => {
+  if (!service) return CACHE_TTL;
+  
+  // Si le service est validé par l'admin, utiliser une durée plus longue
+  if (service.status === 'approved') {
+    return VALIDATED_SERVICES_CACHE_TTL;
+  }
+  
+  return CACHE_TTL;
 };
 
 /**
@@ -219,9 +237,9 @@ export function useServices(params: UseServicesParams = {}): UseServicesResult {
       subscriptionRef.current = null;
     }
     
-    // Supprimer l'écouteur d'événements du cache
-    if (cacheInvalidationListenerRef.current && typeof window !== 'undefined') {
-      window.removeEventListener('cache-invalidation', cacheInvalidationListenerRef.current as EventListener);
+    // Nettoyer l'écouteur d'invalidation du cache
+    if (cacheInvalidationListenerRef.current) {
+      window.removeEventListener('vynal:cache-invalidated', cacheInvalidationListenerRef.current as EventListener);
       cacheInvalidationListenerRef.current = null;
     }
   }, []);
@@ -231,6 +249,8 @@ export function useServices(params: UseServicesParams = {}): UseServicesResult {
     // Vérifier d'abord le cache avant de faire une requête réseau
     if (!forceFetch) {
       const cachedData = servicesCache.get(paramsSignature);
+      
+      // Pour les services en liste, on utilise la durée standard
       if (cachedData && (Date.now() - cachedData.timestamp) < CACHE_TTL) {
         setServices(cachedData.data);
         setLoading(false);
@@ -353,10 +373,13 @@ export function useServices(params: UseServicesParams = {}): UseServicesResult {
     }
     
     try {
-      // Vérifier d'abord le cache des services individuels
+      // Vérifier d'abord le cache
       const cachedService = recentServiceCache.get(id);
-      if (cachedService && (Date.now() - cachedService.timestamp) < CACHE_TTL) {
-        return { service: cachedService.data, error: null };
+      if (cachedService) {
+        const cacheTTL = getServiceCacheTTL(cachedService.data);
+        if ((Date.now() - cachedService.timestamp) < cacheTTL) {
+          return { service: cachedService.data, error: null };
+        }
       }
       
       // Ensuite vérifier dans le cache des listes
@@ -574,7 +597,15 @@ export function useServices(params: UseServicesParams = {}): UseServicesResult {
       const cachedService = cachedServices.find(s => s.slug === slug);
       
       if (cachedService) {
-        return { service: cachedService, error: null };
+        // Utiliser le TTL dynamique selon le statut du service
+        const cacheTTL = getServiceCacheTTL(cachedService);
+        const cacheEntry = Array.from(servicesCache.entries()).find(
+          ([_, entry]) => entry.data.some(s => s.slug === slug)
+        );
+        
+        if (cacheEntry && (Date.now() - cacheEntry[1].timestamp) < cacheTTL) {
+          return { service: cachedService, error: null };
+        }
       }
       
       // Créer un nouveau contrôleur d'annulation pour cette requête spécifique
@@ -609,6 +640,12 @@ export function useServices(params: UseServicesParams = {}): UseServicesResult {
         data: [transformedService]
       });
       
+      // Aussi stocker dans le cache individuel des services par ID pour les recherches futures
+      recentServiceCache.set(transformedService.id, {
+        timestamp: Date.now(),
+        data: transformedService
+      });
+      
       return { 
         service: transformedService, 
         error: null 
@@ -620,7 +657,7 @@ export function useServices(params: UseServicesParams = {}): UseServicesResult {
         error: 'Erreur de chargement du service' 
       };
     }
-  }, [transformService]);
+  }, [transformService, getServiceCacheTTL]);
 
   // Créer un nouveau service
   const createService = useCallback(async (serviceData: CreateServiceParams): Promise<ServiceResult<Service>> => {
@@ -696,7 +733,7 @@ export function useServices(params: UseServicesParams = {}): UseServicesResult {
       }
       
       // Déclencher une invalidation de cache
-      window.dispatchEvent(new CustomEvent('cache-invalidation', {
+      window.dispatchEvent(new CustomEvent('vynal:cache-invalidated', {
         detail: { 
           type: 'service', 
           action: 'create',
@@ -832,7 +869,7 @@ export function useServices(params: UseServicesParams = {}): UseServicesResult {
       }
       
       // Déclencher une invalidation de cache
-      window.dispatchEvent(new CustomEvent('cache-invalidation', {
+      window.dispatchEvent(new CustomEvent('vynal:cache-invalidated', {
         detail: { 
           type: 'service', 
           action: 'update',
@@ -890,7 +927,7 @@ export function useServices(params: UseServicesParams = {}): UseServicesResult {
       if (error) throw error;
       
       // Déclencher une invalidation de cache
-      window.dispatchEvent(new CustomEvent('cache-invalidation', {
+      window.dispatchEvent(new CustomEvent('vynal:cache-invalidated', {
         detail: { 
           type: 'service', 
           action: 'delete',
@@ -1015,7 +1052,7 @@ export function useServices(params: UseServicesParams = {}): UseServicesResult {
     };
     
     cacheInvalidationListenerRef.current = handleCacheInvalidation as any;
-    window.addEventListener('cache-invalidation', handleCacheInvalidation as EventListener);
+    window.addEventListener('vynal:cache-invalidated', handleCacheInvalidation as EventListener);
     
     // Nettoyage lors du démontage
     return cleanup;
