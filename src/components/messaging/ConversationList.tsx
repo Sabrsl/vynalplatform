@@ -17,6 +17,8 @@ interface ConversationListProps {
   onNewConversation?: () => void;
   isFreelance?: boolean;
   showOrderConversations?: boolean;
+  onRefresh?: () => Promise<void>;
+  isRefreshing?: boolean;
 }
 
 // Fonction pour obtenir les initiales d'un nom
@@ -37,7 +39,9 @@ const ConversationList: React.FC<ConversationListProps> = ({
   onSelectConversation,
   onNewConversation,
   isFreelance = false,
-  showOrderConversations = true
+  showOrderConversations = true,
+  onRefresh,
+  isRefreshing = false
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const { user } = useAuth();
@@ -70,6 +74,31 @@ const ConversationList: React.FC<ConversationListProps> = ({
                   ? "Tous les freelances" 
                   : showOrderConversations ? "Commandes" : "Freelances")}
           </h2>
+          
+          {onRefresh && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onRefresh}
+              disabled={isRefreshing}
+              className="text-white hover:bg-white/20 rounded-full"
+            >
+              <svg
+                className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`}
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                />
+              </svg>
+            </Button>
+          )}
         </div>
         
         <div className="relative">
