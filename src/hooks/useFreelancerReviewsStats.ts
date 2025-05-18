@@ -32,6 +32,9 @@ const statsCache = new Map<string, {
 // Durée de validité du cache (5 minutes)
 const CACHE_TTL = 5 * 60 * 1000;
 
+// Désactivation temporaire des appels à la base de données pour les reviews
+const DISABLE_REVIEWS_DB_CALLS = true;
+
 /**
  * Hook pour récupérer les statistiques des avis d'un freelance
  * Utilise la fonction SQL get_freelancer_reviews_stats
@@ -51,6 +54,28 @@ export function useFreelancerReviewsStats(freelanceId: string | null | undefined
   // Fonction de récupération des statistiques
   const fetchStats = useCallback(async (id: string, useCache = true): Promise<void> => {
     if (!id) return;
+    
+    // Si les appels à la base de données sont désactivés, retourner immédiatement des stats vides
+    if (DISABLE_REVIEWS_DB_CALLS) {
+      if (refs.current.isMounted) {
+        const emptyStats: FreelancerReviewsStats = {
+          freelance_id: id,
+          total_reviews: 0,
+          average_rating: 0,
+          ratings_distribution: {
+            '1': 0,
+            '2': 0,
+            '3': 0,
+            '4': 0,
+            '5': 0
+          }
+        };
+        setStats(emptyStats);
+        setLoading(false);
+        setError(null);
+      }
+      return;
+    }
     
     // Vérifier le cache d'abord
     if (useCache) {

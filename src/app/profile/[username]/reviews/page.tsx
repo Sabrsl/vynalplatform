@@ -30,6 +30,9 @@ type Review = {
   };
 };
 
+// Désactivation temporaire des appels à la base de données pour les reviews
+const DISABLE_REVIEWS_DB_CALLS = true;
+
 export default async function FreelanceReviewsPage({
   params,
 }: {
@@ -49,16 +52,24 @@ export default async function FreelanceReviewsPage({
     notFound();
   }
 
-  // Récupérer tous les avis
-  const { data: reviews, error: reviewsError } = await supabase
-    .from("reviews")
-    .select(`
-      *,
-      client:client_id (username, full_name, avatar_url),
-      services:service_id (title, slug)
-    `)
-    .eq("freelance_id", profile.id)
-    .order("created_at", { ascending: false });
+  // Récupérer tous les avis - désactivés temporairement
+  let reviews: Review[] = [];
+  let reviewsError = null;
+  
+  if (!DISABLE_REVIEWS_DB_CALLS) {
+    const response = await supabase
+      .from("reviews")
+      .select(`
+        *,
+        client:client_id (username, full_name, avatar_url),
+        services:service_id (title, slug)
+      `)
+      .eq("freelance_id", profile.id)
+      .order("created_at", { ascending: false });
+    
+    reviews = response.data || [];
+    reviewsError = response.error;
+  }
 
   if (reviewsError) {
     console.error("Erreur lors du chargement des avis:", reviewsError);

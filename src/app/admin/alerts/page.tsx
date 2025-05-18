@@ -363,11 +363,11 @@ export default function AlertsPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
       <div>
-          <h1 className="text-lg font-bold text-gray-800 dark:text-vynal-text-primary">Alertes système</h1>
-        <p className="text-xs text-gray-500 dark:text-vynal-text-secondary">
-          Gérez les alertes et notifications système de la plateforme.
-        </p>
-      </div>
+          <h1 className="text-base font-bold text-gray-900 dark:text-white">Administration - Alertes</h1>
+          <p className="text-[9px] text-gray-600 dark:text-gray-400 mt-0.5">
+            Gestion et surveillance des alertes système
+          </p>
+        </div>
         
         <div className="flex gap-2">
           <div className="bg-gray-50 dark:bg-gray-800 px-3 py-2 rounded-md border border-gray-200 dark:border-gray-700">
@@ -412,13 +412,13 @@ export default function AlertsPage() {
           />
         </div>
         <div className="flex gap-2 items-center">
-          <span className="hidden sm:inline-block text-xs text-gray-500 dark:text-vynal-text-secondary">
+          <span className="hidden sm:inline-block text-[9px] text-gray-500 dark:text-vynal-text-secondary">
             {Array.isArray(filteredAlerts) ? filteredAlerts.filter(a => a.status === 'active').length : 0} alerte(s) active(s)
           </span>
           <Button 
             variant="outline" 
             size="sm" 
-            className="h-8 text-xs"
+            className="h-8 text-[9px]"
             onClick={handleForceRefresh}
           >
             <RefreshCw className="h-3 w-3 mr-1" />
@@ -427,7 +427,7 @@ export default function AlertsPage() {
           <Button 
             variant="outline" 
             size="sm" 
-            className="h-8 text-xs bg-blue-50 border-blue-200 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-400"
+            className="h-8 text-[9px] bg-blue-50 border-blue-200 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-400"
             onClick={handleRunSystemChecks}
           >
             <AlertCircle className="h-3 w-3 mr-1" />
@@ -437,7 +437,7 @@ export default function AlertsPage() {
             <Button 
               variant="outline" 
               size="sm" 
-              className="h-8 text-xs bg-amber-50 border-amber-200 text-amber-600 hover:bg-amber-100 dark:bg-amber-900/20 dark:border-amber-800 dark:text-amber-400"
+              className="h-8 text-[9px] bg-amber-50 border-amber-200 text-amber-600 hover:bg-amber-100 dark:bg-amber-900/20 dark:border-amber-800 dark:text-amber-400"
               onClick={handleGenerateTestAlerts}
             >
               <AlertTriangle className="h-3 w-3 mr-1" />

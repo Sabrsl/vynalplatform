@@ -18,6 +18,9 @@ interface UseCreateReviewReturn {
   resetState: () => void;
 }
 
+// Désactivation temporaire des appels à la base de données pour les reviews
+const DISABLE_REVIEWS_DB_CALLS = true;
+
 /**
  * Hook optimisé pour la création et soumission des avis
  * - Utilise useCallback pour stabiliser les références des fonctions
@@ -56,6 +59,22 @@ export function useCreateReview(): UseCreateReviewReturn {
     }
     
     try {
+      // Si les appels à la base de données sont désactivés, simuler une soumission réussie
+      if (DISABLE_REVIEWS_DB_CALLS) {
+        // Simuler un délai
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        if (isMountedRef.current) {
+          toast({
+            title: 'Avis publié',
+            description: 'Votre avis a été publié avec succès (Mode test)',
+            variant: 'success'
+          });
+        }
+        
+        return true;
+      }
+      
       // Préparer l'objet de données pour l'insertion
       const reviewObject = {
         service_id: data.service_id,

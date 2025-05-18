@@ -58,6 +58,7 @@ export const EVENTS = {
   INVALIDATE_PRIVACY: 'invalidate_privacy',
   INVALIDATE_CODE_OF_CONDUCT: 'invalidate_code_of_conduct',
   INVALIDATE_HOME: 'invalidate_home',
+  INVALIDATE_SERVICES: 'invalidate_services',
   // Événements génériques pour les types de pages
   INVALIDATE_STATIC_PAGES: 'invalidate_static_pages',
 };

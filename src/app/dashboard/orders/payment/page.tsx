@@ -137,6 +137,7 @@ export default function PaymentPage() {
         // Récupérer la note moyenne du prestataire si disponible
         let rating = 0;
         if (data.freelance_id) {
+          /* DÉSACTIVATION TEMPORAIRE DES APPELS AUX REVIEWS
           const { data: reviewsData, error: reviewsError } = await supabase
             .from('reviews')
             .select('rating')
@@ -145,6 +146,8 @@ export default function PaymentPage() {
           if (!reviewsError && reviewsData && reviewsData.length > 0) {
             rating = reviewsData.reduce((sum, review) => sum + review.rating, 0) / reviewsData.length;
           }
+          */
+          rating = 0;
         }
         
         // Formater les données du service

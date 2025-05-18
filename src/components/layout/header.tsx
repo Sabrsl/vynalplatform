@@ -38,6 +38,9 @@ import Image from "next/image";
 import { debounce } from "lodash";
 import { FREELANCE_ROUTES, CLIENT_ROUTES, AUTH_ROUTES } from "@/config/routes";
 import { useUnreadMessages } from "@/hooks/useUnreadMessages";
+import useCurrency from "@/hooks/useCurrency";
+import { triggerCurrencyChangeEvent } from "@/lib/utils/currency-updater";
+import { toast } from "react-hot-toast";
 
 // Données de navigation mémorisées en dehors du composant
 const BASE_NAVIGATION = [
@@ -1123,6 +1126,10 @@ function Header() {
                           </div>
                           <div className="border-t border-vynal-purple-secondary/20 dark:border-vynal-purple-secondary/20 my-1" />
                           <div className="space-y-0.5">
+                            <Link href={userStatus.isClient ? CLIENT_ROUTES.DASHBOARD : FREELANCE_ROUTES.DASHBOARD} className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs cursor-pointer ${isDark ? 'hover:bg-vynal-purple-secondary/30 text-vynal-text-primary' : 'hover:bg-vynal-purple-100/60 text-vynal-purple-dark'}`}>
+                              <Home className="h-3 w-3" />
+                              <span>Tableau de bord</span>
+                            </Link>
                             <Link href={userStatus.isClient ? CLIENT_ROUTES.PROFILE : FREELANCE_ROUTES.PROFILE} className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs cursor-pointer ${isDark ? 'hover:bg-vynal-purple-secondary/30 text-vynal-text-primary' : 'hover:bg-vynal-purple-100/60 text-vynal-purple-dark'}`}>
                               <User className="h-3 w-3" />
                               <span>Profil</span>
@@ -1145,11 +1152,48 @@ function Header() {
                               <Wallet className="h-3 w-3" />
                               <span>Portefeuille</span>
                             </Link>
+                            <Link href="/contact" className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs cursor-pointer ${isDark ? 'hover:bg-vynal-purple-secondary/30 text-vynal-text-primary' : 'hover:bg-vynal-purple-100/60 text-vynal-purple-dark'}`}>
+                              <AlertTriangle className="h-3 w-3" />
+                              <span>Aide</span>
+                            </Link>
+                            <div className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs cursor-pointer ${isDark ? 'hover:bg-vynal-purple-secondary/30 text-vynal-text-primary' : 'hover:bg-vynal-purple-100/60 text-vynal-purple-dark'}`}>
+                              <span className="flex items-center justify-between w-full">
+                                <span className="flex items-center gap-1.5">
+                                  <Wallet className="h-3 w-3" />
+                                  <span>Devise</span>
+                                </span>
+                                <select 
+                                  className={`text-xs px-1 py-0.5 rounded-md ${isDark ? 'bg-vynal-purple-dark border-vynal-purple-secondary/30' : 'bg-white border-vynal-purple-100'} border`}
+                                  onChange={(e) => {
+                                    const value = e.target.value;
+                                    // Enregistrer la préférence de devise
+                                    localStorage.setItem('vynal_currency_preference', value);
+                                    localStorage.setItem('vynal_currency_timestamp', Date.now().toString());
+                                    // Déclencher l'événement global de changement de devise
+                                    triggerCurrencyChangeEvent(value);
+                                    // Fermer le menu
+                                    setIsOpen(false);
+                                    // Notification de succès
+                                    toast.success(
+                                      `Devise mise à jour: ${value}. Tous les prix ont été convertis.`
+                                    );
+                                  }}
+                                  defaultValue={typeof window !== 'undefined' ? localStorage.getItem('vynal_currency_preference') || "EUR" : "EUR"}
+                                >
+                                  <option value="XOF">XOF (₣)</option>
+                                  <option value="EUR">EUR (€)</option>
+                                  <option value="USD">USD ($)</option>
+                                  <option value="GBP">GBP (£)</option>
+                                  <option value="MAD">MAD (DH)</option>
+                                  <option value="XAF">XAF (₣)</option>
+                                </select>
+                              </span>
+                            </div>
                           </div>
                           <div className="border-t border-vynal-purple-secondary/20 dark:border-vynal-purple-secondary/20 my-1" />
                           <button 
                             onClick={handleLogout} 
-                            className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs w-full cursor-pointer ${isDark ? 'hover:bg-vynal-purple-secondary/30 text-vynal-text-primary' : 'hover:bg-vynal-purple-100/60 text-vynal-purple-dark'}`}
+                            className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-[10px] w-full cursor-pointer ${isDark ? 'hover:bg-vynal-purple-secondary/30 text-vynal-text-primary' : 'hover:bg-vynal-purple-100/60 text-vynal-purple-dark'}`}
                           >
                             <LogOut className="h-3 w-3" />
                             <span>Déconnexion</span>

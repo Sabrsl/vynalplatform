@@ -11,17 +11,23 @@ interface UseServiceReviewsReturn {
   reviewCount: number;
 }
 
-// Cache pour les avis
-const serviceReviewsCache = new Map<string, {
+// Gestionnaire de cache global pour éviter de refaire les mêmes requêtes pour les mêmes IDs
+interface CacheEntry {
   reviews: FreelancerReview[];
   timestamp: number;
-}>();
+}
 
-// Cache global pour éviter des requêtes multiples simultanées vers la même ressource
+// Durée de validité du cache en millisecondes (5 minutes)
+const CACHE_DURATION = 5 * 60 * 1000;
+
+// Cache partagé entre tous les hooks
+const serviceReviewsCache = new Map<string, CacheEntry>();
+
+// Map pour stocker les requêtes en cours
 const pendingRequests = new Map<string, Promise<FreelancerReview[]>>();
 
-// Durée de validité du cache (5 minutes)
-const CACHE_TTL = 5 * 60 * 1000;
+// Désactivation temporaire des appels à la base de données pour les reviews
+const DISABLE_REVIEWS_DB_CALLS = true;
 
 /**
  * Hook pour récupérer les avis d'un service
@@ -38,28 +44,40 @@ export function useServiceReviews(serviceId: string | null | undefined): UseServ
     serviceId: serviceId
   });
   
-  // Fonction de récupération des avis
+  // Calculer la note moyenne
+  const averageRating = useMemo(() => {
+    if (reviews.length === 0) return 0;
+    const sum = reviews.reduce((acc, review) => acc + review.rating, 0);
+    return sum / reviews.length;
+  }, [reviews]);
+  
+  // Nombre total d'avis
+  const reviewCount = useMemo(() => reviews.length, [reviews]);
+  
+  // Fonction pour récupérer les avis
   const fetchReviews = useCallback(async (id: string, useCache = true): Promise<void> => {
     if (!id) return;
+
+    // DÉSACTIVATION TEMPORAIRE DES APPELS AUX REVIEWS
+    // Retourner un tableau vide immédiatement
+    setReviews([]);
+    setLoading(false);
+    return;
     
-    // Vérifier le cache d'abord
+    /* COMMENTÉ TEMPORAIREMENT
+    // Vérifier si les données sont dans le cache et si elles sont encore valides
     if (useCache) {
       const cachedData = serviceReviewsCache.get(id);
-      if (cachedData && (Date.now() - cachedData.timestamp < CACHE_TTL)) {
-        if (refs.current.isMounted) {
-          setReviews(cachedData.reviews);
-          setLoading(false);
-          setError(null);
-        }
+      if (cachedData && (Date.now() - cachedData.timestamp) < CACHE_DURATION) {
+        // Utiliser les données du cache
+        setReviews(cachedData.reviews);
+        setLoading(false);
         return;
       }
     }
     
-    // Mettre à jour l'état pour indiquer le chargement
-    if (refs.current.isMounted) {
-      setLoading(true);
-      setError(null);
-    }
+    setLoading(true);
+    setError(null);
     
     try {
       // Vérifier si une requête est déjà en cours pour cet ID
@@ -119,31 +137,28 @@ export function useServiceReviews(serviceId: string | null | undefined): UseServ
           }
         })();
         
-        // Ajouter cette promesse au Map des requêtes en cours
+        // Ajouter cette requête à la Map des requêtes en cours
         pendingRequests.set(id, requestPromise);
       }
       
-      // Attendre le résultat
-      const data = await requestPromise;
+      // Attendre le résultat de la requête
+      const reviewsData = await requestPromise;
       
-      // Mettre à jour l'état seulement si le composant est toujours monté
-      if (refs.current.isMounted) {
-        setReviews(data);
-        setLoading(false);
-        setError(null);
-      }
+      // Mettre à jour l'état avec les données récupérées
+      setReviews(reviewsData);
     } catch (err: any) {
-      console.error('Erreur lors du chargement des avis:', err);
-      
-      // Mettre à jour l'état d'erreur seulement si le composant est toujours monté et que ce n'est pas une annulation
-      if (refs.current.isMounted && err.message !== "Requête annulée") {
-        setLoading(false);
-        setError(err.message || 'Une erreur est survenue');
+      // Ne pas définir d'erreur si la requête a été annulée volontairement
+      if (err.message !== "Requête annulée") {
+        console.error('Erreur lors de la récupération des avis:', err);
+        setError(err.message || 'Une erreur est survenue lors de la récupération des avis');
       }
+    } finally {
+      setLoading(false);
     }
+    */
   }, []);
   
-  // Fonction de rafraîchissement exposée
+  // Fonction pour rafraîchir les avis (sans utiliser le cache)
   const refresh = useCallback(async (): Promise<void> => {
     if (refs.current.serviceId) {
       await fetchReviews(refs.current.serviceId, false);
@@ -175,15 +190,6 @@ export function useServiceReviews(serviceId: string | null | undefined): UseServ
       }
     };
   }, [serviceId, fetchReviews]);
-  
-  // Calculer la note moyenne et le nombre d'avis
-  const averageRating = useMemo(() => {
-    if (reviews.length === 0) return 0;
-    const totalRating = reviews.reduce((sum, review) => sum + (review.rating || 0), 0);
-    return parseFloat((totalRating / reviews.length).toFixed(1));
-  }, [reviews]);
-  
-  const reviewCount = useMemo(() => reviews.length, [reviews]);
   
   // Retourner un objet memoïsé
   return useMemo(() => ({

@@ -17,6 +17,9 @@ interface UseFreelancerRatingReturn {
 // Cache global pour éviter des requêtes multiples simultanées vers la même ressource
 const pendingRequests = new Map<string, Promise<{averageRating: number, reviewCount: number}>>();
 
+// Désactivation temporaire des appels à la base de données pour les reviews
+const DISABLE_REVIEWS_DB_CALLS = true;
+
 /**
  * Hook optimisé pour récupérer la note moyenne d'un freelance
  * Version améliorée avec le système de cache avancé et invalidation
@@ -50,6 +53,19 @@ export function useFreelancerRating(freelanceId: string | null | undefined): Use
   // Fonction de récupération des notes, mémorisée pour stabilité des références
   const fetchRating = useCallback(async (id: string, useCache = true): Promise<void> => {
     if (!id || !cacheKey) return;
+    
+    // Si les appels à la base de données sont désactivés, retourner immédiatement des valeurs vides
+    if (DISABLE_REVIEWS_DB_CALLS) {
+      if (refs.current.isMounted) {
+        setState({
+          averageRating: 0,
+          reviewCount: 0,
+          loading: false,
+          error: null
+        });
+      }
+      return;
+    }
     
     // Vérifier le cache avancé d'abord
     if (useCache) {

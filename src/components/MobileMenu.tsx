@@ -245,6 +245,12 @@ const AuthenticatedMenuContent = memo(({
     const menus = {
       principal: [
         {
+          href: PUBLIC_ROUTES.HOME,
+          icon: Home,
+          label: "Accueil",
+          callback: "home"
+        },
+        {
           href: dashboardPrefix,
           icon: Home,
           label: "Tableau de bord",
@@ -631,6 +637,11 @@ export default function MobileMenu({ isOpen, onClose, user, activePath, setActiv
   // Mémoriser les callbacks de clic pour chaque item du menu
   const navItemCallbacks = useMemo(() => {
     const callbacks: Record<string, () => void> = {
+      home: () => {
+        setActivePath(PUBLIC_ROUTES.HOME);
+        onClose();
+        router.push(PUBLIC_ROUTES.HOME);
+      },
       dashboard: () => { 
         const dashPath = userRole === 'client' ? CLIENT_ROUTES.DASHBOARD : FREELANCE_ROUTES.DASHBOARD;
         setActivePath(dashPath); 

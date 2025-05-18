@@ -20,6 +20,7 @@ export const STATIC_PAGES = {
   PRIVACY: '/privacy-policy',
   CODE_OF_CONDUCT: '/code-of-conduct',
   HOME: '/',
+  SERVICES: '/services',
 };
 
 /**
@@ -68,6 +69,10 @@ export function initStaticPagesInvalidation(): void {
     console.log(`⚡ Invalidation de la page d'accueil: ${STATIC_PAGES.HOME}`);
     revalidatePath(STATIC_PAGES.HOME);
   });
+  eventEmitter.on(EVENTS.INVALIDATE_SERVICES, () => {
+    console.log(`⚡ Invalidation de la page des services: ${STATIC_PAGES.SERVICES}`);
+    revalidatePath(STATIC_PAGES.SERVICES);
+  });
 
   // Écouteur pour invalider toutes les pages statiques d'un coup
   eventEmitter.on(EVENTS.INVALIDATE_STATIC_PAGES, () => {
@@ -95,4 +100,13 @@ export function invalidateStaticPage(page: keyof typeof STATIC_PAGES): void {
 export function invalidateAllStaticPages(): void {
   Object.values(STATIC_PAGES).forEach(path => revalidatePath(path));
   console.log('Toutes les pages statiques invalidées');
+}
+
+/**
+ * Invalide la page des services
+ * À utiliser lorsqu'un service est validé ou modifié
+ */
+export function invalidateServicesPage(): void {
+  revalidatePath(STATIC_PAGES.SERVICES);
+  console.log('Page des services invalidée');
 } 

@@ -19,7 +19,9 @@
     "prepare": "cross-env-shell \"[ -f .git/hooks/pre-commit ] && rm .git/hooks/pre-commit || true\" && npx husky install",
     "test:email": "node src/scripts/test-email.js",
     "db:migrate:messaging": "npx supabase db push --db-url $NEXT_PUBLIC_SUPABASE_URL --auth-token $SUPABASE_SERVICE_ROLE_KEY --migration-file ./migrations/add_increment_unread_count.sql",
-    "db:migrate:permissions": "npx supabase db push --db-url $NEXT_PUBLIC_SUPABASE_URL --auth-token $SUPABASE_SERVICE_ROLE_KEY --migration-file ./migrations/fix_conversation_permissions.sql"
+    "db:migrate:permissions": "npx supabase db push --db-url $NEXT_PUBLIC_SUPABASE_URL --auth-token $SUPABASE_SERVICE_ROLE_KEY --migration-file ./migrations/fix_conversation_permissions.sql",
+    "validate:services": "node scripts/validate-services.js",
+    "prebuild": "npm run validate:services"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",

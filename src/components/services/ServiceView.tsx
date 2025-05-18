@@ -1,3 +1,4 @@
+"use client";
 import React, { useMemo, useState, useCallback, useEffect, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -1338,6 +1339,7 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
               </Card>
               
               {/* Ajout des avis sur le service - déplacé ici */}
+              {/* DÉSACTIVATION TEMPORAIRE DE L'AFFICHAGE DES REVIEWS
               {!isFreelanceView && serviceMeta.id && (
                 <div
                   ref={reviewsRef}
@@ -1358,6 +1360,7 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                   )}
                 </div>
               )}
+              */}
             </div>
           </div>
         </div>

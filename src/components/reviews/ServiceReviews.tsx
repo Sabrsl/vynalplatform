@@ -31,7 +31,7 @@ type ServiceReviewsProps = {
 
 const ServiceReviews = ({ serviceId, initialReviews }: ServiceReviewsProps) => {
   const [reviews, setReviews] = useState<Review[]>(initialReviews || []);
-  const [loading, setLoading] = useState(!initialReviews);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [averageRating, setAverageRating] = useState(0);
   const { resolvedTheme } = useTheme();
@@ -46,6 +46,12 @@ const ServiceReviews = ({ serviceId, initialReviews }: ServiceReviewsProps) => {
       return;
     }
 
+    // DÉSACTIVATION TEMPORAIRE DES APPELS AUX REVIEWS
+    // Remplacer par un tableau vide
+    setReviews([]);
+    setLoading(false);
+    
+    /* COMMENTÉ TEMPORAIREMENT
     // Sinon, on procède à la requête Supabase
     const fetchReviews = async () => {
       if (!serviceId) return;
@@ -85,6 +91,7 @@ const ServiceReviews = ({ serviceId, initialReviews }: ServiceReviewsProps) => {
     };
     
     fetchReviews();
+    */
   }, [serviceId, initialReviews]);
 
   // Fonction pour formatter une date

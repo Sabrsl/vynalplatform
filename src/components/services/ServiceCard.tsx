@@ -59,7 +59,7 @@ const ServiceImage = memo(({
   isPriority: boolean;
   children: React.ReactNode;
 }) => (
-  <div className="aspect-[16/10] bg-gray-100 dark:bg-vynal-purple-darkest/50 relative overflow-hidden w-full flex-shrink-0 rounded-t-lg">
+  <div className="aspect-[16/9] bg-gray-100 dark:bg-vynal-purple-darkest/50 relative overflow-hidden w-full flex-shrink-0 rounded-t-lg">
     {image ? (
       <div className="relative w-full h-full">
         <Image 
@@ -168,7 +168,7 @@ const FreelanceAvatar = memo(({
     </Avatar>
     <div className="flex items-center gap-1 min-w-0">
       <button 
-        className="text-[10px] text-vynal-purple-dark dark:text-vynal-title truncate max-w-[80px] cursor-pointer hover:underline focus:outline-none focus:underline font-normal"
+        className="text-[10px] text-vynal-purple-dark dark:text-vynal-title truncate max-w-[80px] cursor-pointer hover:underline focus:outline-none focus:underline font-medium"
         onClick={onClick}
         title={profile?.full_name || profile?.username || 'Vendeur'}
         tabIndex={-1}
@@ -222,7 +222,7 @@ const Rating = memo(({
   
   if (isNew) {
     return (
-      <span className="text-[9px] text-vynal-purple-dark dark:text-vynal-body">
+      <span className="text-[9px] text-black dark:text-vynal-body">
         Nouveau
       </span>
     );
@@ -263,15 +263,7 @@ const ActionButtons = memo(({
   onDelete: (e: React.MouseEvent) => void;
 }) => {
   if (!isManageable) {
-    return (
-      <Button
-        size="sm" 
-        variant="secondary"
-        className="rounded-full px-2 py-0.5 h-auto text-[10px] bg-slate-100 dark:bg-vynal-purple-secondary/40 text-slate-800 dark:text-vynal-text-primary hover:bg-vynal-accent-primary hover:text-white dark:hover:bg-vynal-accent-primary dark:hover:text-vynal-purple-dark border border-slate-200 dark:border-vynal-purple-secondary/30 hover:border-vynal-accent-primary"
-      >
-        Voir détails
-      </Button>
-    );
+    return null;
   }
   
   return (
@@ -645,7 +637,7 @@ const ServiceCard = memo<ServiceCardProps>(
         {/* Content section */}
         <div className="pt-1.5 px-2 flex flex-col flex-grow">
           {/* Profile and rating */}
-          <div className="flex justify-between items-center h-8 mb-2">
+          <div className="flex justify-between items-center h-6 mb-1">
             <FreelanceAvatar 
               profile={service.profiles} 
               onError={handleAvatarError} 
@@ -662,13 +654,13 @@ const ServiceCard = memo<ServiceCardProps>(
           </div>
           
           {/* Title and description */}
-          <div className="mb-4 mt-2">
-            <h3 className="text-sm leading-tight text-slate-800 dark:text-white line-clamp-2 font-normal">
+          <div className="mb-3 mt-1">
+            <h3 className="text-sm leading-tight text-black dark:text-white/70 line-clamp-2 font-light break-words">
               {highlightedTitle}
             </h3>
             
             {service.short_description && (
-              <p className="mt-1 text-[10px] text-slate-600 dark:text-vynal-text-secondary/80 line-clamp-2">
+              <p className="mt-0.5 text-[10px] text-slate-600 dark:text-vynal-text-secondary/80 line-clamp-2">
                 {service.short_description}
               </p>
             )}
@@ -676,10 +668,10 @@ const ServiceCard = memo<ServiceCardProps>(
         </div>
         
         {/* Footer section */}
-        <div className="mt-auto px-2 pb-2 flex items-center justify-between">
+        <div className="mt-auto px-2 pb-1.5 flex items-center justify-between">
           <div className="flex flex-col">
-            <span className="text-[9px] text-slate-600 dark:text-vynal-text-secondary/80">À partir de</span>
-            <span className="text-base font-medium text-slate-800 dark:text-vynal-accent-primary mt-0.5 price-value">
+            <span className="text-[9px] text-slate-600 dark:text-vynal-text-secondary/80 font-medium">À partir de</span>
+            <span className="text-base font-medium text-black dark:text-vynal-accent-primary mt-0.5 price-value">
               <PriceDisplay price={service.price || 0} showFixedIndicator={false} />
             </span>
           </div>

@@ -203,7 +203,10 @@ export default function AdminDashboard() {
   return (
     <div className="p-4 text-gray-800 dark:text-vynal-text-primary">
       <div className="flex justify-between items-center mb-4">
-        <h1 className="text-sm font-bold">Tableau de bord Admin</h1>
+        <h1 className="text-base font-bold text-gray-900 dark:text-white">Tableau de bord Admin</h1>
+        <p className="text-[9px] text-gray-600 dark:text-gray-400 mt-0.5">
+          Vue d'ensemble de la plateforme
+        </p>
         <div className="flex gap-2">
           <button
             onClick={() => handleRefresh()}

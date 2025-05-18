@@ -26,6 +26,9 @@ export const CACHE_KEYS = {
   WALLET_DATA: 'wallet_data',
   PAYMENT_METHODS: 'payment_methods',
   DISPUTE_LIST: 'dispute_list',
+  // Clés pour les données publiques
+  SERVICES_LIST: 'public_services_list',
+  FREELANCERS_LIST: 'public_freelancers_list',
   // Nouvelles clés pour les données administratives
   ADMIN_ALERTS: 'admin_alerts_count',
   ADMIN_WITHDRAWALS: 'admin_withdrawals',
@@ -174,6 +177,14 @@ export function clearLowPriorityCache(): void {
 export function invalidateCacheKey(key: string): void {
   if (typeof window === 'undefined') return;
   localStorage.removeItem(key);
+}
+
+/**
+ * Alias de invalidateCacheKey pour plus de cohérence sémantique
+ * @param key La clé de cache à invalider
+ */
+export function invalidateCache(key: string): void {
+  invalidateCacheKey(key);
 }
 
 /**

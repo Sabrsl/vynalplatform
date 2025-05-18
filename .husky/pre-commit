@@ -1,6 +1,9 @@
 #!/bin/sh
 . "$(dirname "$0")/_/husky.sh"
 
+# Validation de la structure du code
+npm run validate:services || exit 1
+
 # Vérifier les erreurs de linting et de typage sur les fichiers en staging
 npx lint-staged
 

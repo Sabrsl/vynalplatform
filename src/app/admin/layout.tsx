@@ -31,7 +31,8 @@ import {
   User,
   Laptop,
   Mail,
-  FileQuestion
+  FileQuestion,
+  RefreshCw
 } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -263,7 +264,7 @@ export default function AdminLayout({
           onMouseLeave={() => !isMobileView && setSidebarHovered(false)}
         >
           <div className="flex items-center justify-between p-4 h-14">
-            <h2 className={`text-sm font-bold text-white ${sidebarCollapsed && !sidebarHovered && !isMobileView ? 'hidden' : 'block'}`}>
+            <h2 className={`text-[9px] font-bold text-white ${sidebarCollapsed && !sidebarHovered && !isMobileView ? 'hidden' : 'block'}`}>
               Administration
             </h2>
             {isMobileView ? (
@@ -288,37 +289,49 @@ export default function AdminLayout({
               <li>
                 <Link 
                   href="/admin" 
-                  className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-gray-700 dark:hover:bg-gray-800 transition-colors ${
+                  className={`flex items-center gap-3 px-3 py-2 rounded-md text-[9px] hover:bg-gray-700 dark:hover:bg-gray-800 transition-colors ${
                     pathname === "/admin" ? "bg-gray-700/80 dark:bg-gray-800/80 text-white" : "text-gray-300"
                   }`}
                   onClick={() => isMobileView && setMobileSidebarOpen(false)}
                 >
-                  <LayoutDashboard className="h-4 w-4" />
+                  <LayoutDashboard className="h-3 w-3" />
                   <span className={sidebarCollapsed && !sidebarHovered && !isMobileView ? 'hidden' : 'block'}>Tableau de bord</span>
                 </Link>
               </li>
               <li>
                 <Link 
                   href="/admin/users" 
-                  className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-gray-700 dark:hover:bg-gray-800 transition-colors ${
+                  className={`flex items-center gap-3 px-3 py-2 rounded-md text-[9px] hover:bg-gray-700 dark:hover:bg-gray-800 transition-colors ${
                     pathname === "/admin/users" ? "bg-gray-700/80 dark:bg-gray-800/80 text-white" : "text-gray-300"
                   }`}
                   onClick={() => isMobileView && setMobileSidebarOpen(false)}
                 >
-                  <Users className="h-4 w-4" />
+                  <Users className="h-3 w-3" />
                   <span className={sidebarCollapsed && !sidebarHovered && !isMobileView ? 'hidden' : 'block'}>Utilisateurs</span>
                 </Link>
               </li>
               <li>
                 <Link 
                   href="/admin/validations" 
-                  className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-gray-700 dark:hover:bg-gray-800 transition-colors ${
+                  className={`flex items-center gap-3 px-3 py-2 rounded-md text-[9px] hover:bg-gray-700 dark:hover:bg-gray-800 transition-colors ${
                     pathname === "/admin/validations" ? "bg-gray-700/80 dark:bg-gray-800/80 text-white" : "text-gray-300"
                   }`}
                   onClick={() => isMobileView && setMobileSidebarOpen(false)}
                 >
-                  <CheckSquare className="h-4 w-4" />
+                  <CheckSquare className="h-3 w-3" />
                   <span className={sidebarCollapsed && !sidebarHovered && !isMobileView ? 'hidden' : 'block'}>Validations</span>
+                </Link>
+              </li>
+              <li>
+                <Link 
+                  href="/admin/cache-invalidations" 
+                  className={`flex items-center gap-3 px-3 py-2 rounded-md text-[9px] hover:bg-gray-700 dark:hover:bg-gray-800 transition-colors ${
+                    pathname === "/admin/cache-invalidations" ? "bg-gray-700/80 dark:bg-gray-800/80 text-white" : "text-gray-300"
+                  }`}
+                  onClick={() => isMobileView && setMobileSidebarOpen(false)}
+                >
+                  <RefreshCw className="h-3 w-3" />
+                  <span className={sidebarCollapsed && !sidebarHovered && !isMobileView ? 'hidden' : 'block'}>Invalidations</span>
                 </Link>
               </li>
               <li>
@@ -331,22 +344,20 @@ export default function AdminLayout({
                       : ""
                   )}
                 >
-                  <PackageOpen className="h-4 w-4 text-indigo-500" />
+                  <PackageOpen className="h-3 w-3 text-indigo-500" />
                   Services
                 </Link>
               </li>
               <li>
-                <Link
-                  href="/admin/withdrawals"
-                  className={cn(
-                    "flex items-center gap-x-2 text-slate-600 dark:text-slate-400 font-medium text-sm hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/50 dark:hover:bg-slate-800/50 rounded px-3 py-2 w-full",
-                    pathname?.includes("/admin/withdrawals")
-                      ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white"
-                      : ""
-                  )}
+                <Link 
+                  href="/admin/withdrawal-requests" 
+                  className={`flex items-center gap-3 px-3 py-2 rounded-md text-[9px] hover:bg-gray-700 dark:hover:bg-gray-800 transition-colors ${
+                    pathname === "/admin/withdrawal-requests" ? "bg-gray-700/80 dark:bg-gray-800/80 text-white" : "text-gray-300"
+                  }`}
+                  onClick={() => isMobileView && setMobileSidebarOpen(false)}
                 >
-                  <Wallet className="h-4 w-4 text-indigo-500" />
-                  Retraits
+                  <Wallet className="h-3 w-3" />
+                  <span className={sidebarCollapsed && !sidebarHovered && !isMobileView ? 'hidden' : 'block'}>Retraits</span>
                 </Link>
               </li>
               <li>
@@ -359,19 +370,19 @@ export default function AdminLayout({
                       : ""
                   )}
                 >
-                  <Settings className="h-4 w-4 text-indigo-500" />
+                  <Settings className="h-3 w-3 text-indigo-500" />
                   Outils
                 </Link>
               </li>
               <li>
                 <Link 
                   href="/admin/alerts" 
-                  className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-gray-700 dark:hover:bg-gray-800 transition-colors ${
+                  className={`flex items-center gap-3 px-3 py-2 rounded-md text-[9px] hover:bg-gray-700 dark:hover:bg-gray-800 transition-colors ${
                     pathname === "/admin/alerts" ? "bg-gray-700/80 dark:bg-gray-800/80 text-white" : "text-gray-300"
                   }`}
                   onClick={() => isMobileView && setMobileSidebarOpen(false)}
                 >
-                  <AlertCircle className="h-4 w-4" />
+                  <AlertCircle className="h-3 w-3" />
                   <span className={sidebarCollapsed && !sidebarHovered && !isMobileView ? 'hidden' : 'block'}>Alertes</span>
                   {activeAlertsCount > 0 && (
                     <Badge className="ml-auto bg-red-500 text-white text-xs">
@@ -383,37 +394,49 @@ export default function AdminLayout({
               <li>
                 <Link 
                   href="/admin/messaging" 
-                  className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-gray-700 dark:hover:bg-gray-800 transition-colors ${
+                  className={`flex items-center gap-3 px-3 py-2 rounded-md text-[9px] hover:bg-gray-700 dark:hover:bg-gray-800 transition-colors ${
                     pathname === "/admin/messaging" ? "bg-gray-700/80 dark:bg-gray-800/80 text-white" : "text-gray-300"
                   }`}
                   onClick={() => isMobileView && setMobileSidebarOpen(false)}
                 >
-                  <MessageSquare className="h-4 w-4" />
+                  <MessageSquare className="h-3 w-3" />
                   <span className={sidebarCollapsed && !sidebarHovered && !isMobileView ? 'hidden' : 'block'}>Messagerie</span>
                 </Link>
               </li>
               <li>
                 <Link 
                   href="/admin/settings" 
-                  className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-gray-700 dark:hover:bg-gray-800 transition-colors ${
+                  className={`flex items-center gap-3 px-3 py-2 rounded-md text-[9px] hover:bg-gray-700 dark:hover:bg-gray-800 transition-colors ${
                     pathname === "/admin/settings" ? "bg-gray-700/80 dark:bg-gray-800/80 text-white" : "text-gray-300"
                   }`}
                   onClick={() => isMobileView && setMobileSidebarOpen(false)}
                 >
-                  <Settings className="h-4 w-4" />
+                  <Settings className="h-3 w-3" />
                   <span className={sidebarCollapsed && !sidebarHovered && !isMobileView ? 'hidden' : 'block'}>Paramètres</span>
                 </Link>
               </li>
               <li>
                 <Link 
                   href="/admin/debug" 
-                  className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-gray-700 dark:hover:bg-gray-800 transition-colors ${
+                  className={`flex items-center gap-3 px-3 py-2 rounded-md text-[9px] hover:bg-gray-700 dark:hover:bg-gray-800 transition-colors ${
                     pathname === "/admin/debug" ? "bg-gray-700/80 dark:bg-gray-800/80 text-white" : "text-gray-300"
                   }`}
                   onClick={() => isMobileView && setMobileSidebarOpen(false)}
                 >
-                  <Info className="h-4 w-4" />
+                  <Info className="h-3 w-3" />
                   <span className={sidebarCollapsed && !sidebarHovered && !isMobileView ? 'hidden' : 'block'}>Débogage</span>
+                </Link>
+              </li>
+              <li>
+                <Link 
+                  href="/admin/notifications" 
+                  className={`flex items-center gap-3 px-3 py-2 rounded-md text-[9px] hover:bg-gray-700 dark:hover:bg-gray-800 transition-colors ${
+                    pathname === "/admin/notifications" ? "bg-gray-700/80 dark:bg-gray-800/80 text-white" : "text-gray-300"
+                  }`}
+                  onClick={() => isMobileView && setMobileSidebarOpen(false)}
+                >
+                  <Bell className="h-3 w-3" />
+                  <span className={sidebarCollapsed && !sidebarHovered && !isMobileView ? 'hidden' : 'block'}>Notifications</span>
                 </Link>
               </li>
             </ul>

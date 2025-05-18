@@ -26,6 +26,7 @@ import { CURRENCY } from "@/lib/constants";
 import { BentoGridThirdDemo } from "@/components/ui/BentoGridThirdDemo";
 import { Metadata } from "next";
 import Image from "next/image";
+import SchemaOrg from "@/components/seo/SchemaOrg";
 
 // Clé de cache pour la page d'accueil
 const HOMEPAGE_CACHE_KEY = 'homepage_data';
@@ -213,6 +214,20 @@ export default function Home() {
     }
     */
   }, [router, user, isFreelance, isClient, isAdmin, authLoading, userLoading]);
+
+  const schemaData = {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    'name': 'Vynal Platform',
+    'url': 'https://vynalplatform.com',
+    'logo': 'https://vynalplatform.com/assets/images/logo.png',
+    'sameAs': [
+      'https://www.facebook.com/vynalplatform',
+      'https://www.instagram.com/vynalplatform/',
+      'https://www.linkedin.com/company/vynalplatform/'
+    ],
+    'description': 'Vynal Platform est la première marketplace de freelance conçue pour l\'Afrique, connectant les talents locaux avec des clients du monde entier.',
+  };
 
   return (
     <PageLayout fullGradient={true}>
@@ -691,6 +706,7 @@ export default function Home() {
           </div>
         </div>
       </section>
+      <SchemaOrg data={schemaData} />
     </PageLayout>
   );
 }

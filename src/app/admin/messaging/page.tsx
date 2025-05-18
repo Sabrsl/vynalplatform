@@ -414,9 +414,9 @@ export default function MessagingPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-sm font-bold mb-2 text-gray-800 dark:text-vynal-text-primary">Messages de contact</h1>
-        <p className="text-xs text-gray-500 dark:text-vynal-text-secondary">
-          Gérez les messages reçus via le formulaire de contact de la plateforme.
+        <h1 className="text-base font-bold text-gray-900 dark:text-white">Administration - Messagerie</h1>
+        <p className="text-[9px] text-gray-600 dark:text-gray-400 mt-0.5">
+          Gestion des messages et conversations
         </p>
       </div>
 
@@ -641,7 +641,7 @@ export default function MessagingPage() {
                                         placeholder="Répondre en tant qu'administrateur..."
                                         value={adminResponse}
                                         onChange={(e) => setAdminResponse(e.target.value)}
-                                        className="min-h-[80px] text-xs"
+                                        className="min-h-[80px] text-[9px]"
                                       />
                                     </div>
                                     <Button
@@ -655,7 +655,7 @@ export default function MessagingPage() {
                                       ) : (
                                         <Send className="h-3 w-3" />
                                       )}
-                                      <span className="ml-1 text-xs">Envoyer</span>
+                                      <span className="ml-1 text-[9px]">Envoyer</span>
                                     </Button>
                                   </div>
                                 </div>

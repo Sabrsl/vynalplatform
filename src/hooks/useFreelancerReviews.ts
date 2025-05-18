@@ -38,6 +38,9 @@ const reviewsCache = new Map<string, {
 // Durée de validité du cache (5 minutes)
 const CACHE_TTL = 5 * 60 * 1000;
 
+// Désactivation temporaire des appels à la base de données pour les reviews
+const DISABLE_REVIEWS_DB_CALLS = true;
+
 /**
  * Hook pour récupérer les avis d'un freelance
  */
@@ -56,6 +59,16 @@ export function useFreelancerReviews(freelanceId: string | null | undefined): Us
   // Fonction de récupération des avis
   const fetchReviews = useCallback(async (id: string, useCache = true): Promise<void> => {
     if (!id) return;
+    
+    // Si les appels à la base de données sont désactivés, retourner immédiatement un tableau vide
+    if (DISABLE_REVIEWS_DB_CALLS) {
+      if (refs.current.isMounted) {
+        setReviews([]);
+        setLoading(false);
+        setError(null);
+      }
+      return;
+    }
     
     // Vérifier le cache d'abord
     if (useCache) {

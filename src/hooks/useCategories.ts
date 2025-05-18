@@ -8,6 +8,36 @@ import { eventEmitter, EVENTS } from '@/lib/utils/events';
 export type Category = Database['public']['Tables']['categories']['Row'];
 export type Subcategory = Database['public']['Tables']['subcategories']['Row'];
 
+// Types UI pour les composants qui nécessitent created_at obligatoire
+export type UICategoryType = {
+  id: string;
+  name: string;
+  slug: string;
+  created_at: string;
+  description?: string;
+  icon?: string;
+};
+
+export type UISubcategoryType = {
+  id: string;
+  name: string;
+  slug: string;
+  category_id: string;
+  created_at: string;
+  description?: string;
+};
+
+// Fonctions d'adaptation pour les composants UI
+export const adaptCategoryForUI = (category: Category): UICategoryType => ({
+  ...category,
+  created_at: category.created_at || new Date().toISOString()
+});
+
+export const adaptSubcategoryForUI = (subcategory: Subcategory): UISubcategoryType => ({
+  ...subcategory,
+  created_at: subcategory.created_at || new Date().toISOString()
+});
+
 // IDs des catégories du seed
 const CATEGORY_IDS = {
   DEV: '10000000-0000-0000-0000-000000000001',

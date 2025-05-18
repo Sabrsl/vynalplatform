@@ -4,6 +4,7 @@
  */
 
 import { initStaticPagesInvalidation, STATIC_PAGES } from '@/lib/optimizations/static-invalidation';
+import { attachServiceListeners } from '@/lib/services/servicesInvalidationService';
 
 /**
  * Initialise tous les services et systèmes nécessaires au démarrage de l'application
@@ -23,7 +24,12 @@ export function initializeApplication(): void {
     console.log(`🔄 Système d'invalidation configuré pour la page Conditions d'utilisation: ${STATIC_PAGES.TERMS}`);
     console.log(`🔄 Système d'invalidation configuré pour la page Politique de confidentialité: ${STATIC_PAGES.PRIVACY}`);
     console.log(`🔄 Système d'invalidation configuré pour la page Code de conduite: ${STATIC_PAGES.CODE_OF_CONDUCT}`);
-    console.log(`🔄 Système d'invalidation configuré pour la page d'accueil: ${STATIC_PAGES.HOME}`);
+    console.log('🔄 Système d\'invalidation configuré pour la page d\'accueil');
+    console.log(`🔄 Système d'invalidation configuré pour la page des services: ${STATIC_PAGES.SERVICES}`);
+    
+    // Initialiser le service d'invalidation des services
+    attachServiceListeners();
+    console.log('🔄 Service d\'invalidation des services initialisé');
     
     // Ajouter ici d'autres initialisations si nécessaire dans le futur
     

@@ -140,21 +140,21 @@ export default function AdminStatusPage() {
     switch (status) {
       case 'functional':
         return (
-          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800 flex items-center gap-1 text-[10px]">
+          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800 flex items-center gap-1 text-[9px]">
             <CheckCircle className="w-3 h-3" />
             <span>Fonctionnelle</span>
           </Badge>
         );
       case 'degraded':
         return (
-          <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-800 flex items-center gap-1 text-[10px]">
+          <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-800 flex items-center gap-1 text-[9px]">
             <AlertTriangle className="w-3 h-3" />
             <span>Dégradée</span>
           </Badge>
         );
       case 'down':
         return (
-          <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800 flex items-center gap-1 text-[10px]">
+          <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800 flex items-center gap-1 text-[9px]">
             <AlertCircle className="w-3 h-3" />
             <span>En panne</span>
           </Badge>
@@ -169,25 +169,25 @@ export default function AdminStatusPage() {
     switch (status) {
       case 'investigating':
         return (
-          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800 text-[10px]">
+          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800 text-[9px]">
             En cours d'investigation
           </Badge>
         );
       case 'identified':
         return (
-          <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/20 dark:text-purple-400 dark:border-purple-800 text-[10px]">
+          <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/20 dark:text-purple-400 dark:border-purple-800 text-[9px]">
             Problème identifié
           </Badge>
         );
       case 'monitoring':
         return (
-          <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-800 text-[10px]">
+          <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-800 text-[9px]">
             Surveillance en cours
           </Badge>
         );
       case 'resolved':
         return (
-          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800 text-[10px]">
+          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800 text-[9px]">
             Résolu
           </Badge>
         );
@@ -201,25 +201,25 @@ export default function AdminStatusPage() {
     switch (severity) {
       case 'low':
         return (
-          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800 text-[10px]">
+          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800 text-[9px]">
             Faible
           </Badge>
         );
       case 'medium':
         return (
-          <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-800 text-[10px]">
+          <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-800 text-[9px]">
             Moyenne
           </Badge>
         );
       case 'high':
         return (
-          <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-800 text-[10px]">
+          <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-800 text-[9px]">
             Élevée
           </Badge>
         );
       case 'critical':
         return (
-          <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800 text-[10px]">
+          <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800 text-[9px]">
             Critique
           </Badge>
         );
@@ -290,8 +290,8 @@ export default function AdminStatusPage() {
     <div className="container max-w-7xl mx-auto px-4 py-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
         <div>
-          <h1 className="text-lg font-bold text-gray-900 dark:text-white">Administration - Statut du Système</h1>
-          <p className="text-[10px] text-gray-600 dark:text-gray-400 mt-0.5">
+          <h1 className="text-base font-bold text-gray-900 dark:text-white">Administration - Statut du Système</h1>
+          <p className="text-[9px] text-gray-600 dark:text-gray-400 mt-0.5">
             Gestion et surveillance des composants du système
           </p>
         </div>
@@ -299,19 +299,19 @@ export default function AdminStatusPage() {
         <div className="flex items-center gap-4">
           {/* Indicateur général du système */}
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-medium text-gray-700 dark:text-gray-300">Statut général:</span>
+            <span className="text-[9px] font-medium text-gray-700 dark:text-gray-300">Statut général:</span>
             {getSystemStatus() === 'functional' && (
-              <Badge className="bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800 text-[10px]">
+              <Badge className="bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800 text-[9px]">
                 Tous les systèmes fonctionnels
               </Badge>
             )}
             {getSystemStatus() === 'degraded' && (
-              <Badge className="bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-800 text-[10px]">
+              <Badge className="bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-800 text-[9px]">
                 Fonctionnalités dégradées
               </Badge>
             )}
             {getSystemStatus() === 'down' && (
-              <Badge className="bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800 text-[10px]">
+              <Badge className="bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800 text-[9px]">
                 Incidents majeurs
               </Badge>
             )}
@@ -325,7 +325,7 @@ export default function AdminStatusPage() {
             className="flex items-center gap-1 h-7 border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
           >
             <RefreshCw className={`h-3 w-3 ${refreshing ? 'animate-spin' : ''}`} />
-            <span className="text-[10px]">Actualiser</span>
+            <span className="text-[9px]">Actualiser</span>
           </Button>
         </div>
       </div>
@@ -337,7 +337,7 @@ export default function AdminStatusPage() {
             <Search className="absolute left-2.5 top-2.5 h-3 w-3 text-gray-500 dark:text-gray-400" />
             <Input
               placeholder="Rechercher une fonctionnalité..."
-              className="pl-9 w-full h-7 text-[10px]"
+              className="pl-9 w-full h-7 text-[9px]"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -347,17 +347,17 @@ export default function AdminStatusPage() {
             value={componentFilter}
             onValueChange={(value) => setComponentFilter(value as ComponentType | "all")}
           >
-            <SelectTrigger className="w-full sm:w-[220px] h-7 text-[10px]">
+            <SelectTrigger className="w-full sm:w-[220px] h-7 text-[9px]">
               <SelectValue placeholder="Type de composant" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all" className="text-[10px]">Tous les types</SelectItem>
-              <SelectItem value="core" className="text-[10px]">Core</SelectItem>
-              <SelectItem value="communication" className="text-[10px]">Communication</SelectItem>
-              <SelectItem value="financial" className="text-[10px]">Financial</SelectItem>
-              <SelectItem value="storage" className="text-[10px]">Storage</SelectItem>
-              <SelectItem value="integration" className="text-[10px]">Integration</SelectItem>
-              <SelectItem value="security" className="text-[10px]">Security</SelectItem>
+              <SelectItem value="all" className="text-[9px]">Tous les types</SelectItem>
+              <SelectItem value="core" className="text-[9px]">Core</SelectItem>
+              <SelectItem value="communication" className="text-[9px]">Communication</SelectItem>
+              <SelectItem value="financial" className="text-[9px]">Financial</SelectItem>
+              <SelectItem value="storage" className="text-[9px]">Storage</SelectItem>
+              <SelectItem value="integration" className="text-[9px]">Integration</SelectItem>
+              <SelectItem value="security" className="text-[9px]">Security</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -371,28 +371,28 @@ export default function AdminStatusPage() {
           <TabsList className="mb-1.5 bg-gray-100/50 dark:bg-gray-800">
             <TabsTrigger 
               value="all" 
-              className="flex items-center gap-1 text-[10px] h-7 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-900 dark:data-[state=active]:text-white text-gray-600 dark:text-gray-400"
+              className="flex items-center gap-1 text-[9px] h-7 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-900 dark:data-[state=active]:text-white text-gray-600 dark:text-gray-400"
             >
               <Shield className="h-3 w-3" />
               Tout
             </TabsTrigger>
             <TabsTrigger 
               value="functional" 
-              className="flex items-center gap-1 text-[10px] h-7 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-900 dark:data-[state=active]:text-white text-gray-600 dark:text-gray-400"
+              className="flex items-center gap-1 text-[9px] h-7 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-900 dark:data-[state=active]:text-white text-gray-600 dark:text-gray-400"
             >
               <CheckCircle className="h-3 w-3" />
               Fonctionnel
             </TabsTrigger>
             <TabsTrigger 
               value="degraded" 
-              className="flex items-center gap-1 text-[10px] h-7 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-900 dark:data-[state=active]:text-white text-gray-600 dark:text-gray-400"
+              className="flex items-center gap-1 text-[9px] h-7 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-900 dark:data-[state=active]:text-white text-gray-600 dark:text-gray-400"
             >
               <AlertTriangle className="h-3 w-3" />
               Dégradé
             </TabsTrigger>
             <TabsTrigger 
               value="down" 
-              className="flex items-center gap-1 text-[10px] h-7 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-900 dark:data-[state=active]:text-white text-gray-600 dark:text-gray-400"
+              className="flex items-center gap-1 text-[9px] h-7 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-900 dark:data-[state=active]:text-white text-gray-600 dark:text-gray-400"
             >
               <AlertCircle className="h-3 w-3" />
               En panne
@@ -457,12 +457,12 @@ export default function AdminStatusPage() {
                 <CardTitle className="text-sm flex items-center justify-between text-gray-900 dark:text-white">
                   {feature.name}
                   {getFeatureIncidents(feature.id).some(inc => inc.status !== 'resolved') && (
-                    <Badge variant="outline" className="ml-2 bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800 text-[10px]">
+                    <Badge variant="outline" className="ml-2 bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800 text-[9px]">
                       Incident actif
                     </Badge>
                   )}
                 </CardTitle>
-                <CardDescription className="text-[10px] text-gray-600 dark:text-gray-400">{feature.description}</CardDescription>
+                <CardDescription className="text-[9px] text-gray-600 dark:text-gray-400">{feature.description}</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="flex justify-between items-center">

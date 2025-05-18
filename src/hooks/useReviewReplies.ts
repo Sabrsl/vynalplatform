@@ -26,6 +26,9 @@ type UseReviewRepliesReturn = {
   deleteReply: () => Promise<void>;
 };
 
+// Désactivation temporaire des appels à la base de données pour les reviews
+const DISABLE_REVIEWS_DB_CALLS = true;
+
 /**
  * Hook pour gérer les réponses aux avis
  */
@@ -45,6 +48,13 @@ export function useReviewReplies({
     async function fetchReply() {
       setIsLoading(true);
       setError(null);
+      
+      // Si les appels à la base de données sont désactivés, retourner immédiatement null
+      if (DISABLE_REVIEWS_DB_CALLS) {
+        setReply(null);
+        setIsLoading(false);
+        return;
+      }
       
       try {
         const { data, error: fetchError } = await supabase
@@ -79,6 +89,32 @@ export function useReviewReplies({
     setError(null);
     
     try {
+      // Si les appels à la base de données sont désactivés, simuler une réponse
+      if (DISABLE_REVIEWS_DB_CALLS) {
+        // Attendre un court délai pour simuler la requête
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        const mockReply: ReviewReply = {
+          id: `temp-${Date.now()}`,
+          review_id: reviewId,
+          freelance_id: freelanceId,
+          content: content,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        
+        setReply(mockReply);
+        
+        toast({
+          title: 'Réponse publiée',
+          description: 'Votre réponse a été publiée avec succès (Mode test)',
+          variant: 'success'
+        });
+        
+        setIsLoading(false);
+        return;
+      }
+      
       const { data, error: insertError } = await supabase
         .from('review_replies')
         .insert({
@@ -122,6 +158,29 @@ export function useReviewReplies({
     setError(null);
     
     try {
+      // Si les appels à la base de données sont désactivés, simuler une mise à jour
+      if (DISABLE_REVIEWS_DB_CALLS) {
+        // Attendre un court délai pour simuler la requête
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        const updatedReply = {
+          ...reply,
+          content: content,
+          updated_at: new Date().toISOString()
+        };
+        
+        setReply(updatedReply);
+        
+        toast({
+          title: 'Réponse mise à jour',
+          description: 'Votre réponse a été mise à jour avec succès (Mode test)',
+          variant: 'success'
+        });
+        
+        setIsLoading(false);
+        return;
+      }
+      
       const { data, error: updateError } = await supabase
         .from('review_replies')
         .update({ content })
@@ -162,6 +221,23 @@ export function useReviewReplies({
     setError(null);
     
     try {
+      // Si les appels à la base de données sont désactivés, simuler une suppression
+      if (DISABLE_REVIEWS_DB_CALLS) {
+        // Attendre un court délai pour simuler la requête
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        setReply(null);
+        
+        toast({
+          title: 'Réponse supprimée',
+          description: 'Votre réponse a été supprimée avec succès (Mode test)',
+          variant: 'success'
+        });
+        
+        setIsLoading(false);
+        return;
+      }
+      
       const { error: deleteError } = await supabase
         .from('review_replies')
         .delete()

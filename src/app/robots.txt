@@ -1,0 +1,11 @@
+# robots.txt for vynalplatform.com
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://vynalplatform.com/sitemap.xml
+
+# Exclude admin and private sections
+Disallow: /dashboard/
+Disallow: /admin/
+Disallow: /api/ 

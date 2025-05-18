@@ -12,6 +12,10 @@ export default function OrderReviewsTab({ order }: OrderReviewsTabProps) {
   const [reviews, setReviews] = useState<any[]>([]);
 
   useEffect(() => {
+    // DÉSACTIVATION TEMPORAIRE DES APPELS AUX REVIEWS
+    setReviews([]);
+    
+    /* COMMENTÉ TEMPORAIREMENT
     const fetchReviews = async () => {
       try {
         const response = await fetch(`/api/services/${order.service.id}/reviews`);
@@ -23,6 +27,7 @@ export default function OrderReviewsTab({ order }: OrderReviewsTabProps) {
     };
 
     fetchReviews();
+    */
   }, [order.service.id]);
 
   return (
