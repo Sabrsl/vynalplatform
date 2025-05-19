@@ -114,9 +114,92 @@ export async function logSecurityEvent(event: Omit<SecurityEvent, 'timestamp'>):
  * @param event Événement de sécurité
  */
 async function sendSecurityAlert(event: SecurityEvent): Promise<void> {
-  // TODO: Implémenter l'envoi d'alertes (email, SMS, etc.)
-  if (isServer) {
-    console.warn('ALERTE DE SÉCURITÉ CRITIQUE:', event);
+  try {
+    // Enregistrement de l'alerte dans la base de données avec marquage spécial
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+    
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error('ERREUR: Variables d\'environnement Supabase manquantes pour les alertes');
+      return;
+    }
+    
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    
+    // Créer un enregistrement spécial dans security_events avec un type spécifique pour les alertes
+    const alertData = {
+      user_id: event.userId,
+      type: `alert_${event.type}`, // Préfixe "alert_" pour identifier les alertes
+      ip_address: event.ipAddress,
+      user_agent: event.userAgent,
+      severity: event.severity,
+      details: {
+        ...event.details,
+        original_event: event,
+        alert_timestamp: new Date().toISOString(),
+        alert_status: 'new' // Pour le suivi des alertes
+      }
+    };
+    
+    // Insérer l'alerte dans la base de données
+    const { error } = await supabase
+      .from('security_events')
+      .insert(alertData);
+      
+    if (error) {
+      console.error('Échec de l\'enregistrement de l\'alerte dans la base de données:', error);
+    }
+    
+    // Journalisation dans la console pour suivi immédiat
+    console.error('⚠️ ALERTE DE SÉCURITÉ CRITIQUE ⚠️', {
+      type: event.type,
+      userId: event.userId,
+      severity: event.severity,
+      timestamp: event.timestamp,
+      details: event.details
+    });
+    
+    // Vérifier si nous avons une configuration d'email
+    if (process.env.SECURITY_ALERT_EMAIL) {
+      // Cette partie nécessiterait un service d'envoi d'email configuré
+      // Exemple avec un service générique:
+      try {
+        // Simulation de l'envoi d'un email (à implémenter avec votre service d'email)
+        console.log(`[SIMULÉ] Email d'alerte envoyé à ${process.env.SECURITY_ALERT_EMAIL}`);
+        // Implémentation à faire:
+        // await sendEmail({
+        //   to: process.env.SECURITY_ALERT_EMAIL,
+        //   subject: `ALERTE SÉCURITÉ VYNAL: ${event.type}`,
+        //   text: `Une alerte de sécurité critique a été détectée:\n\n${JSON.stringify(event, null, 2)}`
+        // });
+      } catch (emailError) {
+        console.error('Échec de l\'envoi de l\'email d\'alerte:', emailError);
+      }
+    }
+    
+    // Enregistrement des événements critiques dans un fichier journal spécial
+    // (Option utile si vous avez besoin de tracer ces événements hors base de données)
+    if (isServer) {
+      try {
+        // Exemple d'utilisation du système de journalisation de Node.js
+        // Cette partie peut être adaptée selon votre infrastructure
+        const alertLog = {
+          timestamp: new Date().toISOString(),
+          environment: process.env.NODE_ENV,
+          event_type: event.type,
+          severity: event.severity,
+          user_id: event.userId,
+          ip: event.ipAddress,
+          details: event.details
+        };
+        console.error('[SECURITY_ALERT]', JSON.stringify(alertLog));
+      } catch (logError) {
+        console.error('Échec de la journalisation de l\'alerte:', logError);
+      }
+    }
+  } catch (error) {
+    // S'assurer que cette fonction ne génère jamais d'erreur non gérée
+    console.error('Erreur fatale lors du traitement de l\'alerte de sécurité:', error);
   }
 }
 

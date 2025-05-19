@@ -31,23 +31,20 @@ export async function POST(req: NextRequest) {
       );
     }
     
-    // ⚠️ ATTENTION: Bypass d'authentification - À UTILISER UNIQUEMENT EN DÉVELOPPEMENT
-    // et à retirer avant la mise en production
+    // Configuration de l'environnement
     const isDev = process.env.NODE_ENV === 'development';
-    // En développement, activer automatiquement le bypass d'authentification
-    const bypassAuth = isDev; // Toujours activer en développement
     
     // Vérification de l'authentification avec Supabase
     // Utiliser la version simplifiée pour les API routes
     const supabase = createClientComponentClient();
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
     
-    // Variables pour l'utilisateur (soit authentifié, soit en bypass temporaire)
+    // Variables pour l'utilisateur
     let userId: string = session?.user?.id || '';
     let userEmail: string = session?.user?.email || '';
     
-    // Rejet si l'utilisateur n'est pas authentifié, sauf en mode bypass dev
-    if (!session?.user && !bypassAuth) {
+    // Rejet si l'utilisateur n'est pas authentifié
+    if (!session?.user) {
       await logSecurityEvent({
         type: 'security_violation',
         ipAddress: clientIp as string,
@@ -66,13 +63,6 @@ export async function POST(req: NextRequest) {
         { error: 'Non autorisé. Authentification requise.' },
         { status: 401 }
       );
-    }
-    
-    // Si bypass dev, utiliser un ID temporaire
-    if (bypassAuth && !userId) {
-      userId = body.metadata?.clientId || 'dev-test-user';
-      userEmail = 'dev@example.com';
-      console.warn('⚠️ Mode développement: Bypass d\'authentification utilisé pour tester le paiement');
     }
     
     // Extraction des informations nécessaires
