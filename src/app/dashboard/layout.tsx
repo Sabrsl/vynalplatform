@@ -28,6 +28,7 @@ import NotificationBadge from "@/components/ui/notification-badge";
 import { NavigationLoadingState } from "@/app/providers";
 import { useUser } from "@/hooks/useUser";
 import { FREELANCE_ROUTES, AUTH_ROUTES } from "@/config/routes";
+import { listenToFreelanceCacheInvalidation } from "@/lib/optimizations/freelance-cache";
 
 // Mémoriser les icônes par path pour éviter les re-créations
 const NAV_ICONS = {
@@ -238,6 +239,27 @@ export default function DashboardLayout({
       window.scrollTo(0, 0);
     });
   }, [router]);
+
+  // Écoute des événements d'invalidation de cache freelance
+  useEffect(() => {
+    if (!userInfo.userId) return;
+    
+    // Callback à exécuter lorsque le cache est invalidé
+    const handleCacheInvalidation = () => {
+      // Actualiser les notifications
+      refreshNotifications();
+      // Trigger la navigation end pour actualiser les composants au besoin
+      window.dispatchEvent(new CustomEvent('vynal:navigation-end'));
+    };
+    
+    // S'abonner aux événements d'invalidation de cache
+    const unsubscribe = listenToFreelanceCacheInvalidation(handleCacheInvalidation);
+    
+    return () => {
+      // Se désabonner en quittant
+      unsubscribe();
+    };
+  }, [userInfo.userId, refreshNotifications]);
 
   // Détection de visibilité d'onglet pour rafraîchir les notifications
   useEffect(() => {

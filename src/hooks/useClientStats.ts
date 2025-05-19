@@ -5,10 +5,13 @@ import {
   getCachedData, 
   setCachedData, 
   invalidateCache,
+  CACHE_EXPIRY,
+  type CacheOptions
+} from '@/lib/optimizations/cache';
+import {
   invalidateCachesByEvent,
   CACHE_KEYS, 
-  CACHE_EVENT_TYPES,
-  CACHE_EXPIRY
+  CACHE_EVENT_TYPES
 } from '@/lib/optimizations/index';
 import { useLastRefresh } from './useLastRefresh';
 
@@ -134,7 +137,7 @@ export function useClientStats(options: UseClientStatsOptions = {}) {
         // Mettre à jour le cache
         if (useCache) {
           setCachedData(cacheKey, statsData, { 
-            expiry: CACHE_EXPIRY.DAYS_3, // Cache de 3 jours
+            expiry: 3 * 24 * 60 * 60 * 1000, // Cache de 3 jours
             priority: 'high'
           });
         }

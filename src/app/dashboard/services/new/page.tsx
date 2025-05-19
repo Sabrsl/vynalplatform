@@ -40,7 +40,7 @@ export default function NewServicePage() {
   const { user } = useAuth();
   const { profile, isFreelance } = useUser();
   const { createService } = useServices();
-  const { currency, getUserCountry } = useCurrency();
+  const { currency, getUserCountry, convertToXOF } = useCurrency();
   
   const [categories, setCategories] = useState<Category[]>([]);
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
@@ -298,45 +298,35 @@ ${newFields.exclusions}`;
         throw new Error("Le prix est obligatoire");
       }
       
+      // Conversion du prix en nombre, en conservant la devise locale
       price = Number(formData.price.replace(/\s/g, "").replace(",", "."));
       
       if (isNaN(price) || price <= 0) {
         throw new Error("Le prix doit être un nombre positif");
       }
       
-      if (price < 1000) {
-        throw new Error("Le prix minimum est de 1000 FCFA");
-      }
-      
-      if (price > 1000000) {
-        throw new Error("Le prix maximum est de 1 000 000 FCFA");
-      }
-      
-      // Conversion et validation du temps de livraison
+      // Conversion et validation du délai
       if (!formData.delivery_time) {
-        throw new Error("Le temps de livraison est obligatoire");
+        throw new Error("Le délai de livraison est obligatoire");
       }
       
       delivery_time = Number(formData.delivery_time);
       
-      if (isNaN(delivery_time) || delivery_time <= 0 || !Number.isInteger(delivery_time)) {
-        throw new Error("Le temps de livraison doit être un nombre entier positif");
+      if (isNaN(delivery_time) || delivery_time <= 0) {
+        throw new Error("Le délai de livraison doit être un nombre positif");
       }
       
-      if (delivery_time > 60) {
-        throw new Error("Le temps de livraison maximum est de 60 jours");
-      }
-      
-      // Vérification des images
       if (images.length === 0) {
-        throw new Error("Veuillez ajouter au moins une image pour illustrer votre service");
+        throw new Error("Vous devez ajouter au moins une image à votre service");
       }
-      
-      if (images.length > 3) {
-        throw new Error("Vous ne pouvez pas ajouter plus de 3 images");
+
+      if (images.length > 6) {
+        throw new Error("Vous ne pouvez pas ajouter plus de 6 images à votre service");
       }
     } catch (err: any) {
-      setError(err.message || "Une erreur est survenue lors de la validation du formulaire");
+      setError(err.message || "Veuillez corriger les erreurs dans le formulaire");
+      // Faire défiler vers le haut pour afficher l'erreur
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
     
@@ -353,10 +343,16 @@ ${newFields.exclusions}`;
         ? formData.title 
         : prefix + formData.title.replace(prefix, "");
       
+      // CORRECTION ICI: Le prix saisi est dans la devise locale de l'utilisateur (EUR, USD, etc.)
+      // On doit le convertir en XOF avant de le stocker
+      // Si on est déjà en XOF, pas besoin de conversion
+      const priceInXOF = currency.code === 'XOF' ? price : convertToXOF(price);
+      
+      // Ajouter le code de devise au service
       const result = await createService({
         title: title,
         description: formData.description,
-        price: price,
+        price: priceInXOF, // Utiliser le prix converti en XOF
         delivery_time: delivery_time,
         category_id: formData.category_id,
         subcategory_id: formData.subcategory_id || null,
@@ -364,10 +360,23 @@ ${newFields.exclusions}`;
         slug,
         active: formData.active,
         images: images, // Ajouter les images au service
+        currency_code: 'XOF' // Toujours stocker en XOF pour la cohérence
       });
       
       if (!result.success) {
         throw new Error(String(result.error));
+      }
+      
+      // Marquer que le service a été créé avec succès
+      sessionStorage.setItem('vynal_service_created', 'success');
+      
+      // Émettre un événement personnalisé pour informer de la création du service
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('vynal:service-updated', {
+          detail: {
+            type: 'service-created'
+          }
+        }));
       }
       
       // Rediriger vers la liste des services du freelance
@@ -610,7 +619,7 @@ ${newFields.exclusions}`;
                     <div className="flex items-center gap-1.5 mt-1">
                       <Info className="h-3 w-3 text-blue-500 flex-shrink-0" />
                       <p className="text-[8px] sm:text-[10px] text-blue-600 dark:text-blue-400">
-                        Prix en {currency.name} ({currency.code}) - devise détectée selon vos préréférences
+                        Prix en {currency.name} ({currency.code}) - le montant sera automatiquement converti en XOF (₣) pour le stockage
                       </p>
                     </div>
                   </div>

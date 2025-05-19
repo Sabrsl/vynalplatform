@@ -30,6 +30,11 @@ export const NavigationLoadingState = {
     
     if (value) {
       NavigationLoadingState.lastNavigationTimestamp = Date.now();
+    } else {
+      // Émettre un événement quand la navigation se termine
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('vynal:navigation-end'));
+      }
     }
     
     // Émettre l'événement uniquement en cas de changement significatif

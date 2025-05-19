@@ -92,21 +92,7 @@ export async function getAllCategoriesAndSubcategories() {
 export async function getAllValidatedServices() {
   const supabase = getSupabaseServer();
 
-  console.log('Chargement des services validés...');
-
-  // D'abord, récupérons tous les services pour vérifier
-  const { data: allServices, error: countError } = await supabase
-    .from('services')
-    .select('id, status');
-  
-  if (countError) {
-    console.error('Erreur lors du comptage des services:', countError);
-  } else {
-    console.log(`Total de services trouvés: ${allServices?.length || 0}`);
-    console.log(`Services actifs: ${allServices?.filter(s => s.status === 'active').length || 0}`);
-  }
-
-  // Récupérons maintenant les services sans filtres stricts
+  // Récupération des services actifs
   const { data: services, error } = await supabase
     .from('services')
     .select(`
@@ -124,23 +110,9 @@ export async function getAllValidatedServices() {
     return [];
   }
 
-  console.log(`Services récupérés après filtrage: ${services?.length || 0}`);
-
-  // Pour débogage, chargeons aussi sans filtres pour comparer
-  const { data: allServicesWithDetails } = await supabase
-    .from('services')
-    .select(`
-      id, title, status
-    `)
-    .limit(10);
-  
-  console.log('Échantillon de services sans filtres:', allServicesWithDetails);
-
-  // Assurons-nous de toujours avoir des services à afficher
+  // Si aucun service actif n'est trouvé, essayer sans le filtre de statut
   if (!services || services.length === 0) {
-    console.log('Aucun service actif trouvé, récupération sans filtres');
-    
-    const { data: backupServices } = await supabase
+    const { data: backupServices, error: backupError } = await supabase
       .from('services')
       .select(`
         *,
@@ -172,8 +144,6 @@ export type ServicesPageData = {
 export async function getServicesPageData(): Promise<ServicesPageData> {
   const { categories, subcategories } = await getAllCategoriesAndSubcategories();
   const services = await getAllValidatedServices();
-
-  console.log(`Données chargées: ${categories.length} catégories, ${subcategories.length} sous-catégories, ${services.length} services`);
 
   return {
     categories,

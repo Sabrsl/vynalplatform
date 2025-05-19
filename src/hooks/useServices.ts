@@ -34,6 +34,7 @@ export type ServiceWithFreelanceAndCategories = Service & {
   slug?: string;
   moderation_comment?: string;
   admin_notes?: string | null;
+  currency_code?: string;
 };
 
 interface UseServicesParams {
@@ -51,6 +52,7 @@ interface CreateServiceParams extends Omit<Partial<Service>, 'id' | 'created_at'
   slug?: string;
   active?: boolean;
   subcategory_id?: string | null;
+  currency_code?: string;
 }
 
 interface UpdateServiceParams {
@@ -492,7 +494,14 @@ export function useServices(params: UseServicesParams = {}): UseServicesResult {
   const setupServiceSubscription = useCallback((serviceId: string) => {
     // Éviter les abonnements en double
     if (serviceSubscriptions.has(serviceId)) {
-      return;
+      return () => {
+        // Fonction de nettoyage
+        const subscription = serviceSubscriptions.get(serviceId);
+        if (subscription) {
+          supabase.removeChannel(subscription.channel);
+          serviceSubscriptions.delete(serviceId);
+        }
+      };
     }
     
     console.log(`Configuration de l'abonnement pour le service ${serviceId}`);
@@ -666,7 +675,7 @@ export function useServices(params: UseServicesParams = {}): UseServicesResult {
     }
     
     try {
-      const { images, ...serviceFields } = serviceData;
+      const { images, currency_code, ...serviceFields } = serviceData;
       
       // Vérifier que l'utilisateur est bien le propriétaire du service ou un admin
       if (serviceFields.freelance_id !== profile.id && profile.role !== 'admin') {
@@ -699,7 +708,8 @@ export function useServices(params: UseServicesParams = {}): UseServicesResult {
       const serviceWithMeta = {
         ...serviceFields,
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
+        currency_code: currency_code || 'XOF',
       };
       
       // Créer le service de base
@@ -741,6 +751,17 @@ export function useServices(params: UseServicesParams = {}): UseServicesResult {
           keys: ['services']
         }
       }));
+      
+      // Émettre un événement spécifique de création de service pour actualiser l'interface
+      if (typeof window !== 'undefined') {
+        console.log('Émission d\'un événement de création de service');
+        window.dispatchEvent(new CustomEvent('vynal:service-updated', {
+          detail: {
+            type: 'service-created',
+            serviceId: data?.id
+          }
+        }));
+      }
       
       return { success: true, service: data };
     } catch (err: any) {

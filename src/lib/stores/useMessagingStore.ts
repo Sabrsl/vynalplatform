@@ -87,44 +87,69 @@ const MESSAGE_CACHE = {
   pendingRequests: new Set<string>()
 };
 
+// Cache pour les mises à jour de participants
+const PARTICIPANT_UPDATE_CACHE = {
+  // Clé: userId_conversationId, valeur: timestamp de dernière mise à jour
+  lastUpdates: {} as Record<string, number>
+};
+
 // Durée de validité des caches
 const CACHE_DURATION = {
   conversations: 60000, // 1 minute
-  messages: 60000 // 1 minute
+  messages: 60000, // 1 minute
+  participants: 60000 // 1 minute - évite les mises à jour trop fréquentes
 };
 
 export const useMessagingStore = create<MessagingState>((set, get) => {
   // Fonction pour mettre à jour les informations des participants dans une conversation
   const updateParticipantsInfo = (conversationId: string, messages: any[], get: any, set: any) => {
     const { activeConversation } = get();
-    if (activeConversation && activeConversation.id === conversationId) {
-      const participantsToUpdate = new Map();
+    if (!activeConversation || activeConversation.id !== conversationId) return;
+    
+    const now = Date.now();
+    const participantsToUpdate = new Map();
+    
+    // Collecter les informations les plus récentes des expéditeurs
+    messages.forEach((message: any) => {
+      if (!message.sender || !message.sender.id) return;
       
-      // Collecter les informations les plus récentes des expéditeurs
-      messages.forEach((message: any) => {
-        if (message.sender && message.sender.id) {
-          const existingInfo = participantsToUpdate.get(message.sender.id);
-          
-          // N'écraser que si on a de nouvelles informations
-          if (!existingInfo || !existingInfo.avatar_url || !existingInfo.full_name) {
-            participantsToUpdate.set(message.sender.id, {
-              id: message.sender.id,
-              username: message.sender.username || existingInfo?.username,
-              full_name: message.sender.full_name || existingInfo?.full_name,
-              avatar_url: message.sender.avatar_url || existingInfo?.avatar_url
-            });
-          }
-        }
-      });
+      const participantId = message.sender.id;
+      const cacheKey = `${participantId}_${conversationId}`;
       
-      // Mettre à jour chaque participant
-      participantsToUpdate.forEach((updatedInfo) => {
-        const participant = activeConversation.participants.find((p: { id: string }) => p.id === updatedInfo.id);
-        if (participant && (!participant.avatar_url || !participant.full_name)) {
-          get().updateConversationParticipant(conversationId, updatedInfo);
-        }
-      });
-    }
+      // Vérifier si cette mise à jour est récente pour éviter trop de mises à jour
+      const lastUpdate = PARTICIPANT_UPDATE_CACHE.lastUpdates[cacheKey] || 0;
+      if (now - lastUpdate < CACHE_DURATION.participants) {
+        // Une mise à jour récente a déjà été effectuée, on peut ignorer
+        return;
+      }
+      
+      const existingInfo = participantsToUpdate.get(participantId);
+      
+      // N'écraser que si on a de nouvelles informations
+      if (!existingInfo || !existingInfo.avatar_url || !existingInfo.full_name) {
+        participantsToUpdate.set(participantId, {
+          id: participantId,
+          username: message.sender.username || existingInfo?.username,
+          full_name: message.sender.full_name || existingInfo?.full_name,
+          avatar_url: message.sender.avatar_url || existingInfo?.avatar_url,
+          last_seen: message.sender.last_seen || existingInfo?.last_seen
+        });
+        
+        // Marquer cette mise à jour dans le cache
+        PARTICIPANT_UPDATE_CACHE.lastUpdates[cacheKey] = now;
+      }
+    });
+    
+    // Si aucun participant à mettre à jour, sortir tôt
+    if (participantsToUpdate.size === 0) return;
+    
+    // Mettre à jour chaque participant
+    participantsToUpdate.forEach((updatedInfo) => {
+      const participant = activeConversation.participants.find((p: { id: string }) => p.id === updatedInfo.id);
+      if (participant && (!participant.avatar_url || !participant.full_name)) {
+        get().updateConversationParticipant(conversationId, updatedInfo);
+      }
+    });
   };
 
   // Méthode de secours avec des requêtes séparées
@@ -312,36 +337,9 @@ export const useMessagingStore = create<MessagingState>((set, get) => {
 
       set({ messages: messagesWithSenders as Message[] });
 
-      // NOUVEAU: Mettre à jour les informations des participants de la conversation
-      const { activeConversation } = get();
-      if (activeConversation && activeConversation.id === conversationId) {
-        const participantsToUpdate = new Map();
-        
-        // Collecter les informations les plus récentes des expéditeurs
-        messagesWithSenders.forEach(message => {
-          if (message.sender && message.sender.id) {
-            const existingInfo = participantsToUpdate.get(message.sender.id);
-            
-            // N'écraser que si on a de nouvelles informations
-            if (!existingInfo || !existingInfo.avatar_url || !existingInfo.full_name) {
-              participantsToUpdate.set(message.sender.id, {
-                id: message.sender.id,
-                username: message.sender.username || existingInfo?.username,
-                full_name: message.sender.full_name || existingInfo?.full_name,
-                avatar_url: message.sender.avatar_url || existingInfo?.avatar_url
-              });
-            }
-          }
-        });
-        
-        // Mettre à jour chaque participant
-        participantsToUpdate.forEach((updatedInfo) => {
-          const participant = activeConversation.participants.find((p: { id: string }) => p.id === updatedInfo.id);
-          if (participant && (!participant.avatar_url || !participant.full_name)) {
-            get().updateConversationParticipant(conversationId, updatedInfo);
-          }
-        });
-      }
+      // Utiliser la fonction optimisée pour mettre à jour les informations des participants
+      // sans générer trop de requêtes
+      updateParticipantsInfo(conversationId, messagesWithSenders, get, set);
       
       return messagesWithSenders as Message[];
     } catch (error) {

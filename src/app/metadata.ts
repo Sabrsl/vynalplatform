@@ -4,6 +4,7 @@ const metadata: Metadata = {
   title: 'Vynal Platform | Plateforme de Freelance en Afrique | Trouvez des talents freelances',
   description: 'Vynal Platform connecte les meilleurs freelances africains avec des clients locaux et internationaux. Trouvez des talents dans le développement web, le design, le marketing et plus.',
   keywords: 'freelance Afrique, marketplace talents africains, plateforme freelance Sénégal, recrutement freelance, talents africains, développeurs web africains, designers africains',
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://vynalplatform.com'),
   openGraph: {
     title: 'Vynal Platform | La Première Plateforme de Freelance en Afrique',
     description: 'Trouvez des talents freelance africains qualifiés ou proposez vos services en toute sécurité sur Vynal Platform.',

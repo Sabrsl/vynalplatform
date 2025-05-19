@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabase/client";
@@ -20,6 +20,14 @@ import { fr } from "date-fns/locale";
 import * as DialogRadix from '@radix-ui/react-dialog';
 import Image from "next/image";
 import { CurrencyDisplay } from "@/components/ui/CurrencyDisplay";
+import { getCachedData, setCachedData, CACHE_EXPIRY } from "@/lib/optimizations/cache";
+import { NavigationLoadingState } from "@/app/providers";
+
+// Clés de cache pour les détails de commande
+const CACHE_KEYS = {
+  ORDER_DETAILS: 'client_order_details_',
+  ORDER_TIMESTAMP: 'client_order_timestamp_'
+};
 
 // Types pour la commande
 interface OrderDetail {
@@ -165,6 +173,8 @@ export default function OrderDetailPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const isFetchingRef = useRef(false);
+  const initialLoadRef = useRef(true);
   
   // Classes de style unifiées pour une UI cohérente
   const mainCardClasses = "bg-white/30 dark:bg-slate-900/30 backdrop-blur-sm border border-slate-200/30 dark:border-slate-700/30 shadow-sm rounded-lg transition-all duration-200";
@@ -173,11 +183,45 @@ export default function OrderDetailPage() {
   const titleClasses = "text-slate-800 dark:text-vynal-text-primary";
   const subtitleClasses = "text-slate-600 dark:text-vynal-text-secondary";
 
-  // Récupération de la commande
-  const fetchOrder = useCallback(async () => {
+  // Récupération de la commande avec cache
+  const fetchOrder = useCallback(async (forceRefresh = false) => {
     if (!user || !orderId) return;
+    
+    // Éviter les requêtes multiples ou pendant la navigation
+    if (isFetchingRef.current || (NavigationLoadingState.isNavigating && !forceRefresh)) return;
+    
+    isFetchingRef.current = true;
+    
+    // Ne pas modifier l'état loading si c'est le chargement initial
+    if (initialLoadRef.current) {
+      initialLoadRef.current = false;
+    } else if (!order) {
+      setLoading(true);
+    }
 
     try {
+      // Vérifier d'abord le cache si ce n'est pas un forceRefresh
+      const cacheKey = `${CACHE_KEYS.ORDER_DETAILS}${user.id}_${orderId}`;
+      const timestampKey = `${CACHE_KEYS.ORDER_TIMESTAMP}${user.id}_${orderId}`;
+      
+      if (!forceRefresh) {
+        const cachedOrder = getCachedData<OrderDetail>(cacheKey);
+        const cachedTimestamp = getCachedData<number>(timestampKey);
+        
+        if (cachedOrder && cachedTimestamp) {
+          // Utiliser les données en cache si elles existent et sont récentes (moins de 2 minutes)
+          const isCacheValid = Date.now() - cachedTimestamp < 2 * 60 * 1000;
+          
+          if (isCacheValid) {
+            console.log("Utilisation du cache pour les détails de la commande");
+            setOrder(cachedOrder);
+            setLoading(false);
+            isFetchingRef.current = false;
+            return;
+          }
+        }
+      }
+
       const { data, error } = await supabase
         .from('orders')
         .select(`
@@ -191,14 +235,25 @@ export default function OrderDetailPage() {
 
       if (error) throw error;
 
+      // Mettre à jour l'état et le cache
       setOrder(data);
-      setLoading(false);
+      
+      // Mettre en cache les résultats pour les futures visites
+      setCachedData(cacheKey, data, {
+        expiry: CACHE_EXPIRY.DASHBOARD_DATA
+      });
+      setCachedData(timestampKey, Date.now(), {
+        expiry: CACHE_EXPIRY.DASHBOARD_DATA
+      });
+      
     } catch (error) {
       console.error("Erreur lors du chargement de la commande:", error);
       setError("Impossible de charger les détails de la commande.");
+    } finally {
       setLoading(false);
+      isFetchingRef.current = false;
     }
-  }, [user, orderId]);
+  }, [user, orderId, order]);
 
   // Accepter une livraison
   const handleAcceptDelivery = async () => {
@@ -223,8 +278,26 @@ export default function OrderDetailPage() {
         throw new Error(data.error || 'Erreur lors de l\'acceptation de la livraison');
       }
       
+      // Mise à jour optimiste de l'interface utilisateur
+      const updatedOrder: OrderDetail = { 
+        ...order, 
+        status: 'completed' as const, 
+        completed_at: new Date().toISOString() 
+      };
+      
       setSuccess("Livraison acceptée avec succès!");
-      setOrder(prev => prev ? { ...prev, status: 'completed', completed_at: new Date().toISOString() } : null);
+      setOrder(updatedOrder);
+      
+      // Mise à jour du cache pour éviter une requête réseau inutile
+      const cacheKey = `${CACHE_KEYS.ORDER_DETAILS}${user.id}_${order.id}`;
+      const timestampKey = `${CACHE_KEYS.ORDER_TIMESTAMP}${user.id}_${order.id}`;
+      
+      setCachedData(cacheKey, updatedOrder, {
+        expiry: CACHE_EXPIRY.DASHBOARD_DATA
+      });
+      setCachedData(timestampKey, Date.now(), {
+        expiry: CACHE_EXPIRY.DASHBOARD_DATA
+      });
       
       // Notification au freelance
       await supabase.from('notifications').insert({
@@ -248,13 +321,15 @@ export default function OrderDetailPage() {
           service_title: order.service.title
         }
       });
-
-      // Ouvrir le modal de feedback
-      setFeedbackDialogOpen(true);
+      
+      // Émettre un événement pour invalider le cache des listes de commandes
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('vynal:orders-updated'));
+      }
       
     } catch (error) {
       console.error("Erreur lors de l'acceptation de la livraison:", error);
-      setError("Impossible d'accepter la livraison. Veuillez réessayer.");
+      setError(error instanceof Error ? error.message : "Une erreur est survenue.");
     } finally {
       setSubmitting(false);
     }
@@ -268,21 +343,48 @@ export default function OrderDetailPage() {
     setError(null);
     
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('orders')
-        .update({ 
+        .update({
           status: 'revision_requested',
-          revision_message: revisionMessage.trim()
+          updated_at: new Date().toISOString()
         })
         .eq('id', order.id)
-        .eq('client_id', user.id);
+        .eq('client_id', user.id)
+        .select()
+        .single();
       
       if (error) throw error;
       
-      setSuccess("Demande de révision envoyée avec succès!");
-      setOrder(prev => prev ? { ...prev, status: 'revision_requested' } : null);
+      // Enregistrer le message de révision
+      await supabase.from('order_messages').insert({
+        order_id: order.id,
+        sender_id: user.id,
+        content: revisionMessage,
+        type: 'revision_request',
+        created_at: new Date().toISOString()
+      });
+      
+      setSuccess("Révision demandée avec succès!");
       setRevisionDialogOpen(false);
-      setRevisionMessage("");
+      
+      // Mise à jour optimiste de l'interface utilisateur
+      const updatedOrder: OrderDetail = { 
+        ...order, 
+        status: 'revision_requested' as const 
+      };
+      setOrder(updatedOrder);
+      
+      // Mise à jour du cache pour éviter une requête réseau inutile
+      const cacheKey = `${CACHE_KEYS.ORDER_DETAILS}${user.id}_${order.id}`;
+      const timestampKey = `${CACHE_KEYS.ORDER_TIMESTAMP}${user.id}_${order.id}`;
+      
+      setCachedData(cacheKey, updatedOrder, {
+        expiry: CACHE_EXPIRY.DASHBOARD_DATA
+      });
+      setCachedData(timestampKey, Date.now(), {
+        expiry: CACHE_EXPIRY.DASHBOARD_DATA
+      });
       
       // Notification au freelance
       await supabase.from('notifications').insert({
@@ -291,15 +393,21 @@ export default function OrderDetailPage() {
         content: `Le client a demandé une révision pour la commande "${order.service.title}"`,
         data: { 
           order_id: order.id,
-          message: revisionMessage.trim()
+          message: revisionMessage
         }
       });
+      
+      // Émettre un événement pour invalider le cache des listes de commandes
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('vynal:orders-updated'));
+      }
       
     } catch (error) {
       console.error("Erreur lors de la demande de révision:", error);
       setError("Impossible de demander une révision. Veuillez réessayer.");
     } finally {
       setSubmitting(false);
+      setRevisionMessage("");
     }
   };
   
@@ -311,67 +419,85 @@ export default function OrderDetailPage() {
     setError(null);
     
     try {
-      // Vérifications de la possibilité d'annuler selon les règles métier
-      const now = new Date();
-      const createdDate = new Date(order.created_at);
-      const deliveryDueDate = new Date(createdDate);
-      deliveryDueDate.setDate(deliveryDueDate.getDate() + order.delivery_time);
-      
-      const isDeliveryOverdue = now > deliveryDueDate;
-      const isDelivered = ['delivered', 'completed'].includes(order.status);
-      const isRevisionInProgress = order.status === 'revision_requested';
-      const isDisputeOpen = !!order.dispute_id;
-      const isPending = order.status === 'pending';
-      
-      // Règles qui empêchent l'annulation
-      if (isDelivered) {
-        throw new Error("Impossible d'annuler une commande qui a déjà été livrée ou complétée.");
-      }
-      
-      if (isRevisionInProgress) {
-        throw new Error("Impossible d'annuler une commande pendant qu'une révision est en cours.");
-      }
-      
-      if (isDisputeOpen) {
-        throw new Error("Impossible d'annuler une commande pour laquelle un litige est déjà ouvert.");
-      }
-      
-      // Cas autorisés:
-      // 1. La commande est en attente de validation (status pending)
-      // 2. Le freelance a dépassé le délai de livraison sans livrer (status in_progress + isDeliveryOverdue)
-      if (!isPending && !(order.status === 'in_progress' && isDeliveryOverdue)) {
-        throw new Error("Vous ne pouvez annuler une commande que si elle est en attente de validation ou si le délai de livraison a été dépassé sans livraison.");
-      }
-      
-      // Appeler l'API d'annulation
-      const response = await fetch('/api/orders/cancel', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          orderId: order.id,
-          reason: cancelReason.trim()
+      const { data, error } = await supabase
+        .from('orders')
+        .update({
+          status: 'cancelled',
+          updated_at: new Date().toISOString()
         })
-      });
+        .eq('id', order.id)
+        .eq('client_id', user.id)
+        .select()
+        .single();
       
-      const result = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(result.error || 'Échec de l\'annulation');
-      }
+      if (error) throw error;
       
       setSuccess("Commande annulée avec succès!");
-      setOrder(prev => prev ? { ...prev, status: 'cancelled' } : null);
       setCancelDialogOpen(false);
       setCancelConfirmDialogOpen(false);
-      setCancelReason("");
+      
+      // Mise à jour optimiste de l'interface utilisateur
+      const updatedOrder: OrderDetail = { 
+        ...order, 
+        status: 'cancelled' as const 
+      };
+      setOrder(updatedOrder);
+      
+      // Mise à jour du cache pour éviter une requête réseau inutile
+      const cacheKey = `${CACHE_KEYS.ORDER_DETAILS}${user.id}_${order.id}`;
+      const timestampKey = `${CACHE_KEYS.ORDER_TIMESTAMP}${user.id}_${order.id}`;
+      
+      setCachedData(cacheKey, updatedOrder, {
+        expiry: CACHE_EXPIRY.DASHBOARD_DATA
+      });
+      setCachedData(timestampKey, Date.now(), {
+        expiry: CACHE_EXPIRY.DASHBOARD_DATA
+      });
+      
+      // Notification au freelance
+      await supabase.from('notifications').insert({
+        user_id: order.freelance_id,
+        type: 'order_cancelled',
+        content: `Le client a annulé la commande "${order.service.title}"`,
+        data: { 
+          order_id: order.id,
+          reason: cancelReason
+        }
+      });
+      
+      // Notification à l'admin
+      await supabase.from('admin_notifications').insert({
+        type: 'order_cancelled',
+        content: `Commande #${order.id} annulée par le client`,
+        data: { 
+          order_id: order.id,
+          client_id: user.id,
+          freelance_id: order.freelance_id,
+          reason: cancelReason,
+          service_title: order.service.title
+        }
+      });
+      
+      // Enregistrer le message d'annulation
+      await supabase.from('order_messages').insert({
+        order_id: order.id,
+        sender_id: user.id,
+        content: `Commande annulée. Raison: ${cancelReason}`,
+        type: 'system',
+        created_at: new Date().toISOString()
+      });
+      
+      // Émettre un événement pour invalider le cache des listes de commandes
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('vynal:orders-updated'));
+      }
       
     } catch (error) {
       console.error("Erreur lors de l'annulation de la commande:", error);
-      setError(error instanceof Error ? error.message : "Impossible d'annuler la commande. Veuillez réessayer.");
+      setError("Impossible d'annuler la commande. Veuillez réessayer.");
     } finally {
       setSubmitting(false);
+      setCancelReason("");
     }
   };
   
@@ -383,91 +509,107 @@ export default function OrderDetailPage() {
     setError(null);
     
     try {
-      // Vérifier que l'ouverture d'un litige est possible
-      const now = new Date();
-      const createdDate = new Date(order.created_at);
-      const deliveryDueDate = new Date(createdDate);
-      deliveryDueDate.setDate(deliveryDueDate.getDate() + order.delivery_time);
-      
-      const isDeliveryOverdue = now > deliveryDueDate;
-      const isDelivered = order.status === 'delivered';
-      const isRevisionRequested = order.status === 'revision_requested';
-      const isCompleted = order.status === 'completed';
-      
-      // Règles qui empêchent l'ouverture d'un litige
-      if (isCompleted) {
-        throw new Error("Vous ne pouvez pas ouvrir un litige pour une commande déjà validée.");
-      }
-      
-      if (!!order.dispute_id) {
-        throw new Error("Un litige est déjà en cours pour cette commande.");
-      }
-      
-      // Cas autorisés:
-      // 1. Après livraison (order.status === 'delivered')
-      // 2. Si une révision a été demandée (order.status === 'revision_requested')
-      // 3. Si le freelance a dépassé le délai sans livrer (order.status === 'in_progress' && isDeliveryOverdue)
-      if (!isDelivered && !isRevisionRequested && !(order.status === 'in_progress' && isDeliveryOverdue)) {
-        throw new Error("Vous ne pouvez ouvrir un litige que si le travail a été livré, si une révision est en cours, ou si le freelance a dépassé le délai de livraison.");
-      }
-      
-      // Créer l'entrée dans la table des litiges
-      const { data, error } = await supabase
+      // 1. Créer le litige
+      const { data: dispute, error: disputeError } = await supabase
         .from('disputes')
         .insert({
           order_id: order.id,
-          client_id: user.id,
-          freelance_id: order.freelance_id,
-          reason: disputeReason.trim(),
-          status: 'open'
+          initiator_id: user.id,
+          respondent_id: order.freelance_id,
+          reason: disputeReason,
+          status: 'open',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         })
         .select()
         .single();
       
-      if (error) throw error;
+      if (disputeError) throw disputeError;
       
-      // Mettre à jour la commande pour indiquer qu'un litige est en cours
-      await supabase
+      // 2. Mettre à jour la commande avec l'ID du litige
+      const { data: updatedOrderData, error: orderError } = await supabase
         .from('orders')
-        .update({ 
-          dispute_id: data.id,
-          // Facultatif: modifier le statut pour indiquer le litige
-          // status: 'in_dispute' 
+        .update({
+          dispute_id: dispute.id,
+          updated_at: new Date().toISOString()
         })
-        .eq('id', order.id);
+        .eq('id', order.id)
+        .eq('client_id', user.id)
+        .select()
+        .single();
       
-      setCreatedDisputeId(data.id);
+      if (orderError) throw orderError;
+      
+      // Mise à jour optimiste de l'interface utilisateur
+      const updatedOrder: OrderDetail = { 
+        ...order, 
+        dispute_id: dispute.id 
+      };
+      
+      setSuccess("Litige ouvert avec succès! Un administrateur va examiner votre demande.");
+      setOrder(updatedOrder);
       setDisputeDialogOpen(false);
       setDisputeSuccessDialogOpen(true);
+      setCreatedDisputeId(dispute.id);
+      
+      // Mise à jour du cache pour éviter une requête réseau inutile
+      const cacheKey = `${CACHE_KEYS.ORDER_DETAILS}${user.id}_${order.id}`;
+      const timestampKey = `${CACHE_KEYS.ORDER_TIMESTAMP}${user.id}_${order.id}`;
+      
+      setCachedData(cacheKey, updatedOrder, {
+        expiry: CACHE_EXPIRY.DASHBOARD_DATA
+      });
+      setCachedData(timestampKey, Date.now(), {
+        expiry: CACHE_EXPIRY.DASHBOARD_DATA
+      });
       
       // Notification au freelance
       await supabase.from('notifications').insert({
         user_id: order.freelance_id,
         type: 'dispute_opened',
-        content: `Un litige a été ouvert concernant la commande "${order.service.title}"`,
+        content: `Le client a ouvert un litige pour la commande "${order.service.title}"`,
         data: { 
           order_id: order.id,
-          dispute_id: data.id
+          dispute_id: dispute.id,
+          reason: disputeReason
         }
       });
       
       // Notification à l'admin
       await supabase.from('admin_notifications').insert({
-        type: 'new_dispute',
-        content: `Nouveau litige ouvert pour la commande #${order.id}`,
+        type: 'dispute_opened',
+        content: `Nouveau litige créé pour la commande #${order.id}`,
         data: { 
           order_id: order.id,
-          dispute_id: data.id,
+          dispute_id: dispute.id,
           client_id: user.id,
-          freelance_id: order.freelance_id
+          freelance_id: order.freelance_id,
+          reason: disputeReason,
+          service_title: order.service.title
         }
       });
       
+      // Enregistrer le message d'ouverture de litige
+      await supabase.from('order_messages').insert({
+        order_id: order.id,
+        sender_id: user.id,
+        content: `Un litige a été ouvert. Raison: ${disputeReason}`,
+        type: 'dispute',
+        created_at: new Date().toISOString()
+      });
+      
+      // Émettre un événement pour invalider le cache des litiges et des commandes
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('vynal:disputes-updated'));
+        window.dispatchEvent(new CustomEvent('vynal:orders-updated'));
+      }
+      
     } catch (error) {
       console.error("Erreur lors de l'ouverture du litige:", error);
-      setError(error instanceof Error ? error.message : "Impossible d'ouvrir un litige. Veuillez réessayer.");
+      setError("Impossible d'ouvrir un litige. Veuillez réessayer.");
     } finally {
       setSubmitting(false);
+      setDisputeReason("");
     }
   };
 
@@ -610,9 +752,39 @@ export default function OrderDetailPage() {
     }
   };
 
+  // Écouter les événements d'invalidation du cache
   useEffect(() => {
-    fetchOrder();
-  }, [fetchOrder]);
+    if (typeof window === 'undefined' || !user) return;
+    
+    const handleCacheInvalidation = () => {
+      if (user && !NavigationLoadingState.isNavigating) {
+        // Recharger les données si le cache est invalidé et qu'on n'est pas en navigation
+        fetchOrder(true);
+      }
+    };
+    
+    window.addEventListener('vynal:client-cache-invalidated', handleCacheInvalidation);
+    window.addEventListener('vynal:orders-updated', handleCacheInvalidation);
+    window.addEventListener('vynal:navigation-end', () => {
+      // Vérifier si nous devons recharger après la navigation
+      if (user && !isFetchingRef.current) {
+        fetchOrder(false);
+      }
+    });
+    
+    return () => {
+      window.removeEventListener('vynal:client-cache-invalidated', handleCacheInvalidation);
+      window.removeEventListener('vynal:orders-updated', handleCacheInvalidation);
+      window.removeEventListener('vynal:navigation-end', handleCacheInvalidation);
+    };
+  }, [fetchOrder, user]);
+
+  // Effet pour charger les données au montage
+  useEffect(() => {
+    if (user && !NavigationLoadingState.isNavigating) {
+      fetchOrder(false);
+    }
+  }, [fetchOrder, user]);
 
   if (authLoading || loading) {
     return (

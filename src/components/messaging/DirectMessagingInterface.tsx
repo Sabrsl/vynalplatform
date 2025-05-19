@@ -16,6 +16,7 @@ import { channelManager } from '@/lib/supabase/client';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { MessagingInterfaceProps } from './messaging-types';
 import requestCoordinator from '@/lib/optimizations/requestCoordinator';
+import { NavigationLoadingState } from '@/app/providers';
 
 // Squelette de chargement pour la liste de conversations
 const ConversationListSkeleton = () => (
@@ -120,6 +121,12 @@ const loadConversationsCoordinated = (
 ) => {
   if (!userId) return Promise.resolve([]);
   
+  // Ne pas charger les conversations si la navigation est en cours
+  if (NavigationLoadingState.isNavigating) {
+    console.log("[DirectMessaging] Navigation en cours, chargement des conversations reporté");
+    return Promise.resolve([]);
+  }
+  
   setIsLoading(true);
   
   // Utiliser le coordinateur pour éviter les multiples appels API simultanés
@@ -143,6 +150,12 @@ const loadMessagesCoordinated = (
   fetchFunc: (conversationId: string) => Promise<any>
 ) => {
   if (!conversationId) return Promise.resolve([]);
+  
+  // Ne pas charger les messages si la navigation est en cours
+  if (NavigationLoadingState.isNavigating) {
+    console.log("[DirectMessaging] Navigation en cours, chargement des messages reporté");
+    return Promise.resolve([]);
+  }
   
   setIsLoadingMessages(true);
   
@@ -187,6 +200,26 @@ const DirectMessagingInterface: React.FC<DirectMessagingProps> = ({
   // Référence pour stocker l'ID de la conversation active
   const conversationIdRef = useRef<string | null>(null);
   
+  // Ajouter une référence pour suivre si un chargement est nécessaire après la navigation
+  const needsRefreshAfterNavigation = useRef(false);
+  
+  // Récupérer les fonctions du store
+  const { 
+    activeConversation,
+    setActiveConversation,
+    currentConversation,
+    setCurrentConversation,
+    conversations,
+    messages,
+    fetchConversations,
+    fetchMessages,
+    setupRealtimeSubscriptions,
+    createConversation,
+    setConversations,
+    isLoading,
+    error
+  } = useMessagingStore();
+  
   // Observer l'interface pour détecter quand elle est visible
   const { ref: interfaceRef, inView } = useInView({
     threshold: 0.1,
@@ -195,19 +228,137 @@ const DirectMessagingInterface: React.FC<DirectMessagingProps> = ({
     delay: 200
   });
   
-  // Utiliser le store de messagerie
-  const { 
-    activeConversation,
-    conversations, 
-    isLoading,
-    error,
-    fetchConversations,
-    fetchMessages,
-    setupRealtimeSubscriptions,
-    createConversation,
-    setConversations,
-    setCurrentConversation
-  } = useMessagingStore();
+  // Fonction pour récupérer les conversations mises en cache
+  const getCachedConversations = useCallback(() => {
+    if (!user) return null;
+    
+    const isFreelanceStr = isFreelance ? 'freelance' : 'client';
+    const cacheKey = `${CONVERSATIONS_KEY}_${user.id}_${isFreelanceStr}`;
+    return getCachedData(cacheKey) as Conversation[] | null;
+  }, [user?.id, isFreelance]);
+  
+  // Définir les fonctions de mise à jour et d'initialisation avec useCallback
+  const handleRefreshMessaging = useCallback(async () => {
+    if (!user?.id || !mounted || isRefreshing || NavigationLoadingState.isNavigating) {
+      // Si la navigation est en cours, marquer qu'un rafraîchissement sera nécessaire plus tard
+      if (NavigationLoadingState.isNavigating) {
+        needsRefreshAfterNavigation.current = true;
+      }
+      return;
+    }
+    
+    setIsRefreshing(true);
+    
+    try {
+      // Invalider le cache des conversations pour forcer une nouvelle requête
+      useMessagingStore.getState().invalidateCache('conversations', user.id);
+      
+      // Récupérer les conversations mises à jour
+      await loadConversationsCoordinated(
+        user.id,
+        () => {}, // pas besoin de setter loading state ici
+        fetchConversations
+      );
+      
+      // Si une conversation est active, recharger ses messages
+      if (activeConversation?.id) {
+        await loadMessagesCoordinated(
+          activeConversation.id,
+          () => {}, // pas besoin de setter loading state ici
+          fetchMessages
+        );
+      }
+      
+      // Mettre à jour le timestamp du dernier rafraîchissement
+      localStorage.setItem(`last_direct_messaging_update_${isFreelance ? 'freelance' : 'client'}`, Date.now().toString());
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [user?.id, mounted, isRefreshing, fetchConversations, fetchMessages, activeConversation, isFreelance]);
+  
+  // Fonction pour initialiser la messagerie
+  const handleInitializeMessaging = useCallback(async () => {
+    if (!user?.id || !mounted || isRefreshing || initialized || NavigationLoadingState.isNavigating) {
+      // Si la navigation est en cours, marquer qu'un rafraîchissement sera nécessaire plus tard
+      if (NavigationLoadingState.isNavigating) {
+        needsRefreshAfterNavigation.current = true;
+      }
+      return;
+    }
+    
+    try {
+      setLoadingConversations(true);
+      
+      // Vérifier si des conversations sont déjà disponibles dans le cache
+      const cachedConversations = getCachedConversations();
+      if (cachedConversations && Array.isArray(cachedConversations) && cachedConversations.length > 0) {
+        setConversations(cachedConversations);
+      }
+      
+      // Établir l'abonnement en temps réel
+      const cleanup = setupRealtimeSubscriptions(user.id);
+      cleanupRef.current = cleanup;
+      
+      // Mettre à jour l'état d'initialisation
+      setInitialized(true);
+      setIsInitialLoad(false);
+      
+      // Charger les conversations
+      await loadConversationsCoordinated(
+        user.id,
+        setLoadingConversations,
+        fetchConversations
+      );
+      
+      // Si un ID de conversation initial est spécifié, l'activer
+      if (initialConversationId) {
+        const targetConversation = conversations.find(c => c.id === initialConversationId);
+        if (targetConversation) {
+          setActiveConversation(targetConversation);
+          setCurrentConversation(targetConversation);
+        }
+      }
+      
+    } catch (error) {
+      console.error("Erreur lors de l'initialisation de la messagerie:", error);
+      retryCountRef.current += 1;
+      
+      if (retryCountRef.current < maxRetries) {
+        setTimeout(() => {
+          handleInitializeMessaging();
+        }, 1000 * Math.pow(2, retryCountRef.current));
+      } else {
+        setLoadError("Impossible de charger les messages. Veuillez réessayer.");
+      }
+    } finally {
+      setLoadingConversations(false);
+    }
+  }, [user?.id, mounted, isRefreshing, initialized, fetchConversations, setupRealtimeSubscriptions, getCachedConversations, conversations, initialConversationId, setActiveConversation, setCurrentConversation, setConversations]);
+  
+  // Ajouter un écouteur pour l'événement de fin de navigation
+  useEffect(() => {
+    const handleNavigationEnd = () => {
+      if (needsRefreshAfterNavigation.current && user?.id && mounted) {
+        console.log("[DirectMessaging] Navigation terminée, reprise du chargement");
+        needsRefreshAfterNavigation.current = false;
+        
+        // Petit délai pour s'assurer que tout est stabilisé après la navigation
+        setTimeout(() => {
+          if (initialized) {
+            handleRefreshMessaging();
+          } else {
+            handleInitializeMessaging();
+          }
+        }, 100);
+      }
+    };
+    
+    window.addEventListener('vynal:navigation-end', handleNavigationEnd);
+    
+    return () => {
+      window.removeEventListener('vynal:navigation-end', handleNavigationEnd);
+    };
+  }, [user?.id, mounted, initialized, handleRefreshMessaging, handleInitializeMessaging]);
 
   // Mémoriser le tri des conversations
   const sortedConversations = useMemo(() => {
@@ -221,127 +372,16 @@ const DirectMessagingInterface: React.FC<DirectMessagingProps> = ({
     });
   }, [conversations]);
 
-  // Récupérer les conversations déjà mises en cache
-  const getCachedConversations = useCallback(() => {
-    if (!user?.id) return null;
-    
-    const cacheKey = `${CONVERSATIONS_KEY}_${user.id}_${isFreelance ? 'freelance' : 'client'}`;
-    return getCachedData(cacheKey) as Conversation[] | null;
-  }, [user?.id, isFreelance]);
-  
-  // Initialisation des messages et des abonnements
+  // Effet pour charger les conversations initialement
   useEffect(() => {
-    // Eviter les initialisations multiples
-    if (mounted || !user?.id) return;
-    
-    const initializeDirectMessaging = async () => {
-      try {
-        setLoadingConversations(true);
-        
-        // Vérifier d'abord si des conversations sont disponibles dans le cache
-        const cachedConversations = getCachedConversations() as Conversation[] | null;
-        if (cachedConversations && Array.isArray(cachedConversations) && cachedConversations.length > 0) {
-          setConversations(cachedConversations);
-          setLoadingConversations(false);
-        }
-        
-        // Charger les conversations de l'utilisateur via le coordinateur de requêtes
-        await loadConversationsCoordinated(
-          user.id,
-          setLoadingConversations,
-          fetchConversations
-        );
-        
-        // Après avoir chargé les conversations, on les récupère du store
-        const currentConversations = useMessagingStore.getState().conversations;
-        
-        // Si un ID de conversation initial est spécifié
-        if (initialConversationId) {
-          // Utiliser le coordinateur pour charger les messages
-          const targetConversation = currentConversations.find((conv: Conversation) => conv.id === initialConversationId);
-          if (targetConversation) {
-            setCurrentConversation(targetConversation);
-            
-            // Charger les messages de cette conversation
-            await loadMessagesCoordinated(
-              initialConversationId,
-              setMessagesLoading,
-              fetchMessages
-            );
-          }
-        }
-        // Si nous avons un ID de récepteur, vérifier si une conversation existe déjà ou en créer une nouvelle
-        else if (receiverId) {
-          setLoadingConversations(true);
-          const verifyParticipants = async () => {
-            try {
-              // Vérifier si une conversation existe déjà
-              const existingConversation = currentConversations.find((conv: Conversation) => 
-                conv.participants.some((p: { id: string }) => p.id === receiverId)
-              );
-              
-              if (existingConversation) {
-                // Conversation trouvée, charger les messages via le coordinateur
-                await loadMessagesCoordinated(
-                  existingConversation.id,
-                  setMessagesLoading,
-                  fetchMessages
-                );
-              } else {
-                // Créer une nouvelle conversation
-                const newConversationId = await createConversation([user.id, receiverId]);
-                if (newConversationId) {
-                  // Recharger les conversations pour inclure la nouvelle
-                  await loadConversationsCoordinated(
-                    user.id,
-                    setLoadingConversations,
-                    fetchConversations
-                  );
-                }
-              }
-            } catch (error) {
-              console.error("Erreur lors de la vérification des participants:", error);
-              // Ne pas définir loadError ici pour éviter de bloquer l'interface
-            } finally {
-              setLoadingConversations(false);
-            }
-          };
-          
-          verifyParticipants();
-        }
-        
-        // Configuration terminée
-        setMounted(true);
-        setInitialized(true);
-        setIsInitialLoad(false);
-        
-      } catch (error) {
-        console.error("Erreur d'initialisation:", error);
-        if (retryCountRef.current < maxRetries) {
-          retryCountRef.current++;
-          // Nouvelle tentative avec délai exponentiel
-          setTimeout(() => {
-            if (!mounted) {
-              initializeDirectMessaging();
-            }
-          }, 1000 * Math.pow(2, retryCountRef.current));
-        } else {
-          setLoadError("Impossible de charger les messages. Veuillez réessayer.");
-        }
-      } finally {
-        setLoadingConversations(false);
-      }
-    };
-    
-    initializeDirectMessaging();
-    
-    return () => {
-      // Nettoyage des abonnements en temps réel
-      if (cleanupRef.current) {
-        cleanupRef.current();
-      }
-    };
-  }, [user?.id, initialConversationId, receiverId, isFreelance, mounted, fetchConversations, fetchMessages, setupRealtimeSubscriptions, createConversation, getCachedConversations, setConversations, setCurrentConversation]);
+    if (user?.id && !conversationsLoading) {
+      loadConversationsCoordinated(
+        user.id, 
+        setConversationsLoading, 
+        fetchConversations
+      );
+    }
+  }, [user?.id, fetchConversations, conversationsLoading]);
 
   // Effet pour charger les messages d'une conversation
   useEffect(() => {
@@ -365,7 +405,13 @@ const DirectMessagingInterface: React.FC<DirectMessagingProps> = ({
     
     // Fonction de rafraîchissement contrôlée par délai
     const refreshConversations = () => {
-      if (!user?.id || !inView || !mounted || isLoading) return;
+      if (!user?.id || !mounted || isRefreshing || NavigationLoadingState.isNavigating) {
+        // Si la navigation est en cours, marquer qu'un rafraîchissement sera nécessaire plus tard
+        if (NavigationLoadingState.isNavigating) {
+          needsRefreshAfterNavigation.current = true;
+        }
+        return;
+      }
       
       const lastUpdate = localStorage.getItem(`last_direct_messaging_update_${isFreelance ? 'freelance' : 'client'}`);
       const now = Date.now();
@@ -493,46 +539,6 @@ const DirectMessagingInterface: React.FC<DirectMessagingProps> = ({
     };
   }, [user?.id]);
 
-  // Effet pour charger les conversations initialement
-  useEffect(() => {
-    if (user?.id && !conversationsLoading) {
-      loadConversationsCoordinated(
-        user.id, 
-        setConversationsLoading, 
-        fetchConversations
-      );
-    }
-  }, [user?.id, fetchConversations, conversationsLoading]);
-
-  // Fonction pour actualiser les conversations de façon optimisée
-  const handleRefreshConversations = useCallback(async () => {
-    if (isRefreshing || !user?.id) return;
-    
-    setIsRefreshing(true);
-    
-    try {
-      // Invalider le cache des conversations pour forcer une nouvelle requête
-      useMessagingStore.getState().invalidateCache('conversations', user.id);
-      
-      // Récupérer les conversations mises à jour
-      await fetchConversations(user.id);
-      
-      // Informer les autres composants via un événement
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('vynal:conversations-refreshed', { 
-          detail: { userId: user.id, timestamp: Date.now() } 
-        }));
-      }
-    } catch (error) {
-      console.error("Erreur lors de l'actualisation des conversations:", error);
-    } finally {
-      // Garantir une animation de chargement visible d'au moins 500ms
-      setTimeout(() => {
-        setIsRefreshing(false);
-      }, 500);
-    }
-  }, [fetchConversations, user?.id, isRefreshing]);
-
   // Effet pour écouter les événements d'actualisation externes
   useEffect(() => {
     if (!user?.id) return;
@@ -555,6 +561,22 @@ const DirectMessagingInterface: React.FC<DirectMessagingProps> = ({
       window.removeEventListener('vynal:conversations-refreshed', handleConversationsRefreshEvent);
     };
   }, [user?.id, fetchConversations, isRefreshing]);
+
+  // Effet pour initialiser la messagerie
+  useEffect(() => {
+    // Éviter les initialisations multiples
+    if (initialized || !user?.id || !mounted) return;
+    
+    // Si la navigation est en cours, ne pas initialiser maintenant, mais marquer comme nécessaire pour plus tard
+    if (NavigationLoadingState.isNavigating) {
+      needsRefreshAfterNavigation.current = true;
+      return;
+    }
+    
+    // Initialiser la messagerie
+    handleInitializeMessaging();
+    
+  }, [user?.id, mounted, initialized, handleInitializeMessaging]);
 
   // Optimiser l'état de chargement
   if (isLoading && !mounted) {
@@ -610,7 +632,7 @@ const DirectMessagingInterface: React.FC<DirectMessagingProps> = ({
           activeConversationId={activeConversation?.id}
           isFreelance={isFreelance}
           showOrderConversations={false}
-          onRefresh={handleRefreshConversations}
+          onRefresh={handleRefreshMessaging}
           isRefreshing={isRefreshing}
         />
       </div>

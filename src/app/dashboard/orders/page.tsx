@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, memo, useMemo } from "react";
+import React, { useState, useCallback, memo, useMemo, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -421,6 +421,24 @@ export default function OrdersPage() {
     itemsPerPage: 9,
     useCache: true
   });
+
+  // Écouter les événements d'invalidation du cache
+  useEffect(() => {
+    // Fonction pour rafraîchir les données en cas d'invalidation du cache
+    const handleCacheInvalidated = () => {
+      refreshOrders();
+    };
+    
+    // S'abonner aux événements d'invalidation spécifiques aux commandes freelance
+    window.addEventListener('vynal:freelance-orders-updated', handleCacheInvalidated);
+    window.addEventListener('vynal:freelance-cache-invalidated', handleCacheInvalidated);
+    
+    // Nettoyer lors du démontage
+    return () => {
+      window.removeEventListener('vynal:freelance-orders-updated', handleCacheInvalidated);
+      window.removeEventListener('vynal:freelance-cache-invalidated', handleCacheInvalidated);
+    };
+  }, [refreshOrders]);
 
   // Calculer le nombre total de pages
   const totalPages = Math.ceil(totalCount / itemsPerPage);

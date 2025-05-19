@@ -10,7 +10,7 @@ import { TextRevealSection } from '@/components/sections/TextRevealSection';
 import { BorderBeamButton } from '@/components/ui/border-beam-button';
 import PartnersSection from '@/components/sections/PartnersSection';
 import { useCategories } from '@/hooks/useCategories';
-import { Subcategory } from '@/hooks/useCategories';
+import { Subcategory, Category } from '@/hooks/useCategories';
 import { findBestCategoryMatch } from '@/lib/search/searchService';
 import { useAuth } from "@/hooks/useAuth";
 import { useUser } from "@/hooks/useUser";
@@ -27,6 +27,14 @@ import { BentoGridThirdDemo } from "@/components/ui/BentoGridThirdDemo";
 import { Metadata } from "next";
 import Image from "next/image";
 import SchemaOrg from "@/components/seo/SchemaOrg";
+
+// Interface pour les données en cache de la page d'accueil
+interface HomepageData {
+  categories: Category[];
+  subcategories: Subcategory[];
+  timestamp: number;
+  version?: string;
+}
 
 // Clé de cache pour la page d'accueil
 const HOMEPAGE_CACHE_KEY = 'homepage_data';
@@ -70,7 +78,10 @@ export default function Home() {
   const [isSearching, setIsSearching] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [loadedComponents, setLoadedComponents] = useState(false);
-  const { categories, subcategories } = useCategories();
+  const [localCategories, setLocalCategories] = useState<Category[]>([]);
+  const [localSubcategories, setLocalSubcategories] = useState<Subcategory[]>([]);
+  const [isLoadingCategories, setIsLoadingCategories] = useState(true);
+  const { categories, subcategories, loading: categoriesLoading } = useCategories();
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const { isFreelance, isClient, isAdmin, loading: userLoading } = useUser();
@@ -78,44 +89,66 @@ export default function Home() {
   // Référence pour suivre si le composant est monté
   const mountedRef = useRef(true);
 
-  // Cache simple pour la page d'accueil
+  // Gestion optimisée du cache pour les catégories et sous-catégories
   useEffect(() => {
     // Fonction pour récupérer ou mettre en cache les données
-    const checkCache = async () => {
+    const loadCategoriesFromCache = () => {
       try {
-        // Vérifier si des données sont en cache
-        const cachedData = getCachedData(HOMEPAGE_CACHE_KEY);
+        // Essayer d'abord le cache local pour les catégories et sous-catégories
+        const cachedHomepageData = getCachedData<HomepageData | null>(HOMEPAGE_CACHE_KEY);
         
-        if (!cachedData) {
-          // Si pas de cache, créer une entrée de cache avec les catégories
-          setCachedData(
-            HOMEPAGE_CACHE_KEY,
-            {
-              categories,
-              timestamp: Date.now(),
-              version: '1.0'
-            },
-            { 
-              expiry: 14 * 24 * 60 * 60 * 1000, // 14 jours pour une page d'accueil
-              priority: 'high'
-            }
-          );
+        if (cachedHomepageData && 
+            cachedHomepageData.categories && 
+            cachedHomepageData.subcategories &&
+            cachedHomepageData.categories.length && 
+            cachedHomepageData.subcategories.length) {
+          
+          // Utiliser les données du cache immédiatement
+          setLocalCategories(cachedHomepageData.categories);
+          setLocalSubcategories(cachedHomepageData.subcategories);
+          setIsLoadingCategories(false);
+          
+          // Ne pas revalider si le cache est récent (moins de 24h)
+          const cacheAge = Date.now() - cachedHomepageData.timestamp;
+          const MAX_AGE = 24 * 60 * 60 * 1000; // 24 heures
+          
+          if (cacheAge < MAX_AGE) {
+            return;
+          }
         }
       } catch (error) {
-        console.error('Erreur lors de la vérification du cache:', error);
+        console.error('Erreur lors de la récupération du cache:', error);
       }
     };
 
-    // Exécuter seulement côté client et si le composant est monté
-    if (typeof window !== 'undefined') {
-      checkCache();
-    }
+    // Charger depuis le cache immédiatement
+    loadCategoriesFromCache();
+  }, []);
 
-    return () => {
-      // Marquer le composant comme démonté
-      mountedRef.current = false;
-    };
-  }, [categories]);
+  // Effet pour mettre à jour le cache quand les données fraîches sont disponibles
+  useEffect(() => {
+    if (!categoriesLoading && categories && subcategories) {
+      // Mettre à jour l'état local avec les données fraîches
+      setLocalCategories(categories);
+      setLocalSubcategories(subcategories);
+      setIsLoadingCategories(false);
+      
+      // Mettre à jour le cache avec les nouvelles données
+      setCachedData(
+        HOMEPAGE_CACHE_KEY,
+        {
+          categories,
+          subcategories,
+          timestamp: Date.now(),
+          version: '1.1' // Incrémenter la version en cas de changement de structure
+        },
+        {
+          expiry: 14 * 24 * 60 * 60 * 1000, // 14 jours pour une page d'accueil
+          priority: 'high'
+        }
+      );
+    }
+  }, [categories, subcategories, categoriesLoading]);
 
   // Détecter les appareils mobiles pour optimiser les performances
   useEffect(() => {
@@ -325,8 +358,8 @@ export default function Home() {
           </h2>
           
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-4 md:gap-6">
-            {categories?.length > 0 && 
-              categories
+            {localCategories?.length > 0 && 
+              localCategories
                 .filter(cat => [
                   'Développement Web & Mobile',
                   'Design Graphique',
@@ -485,7 +518,7 @@ export default function Home() {
     </div>
     
     <div className="flex flex-wrap gap-2 md:gap-3 justify-center max-w-5xl mx-auto">
-      {subcategories && subcategories.length > 0 ? (
+      {localSubcategories && localSubcategories.length > 0 ? (
         (() => {
           // Liste des sous-catégories à exclure de la page d'accueil
           const excludedSubcategories = [
@@ -524,7 +557,7 @@ export default function Home() {
           ];
 
           // Filtrer les sous-catégories exclues
-          const filteredSubcategories = [...subcategories]
+          const filteredSubcategories = [...localSubcategories]
             .filter(sub => !excludedSubcategories.includes(sub.slug));
           
           // Liste des slugs des sous-catégories les plus demandées (par ordre de popularité)
@@ -592,7 +625,7 @@ export default function Home() {
           // Créer les liens pour chaque sous-catégorie
           return displayedSubcategories.map(subcategory => {
             // Trouver la catégorie parente pour la sous-catégorie
-            const parentCategory = categories.find(cat => cat.id === subcategory.category_id);
+            const parentCategory = localCategories.find(cat => cat.id === subcategory.category_id);
             const parentSlug = parentCategory ? parentCategory.slug : '';
             
             return (

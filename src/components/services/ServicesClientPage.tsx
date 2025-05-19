@@ -35,16 +35,9 @@ import { ServicesPageData, Category, Subcategory, Service } from '@/app/services
 import { ServiceWithFreelanceAndCategories } from '@/hooks/useServices';
 import { UICategoryType, UISubcategoryType, adaptCategoryForUI, adaptSubcategoryForUI } from '@/hooks/useCategories';
 
-// Fonctions d'adaptation locales en cas de problème avec les imports
-const adaptCategoryForUILocal = (category: Category): UICategoryType => ({
-  ...category,
-  created_at: category.created_at || new Date().toISOString()
-});
+// Utilisons les fonctions d'adaptation des catégories depuis les hooks
 
-const adaptSubcategoryForUILocal = (subcategory: Subcategory): UISubcategoryType => ({
-  ...subcategory,
-  created_at: subcategory.created_at || new Date().toISOString()
-});
+// Les adaptateurs sont importés de useCategories
 
 // Ordre exact des catégories comme défini dans le seed.sql
 const CATEGORY_ORDER = [
@@ -393,12 +386,12 @@ export default function ServicesClientPage({ initialData }: ServicesClientPagePr
   
   // Conversion des types pour l'UI
   const uiCategories = useMemo(() => 
-    categories.map(cat => adaptCategoryForUILocal(cat as any)), 
+    categories.map(cat => adaptCategoryForUI(cat as any)), 
     [categories]
   );
   
   const uiSubcategories = useMemo(() => 
-    subcategories.map(subcat => adaptSubcategoryForUILocal(subcat as any)),
+    subcategories.map(subcat => adaptSubcategoryForUI(subcat as any)),
     [subcategories]
   );
   

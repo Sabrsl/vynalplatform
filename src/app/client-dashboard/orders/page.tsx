@@ -17,6 +17,8 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase/client";
 import { PaginationControls } from "@/components/ui/pagination";
 import { CurrencyDisplay } from "@/components/ui/CurrencyDisplay";
+import { NavigationLoadingState } from "@/app/providers";
+import { getCachedData, setCachedData, CACHE_EXPIRY } from "@/lib/optimizations/cache";
 
 // Types pour les commandes
 interface Order {
@@ -46,6 +48,13 @@ interface Order {
   };
 }
 
+// Clés de cache
+const CACHE_KEYS = {
+  ORDERS_LIST: 'client_orders_list_',
+  ORDERS_COUNTS: 'client_orders_counts_',
+  ORDERS_TIMESTAMP: 'client_orders_timestamp_'
+};
+
 export default function ClientOrdersPage() {
   const { user, loading: authLoading } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
@@ -67,6 +76,34 @@ export default function ClientOrdersPage() {
   const searchQueryRef = useRef(searchQuery);
   const debouncedSearchRef = useRef<NodeJS.Timeout | null>(null);
   const initialLoadRef = useRef(true);
+  const isFetchingRef = useRef(false);
+  const lastLoadParamsRef = useRef({
+    activeTab: "",
+    searchQuery: "",
+    sortBy: "",
+    currentPage: 0
+  });
+
+  // Générer les clés de cache avec un préfixe unique par utilisateur
+  const cacheKeyBase = useMemo(() => 
+    user?.id ? `${CACHE_KEYS.ORDERS_LIST}${user.id}` : '', 
+  [user?.id]);
+
+  // Générer une clé unique pour cet ensemble de paramètres
+  const generateCacheKey = useCallback(() => {
+    if (!cacheKeyBase) return '';
+    
+    return `${cacheKeyBase}_${activeTab}_${sortBy}_${currentPage}_${searchQuery || 'no_search'}`;
+  }, [cacheKeyBase, activeTab, sortBy, currentPage, searchQuery]);
+
+  // Vérifier si les paramètres ont changé pour éviter les chargements inutiles
+  const hasParamsChanged = useCallback(() => {
+    const lastParams = lastLoadParamsRef.current;
+    return lastParams.activeTab !== activeTab || 
+           lastParams.searchQuery !== searchQuery || 
+           lastParams.sortBy !== sortBy || 
+           lastParams.currentPage !== currentPage;
+  }, [activeTab, searchQuery, sortBy, currentPage]);
 
   // Méthode de secours si la RPC échoue
   const loadDataLegacy = useCallback(async () => {
@@ -169,15 +206,45 @@ export default function ClientOrdersPage() {
       setCounts(counts);
       setOrders(ordersResult.data || []);
       setTotalCount(ordersResult.count || 0);
+
+      // Mettre en cache les résultats
+      if (cacheKeyBase) {
+        const cacheKey = generateCacheKey();
+        setCachedData(cacheKey, ordersResult.data || [], {
+          expiry: CACHE_EXPIRY.DASHBOARD_DATA
+        });
+        setCachedData(`${CACHE_KEYS.ORDERS_COUNTS}${user.id}`, counts, {
+          expiry: CACHE_EXPIRY.DASHBOARD_DATA
+        });
+        setCachedData(`${CACHE_KEYS.ORDERS_TIMESTAMP}${user.id}`, Date.now(), {
+          expiry: CACHE_EXPIRY.DASHBOARD_DATA
+        });
+      }
+
+      // Mettre à jour les paramètres du dernier chargement
+      lastLoadParamsRef.current = {
+        activeTab,
+        searchQuery,
+        sortBy,
+        currentPage
+      };
+
     } catch (error) {
       console.error("Erreur lors du chargement des données de secours:", error);
       throw error;
     }
-  }, [user, activeTab, searchQuery, sortBy, currentPage, itemsPerPage, setCounts, setOrders, setTotalCount]);
+  }, [user, activeTab, searchQuery, sortBy, currentPage, itemsPerPage, setCounts, setOrders, setTotalCount, cacheKeyBase, generateCacheKey]);
 
   // Fonction unifiée pour charger à la fois les compteurs et les commandes
-  const loadOrdersData = useCallback(async () => {
-    if (!user) return;
+  const loadOrdersData = useCallback(async (forceRefresh = false) => {
+    if (!user || isFetchingRef.current || NavigationLoadingState.isNavigating) return;
+
+    // Si les paramètres n'ont pas changé et ce n'est pas un forceRefresh, ne pas charger à nouveau
+    if (!forceRefresh && !hasParamsChanged() && orders.length > 0) {
+      return;
+    }
+    
+    isFetchingRef.current = true;
     
     if (initialLoadRef.current) {
       // Ne pas modifier le state loading au début si c'est le chargement initial
@@ -188,6 +255,39 @@ export default function ClientOrdersPage() {
     }
 
     try {
+      const cacheKey = generateCacheKey();
+      
+      // Vérifier le cache avant d'effectuer une requête réseau
+      if (!forceRefresh && cacheKey) {
+        const cachedOrders = getCachedData<Order[]>(cacheKey);
+        const cachedCounts = getCachedData<typeof counts>(`${CACHE_KEYS.ORDERS_COUNTS}${user.id}`);
+        const cachedTimestamp = getCachedData<number>(`${CACHE_KEYS.ORDERS_TIMESTAMP}${user.id}`);
+        
+        if (cachedOrders && cachedCounts && cachedTimestamp) {
+          // Utiliser les données en cache si elles existent et sont récentes (moins de 2 minutes)
+          const isCacheValid = Date.now() - cachedTimestamp < 2 * 60 * 1000;
+          
+          if (isCacheValid) {
+            console.log("Utilisation du cache pour les commandes");
+            setOrders(cachedOrders);
+            setCounts(cachedCounts);
+            setTotalCount(cachedCounts.totalCount);
+            setLoading(false);
+            isFetchingRef.current = false;
+            
+            // Mettre à jour les paramètres du dernier chargement
+            lastLoadParamsRef.current = {
+              activeTab,
+              searchQuery,
+              sortBy,
+              currentPage
+            };
+            
+            return;
+          }
+        }
+      }
+
       // 1. Utiliser une RPC unifiée qui retourne à la fois les compteurs et les commandes filtrées
       const { data: rpcData, error: rpcError } = await supabase.rpc('get_client_orders_with_counts', {
         p_client_id: user.id,
@@ -227,6 +327,28 @@ export default function ClientOrdersPage() {
         setCounts(updates.counts);
         setOrders(updates.orders);
         setTotalCount(updates.totalCount);
+
+        // Mettre en cache les résultats
+        if (cacheKeyBase) {
+          const cacheKey = generateCacheKey();
+          setCachedData(cacheKey, updates.orders, {
+            expiry: CACHE_EXPIRY.DASHBOARD_DATA
+          });
+          setCachedData(`${CACHE_KEYS.ORDERS_COUNTS}${user.id}`, updates.counts, {
+            expiry: CACHE_EXPIRY.DASHBOARD_DATA
+          });
+          setCachedData(`${CACHE_KEYS.ORDERS_TIMESTAMP}${user.id}`, Date.now(), {
+            expiry: CACHE_EXPIRY.DASHBOARD_DATA
+          });
+        }
+
+        // Mettre à jour les paramètres du dernier chargement
+        lastLoadParamsRef.current = {
+          activeTab,
+          searchQuery,
+          sortBy,
+          currentPage
+        };
       }
     } catch (error) {
       console.error("Erreur lors du chargement des données:", error);
@@ -234,14 +356,36 @@ export default function ClientOrdersPage() {
       await loadDataLegacy();
     } finally {
       setLoading(false);
+      isFetchingRef.current = false;
     }
-  }, [user, activeTab, searchQuery, sortBy, currentPage, itemsPerPage, loadDataLegacy, setCounts, setOrders, setTotalCount, setLoading]);
+  }, [user, activeTab, searchQuery, sortBy, currentPage, itemsPerPage, loadDataLegacy, 
+      setCounts, setOrders, setTotalCount, setLoading, cacheKeyBase, generateCacheKey, 
+      hasParamsChanged, orders.length]);
 
   // Charger les données au montage et quand les dépendances changent
   useEffect(() => {
-    if (user) {
-      loadOrdersData();
+    if (user && !NavigationLoadingState.isNavigating) {
+      loadOrdersData(false);
     }
+  }, [loadOrdersData, user]);
+
+  // Écouter les événements d'invalidation du cache
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    const handleCacheInvalidation = () => {
+      if (user && !NavigationLoadingState.isNavigating) {
+        loadOrdersData(true);
+      }
+    };
+    
+    window.addEventListener('vynal:client-cache-invalidated', handleCacheInvalidation);
+    window.addEventListener('vynal:orders-updated', handleCacheInvalidation);
+    
+    return () => {
+      window.removeEventListener('vynal:client-cache-invalidated', handleCacheInvalidation);
+      window.removeEventListener('vynal:orders-updated', handleCacheInvalidation);
+    };
   }, [loadOrdersData, user]);
 
   // Gérer le debounce pour la recherche
@@ -257,7 +401,8 @@ export default function ClientOrdersPage() {
     // Configurer un nouveau timer
     debouncedSearchRef.current = setTimeout(() => {
       if (searchQueryRef.current === searchQuery) {
-        loadOrdersData();
+        setCurrentPage(1); // Réinitialiser la pagination lors de la recherche
+        loadOrdersData(false);
       }
     }, 300);
     
@@ -271,27 +416,29 @@ export default function ClientOrdersPage() {
   // Handler pour la recherche avec reset de pagination
   const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
-    setCurrentPage(1); // Réinitialiser la pagination
   }, []);
 
   // Handler pour le changement d'onglet
   const handleTabChange = useCallback((tab: string) => {
     setActiveTab(tab);
     setCurrentPage(1); // Réinitialiser la pagination
-  }, []);
+    loadOrdersData(false);
+  }, [loadOrdersData]);
 
   // Handler pour le changement de tri
   const handleSortChange = useCallback((value: string) => {
     setSortBy(value);
     setCurrentPage(1); // Réinitialiser la pagination
-  }, []);
+    loadOrdersData(false);
+  }, [loadOrdersData]);
 
   // Gérer le changement de page
   const handlePageChange = useCallback((page: number) => {
     setCurrentPage(page);
     // Faire défiler vers le haut
     window.scrollTo(0, 0);
-  }, []);
+    loadOrdersData(false);
+  }, [loadOrdersData]);
 
   // Optimisation : Helper pour les classes de badge selon le statut
   const getStatusBadgeClasses = useCallback((status: Order['status']) => {

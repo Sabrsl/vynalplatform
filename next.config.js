@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: false,
+  reactStrictMode: true,
   swcMinify: true,
   images: {
     remotePatterns: [
@@ -36,6 +36,10 @@ const nextConfig = {
       {
         protocol: 'https',
         hostname: 'lh3.googleusercontent.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'pbs.twimg.com',
       }
     ],
     formats: ['image/avif', 'image/webp'],
@@ -116,6 +120,16 @@ const nextConfig = {
           },
         ],
       },
+      // Optimisation du cache pour les requêtes proxy vers Supabase Storage
+      {
+        source: '/_next/image',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=604800, stale-while-revalidate=86400',
+          },
+        ],
+      }
     ];
   },
   // Ajout d'éventuelles redirections ou rewrites ici si nécessaire

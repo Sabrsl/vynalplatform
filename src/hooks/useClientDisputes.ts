@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { useAuth } from './useAuth';
 import { getCachedData, setCachedData } from '@/lib/optimizations/cache';
-import { CACHE_EXPIRY } from '@/lib/optimizations';
 
 export interface Dispute {
   id: string;
@@ -186,7 +185,7 @@ export function useClientDisputes(options: UseClientDisputesOptions = {}) {
         // Mettre en cache
         if (useCache) {
           setCachedData(cacheKey, transformedData, { 
-            expiry: CACHE_EXPIRY.DAYS_3, // Augmenté de 5 minutes à 3 jours
+            expiry: 3 * 24 * 60 * 60 * 1000, // 3 jours de cache
             priority: 'high'
           });
         }
@@ -232,7 +231,7 @@ export function useClientDisputes(options: UseClientDisputesOptions = {}) {
           setSummary(rpcData);
           if (useCache) {
             setCachedData(summaryKey, rpcData, { 
-              expiry: CACHE_EXPIRY.DAYS_3, // Augmenté de 10 minutes à 3 jours
+              expiry: 3 * 24 * 60 * 60 * 1000, // 3 jours de cache
               priority: 'high'
             });
           }
@@ -291,7 +290,7 @@ export function useClientDisputes(options: UseClientDisputesOptions = {}) {
       setSummary(summaryData);
       if (useCache) {
         setCachedData(summaryKey, summaryData, { 
-          expiry: CACHE_EXPIRY.DAYS_3, // Augmenté de 10 minutes à 3 jours
+          expiry: 3 * 24 * 60 * 60 * 1000, // 3 jours de cache
           priority: 'high'
         });
       }

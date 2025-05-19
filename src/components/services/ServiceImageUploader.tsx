@@ -6,6 +6,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { X, Upload, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ImageIcon } from "lucide-react";
+import { processImage } from "@/lib/image-processor";
 
 // Types pour le composant
 interface ServiceImageUploaderProps {
@@ -30,6 +31,7 @@ const ServiceImageUploader: React.FC<ServiceImageUploaderProps> = ({
   const [images, setImages] = useState<string[]>(initialImages);
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   // Initialiser les images au démarrage
   useEffect(() => {
@@ -53,22 +55,40 @@ const ServiceImageUploader: React.FC<ServiceImageUploaderProps> = ({
     
     try {
       setError(null);
+      setIsProcessing(true);
       
       // Tableau pour stocker les URL définitives
       const uploadedUrls: string[] = [];
       
-      // Pour chaque fichier, télécharger vers le bucket "services"
+      // Pour chaque fichier, traiter puis télécharger vers le bucket "services"
       for (const file of newFiles) {
-        // Générer un nom de fichier unique
-        const fileExt = file.name.split('.').pop();
-        const fileName = `temp_${crypto.randomUUID()}.${fileExt}`;
+        // Traiter l'image (conversion en WebP, redimensionnement, etc.)
+        const processedResult = await processImage(file, {
+          targetWidth: 1920,
+          targetHeight: 1080,
+          preserveContent: true,
+          outputFormat: 'webp',
+          enhanceQuality: true
+        }).catch(err => {
+          console.warn("Échec du traitement de l'image:", err);
+          return null;
+        });
+        
+        // Si le traitement a échoué, utiliser le fichier original
+        const fileToUpload = processedResult ? processedResult.file : file;
+        
+        // Générer un nom de fichier unique avec extension correcte
+        const fileExt = processedResult ? 'webp' : file.name.split('.').pop();
+        const uniqueId = crypto.randomUUID();
+        const fileName = `temp_${uniqueId}.${fileExt}`;
         
         // Télécharger le fichier vers Supabase
         const { data, error } = await supabase.storage
           .from('services')
-          .upload(fileName, file, {
-            cacheControl: '3600',
-            upsert: false
+          .upload(fileName, fileToUpload, {
+            cacheControl: '604800', // 7 jours
+            upsert: false,
+            contentType: processedResult ? 'image/webp' : file.type
           });
         
         if (error) {
@@ -92,7 +112,7 @@ const ServiceImageUploader: React.FC<ServiceImageUploaderProps> = ({
       // Afficher une notification de succès
       toast({
         title: "Images téléchargées",
-        description: `${uploadedUrls.length} image(s) téléchargée(s) avec succès`
+        description: `${uploadedUrls.length} image(s) téléchargée(s) et optimisée(s) en WebP`
       });
     } catch (err: any) {
       console.error("Erreur lors du téléchargement des images:", err);
@@ -102,6 +122,7 @@ const ServiceImageUploader: React.FC<ServiceImageUploaderProps> = ({
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
+      setIsProcessing(false);
     }
   }, [images, maxImages, onImagesChange, toast]);
 
@@ -162,7 +183,24 @@ const ServiceImageUploader: React.FC<ServiceImageUploaderProps> = ({
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setIsDragging(false);
-    // Dans une implémentation complète, on traiterait les fichiers déposés ici
+    
+    // Récupérer les fichiers déposés
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      // Simuler un changement de fichier dans l'input
+      const dataTransfer = new DataTransfer();
+      
+      Array.from(e.dataTransfer.files).forEach(file => {
+        if (file.type.startsWith('image/')) {
+          dataTransfer.items.add(file);
+        }
+      });
+      
+      if (fileInputRef.current) {
+        fileInputRef.current.files = dataTransfer.files;
+        const event = new Event('change', { bubbles: true });
+        fileInputRef.current.dispatchEvent(event);
+      }
+    }
   };
 
   return (
@@ -186,7 +224,9 @@ const ServiceImageUploader: React.FC<ServiceImageUploaderProps> = ({
             Glissez-déposez vos images ou cliquez pour parcourir
           </p>
           <p className="text-[8px] sm:text-[10px] text-slate-500 dark:text-slate-500">
-            Vous pouvez ajouter jusqu'à 3 images supplémentaires
+            Vous pouvez ajouter jusqu'à {maxImages - images.length} image{maxImages - images.length > 1 ? 's' : ''} supplémentaire{maxImages - images.length > 1 ? 's' : ''}
+            <br/>
+            Les images seront automatiquement optimisées et converties en WebP
           </p>
           <input
             type="file"
@@ -195,6 +235,7 @@ const ServiceImageUploader: React.FC<ServiceImageUploaderProps> = ({
             accept="image/*"
             multiple
             className="hidden"
+            disabled={isProcessing}
           />
           <Button
             type="button"
@@ -202,8 +243,16 @@ const ServiceImageUploader: React.FC<ServiceImageUploaderProps> = ({
             size="sm"
             onClick={() => fileInputRef.current?.click()}
             className="mt-2 sm:mt-3 text-[10px] sm:text-xs h-6 sm:h-8 px-2 sm:px-3"
+            disabled={isProcessing}
           >
-            Sélectionner des images
+            {isProcessing ? (
+              <>
+                <span className="animate-spin mr-1">⚙️</span>
+                Traitement...
+              </>
+            ) : (
+              "Sélectionner des images"
+            )}
           </Button>
         </div>
       </div>
@@ -229,9 +278,15 @@ const ServiceImageUploader: React.FC<ServiceImageUploaderProps> = ({
                 type="button"
                 onClick={() => handleRemoveImage(index)}
                 className="absolute top-1 right-1 p-1 bg-red-500/90 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                disabled={isProcessing}
               >
                 <X className="h-3 w-3" />
               </button>
+              {image.includes('.webp') && (
+                <span className="absolute bottom-1 left-1 bg-green-500/80 text-white text-[8px] px-1 py-0.5 rounded-sm">
+                  WebP
+                </span>
+              )}
             </div>
           ))}
         </div>

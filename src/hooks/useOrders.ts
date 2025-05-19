@@ -8,6 +8,14 @@ import {
 } from '@/lib/optimizations/cache';
 import { useUser } from '@/hooks/useUser';
 import { NavigationLoadingState } from '@/app/providers';
+import { 
+  invalidateFreelanceOrders, 
+  invalidateFreelanceStats 
+} from '@/lib/optimizations/freelance-cache';
+import { 
+  invalidateClientOrders, 
+  invalidateClientStats 
+} from '@/lib/optimizations/client-cache';
 
 // Types
 export type OrderStatus = "pending" | "in_progress" | "completed" | "delivered" | "revision_requested" | "cancelled";
@@ -428,6 +436,15 @@ export function useOrders(options: UseOrdersOptions = {}) {
           : `client_id=eq.${profile.id}`
       }, () => {
         console.log("[Orders] Changement détecté, rechargement des données");
+        // Invalider le cache
+        if (isFreelance) {
+          invalidateFreelanceOrders(profile.id);
+          invalidateFreelanceStats(profile.id);
+        } else {
+          invalidateClientOrders(profile.id);
+          invalidateClientStats(profile.id);
+        }
+        // Forcer un rechargement des données
         fetchOrders(true);
       })
       .subscribe();

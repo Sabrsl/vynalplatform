@@ -6,6 +6,7 @@ import {
   requestManager,
   CacheOptions 
 } from '@/lib/optimizations/cache';
+import { NavigationLoadingState } from '@/app/providers';
 
 /**
  * Hook de mise en cache avec pattern SWR (Stale-While-Revalidate)
@@ -20,6 +21,7 @@ export function useSWRCache<T>(
     revalidateInterval?: number;
     onSuccess?: (data: T) => void;
     onError?: (error: Error) => void;
+    skipDuringNavigation?: boolean;
   } = {}
 ) {
   // Valeurs par défaut
@@ -27,6 +29,7 @@ export function useSWRCache<T>(
     revalidateOnMount = true,
     revalidateOnFocus = true,
     revalidateInterval = 0,
+    skipDuringNavigation = true,
     onSuccess,
     onError,
     ...cacheOptions
@@ -48,10 +51,18 @@ export function useSWRCache<T>(
     lastFetchTime: 0,
     intervalTimer: null as NodeJS.Timeout | null,
     currentVisibility: typeof document !== 'undefined' ? !document.hidden : true,
+    queuedFetch: false,
   });
 
   // Fonction principale pour charger et mettre à jour les données
   const fetchData = useCallback(async (forceRefresh = false) => {
+    // Éviter les appels pendant la navigation si skipDuringNavigation est activé
+    if (skipDuringNavigation && NavigationLoadingState.isNavigating) {
+      // Mettre en file d'attente pour après la navigation
+      refs.current.queuedFetch = true;
+      return;
+    }
+
     // Éviter les appels simultanés
     if (refs.current.isCurrentlyValidating) return;
     
@@ -155,7 +166,7 @@ export function useSWRCache<T>(
         refs.current.isCurrentlyValidating = false;
       }
     }
-  }, [key, fetchFunction, cacheOptions, data, onSuccess, onError]);
+  }, [key, fetchFunction, cacheOptions, data, onSuccess, onError, skipDuringNavigation]);
   
   // Force le rechargement des données
   const forceRefresh = useCallback(() => {
@@ -166,7 +177,7 @@ export function useSWRCache<T>(
   useEffect(() => {
     if (revalidateInterval && revalidateInterval > 0) {
       refs.current.intervalTimer = setInterval(() => {
-        if (refs.current.isMounted && refs.current.currentVisibility) {
+        if (refs.current.isMounted && refs.current.currentVisibility && !NavigationLoadingState.isNavigating) {
           fetchData();
         }
       }, revalidateInterval);
@@ -185,7 +196,7 @@ export function useSWRCache<T>(
     if (!revalidateOnFocus || typeof window === 'undefined') return;
     
     const handleFocus = () => {
-      if (refs.current.isMounted && document.visibilityState === 'visible') {
+      if (refs.current.isMounted && document.visibilityState === 'visible' && !NavigationLoadingState.isNavigating) {
         refs.current.currentVisibility = true;
         fetchData();
       }
@@ -193,7 +204,7 @@ export function useSWRCache<T>(
     
     const handleVisibilityChange = () => {
       refs.current.currentVisibility = document.visibilityState === 'visible';
-      if (refs.current.currentVisibility) {
+      if (refs.current.currentVisibility && !NavigationLoadingState.isNavigating) {
         fetchData();
       }
     };
@@ -207,13 +218,36 @@ export function useSWRCache<T>(
     };
   }, [revalidateOnFocus, fetchData]);
   
+  // Effet pour détecter la fin de la navigation
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleNavigationEnd = () => {
+      // Si une requête était en attente pendant la navigation, l'exécuter maintenant
+      if (refs.current.queuedFetch && refs.current.isMounted) {
+        refs.current.queuedFetch = false;
+        setTimeout(() => fetchData(), 100); // Petit délai pour assurer que la navigation est bien terminée
+      }
+    };
+
+    // Écouter la fin de navigation
+    window.addEventListener('vynal:navigation-end', handleNavigationEnd);
+    
+    return () => {
+      window.removeEventListener('vynal:navigation-end', handleNavigationEnd);
+    };
+  }, [fetchData]);
+  
   // Effet d'initialisation et de nettoyage
   useEffect(() => {
     refs.current.isMounted = true;
     
     // Chargement initial
-    if (revalidateOnMount) {
+    if (revalidateOnMount && (!skipDuringNavigation || !NavigationLoadingState.isNavigating)) {
       fetchData();
+    } else if (revalidateOnMount && skipDuringNavigation && NavigationLoadingState.isNavigating) {
+      // Mettre en file d'attente pour après la navigation
+      refs.current.queuedFetch = true;
     }
     
     return () => {
@@ -230,7 +264,7 @@ export function useSWRCache<T>(
         requestManager.releaseLock(key, refs.current.lastRequestId);
       }
     };
-  }, [key, revalidateOnMount, fetchData]);
+  }, [key, revalidateOnMount, fetchData, skipDuringNavigation]);
   
   // Effet pour écouter les événements d'invalidation de cache
   useEffect(() => {
@@ -240,7 +274,13 @@ export function useSWRCache<T>(
       // Vérifier si cette clé est concernée par l'invalidation
       const invalidatedKey = event.detail?.key;
       if (!invalidatedKey || invalidatedKey === key || invalidatedKey.startsWith(key)) {
-        fetchData();
+        // Ne pas revalider pendant la navigation si skipDuringNavigation est activé
+        if (!skipDuringNavigation || !NavigationLoadingState.isNavigating) {
+          fetchData();
+        } else {
+          // Mettre en file d'attente pour après la navigation
+          refs.current.queuedFetch = true;
+        }
       }
     };
     
@@ -249,7 +289,7 @@ export function useSWRCache<T>(
     return () => {
       window.removeEventListener('vynal:cache-invalidated', handleCacheInvalidation as EventListener);
     };
-  }, [key, fetchData]);
+  }, [key, fetchData, skipDuringNavigation]);
   
   return {
     data,
@@ -262,7 +302,12 @@ export function useSWRCache<T>(
     mutate: (newData: T, shouldRevalidate = true) => {
       setData(newData);
       setCachedDataSafe(key, newData, cacheOptions);
-      if (shouldRevalidate) fetchData();
+      if (shouldRevalidate && (!skipDuringNavigation || !NavigationLoadingState.isNavigating)) {
+        fetchData();
+      } else if (shouldRevalidate) {
+        // Mettre en file d'attente pour après la navigation
+        refs.current.queuedFetch = true;
+      }
     }
   };
 } 

@@ -36,7 +36,7 @@ export async function uploadFile(
   const supabase = createClientComponentClient<Database>();
   
   const {
-    cacheControl = '3600',
+    cacheControl = bucketName === 'services' ? '604800' : '3600', // 7 jours pour les images de services, 1 heure pour le reste
     upsert = true,
     contentType,
     maxRetries = 3,

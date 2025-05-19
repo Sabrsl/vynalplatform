@@ -62,6 +62,14 @@ export {
   listenToClientCacheInvalidation
 } from './client-cache';
 
+// Exporter les fonctions de cache freelance
+export {
+  invalidateFreelanceStats,
+  invalidateFreelanceOrders,
+  invalidateAllFreelanceCache,
+  listenToFreelanceCacheInvalidation
+} from './freelance-cache';
+
 // Clés pour le système de cache
 export const CACHE_KEYS = {
   // Données générales
@@ -103,7 +111,14 @@ export const CACHE_KEYS = {
   CLIENT_RECOMMENDED_FREELANCERS: 'client_recommended_freelancers_',
   CLIENT_DASHBOARD_ACTIVITIES: 'client_dashboard_activities_',
   CLIENT_PAYMENTS_HISTORY: 'client_payments_history_',
-  CLIENT_DISPUTES: 'client_disputes_'
+  CLIENT_DISPUTES: 'client_disputes_',
+  
+  // Clés pour le dashboard freelance
+  FREELANCE_STATS: 'freelance_stats_',
+  FREELANCE_ORDERS: 'freelance_orders_',
+  FREELANCE_SERVICES: 'freelance_services_', 
+  FREELANCE_EARNINGS: 'freelance_earnings_',
+  FREELANCE_PROFILE: 'freelance_profile_'
 } as const;
 
 // Durées d'expiration complètes du cache en millisecondes
@@ -182,7 +197,12 @@ export const CACHE_EVENT_TYPES = {
   CLIENT_STATS_UPDATED: 'client_stats_updated',
   CLIENT_ORDERS_UPDATED: 'client_orders_updated',
   CLIENT_PAYMENTS_UPDATED: 'client_payments_updated',
-  CLIENT_PROFILE_UPDATED: 'client_profile_updated'
+  CLIENT_PROFILE_UPDATED: 'client_profile_updated',
+  // Nouveaux événements pour le dashboard freelance
+  FREELANCE_STATS_UPDATED: 'freelance_stats_updated',
+  FREELANCE_ORDERS_UPDATED: 'freelance_orders_updated',
+  FREELANCE_SERVICES_UPDATED: 'freelance_services_updated',
+  FREELANCE_PROFILE_UPDATED: 'freelance_profile_updated'
 };
 
 // Configuration des groupes de cache par événement
@@ -239,6 +259,27 @@ export const CACHE_EVENT_GROUPS = {
   [CACHE_EVENT_TYPES.CLIENT_PROFILE_UPDATED]: [
     CACHE_KEYS.USER_PROFILE,
     CACHE_KEYS.CLIENT_RECOMMENDED_FREELANCERS // Les recommandations peuvent dépendre du profil
+  ],
+  // Nouveaux groupes pour le dashboard freelance
+  [CACHE_EVENT_TYPES.FREELANCE_STATS_UPDATED]: [
+    CACHE_KEYS.FREELANCE_STATS,
+    CACHE_KEYS.DASHBOARD_STATS,
+    'freelance_stats_'
+  ],
+  [CACHE_EVENT_TYPES.FREELANCE_ORDERS_UPDATED]: [
+    CACHE_KEYS.FREELANCE_ORDERS,
+    CACHE_KEYS.FREELANCE_STATS, // Invalider aussi les statistiques qui dépendent des commandes
+    'orders_freelance_'
+  ],
+  [CACHE_EVENT_TYPES.FREELANCE_SERVICES_UPDATED]: [
+    CACHE_KEYS.FREELANCE_SERVICES,
+    CACHE_KEYS.SERVICES, // Invalider aussi le cache global des services
+    'freelance_services_'
+  ],
+  [CACHE_EVENT_TYPES.FREELANCE_PROFILE_UPDATED]: [
+    CACHE_KEYS.FREELANCE_PROFILE,
+    CACHE_KEYS.USER_PROFILE, // Invalider aussi le profil utilisateur
+    'freelance_profile_'
   ]
 };
 

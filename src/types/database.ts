@@ -69,6 +69,7 @@ export interface Database {
           admin_notes?: string | null
           validated_at?: string | null
           validated_by?: string | null
+          currency_code?: string
         }
         Insert: {
           id?: string
@@ -91,6 +92,7 @@ export interface Database {
           admin_notes?: string | null
           validated_at?: string | null
           validated_by?: string | null
+          currency_code?: string
         }
         Update: {
           id?: string
@@ -113,6 +115,7 @@ export interface Database {
           admin_notes?: string | null
           validated_at?: string | null
           validated_by?: string | null
+          currency_code?: string
         }
       }
       service_notifications: {

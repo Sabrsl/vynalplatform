@@ -411,7 +411,7 @@ const ServiceImageGallery: React.FC<ServiceImageGalleryProps> = ({
                   height={800}
                   priority={true}
                   quality={90}
-                  unoptimized={false}
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 75vw, 50vw"
                   onLoad={handleImageLoad}
                   onError={handleImageError}
                 />
@@ -466,6 +466,8 @@ const ServiceImageGallery: React.FC<ServiceImageGalleryProps> = ({
                     width={64}
                     height={64}
                     quality={50}
+                    loading="lazy"
+                    sizes="64px"
                   />
                 </button>
               ))}

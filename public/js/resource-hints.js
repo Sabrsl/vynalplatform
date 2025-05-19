@@ -4,48 +4,28 @@
  */
 
 (function() {
-  // Liste des ressources critiques à précharger
-  const preloadResources = [
-    { type: 'style', href: '/css/performance-optimizations.css' },
-    { type: 'script', href: '/js/performance-utils.js' }
-  ];
+  // Éviter les exécutions multiples
+  if (window.__resourceHintsExecuted) return;
+  window.__resourceHintsExecuted = true;
   
-  // Précharger les ressources critiques
-  preloadResources.forEach(resource => {
+  // Précharger uniquement le script de performance
+  if (!document.querySelector('link[rel="preload"][href="/js/performance-utils.js"]')) {
     const link = document.createElement('link');
     link.rel = 'preload';
-    link.as = resource.type;
-    link.href = resource.href;
-    link.crossOrigin = '';
+    link.as = 'script';
+    link.href = '/js/performance-utils.js';
     document.head.appendChild(link);
-  });
-  
-  // Précharger la police principale
-  if (!navigator.userAgent.includes('MSIE') && !navigator.userAgent.includes('Trident/')) {
-    const fontPreload = document.createElement('link');
-    fontPreload.href = 'https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap';
-    fontPreload.rel = 'preload';
-    fontPreload.as = 'style';
-    document.head.appendChild(fontPreload);
   }
   
-  // Détecter la fin du chargement initial
-  window.addEventListener('load', () => {
-    // Nettoyer les scripts non nécessaires après le chargement
-    setTimeout(() => {
-      // Supprimer les attributs data-* inutiles pour réduire le DOM
-      document.querySelectorAll('[data-nextjs-data-runtime]').forEach(el => {
-        if (el.parentNode) {
-          el.parentNode.removeChild(el);
-        }
-      });
-      
-      // Libérer de la mémoire
-      if (window.gc) {
-        window.gc();
-      }
-    }, 3000);
-  }, { passive: true });
+  // Précharger la police principale si nécessaire
+  if (!navigator.userAgent.includes('MSIE') && 
+      !navigator.userAgent.includes('Trident/') && 
+      !document.querySelector('link[href*="fonts.googleapis.com/css2?family=Poppins"]')) {
+    const fontLink = document.createElement('link');
+    fontLink.href = 'https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap';
+    fontLink.rel = 'stylesheet';
+    document.head.appendChild(fontLink);
+  }
   
   // Optimiser le chargement des polices
   if ('fonts' in document) {
@@ -53,4 +33,19 @@
       document.documentElement.classList.add('fonts-loaded');
     });
   }
+  
+  // Nettoyage simplifié - exécuté une seule fois
+  let cleanupDone = false;
+  window.addEventListener('load', () => {
+    if (cleanupDone) return;
+    
+    setTimeout(() => {
+      cleanupDone = true;
+      
+      // Libérer de la mémoire
+      if (window.gc) {
+        window.gc();
+      }
+    }, 2000);
+  }, { passive: true });
 })(); 

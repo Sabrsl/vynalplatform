@@ -7,6 +7,7 @@ const CACHE_NAME = 'vynal-cache-v1';
 const STATIC_CACHE = 'static-v1';
 const DYNAMIC_CACHE = 'dynamic-v1';
 const IMAGE_CACHE = 'images-v1';
+const SUPABASE_IMAGE_CACHE = 'supabase-images-v1'; // Cache séparé pour les images Supabase
 
 // Liste des ressources à mettre en cache immédiatement
 const STATIC_RESOURCES = [
@@ -18,6 +19,9 @@ const STATIC_RESOURCES = [
   '/js/lcp-optimizer.js'
 ];
 
+// Pattern pour identifier les images de services Supabase
+const SUPABASE_SERVICES_PATTERN = /cybeqoprsggfgippxtvt\.supabase\.co\/storage\/v1\/object\/public\/services\//;
+
 // Installation du Service Worker
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -27,25 +31,32 @@ self.addEventListener('install', (event) => {
         return cache.addAll(STATIC_RESOURCES);
       }),
       // Préparation du cache pour les images
-      caches.open(IMAGE_CACHE)
+      caches.open(IMAGE_CACHE),
+      // Préparation du cache pour les images Supabase
+      caches.open(SUPABASE_IMAGE_CACHE)
     ])
   );
   // Activer immédiatement le nouveau Service Worker
   self.skipWaiting();
 });
 
-// Activation et nettoyage des anciens caches
+// Nettoyage des anciens caches
 self.addEventListener('activate', (event) => {
+  const cacheWhitelist = [STATIC_CACHE, DYNAMIC_CACHE, IMAGE_CACHE, SUPABASE_IMAGE_CACHE];
+  
   event.waitUntil(
     caches.keys().then(cacheNames => {
       return Promise.all(
-        cacheNames
-          .filter(name => name.startsWith('vynal-') && name !== CACHE_NAME)
-          .map(name => caches.delete(name))
+        cacheNames.map(cacheName => {
+          if (!cacheWhitelist.includes(cacheName)) {
+            return caches.delete(cacheName);
+          }
+        })
       );
     })
   );
-  // Prendre le contrôle immédiatement
+  
+  // Prendre le contrôle de toutes les pages immédiatement
   self.clients.claim();
 });
 
@@ -85,6 +96,40 @@ self.addEventListener('fetch', (event) => {
   
   // Ignorer les requêtes non-http(s)
   if (!url.protocol.startsWith('http')) return;
+  
+  // Stratégie spécifique pour les images de services Supabase
+  if (SUPABASE_SERVICES_PATTERN.test(url.href)) {
+    event.respondWith(
+      caches.open(SUPABASE_IMAGE_CACHE).then(cache => {
+        return cache.match(event.request).then(response => {
+          // Si l'image est en cache, la retourner immédiatement
+          if (response) {
+            return response;
+          }
+          
+          // Sinon, faire la requête et mettre en cache avec une longue durée
+          return fetch(event.request).then(networkResponse => {
+            if (networkResponse.ok) {
+              const clonedResponse = networkResponse.clone();
+              cache.put(event.request, clonedResponse);
+              console.log('[Service Worker] Image Supabase mise en cache:', url.href);
+            }
+            return networkResponse;
+          }).catch(error => {
+            console.error('[Service Worker] Erreur de récupération d\'image:', error);
+            // Retourner une image de secours en cas d'erreur
+            return new Response(
+              `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>`,
+              { 
+                headers: { 'Content-Type': 'image/svg+xml' } 
+              }
+            );
+          });
+        });
+      })
+    );
+    return;
+  }
   
   // Stratégie spécifique pour les images
   if (url.pathname.match(/\.(png|jpe?g|gif|svg|webp|avif)$/)) {

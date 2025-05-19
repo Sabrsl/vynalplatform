@@ -9,7 +9,7 @@ import ServiceView from '@/components/services/ServiceView';
 
 // Configuration pour la génération statique
 export const dynamic = 'force-static';
-export const revalidate = 2592000; // 30 jours en secondes
+export const revalidate = 604800; // 7 jours en secondes
 
 // Métadonnées dynamiques pour la page
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
@@ -42,6 +42,8 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 async function getServiceData(slug: string) {
   try {
     const supabase = getSupabaseServer();
+    
+    // Récupération du service avec ses catégories et profil
     const { data: service, error } = await supabase
       .from('services')
       .select(`
@@ -53,11 +55,10 @@ async function getServiceData(slug: string) {
       .single();
 
     if (error) {
-      console.error("Erreur lors de la récupération du service:", error);
       throw new Error("Service introuvable");
     }
 
-    // Obtenir les services connexes du même freelance
+    // Récupération des services connexes du même freelance en une seule requête
     const { data: relatedServices, error: relatedError } = await supabase
       .from('services')
       .select(`
@@ -70,14 +71,15 @@ async function getServiceData(slug: string) {
       .neq('id', service.id)
       .limit(3);
 
-    if (relatedError) {
-      console.error("Erreur lors du chargement des services connexes:", relatedError);
-    }
+    // Normalisation du format des images
+    const normalizedImages = Array.isArray(service.images) 
+      ? service.images 
+      : (service.images ? [service.images] : []);
 
     return { 
       service: {
         ...service,
-        images: Array.isArray(service.images) ? service.images : (service.images ? [service.images] : [])
+        images: normalizedImages
       }, 
       relatedServices: relatedServices || [] 
     };

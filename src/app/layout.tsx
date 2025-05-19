@@ -32,6 +32,7 @@ export const metadata: Metadata = {
   description: 'Vynal est une plateforme dédiée aux services numériques proposés par des professionnels indépendants',
   keywords: 'freelance, clients, services, marketplace, gig economy',
   manifest: '/manifest.json',
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://vynalplatform.com'),
   // Amélioration pour les partages sociaux
   openGraph: {
     type: 'website',

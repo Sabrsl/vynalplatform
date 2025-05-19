@@ -366,10 +366,8 @@ export default function ServicesPage() {
         error: null
       }));
       
-      // Construction de la clé de cache incluant le filtre actuel
-      const cacheKey = activeTab === 'all' 
-        ? `services_freelance_${profileId}_page_${currentPage}` 
-        : `services_freelance_${profileId}_${activeTab}_page_${currentPage}`;
+      // Construction de la clé de cache (simplifiée)
+      const cacheKey = `services_freelance_${profileId}_page_${currentPage}`;
       
       // Vérifier le cache si ce n'est pas un forceRefresh
       if (!forceRefresh) {
@@ -412,12 +410,7 @@ export default function ServicesPage() {
         .select('id', { count: 'exact' })
         .eq('freelance_id', profileId);
       
-      // Ajouter des filtres en fonction de l'onglet actif
-      if (activeTab === 'active') {
-        query = query.eq('active', true);
-      } else if (activeTab === 'inactive') {
-        query = query.eq('active', false);
-      }
+      // Ne plus filtrer en fonction de l'onglet actif (tous les services)
         
       // Récupérer d'abord le nombre total de services pour la pagination
       const { count, error: countError } = await query.abortSignal(abortControllerRef.current?.signal);
@@ -452,12 +445,7 @@ export default function ServicesPage() {
         .range((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage - 1)
         .order('created_at', { ascending: false });
       
-      // Ajouter des filtres en fonction de l'onglet actif
-      if (activeTab === 'active') {
-        dataQuery = dataQuery.eq('active', true);
-      } else if (activeTab === 'inactive') {
-        dataQuery = dataQuery.eq('active', false);
-      }
+      // Ne plus filtrer en fonction de l'onglet actif (tous les services)
       
       // Exécuter la requête
       const { data, error: fetchError } = await dataQuery.abortSignal(abortControllerRef.current?.signal);
@@ -530,7 +518,7 @@ export default function ServicesPage() {
       clearTimeout(timeout);
       abortControllerRef.current = null;
     }
-  }, [currentPage, itemsPerPage, isRefreshing, safeSetState, activeTab]);
+  }, [currentPage, itemsPerPage, isRefreshing, safeSetState]);
 
   // Fonction optimisée pour gérer la suppression d'un service
   const handleDeleteService = useCallback(async (serviceId: string) => {
@@ -558,14 +546,12 @@ export default function ServicesPage() {
           services: prev.services.filter(service => service.id !== serviceId)
         }));
         
-        // Invalider le cache des services pour toutes les pages potentiellement affectées
+        // Invalider le cache pour la page actuelle uniquement
         if (profile?.id) {
-          for (let i = 1; i <= Math.ceil(totalServices / itemsPerPage); i++) {
-            // Invalider pour tous les types d'onglets
-            invalidateCacheLocal(`services_freelance_${profile.id}_page_${i}`);
-            invalidateCacheLocal(`services_freelance_${profile.id}_active_page_${i}`);
-            invalidateCacheLocal(`services_freelance_${profile.id}_inactive_page_${i}`);
-          }
+          // Clé de cache simplifiée sans différenciation par onglet
+          const cacheKey = `services_freelance_${profile.id}_page_${currentPage}`;
+          
+          invalidateCacheLocal(cacheKey);
         }
         
         // Rafraîchir les statistiques en arrière-plan
@@ -620,12 +606,10 @@ export default function ServicesPage() {
     // car c'est une action explicite de l'utilisateur
     lastRefreshTimeRef.current = Date.now(); // Mettre à jour le timestamp
     
-    // Invalider le cache pour la page actuelle uniquement mais pour tous les types d'onglets
+    // Invalider le cache pour la page actuelle uniquement
     if (profile?.id) {
-      // Construire la clé de cache en fonction de l'onglet actif
-      const cacheKey = activeTab === 'all' 
-        ? `services_freelance_${profile.id}_page_${currentPage}` 
-        : `services_freelance_${profile.id}_${activeTab}_page_${currentPage}`;
+      // Clé de cache simplifiée sans différenciation par onglet
+      const cacheKey = `services_freelance_${profile.id}_page_${currentPage}`;
       
       invalidateCacheLocal(cacheKey);
     }
@@ -633,32 +617,14 @@ export default function ServicesPage() {
     // Recharger les données
     loadServices(profile.id, true);
     refreshStats(true);
-  }, [profile?.id, loadServices, refreshStats, isRefreshing, currentPage, activeTab]);
+  }, [profile?.id, loadServices, refreshStats, isRefreshing, currentPage]);
 
-  // Fonction pour changer l'onglet actif
+  // Fonction pour changer l'onglet actif - désactivée mais conservée pour compatibilité
   const handleTabChange = useCallback((tab: 'all' | 'active' | 'inactive') => {
-    if (tab === activeTab || !mountedRef.current) return;
-    
-    console.log(`Changement d'onglet de ${activeTab} à ${tab}`);
-    
-    safeSetState(prev => ({ 
-      ...prev, 
-      activeTab: tab,
-      // Remettre la pagination à 1 lors du changement d'onglet pour éviter les confusions
-      currentPage: 1
-    }));
-    
-    // Force refresh des services pour s'assurer que la liste est mise à jour
-    if (profile?.id && !loadingRef.current) {
-      // Petite pause avant de rafraîchir pour laisser l'état se mettre à jour
-      setTimeout(() => {
-        if (mountedRef.current) {
-          // Actualiser les données avec l'onglet nouvellement sélectionné
-          loadServices(profile.id, true);
-        }
-      }, 100);
-    }
-  }, [activeTab, safeSetState, profile?.id, loadServices]);
+    // Ne fait rien, tous les services sont affichés
+    console.log("Fonction handleTabChange désactivée - tous les services sont affichés par défaut");
+    return;
+  }, []);
 
   // Effet de nettoyage et d'initialisation du composant
   useEffect(() => {
@@ -815,20 +781,9 @@ export default function ServicesPage() {
 
   // Filtrer les services en fonction de l'onglet actif - mémoïsé pour optimiser les performances
   const filteredServices = useMemo(() => {
-    // Version corrigée du filtrage pour assurer que les services sont correctement filtrés
-    return services.filter((service: ServiceWithFreelanceAndCategories) => {
-      // Debug pour trouver les problèmes potentiels
-      console.log(`Service ${service.id} - active: ${service.active}, type: ${typeof service.active}`);
-      
-      if (activeTab === 'all') return true;
-      
-      // Gestion stricte des booléens pour éviter les problèmes de type
-      if (activeTab === 'active') return service.active === true;
-      if (activeTab === 'inactive') return service.active === false;
-      
-      return true;
-    });
-  }, [services, activeTab]);
+    // Afficher tous les services, peu importe l'onglet
+    return services;
+  }, [services]);
 
   // Optimiser le calcul du nombre total de pages
   const totalPages = useMemo(() => 
@@ -860,6 +815,52 @@ export default function ServicesPage() {
     [services]
   );
 
+  // Effet pour écouter les événements personnalisés de mise à jour des services
+  useEffect(() => {
+    // Gestionnaire d'événements pour les mises à jour de services
+    const handleServiceUpdated = (event: CustomEvent) => {
+      if (!event.detail) return;
+      
+      // Utiliser les détails de l'événement pour une mise à jour sélective
+      const { serviceId, type } = event.detail;
+      
+      // Rafraîchir immédiatement si c'est un nouveau service créé
+      if (type === 'service-created') {
+        console.log('Nouveau service créé, rafraîchissement immédiat');
+        if (profile?.id && !loadingRef.current) {
+          loadServices(profile.id, true);
+          return;
+        }
+      }
+      
+      // Si c'est une mise à jour globale ou si le service n'est pas spécifié, rafraîchir avec un délai
+      if (type === 'global-update' || !serviceId) {
+        if (profile?.id && !loadingRef.current) {
+          // Éviter les rafraîchissements trop fréquents
+          const now = Date.now();
+          if (now - lastRefreshTimeRef.current > 3000) {
+            console.log('Rafraîchissement global différé');
+            setTimeout(() => {
+              if (!loadingRef.current) {
+                lastRefreshTimeRef.current = now;
+                loadServices(profile.id, true);
+              }
+            }, 1000);
+          }
+        }
+      }
+      // Sinon, ne rien faire car les mises à jour spécifiques sont gérées par l'abonnement Supabase
+    };
+    
+    // Ajouter l'écouteur d'événements
+    window.addEventListener('vynal:service-updated', handleServiceUpdated as EventListener);
+    
+    // Nettoyer l'écouteur lors du démontage
+    return () => {
+      window.removeEventListener('vynal:service-updated', handleServiceUpdated as EventListener);
+    };
+  }, [profile?.id, loadServices]);
+
   // useEffect pour configurer les abonnements Supabase en temps réel
   useEffect(() => {
     if (!profile?.id) return;
@@ -877,7 +878,18 @@ export default function ServicesPage() {
         (payload) => {
           console.log('Changement détecté sur un service:', payload);
           
-          // Limiter la fréquence des mises à jour
+          // Si c'est un INSERT (nouveau service créé), rafraîchir immédiatement
+          if (payload.eventType === 'INSERT') {
+            console.log('Nouveau service détecté, rafraîchissement immédiat');
+            // Rafraîchir immédiatement sans attendre le délai minimum
+            if (mountedRef.current && !loadingRef.current) {
+              lastRefreshTimeRef.current = Date.now();
+              loadServices(profile.id, true);
+              return;
+            }
+          }
+          
+          // Pour les autres types d'événements, limiter la fréquence des mises à jour
           const now = Date.now();
           if (now - lastRefreshTimeRef.current < 1000) {
             console.log('Ignorer la mise à jour (trop fréquente)');
@@ -950,42 +962,20 @@ export default function ServicesPage() {
       supabase.removeChannel(serviceChannel);
     };
   }, [profile?.id, safeSetState, loadServices]);
-
-  // Effet pour écouter les événements personnalisés de mise à jour des services
+  
+  // Ajouter un effet pour vérifier si on revient de la page de création de service
   useEffect(() => {
-    // Gestionnaire d'événements pour les mises à jour de services
-    const handleServiceUpdated = (event: CustomEvent) => {
-      if (!event.detail) return;
-      
-      // Utiliser les détails de l'événement pour une mise à jour sélective
-      const { serviceId, type } = event.detail;
-      
-      // Si c'est une mise à jour globale ou si le service n'est pas spécifié, rafraîchir avec un délai
-      if (type === 'global-update' || !serviceId) {
-        if (profile?.id && !loadingRef.current) {
-          // Éviter les rafraîchissements trop fréquents
-          const now = Date.now();
-          if (now - lastRefreshTimeRef.current > 3000) {
-            console.log('Rafraîchissement global différé');
-            setTimeout(() => {
-              if (!loadingRef.current) {
-                lastRefreshTimeRef.current = now;
-                loadServices(profile.id, true);
-              }
-            }, 1000);
-          }
-        }
-      }
-      // Sinon, ne rien faire car les mises à jour spécifiques sont gérées par l'abonnement Supabase
-    };
+    if (typeof window === 'undefined' || !profile?.id) return;
     
-    // Ajouter l'écouteur d'événements
-    window.addEventListener('vynal:service-updated', handleServiceUpdated as EventListener);
-    
-    // Nettoyer l'écouteur lors du démontage
-    return () => {
-      window.removeEventListener('vynal:service-updated', handleServiceUpdated as EventListener);
-    };
+    // Vérifier si on revient de la page de création de service
+    const fromServiceCreation = sessionStorage.getItem('vynal_service_created');
+    if (fromServiceCreation) {
+      console.log('Retour de la création de service, rafraîchissement immédiat');
+      // Supprimer l'indicateur
+      sessionStorage.removeItem('vynal_service_created');
+      // Rafraîchir immédiatement
+      loadServices(profile.id, true);
+    }
   }, [profile?.id, loadServices]);
 
   // À ajouter dans votre état
@@ -1027,6 +1017,8 @@ export default function ServicesPage() {
 
   const handleAcceptRules = () => {
     setIsRulesModalOpen(false);
+    // Marquer qu'on va créer un service pour faciliter la détection au retour
+    sessionStorage.setItem('vynal_service_created', 'pending');
     router.push("/dashboard/services/new");
   };
 
@@ -1098,38 +1090,11 @@ export default function ServicesPage() {
 
       {/* Onglets de filtrage et bouton d'actualisation */}
       {services.length > 0 && (
-        <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 mb-4 sm:mb-5">
-          <div className="flex overflow-x-auto no-scrollbar gap-1">
-            <button
-              onClick={() => handleTabChange('all')}
-              className={`pb-1.5 sm:pb-2 px-2 sm:px-4 text-[10px] sm:text-xs font-medium whitespace-nowrap transition-colors duration-200 ${
-                activeTab === 'all'
-                  ? 'text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600 dark:border-indigo-400'
-                  : 'text-slate-700 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400'
-              }`}
-            >
-              Tous ({totalServices})
-            </button>
-            <button
-              onClick={() => handleTabChange('active')}
-              className={`pb-1.5 sm:pb-2 px-2 sm:px-4 text-[10px] sm:text-xs font-medium whitespace-nowrap transition-colors duration-200 ${
-                activeTab === 'active'
-                  ? 'text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600 dark:border-indigo-400'
-                  : 'text-slate-700 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400'
-              }`}
-            >
-              Actifs ({activeServicesCount})
-            </button>
-            <button
-              onClick={() => handleTabChange('inactive')}
-              className={`pb-1.5 sm:pb-2 px-2 sm:px-4 text-[10px] sm:text-xs font-medium whitespace-nowrap transition-colors duration-200 ${
-                activeTab === 'inactive'
-                  ? 'text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600 dark:border-indigo-400'
-                  : 'text-slate-700 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400'
-              }`}
-            >
-              Inactifs ({inactiveServicesCount})
-            </button>
+        <div className="border-b border-slate-200 dark:border-slate-700 mb-4 sm:mb-5">
+          <div className="flex justify-between items-center pb-2">
+            <h3 className="text-sm font-medium text-slate-700 dark:text-slate-300">
+              Vos services ({totalServices})
+            </h3>
           </div>
           <Button 
             onClick={refreshData}
@@ -1176,13 +1141,10 @@ export default function ServicesPage() {
             </Button>
           </div>
         </div>
-      ) : filteredServices.length === 0 ? (
+      ) :       filteredServices.length === 0 ? (
         <div className="bg-slate-50 dark:bg-slate-800/30 rounded-lg p-4 sm:p-6 text-center border border-slate-200 dark:border-slate-700">
           <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
-            {activeTab === 'all' 
-              ? "Aucun service trouvé."
-              : `Aucun service ${activeTab === 'active' ? 'actif' : 'inactif'} trouvé.`
-            }
+            Aucun service trouvé.
           </p>
         </div>
       ) : (

@@ -212,7 +212,7 @@ export function useRecentClientOrders(options: UseRecentClientOrdersOptions = {}
           setOrders(enrichedOrders);
           if (useCache && enrichedOrders.length > 0) {
             setCachedData(cacheKey, enrichedOrders, { 
-              expiry: CACHE_EXPIRY.DAYS_3 || 5 * 60 * 1000,
+              expiry: 3 * 24 * 60 * 60 * 1000, // 3 jours de cache
               priority: 'high'
             });
           }

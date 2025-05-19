@@ -113,6 +113,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const menuRef = useRef<HTMLDivElement>(null);
   const userHasScrolledRef = useRef<boolean>(false);
   const visitedConversationsRef = useRef<Set<string>>(new Set());
+  const lastUpdateRef = useRef<number>(Date.now());
+  const pendingUpdateRef = useRef<boolean>(false);
   
   const { 
     messages,
@@ -126,6 +128,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     updateConversationParticipant
   } = useMessagingStore();
 
+  // Variables pour le suivi du statut "last_seen"
+  const lastSeenUpdateRef = useRef<number>(Date.now());
+  const lastSeenThrottleInterval = useRef<number>(30 * 1000); // 30 secondes entre les mises à jour
+  const pendingLastSeenUpdateRef = useRef<boolean>(false);
+  const userWasActiveRef = useRef<boolean>(false);
+  
   // Charger les messages au montage du composant
   useEffect(() => {
     if (conversation?.id) {
@@ -316,33 +324,86 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   
   // Mettre à jour le statut "last_seen" quand l'utilisateur est actif sur le chat
   useEffect(() => {
-    const updateLastSeen = async () => {
-      if (user?.id) {
-        try {
-          // Utiliser la date actuelle
-          const now = new Date();
+    // Intervalle minimum entre les mises à jour (10 secondes)
+    const throttleInterval = 10 * 1000;
+    // Flag pour indiquer si une mise à jour est en attente
+    
+    const updateLastSeen = async (force = false) => {
+      if (!user?.id) return;
+      
+      const now = Date.now();
+      // Si la dernière mise à jour était il y a moins de 10 secondes et ce n'est pas forcé, ne pas mettre à jour
+      if (!force && now - lastUpdateRef.current < throttleInterval) {
+        // Marquer qu'une mise à jour est en attente si ce n'est pas déjà le cas
+        if (!pendingUpdateRef.current) {
+          pendingUpdateRef.current = true;
+          // Planifier une mise à jour après l'intervalle de throttle
+          setTimeout(() => {
+            pendingUpdateRef.current = false;
+            // Seulement mettre à jour si aucune autre mise à jour n'a été faite entre temps
+            if (Date.now() - lastUpdateRef.current >= throttleInterval) {
+              updateLastSeen(true);
+            }
+          }, throttleInterval - (now - lastUpdateRef.current));
+        }
+        return;
+      }
+
+      try {
+        // Mettre à jour la référence du timestamp
+        lastUpdateRef.current = now;
+        pendingUpdateRef.current = false;
+        
+        // Utiliser la date actuelle
+        const nowDate = new Date();
+        
+        // Vérifier d'abord si une mise à jour est réellement nécessaire
+        const { data: currentProfile, error: fetchError } = await supabase
+          .from('profiles')
+          .select('last_seen')
+          .eq('id', user.id)
+          .single();
           
+        if (fetchError) {
+          console.error('Erreur lors de la récupération du profil:', fetchError);
+          return;
+        }
+        
+        // Calculer si une mise à jour est nécessaire (si last_seen est plus ancien que 2 minutes)
+        const lastSeenTime = currentProfile?.last_seen ? new Date(currentProfile.last_seen).getTime() : 0;
+        const needsUpdate = !lastSeenTime || (now - lastSeenTime > 2 * 60 * 1000);
+        
+        if (needsUpdate) {
           await supabase
             .from('profiles')
-            .update({ last_seen: now.toISOString() })
+            .update({ last_seen: nowDate.toISOString() })
             .eq('id', user.id);
-        } catch (error) {
-          console.error('Erreur lors de la mise à jour du last_seen:', error);
         }
+      } catch (error) {
+        console.error('Erreur lors de la mise à jour du last_seen:', error);
       }
     };
 
     // Mettre à jour le statut immédiatement quand le chat est ouvert
-    updateLastSeen();
+    updateLastSeen(true);
 
     // Puis mettre à jour périodiquement toutes les 5 minutes
-    const interval = setInterval(updateLastSeen, 5 * 60 * 1000);
+    const interval = setInterval(() => updateLastSeen(true), 5 * 60 * 1000);
 
+    // Debouncer pour les événements d'activité
+    let activityTimeout: NodeJS.Timeout | null = null;
+    
     // Et aussi lors d'événements d'activité
     const handleActivity = () => {
-      updateLastSeen();
-      // Également vérifier les messages visibles lors de l'activité de l'utilisateur
-      checkVisibleMessages();
+      // Nettoyer le timeout précédent s'il existe
+      if (activityTimeout) clearTimeout(activityTimeout);
+      
+      // Définir un nouveau timeout pour debouncer l'activité
+      activityTimeout = setTimeout(() => {
+        updateLastSeen();
+        // Également vérifier les messages visibles lors de l'activité de l'utilisateur
+        checkVisibleMessages();
+      }, 500);
     };
 
     window.addEventListener('mousemove', handleActivity);
@@ -352,6 +413,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
     return () => {
       clearInterval(interval);
+      if (activityTimeout) clearTimeout(activityTimeout);
       window.removeEventListener('mousemove', handleActivity);
       window.removeEventListener('keydown', handleActivity);
       window.removeEventListener('click', handleActivity);

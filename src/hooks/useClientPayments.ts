@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { useAuth } from './useAuth';
 import { getCachedData, setCachedData } from '@/lib/optimizations/cache';
-import { CACHE_EXPIRY } from '@/lib/optimizations';
+// Au lieu d'importer CACHE_EXPIRY de lib/optimizations, utiliser directement la valeur
 
 export interface Payment {
   id: string;
@@ -156,7 +156,7 @@ export function useClientPayments(options: UseClientPaymentsOptions = {}) {
         // Mettre en cache
         if (useCache) {
           setCachedData(cacheKey, transformedData, { 
-            expiry: CACHE_EXPIRY.DAYS_3, // Augmenté à 3 jours (au lieu de 5 minutes)
+            expiry: 3 * 24 * 60 * 60 * 1000, // 3 jours de cache
             priority: 'high' 
           });
         }
@@ -199,7 +199,7 @@ export function useClientPayments(options: UseClientPaymentsOptions = {}) {
           setSummary(rpcData);
           if (useCache) {
             setCachedData(summaryKey, rpcData, { 
-              expiry: CACHE_EXPIRY.DAYS_3, // Augmenté à 3 jours (au lieu de 10 minutes)
+              expiry: 3 * 24 * 60 * 60 * 1000, // 3 jours de cache
               priority: 'high'
             });
           }
@@ -261,7 +261,7 @@ export function useClientPayments(options: UseClientPaymentsOptions = {}) {
       setSummary(summaryData);
       if (useCache) {
         setCachedData(summaryKey, summaryData, { 
-          expiry: CACHE_EXPIRY.DAYS_3, // Augmenté de 10 minutes à 3 jours
+          expiry: 3 * 24 * 60 * 60 * 1000, // 3 jours de cache
           priority: 'high'
         });
       }
