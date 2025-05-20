@@ -399,12 +399,11 @@ function Footer() {
           >
             <Link href={PUBLIC_ROUTES.HOME}>
               <Image 
-                src="/assets/logo/logo_vynal_platform_simple.webp" 
+                src="/assets/logo/logo_vynal_platform_simple.svg" 
                 alt="Vynal Platform Logo" 
-                className="h-2.5 md:h-3 w-auto dark:brightness-110 transition-all duration-300 mb-4"
-                width={60}
-                height={12}
-                style={{ height: 'auto' }}
+                className="h-20 md:h-24 w-auto dark:brightness-110 transition-all duration-300 mb-4"
+                width={360}
+                height={96}
                 priority
               />
             </Link>

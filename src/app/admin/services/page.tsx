@@ -158,7 +158,7 @@ export default function ServicesPage() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Charger les services depuis Supabase avec cache
+  // Charger les services depuis Supabase avec cache et debounce
   const fetchServices = useCallback(async (forceFetch = false) => {
     try {
       setLoading(true);
@@ -169,14 +169,22 @@ export default function ServicesPage() {
         if (cachedServices && Array.isArray(cachedServices) && cachedServices.length > 0) {
           setServices(cachedServices);
           setLoading(false);
+          console.log('Utilisation des données en cache pour les services admin');
           return;
         }
       }
       
-      const { data, error } = await supabase
+      // Ajouter un timestamp pour éviter le cache du navigateur
+      const timestamp = new Date().getTime();
+      
+      // Récupération avec un paramètre de requête pour contourner le cache si nécessaire
+      let query = supabase
         .from('services')
         .select('*, profiles(full_name)')
         .order('updated_at', { ascending: false });
+        
+      // Contournement du cache sans utiliser .match() qui traite les paramètres comme des colonnes
+      const { data, error } = await query;
 
       if (error) {
         throw error;
@@ -188,14 +196,18 @@ export default function ServicesPage() {
         freelancer_name: service.profiles?.full_name || 'Inconnu'
       })) : [];
 
-      // Mise en cache des services pour longtemps (7 jours) avec invalidation si modification
+      // Mise en cache des services avec durée et priorité optimisées
       setCachedData(
         CACHE_KEYS.ADMIN_SERVICES_LIST,
         transformedData,
-        { expiry: CACHE_EXPIRY.LONG, priority: 'high' }
+        { 
+          expiry: forceFetch ? CACHE_EXPIRY.SHORT : CACHE_EXPIRY.MEDIUM, 
+          priority: 'high' 
+        }
       );
       
       setServices(transformedData);
+      console.log(`${transformedData.length} services chargés depuis l'API`);
     } catch (error) {
       console.error('Erreur lors du chargement des services:', error);
       setError('Erreur lors du chargement des services');
@@ -205,8 +217,11 @@ export default function ServicesPage() {
     }
   }, []);
 
-  // Fonction pour rafraîchir manuellement les données
-  const handleRefresh = () => {
+  // Fonction pour rafraîchir manuellement les données avec debounce
+  const handleRefresh = useCallback(() => {
+    // Éviter les clics multiples rapides
+    if (loading) return;
+    
     // Forcer le rafraîchissement des données
     fetchServices(true);
     
@@ -221,7 +236,7 @@ export default function ServicesPage() {
       title: "Actualisation réussie",
       description: "La liste des services a été actualisée"
     });
-  };
+  }, [fetchServices, loading, toast]);
   
   // Écouter les événements de mise à jour des services
   useEffect(() => {
@@ -244,22 +259,95 @@ export default function ServicesPage() {
   }, [fetchServices]);
 
   // Invalider le cache après des opérations de modification
-  const invalidateServicesCache = () => {
-    // Invalider le cache des services
+  const invalidateServicesCache = useCallback(() => {
+    // S'assurer qu'on a un service courant
+    if (!currentService || !currentService.id) {
+      console.error("Tentative d'invalidation sans service spécifique");
+      
+      // Fallback: invalidation générale dans ce cas
+      import('@/lib/services/servicesInvalidationService').then(({ triggerServicesInvalidation }) => {
+        triggerServicesInvalidation();
+      });
+      
+      return;
+    }
+    
+    // Définir le type pour la propriété personnalisée sur l'objet window
+    type CustomWindow = Window & typeof globalThis & {
+      _serviceInvalidationTimeout?: NodeJS.Timeout;
+      _lastServiceInvalidation?: number;
+    };
+    
+    const customWindow = window as CustomWindow;
+    
+    // Utiliser un debounce pour éviter les multiples invalidations
+    if (customWindow._serviceInvalidationTimeout) {
+      clearTimeout(customWindow._serviceInvalidationTimeout);
+    }
+    
+    const now = Date.now();
+    
+    // Si la dernière invalidation est trop récente (moins de 3 secondes), retarder davantage
+    if (customWindow._lastServiceInvalidation && now - customWindow._lastServiceInvalidation < 3000) {
+      console.log(`Invalidation retardée pour éviter les rate limits (dernière: ${Math.floor((now - (customWindow._lastServiceInvalidation || 0)) / 1000)}s)`);
+      const delay = 3000 - (now - (customWindow._lastServiceInvalidation || 0));
+      
+      customWindow._serviceInvalidationTimeout = setTimeout(() => {
+        // Invalider spécifiquement le cache pour ce service
+        import('@/lib/services/servicesInvalidationService').then(({ invalidateAfterServiceUpdate }) => {
+          invalidateAfterServiceUpdate(
+            currentService.id, 
+            currentService.title || "Service sans titre"
+          );
+          
+          // Mettre à jour le timestamp de dernière invalidation
+          customWindow._lastServiceInvalidation = Date.now();
+        });
+      }, delay);
+      
+      return;
+    }
+    
+    // Définir un court délai pour grouper les invalidations potentielles
+    customWindow._serviceInvalidationTimeout = setTimeout(() => {
+      // Invalider spécifiquement le cache pour ce service
+      import('@/lib/services/servicesInvalidationService').then(({ invalidateAfterServiceUpdate }) => {
+        invalidateAfterServiceUpdate(
+          currentService.id, 
+          currentService.title || "Service sans titre"
+        );
+        
+        // Mettre à jour le timestamp de dernière invalidation
+        customWindow._lastServiceInvalidation = Date.now();
+      });
+    }, 200);
+    
+    // Invalidation locale des caches
     setCachedData(
       CACHE_KEYS.ADMIN_SERVICES_LIST,
       null,
       { expiry: 0 }
     );
     
-    // Émettre un événement pour informer les autres composants
+    // Émettre des événements pour informer les autres composants
     if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('vynal:service-updated'));
+      window.dispatchEvent(new CustomEvent('vynal:service-updated', {
+        detail: { 
+          serviceId: currentService.id,
+          serviceTitle: currentService.title
+        }
+      }));
+      
       window.dispatchEvent(new CustomEvent('vynal:cache-invalidated', { 
-        detail: { key: CACHE_KEYS.ADMIN_SERVICES_LIST }
+        detail: { 
+          key: CACHE_KEYS.ADMIN_SERVICES_LIST,
+          serviceId: currentService.id 
+        }
       }));
     }
-  };
+    
+    console.log(`Invalidation ciblée pour le service ${currentService.id}`);
+  }, [currentService]);
   
   // Charger les services au montage du composant
   useEffect(() => {
@@ -319,16 +407,21 @@ export default function ServicesPage() {
   const sendNotification = async (userId: string, type: string, content: any): Promise<boolean> => {
     // Si les notifications sont désactivées ou si trop d'erreurs ont été rencontrées
     if (!sendEmails || notificationErrorCount >= MAX_NOTIFICATION_ERRORS) {
+      console.log(`Envoi d'email désactivé: sendEmails=${sendEmails}, errorCount=${notificationErrorCount}`);
       return false;
     }
 
     try {
       // Vérifier que les données sont valides
-      if (!userId || !type || !content) {
+      if (!userId || userId.trim() === '' || !type || !content) {
         console.warn('Données de notification incomplètes:', { userId, type });
         return false;
       }
 
+      console.log(`Envoi de notification en cours - Type: ${type}, UserId: ${userId.substring(0, 8)}...`);
+      
+      // IMPORTANT: Ne pas effectuer un double JSON.stringify sur le contenu
+      // Le contenu est déjà un objet, le passer directement dans un seul JSON.stringify
       const response = await fetch('/api/notifications/send', {
         method: 'POST',
         headers: {
@@ -337,7 +430,7 @@ export default function ServicesPage() {
         body: JSON.stringify({
           userId,
           type,
-          content: JSON.stringify(content)
+          content: content // Ne pas faire JSON.stringify(content)
         }),
       });
 
@@ -371,7 +464,17 @@ export default function ServicesPage() {
         return false;
       }
 
-      // Notification envoyée avec succès
+      // Notification envoyée avec succès - ajouter un message visible
+      const responseData = await response.json();
+      console.log('Email envoyé avec succès:', responseData);
+      
+      // Toast optionnel pour confirmer l'envoi
+      toast({
+        title: "Notification envoyée",
+        description: `Email de notification "${type}" envoyé avec succès à ${userId.substring(0, 8)}...`,
+        duration: 3000
+      });
+      
       return true;
     } catch (error) {
       console.error('Erreur lors de l\'envoi de la notification:', error);
@@ -399,6 +502,12 @@ export default function ServicesPage() {
   const approveService = async () => {
     setApproveLoading(true);
     try {
+      // Récupération de l'ID du service courant pour s'assurer qu'on ne travaille que sur ce service
+      const serviceId = currentService?.id;
+      if (!serviceId) {
+        throw new Error('ID de service manquant');
+      }
+
       const { error, data } = await supabase
         .from('services')
         .update({
@@ -408,26 +517,28 @@ export default function ServicesPage() {
           validated_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })
-        .eq('id', currentService?.id)
-        .select();
+        .eq('id', serviceId)
+        .select('*');
 
       if (error) throw error;
-      
-      // Mettre à jour l'état local de manière ciblée
+
+      // Vérifier qu'on a bien reçu les données mises à jour
+      if (!data || data.length === 0) {
+        throw new Error('Aucun service mis à jour');
+      }
+
+      // Mettre à jour l'état local en ne modifiant que le service spécifique
       setServices(prevServices => 
-        prevServices.map(service => {
-          if (service.id === currentService?.id) {
-            return {
-              ...service,
-              status: 'approved',
-              admin_notes: moderationComment || undefined,
-              active: true,
-              validated_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            };
-          }
-          return service;
-        })
+        prevServices.map(service => 
+          service.id === serviceId ? {
+            ...service,
+            status: 'approved',
+            admin_notes: moderationComment || undefined,
+            active: true,
+            validated_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          } : service
+        )
       );
 
       // Envoyer une notification par email au freelance seulement si sendEmails est activé
@@ -436,7 +547,7 @@ export default function ServicesPage() {
           currentService.freelance_id,
           'service_approved',
           {
-            serviceId: currentService.id,
+            serviceId: serviceId,
             serviceTitle: currentService.title,
             serviceDescription: currentService.description,
             servicePrice: currentService.price,
@@ -452,6 +563,7 @@ export default function ServicesPage() {
       setShowDetailsDialog(false);
       setModerationComment('');
       
+      // Invalider uniquement le cache concerné
       invalidateServicesCache();
     } catch (error) {
       console.error('Erreur lors de l\'approbation du service:', error);
@@ -469,6 +581,12 @@ export default function ServicesPage() {
   const rejectService = async () => {
     setRejectLoading(true);
     try {
+      // Récupération de l'ID du service courant pour s'assurer qu'on ne travaille que sur ce service
+      const serviceId = currentService?.id;
+      if (!serviceId) {
+        throw new Error('ID de service manquant');
+      }
+
       const { error, data } = await supabase
         .from('services')
         .update({
@@ -478,26 +596,28 @@ export default function ServicesPage() {
           validated_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })
-        .eq('id', currentService?.id)
-        .select();
+        .eq('id', serviceId)
+        .select('*');
 
       if (error) throw error;
+
+      // Vérifier qu'on a bien reçu les données mises à jour
+      if (!data || data.length === 0) {
+        throw new Error('Aucun service mis à jour');
+      }
       
-      // Mettre à jour l'état local de manière ciblée
+      // Mettre à jour l'état local en ne modifiant que le service spécifique
       setServices(prevServices => 
-        prevServices.map(service => {
-          if (service.id === currentService?.id) {
-            return {
-              ...service,
-              status: 'rejected',
-              admin_notes: moderationComment || 'Service rejeté par la modération',
-              active: false,
-              validated_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            };
-          }
-          return service;
-        })
+        prevServices.map(service => 
+          service.id === serviceId ? {
+            ...service,
+            status: 'rejected',
+            admin_notes: moderationComment || 'Service rejeté par la modération',
+            active: false,
+            validated_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          } : service
+        )
       );
 
       // Envoyer une notification par email au freelance seulement si sendEmails est activé
@@ -506,7 +626,7 @@ export default function ServicesPage() {
           currentService.freelance_id,
           'service_rejected',
           {
-            serviceId: currentService.id,
+            serviceId: serviceId,
             serviceTitle: currentService.title,
             serviceDescription: currentService.description,
             servicePrice: currentService.price,
@@ -522,6 +642,7 @@ export default function ServicesPage() {
       setShowDetailsDialog(false);
       setModerationComment('');
       
+      // Invalider uniquement le cache concerné
       invalidateServicesCache();
     } catch (error) {
       console.error('Erreur lors du rejet du service:', error);
@@ -647,6 +768,12 @@ export default function ServicesPage() {
     
     setUnpublishLoading(true);
     try {
+      // Récupération de l'ID du service courant pour s'assurer qu'on ne travaille que sur ce service
+      const serviceId = currentService.id;
+      if (!serviceId) {
+        throw new Error('ID de service manquant');
+      }
+      
       // Déterminer la nouvelle valeur de active (inverse de l'état actuel)
       const newActiveState = !currentService.active;
       
@@ -665,28 +792,30 @@ export default function ServicesPage() {
               : "Service dépublié par l'administrateur"),
           updated_at: new Date().toISOString()
         })
-        .eq('id', currentService.id)
-        .select();
+        .eq('id', serviceId)
+        .select('*');
 
       if (error) throw error;
       
-      // Mettre à jour l'état local de manière ciblée
+      // Vérifier qu'on a bien reçu les données mises à jour
+      if (!data || data.length === 0) {
+        throw new Error('Aucun service mis à jour');
+      }
+      
+      // Mettre à jour l'état local en ne modifiant que le service spécifique
       setServices(prevServices => 
-        prevServices.map(service => {
-          if (service.id === currentService.id) {
-            return {
-              ...service,
-              active: newActiveState,
-              status: newStatus,
-              admin_notes: unpublishReason || 
-                (newActiveState 
-                  ? "Service republié par l'administrateur" 
-                  : "Service dépublié par l'administrateur"),
-              updated_at: new Date().toISOString()
-            };
-          }
-          return service;
-        })
+        prevServices.map(service => 
+          service.id === serviceId ? {
+            ...service,
+            active: newActiveState,
+            status: newStatus,
+            admin_notes: unpublishReason || 
+              (newActiveState 
+                ? "Service republié par l'administrateur" 
+                : "Service dépublié par l'administrateur"),
+            updated_at: new Date().toISOString()
+          } : service
+        )
       );
 
       // Envoyer des notifications seulement si sendEmails est activé
@@ -697,7 +826,7 @@ export default function ServicesPage() {
             currentService.freelance_id,
             'service_unpublished',
             {
-              serviceId: currentService.id,
+              serviceId: serviceId,
               serviceTitle: currentService.title,
               serviceDescription: currentService.description,
               servicePrice: currentService.price,
@@ -712,7 +841,7 @@ export default function ServicesPage() {
             currentService.freelance_id,
             'service_approved',
             {
-              serviceId: currentService.id,
+              serviceId: serviceId,
               serviceTitle: currentService.title,
               serviceDescription: currentService.description,
               servicePrice: currentService.price,
@@ -733,6 +862,7 @@ export default function ServicesPage() {
       
       closeUnpublishModal();
       
+      // Invalider uniquement le cache concerné
       invalidateServicesCache();
     } catch (error) {
       console.error('Erreur lors de la modification du statut du service:', error);
@@ -786,16 +916,23 @@ export default function ServicesPage() {
             size="sm"
             className="h-7 sm:h-8 text-[10px] sm:text-xs"
             onClick={() => {
-              if (!sendEmails) {
-                // Si on active les notifications, réinitialiser le compteur d'erreurs
+              // Stocker l'état actuel pour l'utiliser dans le toast
+              const currentState = sendEmails;
+              
+              // Si on active les notifications, réinitialiser le compteur d'erreurs
+              if (!currentState) {
                 resetNotificationErrorCount();
               }
-              setSendEmails(!sendEmails);
+              
+              // Inverser l'état des emails
+              setSendEmails(!currentState);
+              
+              // Afficher le toast en fonction de l'état FUTUR (inverse de l'état actuel)
               toast({
-                title: sendEmails ? "Notifications désactivées" : "Notifications activées",
-                description: sendEmails 
-                  ? "Les emails de notification ne seront pas envoyés." 
-                  : "Les emails de notification seront envoyés.",
+                title: !currentState ? "Notifications activées" : "Notifications désactivées",
+                description: !currentState 
+                  ? "Les emails de notification seront envoyés." 
+                  : "Les emails de notification ne seront pas envoyés.",
                 duration: 3000
               });
             }}

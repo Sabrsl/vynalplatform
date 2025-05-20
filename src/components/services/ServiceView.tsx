@@ -920,15 +920,8 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
   // Navigation optimisée
   const handleViewProfile = useCallback(() => {
     if (!serviceMeta?.freelance?.id) return;
-    
-    const path = user?.profile?.id === serviceMeta.freelance.id
-      ? FREELANCE_ROUTES.PROFILE
-      : serviceMeta.freelance.username 
-        ? `/profile/${serviceMeta.freelance.username}` 
-        : `/profile/id/${serviceMeta.freelance.id}`;
-    
-    router.push(path);
-  }, [serviceMeta?.freelance?.id, serviceMeta?.freelance?.username, user?.profile?.id, router]);
+    router.push(`/profile/id/${serviceMeta.freelance.id}`);
+  }, [serviceMeta?.freelance?.id, router]);
   
   // === Rendu conditionnel ===
   // État de chargement - Composant optimisé avec Skeleton
@@ -1182,10 +1175,10 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                         freelanceName={serviceMeta.freelance.full_name || serviceMeta.freelance.username || 'Freelance'}
                         buttonVariant="outline"
                         className={cn(
-                          "w-full text-xs inline-flex items-center justify-center rounded-md font-medium transition-colors h-10 px-4 py-2",
+                          "w-full text-[10px] inline-flex items-center justify-center rounded-md font-medium transition-all duration-200 h-9 px-3 py-2",
                           isDarkMode 
-                            ? "border bg-vynal-purple-dark/30 text-vynal-accent-primary border-vynal-accent-primary/50 hover:bg-vynal-purple-secondary/30" 
-                            : "border bg-white text-[#FF66B2] border-[#FF66B2]/50 hover:bg-gray-100"
+                            ? "border dark:bg-vynal-purple-dark dark:text-vynal-accent-primary dark:border-slate-700/30 dark:hover:bg-vynal-purple-secondary" 
+                            : "border bg-white text-[#FF66B2] border-slate-200 hover:bg-gray-50"
                         )}
                       />
                     )}
@@ -1195,6 +1188,39 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                   <ServiceGuarantees deliveryTime={serviceMeta.delivery_time} />
                 </CardContent>
               </Card>
+              
+              {/* Boutons fixes en bas sur mobile */}
+              <div className="fixed bottom-0 left-0 right-0 md:hidden z-50">
+                <div className="flex flex-col">
+                  <OrderButton
+                    serviceId={serviceMeta.id}
+                    price={Number(serviceMeta.price)}
+                    showIcon={true}
+                    fullWidth={true}
+                    variant="default"
+                    className={cn(
+                      "btn-vynal-primary",
+                      isDarkMode ? "dark" : "light",
+                      "py-1.5 text-xs"
+                    )}
+                    customLabel="Commander ce service"
+                  />
+                  
+                  {serviceMeta.freelance && serviceMeta.freelance.id && (
+                    <MessagingDialog 
+                      freelanceId={serviceMeta.freelance.id}
+                      freelanceName={serviceMeta.freelance.full_name || serviceMeta.freelance.username || 'Freelance'}
+                      buttonVariant="outline"
+                      className={cn(
+                        "w-full text-[10px] inline-flex items-center justify-center rounded-md font-medium transition-all duration-200 h-9 px-3 py-2",
+                        isDarkMode 
+                          ? "border dark:bg-vynal-purple-dark dark:text-vynal-accent-primary dark:border-slate-700/30 dark:hover:bg-vynal-purple-secondary" 
+                          : "border bg-white text-[#FF66B2] border-slate-200 hover:bg-gray-50"
+                      )}
+                    />
+                  )}
+                </div>
+              </div>
               
               {/* Informations sur le freelance */}
               <Card className={cn(

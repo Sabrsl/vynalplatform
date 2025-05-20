@@ -17,6 +17,10 @@ export const EMAIL_NOTIFICATION_TYPES = {
     template: 'src/templates/email/client/new_message.html',
     subject: 'Nouveau message sur Vynal Platform',
   },
+  'message': {
+    template: 'src/templates/email/client/new_message.html',
+    subject: 'Nouveau message sur Vynal Platform',
+  },
   'unread_message_reminder': {
     template: 'src/templates/email/client/unread_message_reminder.html',
     subject: 'Message non lu sur Vynal Platform',
@@ -69,8 +73,8 @@ export const EMAIL_NOTIFICATION_TYPES = {
  * Récupérer les informations de contexte pour une notification
  * @param notification La notification à traiter
  */
-export async function getNotificationContext(notification: Notification): Promise<Record<string, string>> {
-  const context: Record<string, string> = {
+export async function getNotificationContext(notification: Notification): Promise<Record<string, string | undefined>> {
+  const context: Record<string, string | undefined> = {
     currentYear: new Date().getFullYear().toString(),
     siteName: APP_CONFIG.siteName,
     contactEmail: APP_CONFIG.contactEmail,
@@ -85,9 +89,16 @@ export async function getNotificationContext(notification: Notification): Promis
       .single();
 
     if (userData) {
-      context.userName = userData.full_name || 'Client';
+      context.userName = userData.full_name || 'Utilisateur';
       context.userEmail = userData.email || '';
       context.role = userData.role;
+      
+      // Définir clientName ou freelanceName selon le rôle
+      if (userData.role === 'client') {
+        context.clientName = userData.full_name || 'Client';
+      } else if (userData.role === 'freelance') {
+        context.freelanceName = userData.full_name || 'Freelance';
+      }
     }
   }
 
@@ -102,18 +113,29 @@ export async function getNotificationContext(notification: Notification): Promis
       .single();
 
     if (messageData) {
+      // Limiter la longueur de l'aperçu du message à 100 caractères maximum
       context.messagePreview = messageData.content.substring(0, 100) + (messageData.content.length > 100 ? '...' : '');
-      context.messageLink = `https://vynalplatform.com/conversations/${notification.conversation_id}`;
+      context.messageLink = `https://vynalplatform.com/messages?conversation=${notification.conversation_id}`;
       
       // Récupérer les infos sur l'expéditeur du message
       const { data: senderData } = await supabase
         .from('profiles')
-        .select('full_name')
+        .select('full_name, role')
         .eq('id', messageData.sender_id)
         .single();
         
       if (senderData) {
         context.senderName = senderData.full_name || 'Utilisateur';
+        
+        // Pour un message envoyé par un freelance à un client
+        if (senderData.role === 'freelance' && context.role === 'client') {
+          context.freelanceName = senderData.full_name || 'Freelance';
+        }
+        
+        // Pour un message envoyé par un client à un freelance
+        if (senderData.role === 'client' && context.role === 'freelance') {
+          context.clientName = senderData.full_name || 'Client';
+        }
       }
     }
   }
@@ -164,23 +186,86 @@ export async function processNotifications() {
  */
 export async function processNotification(notification: Notification) {
   try {
+    console.log(`[NotificationWorker] Traitement de la notification ID:${notification.id.substring(0, 8)} Type:${notification.type}`);
+    
+    // Récupérer les informations de contexte
+    const context = await getNotificationContext(notification);
+    
     // Vérifier si le type de notification déclenche un email
-    const emailConfig = EMAIL_NOTIFICATION_TYPES[notification.type as keyof typeof EMAIL_NOTIFICATION_TYPES];
+    let emailConfig = EMAIL_NOTIFICATION_TYPES[notification.type as keyof typeof EMAIL_NOTIFICATION_TYPES];
+    
+    // Pour les notifications de message, choisir le template selon le rôle de l'utilisateur
+    if ((notification.type === 'message' || notification.type === 'new_message') && context.role) {
+      const isFreelance = context.role === 'freelance';
+      
+      // Ajuster la configuration en fonction du rôle
+      emailConfig = {
+        template: isFreelance 
+          ? 'src/templates/email/freelance/new_message.html'
+          : 'src/templates/email/client/new_message.html',
+        subject: 'Nouveau message sur Vynal Platform'
+      };
+      
+      console.log(`[NotificationWorker] Template sélectionné pour ${context.role}: ${emailConfig.template}`);
+      
+      // S'assurer que les variables nécessaires sont définies pour le template
+      if (!context.messagePreview && notification.content) {
+        try {
+          const contentObj = JSON.parse(notification.content);
+          if (contentObj.messagePreview) {
+            context.messagePreview = contentObj.messagePreview;
+          }
+          if (contentObj.senderName) {
+            context.senderName = contentObj.senderName;
+            
+            // Assigner correctement selon le rôle
+            if (isFreelance) {
+              context.clientName = contentObj.senderName;
+            } else {
+              context.freelanceName = contentObj.senderName;
+            }
+          }
+        } catch (e) {
+          // Si ce n'est pas un JSON valide, utiliser le contenu brut comme prévisualisation
+          const parts = notification.content.split(':');
+          if (parts.length > 1) {
+            context.senderName = parts[0].trim();
+            context.messagePreview = parts.slice(1).join(':').trim();
+            
+            // Assigner correctement selon le rôle
+            if (isFreelance) {
+              context.clientName = context.senderName;
+            } else {
+              context.freelanceName = context.senderName;
+            }
+          } else {
+            context.messagePreview = notification.content;
+          }
+        }
+      }
+      
+      // S'assurer que l'URL du message est correcte
+      if (notification.conversation_id) {
+        context.messageLink = `https://vynalplatform.com/messages?conversation=${notification.conversation_id}`;
+      }
+    }
+    
     if (!emailConfig) {
+      console.log(`[NotificationWorker] Aucun template d'email configuré pour le type ${notification.type}`);
       // Marquer comme traitée même si pas d'email
       await markNotificationAsEmailed(notification.id, false);
       return;
     }
-
-    // Récupérer les informations de contexte
-    const context = await getNotificationContext(notification);
     
     // Récupérer l'email de l'utilisateur
     if (!context.userEmail) {
-      console.error('[NotificationWorker] Email manquant pour un utilisateur');
+      console.error(`[NotificationWorker] Email manquant pour l'utilisateur ID:${notification.user_id}`);
       await markNotificationAsEmailed(notification.id, false);
       return;
     }
+
+    // Debug - Afficher le contenu de la notification
+    console.log(`[NotificationWorker] Contenu brut de la notification:`, notification.content ? notification.content.substring(0, 100) + '...' : 'null');
 
     // Inclure le contenu de la notification dans le contexte
     if (notification.content) {
@@ -189,12 +274,39 @@ export async function processNotification(notification: Notification) {
       
       // Essayer de parser le JSON si c'est un objet JSON valide
       try {
-        const contentObj = JSON.parse(notification.content);
+        let contentObj;
+        try {
+          contentObj = JSON.parse(notification.content);
+        } catch (parseError) {
+          console.log(`[NotificationWorker] Le contenu n'est pas un JSON valide. Utilisation comme texte brut.`);
+          // Ce n'est pas un JSON, utiliser le contenu tel quel
+          contentObj = { rawContent: notification.content };
+        }
+        
+        // Debug - Afficher les propriétés disponibles
+        console.log(`[NotificationWorker] Propriétés disponibles dans le contenu:`, Object.keys(contentObj));
         
         // Ajouter chaque propriété du JSON au contexte
         for (const [key, value] of Object.entries(contentObj)) {
           if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
-            context[key] = String(value);
+            // Limiter la longueur des valeurs de texte à 300 caractères
+            let stringValue = String(value);
+            
+            if (typeof value === 'string') {
+              // Si la chaîne est vide, la mettre à undefined pour les conditions Handlebars
+              if (stringValue.trim() === '') {
+                context[key] = undefined;
+                continue;
+              }
+              
+              // Sinon limiter la longueur si nécessaire
+              if (stringValue.length > 300) {
+                stringValue = stringValue.substring(0, 300) + '...';
+              }
+            }
+            
+            context[key] = stringValue;
+            console.log(`[NotificationWorker] Ajout de la variable ${key}=${String(value).substring(0, 20)}...`);
           }
         }
         
@@ -205,24 +317,43 @@ export async function processNotification(notification: Notification) {
           
           // Adapter les noms de variables au template
           context.serviceTitle = contentObj.serviceTitle || '';
-          context.serviceDescription = contentObj.serviceDescription || '';
+          
+          // Limiter la longueur de la description à 150 caractères maximum
+          const fullDescription = contentObj.serviceDescription || '';
+          context.serviceDescription = fullDescription.length > 150 
+            ? fullDescription.substring(0, 150) + '...' 
+            : fullDescription;
+            
           context.servicePrice = String(contentObj.servicePrice || '');
-          context.adminNotes = contentObj.adminNotes || '';
+          
+          // Limiter aussi la longueur des notes admin si elles sont trop longues
+          const fullAdminNotes = contentObj.adminNotes || '';
+          
+          // Si les notes sont vides, on met à undefined pour que {{#if adminNotes}} fonctionne correctement
+          // Les templates Handlebars n'affichent rien si la variable est undefined ou vide
+          context.adminNotes = fullAdminNotes.trim() === '' 
+            ? undefined 
+            : (fullAdminNotes.length > 200
+                ? fullAdminNotes.substring(0, 200) + '...'
+                : fullAdminNotes);
+            
           context.currency = 'EUR';
-          context.freelanceName = context.userName || 'Freelance';
           context.creationDate = contentObj.creationDate || new Date().toISOString();
           context.approvalDate = contentObj.approvalDate || new Date().toISOString();
           context.unpublishedDate = contentObj.unpublishedDate || new Date().toISOString();
           context.serviceCategory = contentObj.serviceCategory || 'Non spécifiée';
           context.serviceId = contentObj.serviceId || '';
           
-          console.log('[NotificationWorker] Contexte pour la notification');
+          console.log(`[NotificationWorker] Variables spécifiques ajoutées pour le service "${context.serviceTitle}". adminNotes: ${context.adminNotes ? 'présent' : 'non défini'}`);
         }
       } catch (parseError) {
-        console.error('[NotificationWorker] Erreur lors du parsing du contenu JSON de la notification');
+        console.error('[NotificationWorker] Erreur lors du traitement du contenu de la notification:', parseError);
         // Si le parsing échoue, on continue avec le contenu brut uniquement
       }
     }
+
+    // Debug - Afficher le template utilisé
+    console.log(`[NotificationWorker] Envoi d'email avec template: ${emailConfig.template} à ${context.userEmail}`);
 
     // Envoyer l'email
     const emailSent = await sendTemplateEmail(
@@ -232,12 +363,17 @@ export async function processNotification(notification: Notification) {
       context
     );
 
+    // Log du résultat
+    if (emailSent) {
+      console.log(`[NotificationWorker] ✅ Email envoyé avec succès à ${context.userEmail} pour la notification ID:${notification.id.substring(0, 8)}`);
+    } else {
+      console.error(`[NotificationWorker] ❌ Échec de l'envoi d'email à ${context.userEmail} pour la notification ID:${notification.id.substring(0, 8)}`);
+    }
+
     // Marquer la notification comme traitée
     await markNotificationAsEmailed(notification.id, emailSent);
-    
-    console.log('[NotificationWorker] Email envoyé ou non envoyé pour une notification');
   } catch (error) {
-    console.error('[NotificationWorker] Erreur lors du traitement d\'une notification');
+    console.error('[NotificationWorker] Erreur lors du traitement d\'une notification:', error);
     await markNotificationAsEmailed(notification.id, false);
   }
 }

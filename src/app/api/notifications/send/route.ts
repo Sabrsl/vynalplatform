@@ -41,12 +41,28 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { userId, type, content, conversationId } = body;
     
+    // Log détaillé pour le débogage
+    console.log('API Notification - Corps de la requête reçu:', {
+      userId: userId ? userId.substring(0, 8) + '...' : 'undefined',
+      type,
+      hasContent: !!content,
+      contentType: content ? typeof content : 'N/A',
+      conversationId: conversationId || 'N/A'
+    });
+    
     if (!userId || !type) {
+      console.error('API Notification - Paramètres manquants', { userId, type });
       return NextResponse.json(
         { success: false, message: 'Paramètres manquants: userId et type sont requis' },
         { status: 400 }
       );
     }
+    
+    // S'assurer que le contenu est correctement formaté
+    // Si c'est déjà une chaîne, le laisser tel quel, sinon le convertir en chaîne
+    const contentToStore = typeof content === 'string' 
+      ? content 
+      : JSON.stringify(content);
     
     // Créer une notification dans la base de données
     const { data: notification, error } = await supabase
@@ -54,7 +70,7 @@ export async function POST(req: NextRequest) {
       .insert({
         user_id: userId,
         type,
-        content: content || null,
+        content: contentToStore || null,
         conversation_id: conversationId || null,
         read: false
       })
@@ -62,9 +78,9 @@ export async function POST(req: NextRequest) {
       .single();
       
     if (error) {
-      console.error('Erreur lors de la création de la notification:', error);
+      console.error('API Notification - Erreur lors de la création de la notification:', error);
       return NextResponse.json(
-        { success: false, message: 'Erreur lors de la création de la notification' },
+        { success: false, message: 'Erreur lors de la création de la notification', error: error.message },
         { status: 500 }
       );
     }

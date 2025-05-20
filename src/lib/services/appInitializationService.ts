@@ -5,6 +5,7 @@
 
 import { initStaticPagesInvalidation, STATIC_PAGES } from '@/lib/optimizations/static-invalidation';
 import { attachServiceListeners } from '@/lib/services/servicesInvalidationService';
+import { initRefreshListeners } from '@/lib/services/servicesRefreshService';
 
 /**
  * Initialise tous les services et systèmes nécessaires au démarrage de l'application
@@ -29,9 +30,12 @@ export function initializeApplication(): void {
     
     // Initialiser le service d'invalidation des services
     attachServiceListeners();
-    console.log('🔄 Service d\'invalidation des services initialisé');
     
-    // Ajouter ici d'autres initialisations si nécessaire dans le futur
+    // Initialiser le service de rafraîchissement automatique des services
+    if (typeof window !== 'undefined') {
+      initRefreshListeners();
+      console.log('🔄 Service de rafraîchissement automatique des services initialisé');
+    }
     
     console.log('✅ Initialisation de l\'application terminée avec succès');
   } catch (error) {

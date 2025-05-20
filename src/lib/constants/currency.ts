@@ -24,6 +24,10 @@ export const CURRENCY = {
    * Taux de conversion des devises principales vers le FCFA (XOF)
    * Ces taux sont statiques et devraient être mis à jour régulièrement
    * Pour les applications réelles, utilisez une API comme Open Exchange Rates
+   * 
+   * IMPORTANT: Le taux EUR-XOF est fixe par définition (1 EUR = 655.957 XOF)
+   * Ce taux est utilisé pour la conversion lors des paiements par Stripe/PayPal
+   * qui ne supportent pas directement le XOF
    */
   rates: {
     // Taux fixes pour la zone CFA
@@ -31,7 +35,7 @@ export const CURRENCY = {
     XAF: 1, // 1 FCFA ≈ 1 FCFA (CFA d'Afrique Centrale)
     
     // Zone Euro (taux fixe avec le FCFA)
-    EUR: 0.0015, // 1 FCFA ≈ 0.0015 EUR (taux fixe)
+    EUR: 0.0015, // 1 FCFA ≈ 0.0015 EUR (taux fixe: 1/655.957)
     
     // Autres devises majeures (taux approximatifs à titre d'exemple)
     USD: 0.0017, // 1 FCFA ≈ 0.0017 USD

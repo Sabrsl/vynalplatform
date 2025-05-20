@@ -100,6 +100,91 @@ export function validatePaymentCurrency(userCurrency: string, countryCode: strin
 }
 
 /**
+ * Convertit un montant de XOF vers EUR pour les paiements
+ * @param amountXof Le montant en XOF (Franc CFA)
+ * @param formatString Si true, retourne une chaîne formatée avec symbole €, sinon retourne un nombre
+ * @returns Le montant converti en EUR ou une chaîne formatée
+ */
+export function convertXofToEur(amountXof: number, formatString: boolean = false): number | string {
+  // Taux de conversion fixe: 1 EUR = 655.957 XOF
+  const FIXED_RATE_XOF_TO_EUR = 0.0015;
+  
+  // Conversion
+  const amountEur = amountXof * FIXED_RATE_XOF_TO_EUR;
+  
+  // Retourner soit le nombre soit une chaîne formatée
+  if (formatString) {
+    return new Intl.NumberFormat('fr-FR', {
+      style: 'currency',
+      currency: 'EUR',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(amountEur);
+  }
+  
+  // Arrondir à 2 décimales pour éviter les problèmes de précision
+  return Number(amountEur.toFixed(2));
+}
+
+/**
+ * Convertit un montant depuis n'importe quelle devise vers EUR pour les paiements
+ * @param amount Le montant dans la devise source
+ * @param fromCurrency Code de la devise source
+ * @param formatString Si true, retourne une chaîne formatée avec symbole €, sinon retourne un nombre
+ * @returns Le montant converti en EUR ou une chaîne formatée
+ */
+export function convertToEur(amount: number, fromCurrency: string, formatString: boolean = false): number | string {
+  // Si c'est déjà en EUR, pas besoin de conversion
+  if (fromCurrency === 'EUR') {
+    if (formatString) {
+      return new Intl.NumberFormat('fr-FR', {
+        style: 'currency',
+        currency: 'EUR',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      }).format(amount);
+    }
+    return amount;
+  }
+  
+  // Taux de conversion pour différentes devises vers EUR
+  // Ces taux devraient idéalement être chargés dynamiquement depuis currencies.json
+  const RATES_TO_EUR: Record<string, number> = {
+    'XOF': 0.0015,  // 1 XOF = 0.0015 EUR (taux fixe)
+    'XAF': 0.0015,  // 1 XAF = 0.0015 EUR (taux fixe)
+    'USD': 0.85,    // Exemple approximatif: 1 USD = 0.85 EUR
+    'GBP': 1.15,    // Exemple approximatif: 1 GBP = 1.15 EUR
+    'MAD': 0.094,   // Exemple approximatif
+    'NGN': 0.00058, // Exemple approximatif
+    // Autres devises...
+  };
+  
+  // Vérifier si nous avons un taux pour cette devise
+  const rate = RATES_TO_EUR[fromCurrency];
+  if (!rate) {
+    console.warn(`Aucun taux de conversion trouvé pour ${fromCurrency} vers EUR. Utilisation de XOF comme fallback.`);
+    // Si la devise n'est pas connue, utiliser le taux XOF comme solution de repli
+    return convertXofToEur(amount, formatString);
+  }
+  
+  // Conversion
+  const amountEur = amount * rate;
+  
+  // Retourner soit le nombre soit une chaîne formatée
+  if (formatString) {
+    return new Intl.NumberFormat('fr-FR', {
+      style: 'currency',
+      currency: 'EUR',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(amountEur);
+  }
+  
+  // Arrondir à 2 décimales pour éviter les problèmes de précision
+  return Number(amountEur.toFixed(2));
+}
+
+/**
  * Déclencher un événement de changement de devise pour informer tous les composants
  * Cela permet de mettre à jour les prix dans toute l'application
  */

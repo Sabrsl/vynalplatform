@@ -137,7 +137,7 @@
   }
   
   input, select, textarea {
-    font-size: 16px; /* Taille minimum pour éviter le zoom sur iOS */
+    font-size: 10px !important;
   }
 
   /* Background gradient */
@@ -221,6 +221,12 @@
     .no-scrollbar::-webkit-scrollbar {
       display: block !important;
     }
+  }
+
+  /* Désactiver le zoom sur mobile */
+  html {
+    touch-action: manipulation;
+    -webkit-text-size-adjust: 100%;
   }
 }
 

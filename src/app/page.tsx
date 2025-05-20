@@ -27,6 +27,7 @@ import { BentoGridThirdDemo } from "@/components/ui/BentoGridThirdDemo";
 import { Metadata } from "next";
 import Image from "next/image";
 import SchemaOrg from "@/components/seo/SchemaOrg";
+import { Button } from "@/components/ui/button";
 
 // Interface pour les données en cache de la page d'accueil
 interface HomepageData {
@@ -253,7 +254,7 @@ export default function Home() {
     '@type': 'Organization',
     'name': 'Vynal Platform',
     'url': 'https://vynalplatform.com',
-    'logo': 'https://vynalplatform.com/assets/images/logo.png',
+    'logo': 'https://vynalplatform.com/assets/logo/logo_vynal_platform_simple',
     'sameAs': [
       'https://www.facebook.com/vynalplatform',
       'https://www.instagram.com/vynalplatform/',
@@ -306,42 +307,42 @@ export default function Home() {
                   alt="Free Money" 
                   width={84}
                   height={18}
-                  className="h-6 md:h-7 w-auto object-contain grayscale hover:grayscale-0 transition-all duration-300" 
+                  className="h-4 md:h-5 w-auto object-contain grayscale hover:grayscale-0 transition-all duration-300" 
                 />
                 <Image 
                   src="/assets/partners/logo_stripe.webp" 
                   alt="Stripe" 
                   width={84}
                   height={18}
-                  className="h-6 md:h-7 w-auto object-contain grayscale hover:grayscale-0 transition-all duration-300" 
+                  className="h-4 md:h-5 w-auto object-contain grayscale hover:grayscale-0 transition-all duration-300" 
                 />
                 <Image 
                   src="/assets/partners/logo_wave_.webp" 
                   alt="Wave" 
                   width={84}
                   height={18}
-                  className="h-6 md:h-7 w-auto object-contain grayscale hover:grayscale-0 transition-all duration-300" 
+                  className="h-4 md:h-5 w-auto object-contain grayscale hover:grayscale-0 transition-all duration-300" 
                 />
                 <Image 
                   src="/assets/partners/om_logo_.webp" 
                   alt="OM" 
                   width={84}
                   height={18}
-                  className="h-6 md:h-7 w-auto object-contain grayscale hover:grayscale-0 transition-all duration-300" 
+                  className="h-4 md:h-5 w-auto object-contain grayscale hover:grayscale-0 transition-all duration-300" 
                 />
                 <Image 
                   src="/assets/partners/Google_.webp" 
                   alt="Google" 
                   width={84}
                   height={18}
-                  className="h-6 md:h-7 w-auto object-contain grayscale hover:grayscale-0 transition-all duration-300" 
+                  className="h-4 md:h-5 w-auto object-contain grayscale hover:grayscale-0 transition-all duration-300" 
                 />
                 <Image 
                   src="/assets/partners/Logo-GitHub-Black.webp" 
                   alt="GitHub" 
                   width={84}
                   height={18}
-                  className="h-6 md:h-7 w-auto object-contain dark:invert grayscale hover:grayscale-0 transition-all duration-300" 
+                  className="h-4 md:h-5 w-auto object-contain dark:invert grayscale hover:grayscale-0 transition-all duration-300" 
                 />
               </div>
             </div>
@@ -397,7 +398,12 @@ export default function Home() {
                     <Link
                       key={cat.id}
                       href={`${PUBLIC_ROUTES.SERVICES}?category=${cat.slug}`}
-                      className={`flex flex-col items-center justify-center p-3 md:p-4 rounded-xl bg-white/30 dark:bg-slate-800/30 backdrop-blur-sm border border-slate-200 dark:border-slate-700/30 shadow-sm hover:shadow-md hover:border-vynal-accent-primary/30 dark:hover:border-vynal-accent-primary/40 hover:-translate-y-1 transition-all duration-200 group ${hideOnDesktop}`}
+                      className={`flex flex-col items-center justify-center p-3 md:p-4 rounded-xl 
+                        bg-white/30 dark:bg-slate-800/30 backdrop-blur-sm 
+                        border border-slate-300 dark:border-slate-700/30 
+                        shadow-sm hover:shadow-md 
+                        hover:border-vynal-accent-primary/40 dark:hover:border-vynal-accent-primary/40 
+                        hover:-translate-y-1 transition-all duration-200 group ${hideOnDesktop}`}
                     >
                       <div className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center rounded-full bg-vynal-accent-10 dark:bg-vynal-accent-10 border border-vynal-accent-primary/20 dark:border-vynal-accent-primary/20 mb-2 md:mb-3 text-vynal-accent-primary group-hover:bg-vynal-accent-20 dark:group-hover:bg-vynal-accent-20 group-hover:border-vynal-accent-primary/30 dark:group-hover:border-vynal-accent-primary/40 transition-all duration-200">
                         <Icon className="w-5 h-5 md:w-6 md:h-6 stroke-[1.5]" />
@@ -409,6 +415,23 @@ export default function Home() {
                   );
                 })
             }
+          </div>
+          
+          {/* Bouton Voir tous les services */}
+          <div className="text-center mt-8">
+            <Link
+              href={PUBLIC_ROUTES.SERVICES}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full
+                bg-vynal-accent-primary/20 hover:bg-vynal-accent-primary/30
+                dark:bg-vynal-accent-primary/10 dark:hover:bg-vynal-accent-primary/20
+                text-vynal-accent-primary font-medium text-xs
+                transition-all duration-200 hover:-translate-y-0.5"
+            >
+              Voir tous les services
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </Link>
           </div>
         </div>
       </section>
@@ -434,7 +457,7 @@ export default function Home() {
             Vynal Platform
           </h2>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-6xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-6 max-w-6xl mx-auto">
             {/* Grande carte à gauche */}
             <WobbleCard
               containerClassName="bg-gradient-to-br from-pink-500 to-purple-600 dark:from-pink-600 dark:to-purple-700 h-full"
@@ -442,7 +465,7 @@ export default function Home() {
             >
               <div className="flex flex-col justify-between h-full">
                 <div>
-                  <h3 className="text-3xl md:text-4xl font-bold mb-4 text-white">Qualité garantie</h3>
+                  <h3 className="text-3xl md:text-4xl font-bold mb-4 text-white">Des microservices pour tout, en 1 clic</h3>
                   <p className="text-white/90 text-lg md:text-xl">
                     Propulse l'ensemble de vos projets
                   </p>
@@ -450,17 +473,24 @@ export default function Home() {
                 
                 <div className="mt-6">
                   <p className="text-white/90 mb-6">
-                  Accédez à des profils vérifiés, des évaluations authentiques et une vérification d'identité. Vous savez exactement à qui vous avez affaire.
+                  Commandez en 3 clics. Discutez avec le vendeur. Recevez votre service dans les délais. Zéro prise de tête. Graphisme, rédaction, marketing, IA... 
+                  Trouvez le bon expert en quelques secondes. Plus besoin de chercher partout.
                   </p>
                   <div className="overflow-hidden rounded-xl bg-gray-200 dark:bg-gray-800 flex items-center justify-center h-[250px]">
-                    <p className="text-gray-500 dark:text-gray-400 text-sm">Image du tableau de bord Vynal</p>
+                    <Image
+                      src="/images/profil5.webp"
+                      alt="Qualité garantie"
+                      width={400}
+                      height={250}
+                      className="w-full h-full object-cover object-[center_30%]"
+                    />
                   </div>
                 </div>
               </div>
             </WobbleCard>
             
             {/* Colonne de droite */}
-            <div className="grid grid-cols-1 gap-6 h-full">
+            <div className="grid grid-cols-1 gap-3 md:gap-6 h-full">
               {/* Carte supérieure */}
               <WobbleCard
                 containerClassName="bg-gradient-to-br from-indigo-500 to-blue-600 dark:from-indigo-600 dark:to-blue-700"
@@ -471,14 +501,15 @@ export default function Home() {
                     Zéro contrainte
                   </h3>
                   <p className="text-white/90 mb-4">
-                    Aucuns frais avant l'embauche. Vos données sont protégées, votre confidentialité est respectée. Et en cas de besoin, notre assistance est disponible 24/7.
+                   Passez à l’action sans embaucher.
+                   Vos données sont protégées, votre confidentialité est respectée. Et en cas de besoin, notre assistance est disponible 24/7.
                   </p>
                 </div>
               </WobbleCard>
               
               {/* Carte inférieure */}
               <WobbleCard
-                containerClassName="bg-gradient-to-br from-blue-600 to-indigo-800 dark:from-blue-700 dark:to-indigo-900"
+                containerClassName="bg-gradient-to-br from-vynal-accent-primary to-vynal-accent-secondary dark:from-vynal-accent-primary/90 dark:to-vynal-accent-secondary/90"
                 className="p-8 md:p-10"
               >
                 <div className="flex flex-col items-center">
@@ -486,7 +517,7 @@ export default function Home() {
                     Inscription rapide
                   </h3>
                   <p className="text-white/90 mb-6 text-center">
-                    Rejoignez la plateforme Vynal la plus innovante aujourd'hui!
+                    Rejoignez la plateforme Vynal, une première en Afrique !
                   </p>
                   <a 
                     href="/auth/signup?role=client"
@@ -720,22 +751,28 @@ export default function Home() {
       {/* Call to Action Section */}
       <section className="text-slate-800 dark:text-vynal-text-primary py-16 md:py-24">
         <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl font-bold text-center mb-6 text-slate-800 dark:bg-gradient-to-r dark:from-vynal-accent-primary dark:to-vynal-accent-secondary dark:bg-clip-text dark:text-transparent">
-            Prêt à rejoindre notre communauté?
-          </h2>
-          <p className="max-w-xl mx-auto mb-8 text-slate-600 dark:text-vynal-text-secondary">
-            Rejoignez notre communauté de freelances et de clients et découvrez une nouvelle façon de travailler.
-          </p>
-          <div className="flex flex-col sm:flex-row justify-center gap-4">
-            <Link 
-              href={`${AUTH_ROUTES.REGISTER}?role=client`}
-              className="bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-white py-3 px-8 rounded-lg font-medium transition-all duration-300 shadow-md hover:shadow-vynal-accent-primary/20"
-            >
-              S'inscrire comme client
-            </Link>
-            <BorderBeamButtonDynamic href="/devenir-freelance" className="force-white-text">
-              S'inscrire comme freelance
-            </BorderBeamButtonDynamic>
+          <div className="max-w-4xl mx-auto">
+            <div className="bg-gradient-to-r from-vynal-accent-primary to-vynal-accent-secondary p-8 md:p-10 rounded-xl shadow-lg">
+              <div className="flex flex-col items-center">
+                <h2 className="text-2xl md:text-3xl font-bold mb-6 text-white text-center">
+                  Prêt à rejoindre notre communauté?
+                </h2>
+                <p className="text-white/90 mb-8 text-center max-w-xl mx-auto">
+                  Rejoignez notre communauté de freelances et de clients et découvrez une nouvelle façon de travailler.
+                </p>
+                <div className="flex flex-col sm:flex-row justify-center gap-4">
+                  <Link 
+                    href={`${AUTH_ROUTES.REGISTER}?role=client`}
+                    className="bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-white py-3 px-8 rounded-lg font-medium transition-all duration-300 shadow-md hover:shadow-vynal-accent-primary/20"
+                  >
+                    S'inscrire comme client
+                  </Link>
+                  <BorderBeamButtonDynamic href="/devenir-freelance" className="force-white-text">
+                    S'inscrire comme freelance
+                  </BorderBeamButtonDynamic>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>

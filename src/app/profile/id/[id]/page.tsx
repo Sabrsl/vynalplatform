@@ -15,6 +15,7 @@ import { formatDate } from "@/lib/utils";
 import ReviewReplyComponent from '@/components/reviews/ReviewReply';
 import { Loader } from "@/components/ui/loader";
 import Image from 'next/image';
+import MessagingDialog from "@/components/messaging/MessagingDialog";
 
 // Type pour le profil du vendeur et ses services
 type ProfileData = {
@@ -184,9 +185,9 @@ export default function VendorProfileByIdPage() {
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
         {/* Profil principal */}
         <div className="md:col-span-4">
-          <Card className="bg-white shadow-sm">
+          <Card className="bg-white/30 dark:bg-slate-900/30 border-slate-200 dark:border-slate-700/30 shadow-sm">
             <CardHeader>
-              <CardTitle>Profil du vendeur</CardTitle>
+              <CardTitle className="text-slate-800 dark:text-vynal-text-primary">Profil du vendeur</CardTitle>
             </CardHeader>
             <CardContent className="p-6">
               <div className="flex flex-col items-center">
@@ -195,21 +196,21 @@ export default function VendorProfileByIdPage() {
                     <Image 
                       src={vendor.avatar_url}
                       alt={vendorName}
-                      className="w-24 h-24 rounded-full object-cover"
+                      className="w-24 h-24 rounded-full object-cover border border-slate-200 dark:border-slate-700/30"
                       width={96}
                       height={96}
                       unoptimized
                     />
                   ) : (
-                    <UserCircle className="w-24 h-24 text-gray-300" />
+                    <UserCircle className="w-24 h-24 text-slate-300 dark:text-slate-600" />
                   )}
                 </div>
                 
                 <div className="text-center mb-4 w-full">
-                  <h1 className="text-xl font-bold">{vendorName}</h1>
-                  <p className="text-gray-500">@{vendorUsername}</p>
+                  <h1 className="text-xl font-bold text-slate-800 dark:text-vynal-text-primary">{vendorName}</h1>
+                  <p className="text-slate-600 dark:text-vynal-text-secondary">@{vendorUsername}</p>
                   
-                  <div className="mt-2 inline-block px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-xs font-medium">
+                  <div className="mt-2 inline-block px-3 py-1 bg-vynal-accent-primary/10 dark:bg-vynal-accent-primary/10 text-vynal-accent-primary border border-vynal-accent-primary/20 dark:border-vynal-accent-primary/20 rounded-full text-xs font-medium hover:bg-vynal-accent-primary/15 dark:hover:bg-vynal-accent-primary/20 hover:border-vynal-accent-primary/30 dark:hover:border-vynal-accent-primary/40 transition-all duration-200">
                     Vendeur certifié
                   </div>
                   
@@ -224,7 +225,7 @@ export default function VendorProfileByIdPage() {
                         
                         return (
                           <div key={star} className="relative">
-                            <Star className="h-4 w-4 text-gray-200 fill-gray-200" />
+                            <Star className="h-4 w-4 text-slate-200 dark:text-slate-700 fill-slate-200 dark:fill-slate-700" />
                             
                             {(isFilled || isPartiallyFilled) && (
                               <div 
@@ -240,7 +241,7 @@ export default function VendorProfileByIdPage() {
                         );
                       })}
                     </div>
-                    <span className="text-sm ml-2 text-gray-600">
+                    <span className="text-sm ml-2 text-slate-600 dark:text-vynal-text-secondary">
                       {averageRating > 0 
                         ? `${averageRating.toFixed(1)} (${reviewCount} avis)` 
                         : "Aucun avis"}
@@ -270,13 +271,19 @@ export default function VendorProfileByIdPage() {
                         <TabsList className="w-full grid grid-cols-2 mb-3 text-xs">
                           <TabsTrigger value="positifs">
                             <div className="flex flex-col items-center">
-                              <span>Avis positifs</span>
+                              <div className="flex items-center">
+                                <ThumbsUp className="h-3 w-3 text-emerald-500 mr-1" />
+                                <span>Avis positifs</span>
+                              </div>
                               <span className="text-[10px] text-gray-500 mt-0.5">({positiveReviews.length})</span>
                             </div>
                           </TabsTrigger>
                           <TabsTrigger value="negatifs">
                             <div className="flex flex-col items-center">
-                              <span>Avis négatifs</span>
+                              <div className="flex items-center">
+                                <ThumbsDown className="h-3 w-3 text-red-500 mr-1" />
+                                <span>Avis négatifs</span>
+                              </div>
                               <span className="text-[10px] text-gray-500 mt-0.5">({negativeReviews.length})</span>
                             </div>
                           </TabsTrigger>
@@ -397,43 +404,157 @@ export default function VendorProfileByIdPage() {
                 </div>
                 
                 {/* Bouton de contact */}
-                <div className="w-full">
-                  <Button variant="default" className="w-full">
-                    <MessageSquare className="h-4 w-4 mr-2" />
-                    Contacter
-                  </Button>
+                <div className="w-full mt-4">
+                  <MessagingDialog 
+                    freelanceId={vendor.id}
+                    freelanceName={vendorName}
+                    buttonVariant="default"
+                    className="w-full text-white bg-gradient-to-r from-[#FF66B2] to-[#FF66B2]/80 hover:from-[#FF66B2]/90 hover:to-[#FF66B2] text-white shadow-md transition-all dark:from-pink-400 dark:to-pink-600 dark:hover:from-pink-500 dark:hover:to-pink-700"
+                  />
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
         
-        {/* Services et Avis du vendeur */}
+        {/* Services et avis */}
         <div className="md:col-span-8">
-          <Card className="bg-white shadow-sm">
-            <CardHeader>
-              <CardTitle>Services proposés par {vendorName}</CardTitle>
-            </CardHeader>
-            <CardContent>
+          <Tabs defaultValue="services" className="space-y-6">
+            <TabsList className="bg-white/30 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700/30">
+              <TabsTrigger 
+                value="services"
+                className="data-[state=active]:bg-vynal-accent-primary/10 data-[state=active]:text-vynal-accent-primary data-[state=active]:border-vynal-accent-primary/20"
+              >
+                Services
+              </TabsTrigger>
+              <TabsTrigger 
+                value="reviews"
+                className="data-[state=active]:bg-vynal-accent-primary/10 data-[state=active]:text-vynal-accent-primary data-[state=active]:border-vynal-accent-primary/20"
+              >
+                Avis
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="services" className="space-y-4">
               {services.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {services.map((service) => (
-                    <Link 
-                      key={service.id}
-                      href={`/services/${service.slug}`}
-                      className="block h-full transition-transform duration-300 hover:scale-[1.01]"
-                    >
-                      <ServiceCard service={service} className="h-full" />
-                    </Link>
+                    <ServiceCard 
+                      key={service.id} 
+                      service={service}
+                      className="bg-white/30 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700/30 hover:border-slate-300 dark:hover:border-slate-700/50 transition-all duration-200"
+                    />
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-8">
-                  <p className="text-gray-500">Ce vendeur n'a pas encore publié de services.</p>
-                </div>
+                <Card className="bg-white/30 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700/30">
+                  <CardContent className="p-6 text-center">
+                    <p className="text-slate-600 dark:text-vynal-text-secondary">
+                      Aucun service disponible pour le moment
+                    </p>
+                  </CardContent>
+                </Card>
               )}
-            </CardContent>
-          </Card>
+            </TabsContent>
+
+            <TabsContent value="reviews" className="space-y-4">
+              {loadingReviews ? (
+                <div className="flex justify-center p-6">
+                  <Loader size="md" variant="primary" />
+                </div>
+              ) : reviews.length > 0 ? (
+                <div className="space-y-4">
+                  {/* Avis positifs */}
+                  {positiveReviews.length > 0 && (
+                    <div className="space-y-3">
+                      <h3 className="text-sm font-medium text-slate-800 dark:text-vynal-text-primary flex items-center">
+                        <ThumbsUp className="w-4 h-4 mr-2 text-emerald-500" />
+                        Avis positifs ({positiveReviews.length})
+                      </h3>
+                      {positiveReviews.slice(0, 3).map((review) => (
+                        <Card key={review.id} className="bg-white/30 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700/30">
+                          <CardContent className="p-4">
+                            <div className="flex items-start space-x-3">
+                              <Avatar className="h-8 w-8 border border-slate-200 dark:border-slate-700/30">
+                                <AvatarImage src={review.client.avatar_url || undefined} />
+                                <AvatarFallback className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                                  {review.client.full_name?.[0] || review.client.username?.[0] || 'U'}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1">
+                                <div className="flex items-center justify-between">
+                                  <p className="text-sm font-medium text-slate-800 dark:text-vynal-text-primary">
+                                    {review.client.full_name || review.client.username}
+                                  </p>
+                                  <span className="text-xs text-slate-600 dark:text-vynal-text-secondary">
+                                    {formatDate(review.created_at)}
+                                  </span>
+                                </div>
+                                <p className="text-sm text-slate-600 dark:text-vynal-text-secondary mt-1">
+                                  {review.comment}
+                                </p>
+                                <div className="mt-2">
+                                  <ReviewReplyComponent reviewId={review.id} freelanceId={vendor.id} />
+                                </div>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Avis négatifs */}
+                  {negativeReviews.length > 0 && (
+                    <div className="space-y-3">
+                      <h3 className="text-sm font-medium text-slate-800 dark:text-vynal-text-primary flex items-center">
+                        <ThumbsDown className="w-4 h-4 mr-2 text-red-500" />
+                        Avis négatifs ({negativeReviews.length})
+                      </h3>
+                      {negativeReviews.slice(0, 3).map((review) => (
+                        <Card key={review.id} className="bg-white/30 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700/30">
+                          <CardContent className="p-4">
+                            <div className="flex items-start space-x-3">
+                              <Avatar className="h-8 w-8 border border-slate-200 dark:border-slate-700/30">
+                                <AvatarImage src={review.client.avatar_url || undefined} />
+                                <AvatarFallback className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                                  {review.client.full_name?.[0] || review.client.username?.[0] || 'U'}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1">
+                                <div className="flex items-center justify-between">
+                                  <p className="text-sm font-medium text-slate-800 dark:text-vynal-text-primary">
+                                    {review.client.full_name || review.client.username}
+                                  </p>
+                                  <span className="text-xs text-slate-600 dark:text-vynal-text-secondary">
+                                    {formatDate(review.created_at)}
+                                  </span>
+                                </div>
+                                <p className="text-sm text-slate-600 dark:text-vynal-text-secondary mt-1">
+                                  {review.comment}
+                                </p>
+                                <div className="mt-2">
+                                  <ReviewReplyComponent reviewId={review.id} freelanceId={vendor.id} />
+                                </div>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <Card className="bg-white/30 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700/30">
+                  <CardContent className="p-6 text-center">
+                    <p className="text-xs text-slate-600 dark:text-vynal-text-secondary">
+                      Aucun avis pour le moment
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
     </div>

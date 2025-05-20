@@ -2,9 +2,26 @@ import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import type { Database } from '@/types/database';
 
+// Type pour les options de création du client Supabase
+interface SupabaseOptions {
+  noCache?: string; // Un identifiant unique pour éviter le cache (généralement un timestamp)
+}
+
 // Client Supabase pour les composants serveur et les API routes
-export function getSupabaseServer() {
-  return createServerComponentClient<Database>({ cookies });
+export function getSupabaseServer(options?: SupabaseOptions) {
+  const cookieStore = cookies();
+  
+  // Créer un client avec les options standards
+  const supabase = createServerComponentClient<Database>({ cookies: () => cookieStore });
+  
+  // Si l'option noCache est fournie, on peut uniquement la logguer
+  if (options?.noCache) {
+    console.log(`Utilisation d'un client Supabase avec contournement du cache: ${options.noCache}`);
+    // Note: Nous ne pouvons pas modifier facilement le client pour ajouter un paramètre de requête
+    // Le problème sera résolu côté client où le paramètre _timestamp_bypass est utilisé
+  }
+  
+  return supabase;
 }
 
 // Récupérer l'utilisateur connecté côté serveur

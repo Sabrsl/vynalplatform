@@ -496,10 +496,12 @@ export default function PaymentPage() {
                   <Button 
                     type="button" 
                     variant="ghost" 
-                    onClick={() => setSelectedPaymentMethod(null)}
+                    asChild
                   >
-                    <ArrowLeft className="h-4 w-4 mr-2" />
-                    Retour
+                    <Link href="/services">
+                      <ArrowLeft className="h-4 w-4 mr-2" />
+                      Retour
+                    </Link>
                   </Button>
                   <Button 
                     onClick={handlePayment}

@@ -34,6 +34,8 @@ import { toast } from 'sonner';
 import { ServicesPageData, Category, Subcategory, Service } from '@/app/services/server';
 import { ServiceWithFreelanceAndCategories } from '@/hooks/useServices';
 import { UICategoryType, UISubcategoryType, adaptCategoryForUI, adaptSubcategoryForUI } from '@/hooks/useCategories';
+import { addRefreshListener } from '@/lib/services/servicesRefreshService';
+import { setCachedData } from '@/lib/optimizations';
 
 // Utilisons les fonctions d'adaptation des catégories depuis les hooks
 
@@ -525,6 +527,57 @@ export default function ServicesClientPage({ initialData }: ServicesClientPagePr
     setSearchQuery(urlSearchQuery);
     setCurrentPage(page);
   }, [categorySlug, subcategorySlug, urlSearchQuery, page]);
+  
+  // Après l'initialisation des états et avant les effets, ajouter une fonction pour récupérer les données des services
+  const fetchServicesData = useCallback(async () => {
+    try {
+      // Récupérer les données de l'API
+      const response = await fetch('/api/services');
+      if (!response.ok) {
+        throw new Error('Impossible de récupérer les services');
+        return;
+      }
+
+      const data = await response.json();
+      
+      // Mettre à jour les états
+      if (data && data.services) {
+        setAllServices(data.services);
+      }
+      if (data && data.categories) {
+        setCategories(data.categories);
+      }
+      if (data && data.subcategories) {
+        setSubcategories(data.subcategories);
+      }
+      
+      console.log('Données des services rafraîchies');
+    } catch (error) {
+      console.error('Erreur lors du rafraîchissement des services:', error);
+    }
+  }, []);
+  
+  // Ajouter l'import pour le service de rafraîchissement
+  useEffect(() => {
+    // Ajouter un écouteur de rafraîchissement pour cette page
+    const removeListener = addRefreshListener(() => {
+      console.log('ServicesClientPage: Rafraîchissement demandé');
+      
+      // Récupérer les dernières données
+      if (typeof window !== 'undefined') {
+        // Forcer l'invalidation du cache
+        setCachedData('services_', null, { expiry: 0 });
+        
+        // Refaire la requête
+        fetchServicesData();
+      }
+    });
+    
+    // Nettoyer l'écouteur lors du démontage du composant
+    return () => {
+      removeListener();
+    };
+  }, [fetchServicesData]);
   
   return (
     <div className="min-h-screen bg-white dark:bg-vynal-purple-dark animate-in fade-in duration-300">

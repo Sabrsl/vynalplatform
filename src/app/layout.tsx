@@ -23,16 +23,26 @@ function Loading() {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 5, // Permettre le zoom pour l'accessibilité
+  maximumScale: 1, // Désactiver le zoom
+  userScalable: false, // Empêcher le zoom utilisateur
   themeColor: '#1a1a2e', // Définir la couleur du thème pour les navigateurs mobiles
 };
 
 export const metadata: Metadata = {
-  title: 'Vynal - Plateforme de services numériques',
+  title: 'Vynal - Plateforme de services numériques en Afrique',
   description: 'Vynal est une plateforme dédiée aux services numériques proposés par des professionnels indépendants',
-  keywords: 'freelance, clients, services, marketplace, gig economy',
-  manifest: '/manifest.json',
+  keywords: 'freelance, clients, afrique, services, marketplace, gig economy',
+  manifest: '/site.webmanifest',
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://vynalplatform.com'),
+  icons: {
+    icon: [
+      { url: '/favicon_vynalplatform.ico' },
+      { url: '/favicon_vynalplatform.ico', type: 'image/x-icon' }
+    ],
+    apple: [
+      { url: '/favicon_vynalplatform.ico' }
+    ]
+  },
   // Amélioration pour les partages sociaux
   openGraph: {
     type: 'website',

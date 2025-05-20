@@ -42,6 +42,7 @@ interface Service {
   category?: string;
   rejection_reason?: string;
   created_at: string;
+  active: boolean;
 }
 
 // Clé de cache pour les services en validation
@@ -143,9 +144,15 @@ export default function ValidationsPage() {
   
   // Fonction pour forcer le rafraîchissement des données
   const handleRefresh = () => {
+    // Forcer le rafraîchissement des données
     fetchServices(true);
     
-    // Invalider explicitement le cache
+    // Invalider explicitement tous les caches via le service centralisé
+    import('@/lib/services/servicesInvalidationService').then(({ triggerServicesInvalidation }) => {
+      triggerServicesInvalidation();
+    });
+    
+    // Invalider aussi explicitement le cache local pour une mise à jour immédiate
     setCachedData(
       VALIDATION_SERVICES_KEY,
       null,
@@ -167,6 +174,23 @@ export default function ValidationsPage() {
   
   // Invalider les caches liés aux services
   const invalidateServiceCaches = () => {
+    // Utiliser le service d'invalidation centralisé
+    if (currentService) {
+      // Si un service courant est disponible, utiliser l'invalidation spécifique
+      import('@/lib/services/servicesInvalidationService').then(({ invalidateAfterServiceValidation }) => {
+        invalidateAfterServiceValidation(
+          currentService.id,
+          currentService.title || "Service sans titre"
+        );
+      });
+    } else {
+      // Sinon, utiliser l'invalidation générique
+      import('@/lib/services/servicesInvalidationService').then(({ triggerServicesInvalidation }) => {
+        triggerServicesInvalidation();
+      });
+    }
+    
+    // Maintenir l'invalidation locale pour une cohérence immédiate
     // Invalider le cache des validations
     setCachedData(
       VALIDATION_SERVICES_KEY,
@@ -236,10 +260,23 @@ export default function ValidationsPage() {
   // Gérer la validation d'un service
   const handleValidate = async (serviceId: string) => {
     try {
+      // Récupérer les informations du service avant la mise à jour
+      const { data: serviceData, error: serviceError } = await supabase
+        .from('services')
+        .select('title, freelance_id')
+        .eq('id', serviceId)
+        .single();
+      
+      if (serviceError) {
+        throw serviceError;
+      }
+      
+      // Mettre à jour le statut du service
       const { error } = await supabase
         .from('services')
         .update({ 
           status: 'approved',
+          active: true, // S'assurer que le service est aussi actif/publié
           validated_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })
@@ -252,7 +289,7 @@ export default function ValidationsPage() {
       // Mettre à jour l'état local
       const updatedServices = services.map(service => 
         service.id === serviceId 
-          ? { ...service, status: 'approved' as const } 
+          ? { ...service, status: 'approved' as const, active: true } 
           : service
       );
       
@@ -265,8 +302,35 @@ export default function ValidationsPage() {
         { expiry: CACHE_EXPIRY.LONG, priority: 'high' }
       );
       
-      // Invalider les autres caches liés
-      invalidateServiceCaches();
+      // Mettre temporairement le service courant pour l'invalidation
+      setCurrentService({
+        id: serviceId,
+        title: serviceData?.title || "Service sans titre",
+        description: "",
+        price: 0,
+        status: "approved" as const,
+        created_at: new Date().toISOString(),
+        active: true,
+        freelance_id: serviceData?.freelance_id
+      } as Service);
+      
+      // Invalider les autres caches liés et envoyer notification
+      setTimeout(() => {
+        invalidateServiceCaches();
+        
+        // Envoyer une notification au freelance si applicable
+        if (serviceData?.freelance_id) {
+          sendNotification(
+            serviceData.freelance_id,
+            'service_approved',
+            {
+              serviceId: serviceId,
+              serviceTitle: serviceData.title,
+              approvalDate: new Date().toISOString()
+            }
+          ).catch((error: Error) => console.error('Erreur lors de l\'envoi de notification:', error));
+        }
+      }, 100);
       
       toast({
         title: "Service approuvé",
@@ -285,10 +349,23 @@ export default function ValidationsPage() {
   // Gérer le rejet d'un service
   const handleReject = async (serviceId: string, reason: string) => {
     try {
+      // Récupérer les informations du service avant la mise à jour
+      const { data: serviceData, error: serviceError } = await supabase
+        .from('services')
+        .select('title, freelance_id')
+        .eq('id', serviceId)
+        .single();
+      
+      if (serviceError) {
+        throw serviceError;
+      }
+      
+      // Mettre à jour le statut du service avec les informations de rejet
       const { error } = await supabase
         .from('services')
         .update({ 
           status: 'rejected',
+          active: false, // Désactiver le service rejeté
           rejection_reason: reason,
           updated_at: new Date().toISOString()
         })
@@ -301,7 +378,12 @@ export default function ValidationsPage() {
       // Mettre à jour l'état local
       const updatedServices = services.map(service => 
         service.id === serviceId 
-          ? { ...service, status: 'rejected' as const, rejection_reason: reason } 
+          ? { 
+              ...service, 
+              status: 'rejected' as const, 
+              rejection_reason: reason,
+              active: false 
+            } 
           : service
       );
       
@@ -314,8 +396,38 @@ export default function ValidationsPage() {
         { expiry: CACHE_EXPIRY.LONG, priority: 'high' }
       );
       
-      // Invalider les autres caches liés
-      invalidateServiceCaches();
+      // Spécifier le service actuel pour l'invalidation
+      setCurrentService({
+        id: serviceId,
+        title: serviceData?.title || "Service sans titre",
+        description: "",
+        price: 0,
+        status: "rejected" as const,
+        created_at: new Date().toISOString(),
+        active: false,
+        freelance_id: serviceData?.freelance_id,
+        rejection_reason: reason
+      } as Service);
+      
+      // Invalider les autres caches liés et envoyer notification
+      setTimeout(() => {
+        // Invalider les caches
+        invalidateServiceCaches();
+        
+        // Envoyer une notification au freelance si applicable
+        if (serviceData?.freelance_id) {
+          sendNotification(
+            serviceData.freelance_id,
+            'service_rejected',
+            {
+              serviceId: serviceId,
+              serviceTitle: serviceData.title,
+              rejectionReason: reason,
+              rejectionDate: new Date().toISOString()
+            }
+          ).catch((error: Error) => console.error('Erreur lors de l\'envoi de notification:', error));
+        }
+      }, 100);
       
       toast({
         title: "Service rejeté",
@@ -347,6 +459,49 @@ export default function ValidationsPage() {
     if (currentService && rejectionReason.trim()) {
       handleReject(currentService.id, rejectionReason);
       closeRejectDialog();
+    }
+  };
+
+  // Fonction pour envoyer des notifications aux freelances
+  const sendNotification = async (userId: string, type: string, content: any): Promise<boolean> => {
+    try {
+      // Vérifier que les données sont valides
+      if (!userId || !type || !content) {
+        console.warn('Données de notification incomplètes:', { userId, type });
+        return false;
+      }
+
+      const response = await fetch('/api/notifications/send', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId,
+          type,
+          content: JSON.stringify(content)
+        }),
+      });
+
+      if (!response.ok) {
+        // Récupérer le message d'erreur pour plus de détails
+        let errorDetails = '';
+        try {
+          const errorData = await response.json();
+          errorDetails = errorData.message || '';
+        } catch (e) {
+          errorDetails = 'Impossible de lire les détails de l\'erreur';
+        }
+
+        console.error(`Erreur lors de l'envoi de la notification (${response.status}): ${errorDetails}`);
+        return false;
+      }
+
+      // Notification envoyée avec succès
+      return true;
+    } catch (error) {
+      console.error('Erreur lors de l\'envoi de la notification:', error);
+      return false;
     }
   };
 

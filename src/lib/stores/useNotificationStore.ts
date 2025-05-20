@@ -137,7 +137,7 @@ export const useNotificationStore = create<NotificationState>(
         // Déterminer si le destinataire est un freelance
         const { data: recipientData, error: recipientError } = await supabase
           .from('profiles')
-          .select('role')
+          .select('role, email')
           .eq('id', userId)
           .single();
           
@@ -151,17 +151,54 @@ export const useNotificationStore = create<NotificationState>(
         const truncatedContent = content.length > 50 ? `${content.substring(0, 47)}...` : content;
         
         // Créer une notification pour tous les utilisateurs (freelances et clients)
-        await get().createNotification({
-          user_id: userId,
-          type: 'message',
-          content: `${senderName}: ${truncatedContent}`,
-          link: `${FREELANCE_ROUTES.MESSAGES}?conversation=${conversationId}`,
-          metadata: JSON.stringify({
-            conversation_id: conversationId,
-            sender_id: senderId,
-            sender_name: senderName
+        const { data: notificationData, error: notifError } = await supabase
+          .from('notifications')
+          .insert({
+            user_id: userId,
+            type: 'new_message',
+            content: `${senderName}: ${truncatedContent}`,
+            link: `${FREELANCE_ROUTES.MESSAGES}?conversation=${conversationId}`,
+            read: false,
+            metadata: JSON.stringify({
+              conversation_id: conversationId,
+              sender_id: senderId,
+              sender_name: senderName
+            })
           })
-        });
+          .select()
+          .single();
+          
+        if (notifError) {
+          console.error("Erreur lors de la création de la notification:", notifError);
+          return;
+        }
+        
+        // Si c'est pour l'utilisateur actuel, mettre à jour le store
+        const { data: userSession } = await supabase.auth.getSession();
+        const currentUserId = userSession?.session?.user?.id;
+        
+        if (currentUserId === userId) {
+          set((state) => ({
+            notifications: [notificationData, ...state.notifications],
+            unreadCount: state.unreadCount + 1
+          }));
+        }
+        
+        // Déclencher immédiatement le traitement pour envoyer l'email
+        try {
+          console.log("Traitement immédiat de la notification pour envoi d'email:", notificationData.id);
+          await fetch('/api/notifications/process-immediate', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              notificationId: notificationData.id
+            })
+          });
+        } catch (emailError) {
+          console.error('Erreur lors du déclenchement de l\'envoi d\'email:', emailError);
+        }
       } catch (err) {
         console.error('Erreur lors de la création de la notification de message:', err);
       }

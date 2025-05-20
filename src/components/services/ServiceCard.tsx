@@ -150,41 +150,53 @@ const FreelanceAvatar = memo(({
   profile: any; 
   onError: () => void; 
   onClick: (e: React.MouseEvent) => void;
-}) => (
-  <div className="flex items-center gap-2 min-w-0">
-    <Avatar 
-      className="h-6 w-6 border border-gray-200 dark:border-vynal-purple-secondary/30 transition-shadow hover:shadow-md cursor-pointer flex-shrink-0"
-      onClick={onClick}
-      tabIndex={-1}
-    >
-      <AvatarImage
-        src={profile?.avatar_url || ''}
-        alt={profile?.full_name || profile?.username || 'Vendeur'}
-        onError={onError}
-      />
-      <AvatarFallback className="text-[9px] bg-vynal-accent-primary text-vynal-purple-dark">
-        {profile?.full_name?.[0] || profile?.username?.[0] || 'V'}
-      </AvatarFallback>
-    </Avatar>
-    <div className="flex items-center gap-1 min-w-0">
-      <button 
-        className="text-[10px] text-vynal-purple-dark dark:text-vynal-title truncate max-w-[80px] cursor-pointer hover:underline focus:outline-none focus:underline font-medium"
-        onClick={onClick}
-        title={profile?.full_name || profile?.username || 'Vendeur'}
+}) => {
+  const router = useRouter();
+
+  const handleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (profile?.id) {
+      router.push(`/profile/id/${profile.id}`);
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-2 min-w-0">
+      <Avatar 
+        className="h-6 w-6 border border-gray-200 dark:border-vynal-purple-secondary/30 transition-shadow hover:shadow-md cursor-pointer flex-shrink-0"
+        onClick={handleClick}
         tabIndex={-1}
       >
-        {profile?.full_name || profile?.username || 'Vendeur'}
-      </button>
-      
-      {/* Badge de certification - uniquement si l'utilisateur est certifié */}
-      {profile?.is_certified && profile?.certification_type && (
-        <CertificationBadge 
-          type={profile.certification_type as 'standard' | 'premium' | 'expert'} 
+        <AvatarImage
+          src={profile?.avatar_url || ''}
+          alt={profile?.full_name || profile?.username || 'Vendeur'}
+          onError={onError}
         />
-      )}
+        <AvatarFallback className="text-[9px] bg-vynal-accent-primary text-vynal-purple-dark">
+          {profile?.full_name?.[0] || profile?.username?.[0] || 'V'}
+        </AvatarFallback>
+      </Avatar>
+      <div className="flex items-center gap-1 min-w-0">
+        <button 
+          className="text-[10px] text-vynal-purple-dark dark:text-vynal-title truncate max-w-[80px] cursor-pointer hover:underline focus:outline-none focus:underline font-medium"
+          onClick={handleClick}
+          title={profile?.full_name || profile?.username || 'Vendeur'}
+          tabIndex={-1}
+        >
+          {profile?.full_name || profile?.username || 'Vendeur'}
+        </button>
+        
+        {/* Badge de certification - uniquement si l'utilisateur est certifié */}
+        {profile?.is_certified && profile?.certification_type && (
+          <CertificationBadge 
+            type={profile.certification_type as 'standard' | 'premium' | 'expert'} 
+          />
+        )}
+      </div>
     </div>
-  </div>
-));
+  );
+});
 
 FreelanceAvatar.displayName = 'FreelanceAvatar';
 

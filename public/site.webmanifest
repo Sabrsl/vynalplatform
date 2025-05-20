@@ -3,17 +3,15 @@
   "short_name": "Vynal",
   "icons": [
     {
-      "src": "/android-chrome-192x192.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "/android-chrome-512x512.png",
-      "sizes": "512x512",
-      "type": "image/png"
+      "src": "/favicon_vynalplatform.ico",
+      "sizes": "any",
+      "type": "image/x-icon"
     }
   ],
-  "theme_color": "#1a1a2e",
-  "background_color": "#1a1a2e",
-  "display": "standalone"
+  "theme_color": "#6554AF",
+  "background_color": "#ffffff",
+  "display": "standalone",
+  "orientation": "portrait",
+  "start_url": "/",
+  "scope": "/"
 } 

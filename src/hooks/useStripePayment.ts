@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/lib/supabase/client';
 import { logSecurityEvent } from '@/lib/security/audit';
 
 interface CreatePaymentIntentParams {
@@ -15,12 +16,12 @@ interface CreatePaymentIntentParams {
 interface PaymentResponse {
   clientSecret: string;
   paymentIntentId: string;
+  orderId?: string;
 }
 
 /**
  * Hook personnalisé pour gérer les paiements Stripe
- * 
- * Fournit les fonctionnalités pour créer un PaymentIntent et gérer le succès du paiement
+ * Utilise RLS Supabase pour la sécurité
  */
 export function useStripePayment() {
   const { user } = useAuth();
@@ -38,9 +39,8 @@ export function useStripePayment() {
     metadata = {},
     bypassAuth = false
   }: CreatePaymentIntentParams) => {
-    // Vérification de l'authentification (sauf si bypassAuth est activé en développement)
-    const isDev = process.env.NODE_ENV === 'development';
-    if (!user && !(isDev && bypassAuth)) {
+    // Vérification de l'authentification
+    if (!user) {
       setError("Vous devez être connecté pour effectuer un paiement");
       return null;
     }
@@ -50,52 +50,60 @@ export function useStripePayment() {
     setError(null);
     
     try {
-      // Journalisation de la tentative de paiement pour l'audit
-      if (user) {
-        await logSecurityEvent({
-          type: 'payment_attempt',
-          userId: user.id,
-          severity: 'medium',
-          details: {
-            amount,
-            serviceId
-          }
-        });
-      }
-      
       // Conversion du montant en centimes pour Stripe (avec conservation de 2 décimales)
       const amountInCents = Math.round(amount * 100);
-      console.log(`Montant original: ${amount}€, converti en centimes: ${amountInCents}, serviceId: ${serviceId}`);
+      console.log(`Montant en centimes: ${amountInCents}, serviceId: ${serviceId}`);
       
-      // Si on est en mode test et qu'on n'a pas fourni explicitement les IDs, utiliser des ID par défaut
-      const testClientId = metadata.clientId || '0ed321ec-ef9e-48f0-97dd-6c5b5e097c5a';
-      const testFreelanceId = freelanceId || '2fde948c-91d8-4ae7-9a04-77c363680106';
+      // Journalisation de la tentative de paiement pour l'audit
+      await logSecurityEvent({
+        type: 'payment_attempt',
+        userId: user.id,
+        severity: 'medium',
+        details: {
+          amount: amountInCents,
+          serviceId
+        }
+      });
       
-      // Déterminer le clientId à utiliser (priorité: metadata > user > default test)
-      const clientId = metadata.clientId || user?.id || testClientId;
+      // Vérifier d'abord si le freelance_id existe pour ce service
+      let actualFreelanceId = freelanceId;
       
-      // Appel à l'API pour créer un PaymentIntent
+      if (!actualFreelanceId) {
+        const { data: serviceData } = await supabase
+          .from('services')
+          .select('freelance_id')
+          .eq('id', serviceId)
+          .single();
+          
+        if (serviceData) {
+          actualFreelanceId = serviceData.freelance_id;
+        }
+      }
+      
+      if (!actualFreelanceId) {
+        throw new Error("ID du freelance requis pour le paiement");
+      }
+      
+      // Appel à l'API pour créer un PaymentIntent et une commande si nécessaire
       const response = await fetch('/api/stripe/payment-intent', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          amount: amountInCents, // Déjà converti en centimes
+          amount: amountInCents,
           serviceId,
-          freelanceId: freelanceId || (isDev ? testFreelanceId : undefined),
-          bypassAuth,
+          freelanceId: actualFreelanceId,
           metadata: {
             ...metadata,
-            clientId, // S'assurer que clientId est toujours inclus
-            userId: user?.id || clientId,
-            deliveryTime: metadata.deliveryTime || '7', // Valeur par défaut pour les tests
+            clientId: user.id,
+            userId: user.id,
+            deliveryTime: metadata.deliveryTime || '7',
             requirements: metadata.requirements || 'Test de paiement automatisé'
           }
         }),
+        credentials: 'include'
       });
-      
-      console.log('Réponse du serveur pour createPaymentIntent:', response.status);
       
       // Gestion des erreurs HTTP
       if (!response.ok) {
@@ -110,12 +118,13 @@ export function useStripePayment() {
       // Journaliser la création réussie du PaymentIntent
       await logSecurityEvent({
         type: 'payment_intent_created',
-        userId: user?.id || 'dev-test',
+        userId: user.id,
         severity: 'info',
         details: {
           paymentIntentId: data.paymentIntentId,
           serviceId,
-          amount
+          orderId: data.orderId,
+          amount: amountInCents
         }
       });
       
@@ -127,7 +136,7 @@ export function useStripePayment() {
       // Journalisation de l'erreur pour l'audit
       await logSecurityEvent({
         type: 'payment_intent_error',
-        userId: user?.id,
+        userId: user.id,
         severity: 'high',
         details: {
           error: err.message,
@@ -148,19 +157,46 @@ export function useStripePayment() {
   const handlePaymentSuccess = useCallback(async (paymentIntentId: string, serviceId: string) => {
     console.log(`Paiement réussi - PaymentIntent: ${paymentIntentId}`);
     
-    try {
-      // Journalisation du succès du paiement pour l'audit
-      await logSecurityEvent({
-        type: 'payment_success',
-        userId: user?.id || '0ed321ec-ef9e-48f0-97dd-6c5b5e097c5a',
-        severity: 'info',
-        details: {
-          paymentIntentId,
-          serviceId
+    if (user) {
+      try {
+        // Mise à jour du statut dans la table payments via RLS
+        await supabase
+          .from('payments')
+          .update({ status: 'paid' })
+          .eq('payment_intent_id', paymentIntentId)
+          .eq('client_id', user.id);
+        
+        // Chercher l'order_id associé au paiement pour mettre à jour la commande
+        const { data: paymentData } = await supabase
+          .from('payments')
+          .select('order_id')
+          .eq('payment_intent_id', paymentIntentId)
+          .eq('client_id', user.id)
+          .single();
+        
+        if (paymentData && paymentData.order_id) {
+          // Mettre à jour le statut de la commande
+          await supabase
+            .from('orders')
+            .update({ status: 'paid' })
+            .eq('id', paymentData.order_id)
+            .eq('client_id', user.id);
         }
-      });
-    } catch (err) {
-      console.error("Erreur de journalisation:", err);
+        
+        // Journalisation du succès
+        await logSecurityEvent({
+          type: 'payment_success',
+          userId: user.id,
+          severity: 'info',
+          details: {
+            paymentIntentId,
+            serviceId,
+            orderId: paymentData?.order_id
+          }
+        });
+      } catch (err) {
+        console.error("Erreur lors de la mise à jour du statut de paiement:", err);
+      }
     }
   }, [user]);
   
@@ -170,20 +206,31 @@ export function useStripePayment() {
   const handlePaymentFailure = useCallback(async (paymentIntentId: string, serviceId: string, errorMessage: string) => {
     console.log(`Paiement échoué - PaymentIntent: ${paymentIntentId}, Erreur: ${errorMessage}`);
     
-    try {
-      // Journalisation de l'échec du paiement pour l'audit
-      await logSecurityEvent({
-        type: 'payment_failure',
-        userId: user?.id || '0ed321ec-ef9e-48f0-97dd-6c5b5e097c5a',
-        severity: 'medium',
-        details: {
-          paymentIntentId,
-          serviceId,
-          error: errorMessage
-        }
-      });
-    } catch (err) {
-      console.error("Erreur de journalisation:", err);
+    if (user) {
+      try {
+        // Mise à jour du statut dans la table payments via RLS
+        await supabase
+          .from('payments')
+          .update({ 
+            status: 'failed'
+          })
+          .eq('payment_intent_id', paymentIntentId)
+          .eq('client_id', user.id);
+          
+        // Journalisation de l'échec
+        await logSecurityEvent({
+          type: 'payment_failure',
+          userId: user.id,
+          severity: 'medium',
+          details: {
+            paymentIntentId,
+            serviceId,
+            error: errorMessage
+          }
+        });
+      } catch (err) {
+        console.error("Erreur lors de la mise à jour du statut de paiement:", err);
+      }
     }
   }, [user]);
   

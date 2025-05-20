@@ -29,6 +29,7 @@ import { NavigationLoadingState } from "@/app/providers";
 import { useUser } from "@/hooks/useUser";
 import { FREELANCE_ROUTES, AUTH_ROUTES } from "@/config/routes";
 import { listenToFreelanceCacheInvalidation } from "@/lib/optimizations/freelance-cache";
+import Image from "next/image";
 
 // Mémoriser les icônes par path pour éviter les re-créations
 const NAV_ICONS = {
@@ -191,7 +192,14 @@ const Logo = memo(() => (
   <div className="h-16 flex items-center px-4 border-b border-slate-100 dark:border-vynal-purple-secondary/20">
     <div className="flex items-center space-x-2">
       <div className="bg-gradient-to-br from-purple-600 to-violet-700 h-5 w-5 rounded-lg flex items-center justify-center shadow-md shadow-purple-200/40 dark:from-vynal-accent-primary dark:to-vynal-accent-secondary dark:shadow-vynal-accent-primary/20">
-        <span className="text-white font-bold text-[10px] dark:text-vynal-text-primary">VY</span>
+        <Image 
+          src="/assets/logo/logo_vynal_platform_simple.svg" 
+          alt="Vynal Platform Logo" 
+          className="h-4 w-auto dark:brightness-110 transition-all duration-300" 
+          width={16}
+          height={16}
+          priority
+        />
       </div>
       <div className="transition-opacity duration-200 overflow-hidden">
         <h1 className="text-[10px] sm:text-xs font-bold bg-gradient-to-r from-purple-600 to-violet-700 bg-clip-text text-transparent dark:from-vynal-accent-primary dark:to-vynal-accent-secondary">VY</h1>

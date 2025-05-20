@@ -29,7 +29,8 @@ import {
   Moon,
   Sun,
   AlertTriangle,
-  Badge
+  Badge,
+  FileText
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useTheme } from "next-themes";
@@ -117,12 +118,11 @@ const Logo = memo(({ router }: { router: any }) => {
       onClick={handleLogoClick}
     >
       <Image 
-        src="/assets/logo/logo_vynal_platform.webp" 
+        src="/assets/logo/logo_vynal_platform.svg" 
         alt="Vynal Platform Logo" 
-        className="h-1.5 sm:h-2 md:h-3 w-auto dark:brightness-110 transition-all duration-300" 
-        width={60}
-        height={12}
-        style={{ height: 'auto' }}
+        className="h-20 md:h-24 w-auto dark:brightness-110 transition-all duration-300" 
+        width={360}
+        height={96}
         priority
       />
     </div>
@@ -249,11 +249,11 @@ const DashboardButton = memo(({
   const isClient = profile?.role === 'client';
   const isFreelance = profile?.role === 'freelance';
   
-  // Déterminer le bon chemin de dashboard en fonction du rôle
-  const dashboardPath = isClient 
-    ? CLIENT_ROUTES.DASHBOARD 
+  // Déterminer le bon chemin en fonction du rôle
+  const buttonPath = isClient 
+    ? CLIENT_ROUTES.ORDERS 
     : isFreelance 
-      ? FREELANCE_ROUTES.DASHBOARD 
+      ? FREELANCE_ROUTES.SERVICES 
       : FREELANCE_ROUTES.DASHBOARD; // Par défaut, rediriger vers le dashboard freelance
   
   // Vérifier si le chemin actuel correspond au bon type de dashboard
@@ -265,22 +265,36 @@ const DashboardButton = memo(({
       variant="ghost"
       size="sm"
       className={`hidden sm:flex text-sm items-center gap-2 rounded-lg ${
-        (activePath.includes('/dashboard') || activePath.includes('/client-dashboard'))
+        (activePath.includes('/dashboard') || activePath.includes('/client-dashboard') || 
+         (isClient && activePath.includes('/orders')) || 
+         (isFreelance && activePath.includes('/services')))
           ? isInWrongDashboard
             ? "text-amber-500 dark:text-amber-400"  // Indique que l'utilisateur est dans le mauvais dashboard
             : "text-vynal-purple-600 dark:text-vynal-accent-primary" 
           : "text-vynal-purple-dark dark:text-vynal-text-primary"
       } hover:bg-vynal-purple-100/60 hover:text-vynal-purple-600 dark:hover:bg-vynal-purple-secondary/20 dark:hover:text-vynal-accent-primary`}
-      onClick={() => handleNavigation(dashboardPath)}
+      onClick={() => handleNavigation(buttonPath)}
     >
-      {isNavigating && (activePath === '/dashboard' || activePath === '/client-dashboard') ? (
+      {isNavigating && ((activePath === '/dashboard') || (activePath === '/client-dashboard') || 
+                       (isClient && activePath.includes('/orders')) || 
+                       (isFreelance && activePath.includes('/services'))) ? (
         <Loader className="h-3.5 w-3.5 animate-spin" strokeWidth={2.5} />
       ) : isInWrongDashboard ? (
         <AlertTriangle className="h-3.5 w-3.5 text-amber-500 dark:text-amber-400" strokeWidth={2.5} />
+      ) : isClient ? (
+        <Briefcase className="h-3.5 w-3.5" strokeWidth={2.5} />
+      ) : isFreelance ? (
+        <FileText className="h-3.5 w-3.5" strokeWidth={2.5} />
       ) : (
         <Home className="h-3.5 w-3.5" strokeWidth={2.5} />
       )}
-      {isInWrongDashboard ? "Accéder au bon tableau" : "Tableau de bord"}
+      {isInWrongDashboard 
+        ? "Accéder au bon tableau" 
+        : isClient 
+          ? "Commandes" 
+          : isFreelance 
+            ? "Services" 
+            : "Tableau de bord"}
     </Button>
   );
 });
@@ -1221,6 +1235,20 @@ function Header() {
                 >
                   <Search className="h-4 w-4" strokeWidth={2.5} />
                 </button>
+              )}
+              
+              {/* Bouton d'inscription - Mobile uniquement */}
+              {!userStatus.isAuthenticated && !userStatus.authLoading && (
+                <Link
+                  href={AUTH_ROUTES.REGISTER}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 ${
+                    isDark
+                      ? "bg-vynal-accent-primary/10 text-vynal-accent-primary hover:bg-vynal-accent-primary/20 border border-vynal-accent-primary/20 hover:border-vynal-accent-primary/30"
+                      : "bg-white/30 text-slate-700 hover:bg-white/40 border border-slate-200 hover:border-slate-300"
+                  }`}
+                >
+                  S'inscrire
+                </Link>
               )}
               
               {/* Mobile Menu Button with Profile Picture */}

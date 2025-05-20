@@ -146,7 +146,7 @@
 <body>
   <div class="container">
     <div class="header">
-      <img src="https://vynalplatform.com/assets/logo/logo_vynal_platform_simple.webp" alt="Vynal Platform Logo" class="logo">
+      <h1 style="color: white; font-size: 18px; margin: 0;">Vynal Platform</h1>
     </div>
     
     <div class="content">
@@ -167,11 +167,11 @@
       <div class="service-details">
         <h3>Détails du service</h3>
         <p><strong>Titre :</strong> {{serviceTitle}}</p>
-        <p><strong>Description :</strong> {{serviceDescription}}</p>
+        <p><strong>Description :</strong> {{{safeHtml serviceDescription}}}</p>
         <p><strong>Prix :</strong> {{servicePrice}} {{currency}}</p>
         <p><strong>Catégorie :</strong> {{serviceCategory}}</p>
-        <p><strong>Date de création :</strong> {{creationDate}}</p>
-        <p><strong>Date d'approbation :</strong> {{approvalDate}}</p>
+        <p><strong>Date de création :</strong> {{formatDate creationDate}}</p>
+        <p><strong>Date d'approbation :</strong> {{formatDate approvalDate}}</p>
       </div>
       
       {{#if adminNotes}}

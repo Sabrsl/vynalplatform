@@ -67,9 +67,14 @@ async function getServiceData(slug: string) {
         categories (*)
       `)
       .eq('profiles.id', service.profiles.id)
-      .eq('status', 'active')
+      .eq('status', 'approved')
+      .eq('active', true)
       .neq('id', service.id)
       .limit(3);
+
+    if (relatedError) {
+      console.error("Erreur lors de la récupération des services liés:", relatedError);
+    }
 
     // Normalisation du format des images
     const normalizedImages = Array.isArray(service.images) 
@@ -133,7 +138,7 @@ async function ServiceDetailContent({ slug }: { slug: string }) {
           <p className="text-gray-600 dark:text-vynal-text-secondary mb-4">
             Nous n'avons pas pu trouver le service que vous recherchez.
           </p>
-          <Link href={PUBLIC_ROUTES.SERVICES}>
+          <Link href="/services">
             <div className="bg-vynal-accent-primary hover:bg-vynal-accent-primary/90 text-white py-2 px-4 rounded-md transition-colors inline-block">
               Retour aux services
             </div>

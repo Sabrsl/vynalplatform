@@ -211,12 +211,12 @@ const PartnersSection = memo(() => {
                 className="inline-block"
                 aria-hidden={index >= partners.length ? "true" : "false"}
               >
-                <div className="w-24 sm:w-28 md:w-32 h-20 sm:h-22 md:h-24 relative flex items-center justify-center">
+                <div className="w-16 sm:w-20 md:w-24 h-14 sm:h-16 md:h-18 relative flex items-center justify-center">
                   <Image
                     src={partner.image}
                     alt={`Logo ${partner.name}`}
-                    width={100}
-                    height={70}
+                    width={80}
+                    height={56}
                     className={imageClasses}
                     loading={index < partners.length ? "eager" : "lazy"}
                     // Optimisation de la priorité pour les LCP

@@ -1,17 +1,19 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { usePayPalButtons } from "@/lib/paypal/client";
-import { Button } from "@/components/ui/button";
+import React, { useRef, useState, useEffect } from 'react';
+import { usePayPalButtons, formatPayPalAmount } from "@/lib/paypal/client";
+import useCurrency from '@/hooks/useCurrency';
+import { convertToEur } from "@/lib/utils/currency-updater";
 
 interface PayPalButtonsFormProps {
   amount: number;
   currency?: string;
-  serviceId: string;
-  onSuccess: (paymentData: any) => void;
+  serviceId?: string;
+  onSuccess: (data: any) => void;
   onError: (error: any) => void;
-  loading: boolean;
+  onCancel?: () => void;
   buttonText?: string;
+  loading?: boolean;
 }
 
 /**
@@ -21,48 +23,50 @@ interface PayPalButtonsFormProps {
  */
 export function PayPalButtonsForm({
   amount,
-  currency = "EUR",
+  currency = 'EUR',
   serviceId,
   onSuccess,
   onError,
-  loading,
-  buttonText = "Payer avec PayPal"
+  onCancel,
+  buttonText = "Payer avec PayPal",
+  loading = true
 }: PayPalButtonsFormProps) {
   const [error, setError] = useState<string | null>(null);
-  const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [paypalLoading, setPaypalLoading] = useState<boolean>(true);
   const paypalContainerRef = useRef<HTMLDivElement>(null);
-  
+  const { currency: userCurrency } = useCurrency();
+
   // Utilisation du hook PayPal
   const { isLoaded, initializePayPalButtons } = usePayPalButtons({
     amount,
     currency,
-    onSuccess: async (data) => {
-      setIsProcessing(true);
-      try {
-        console.log("PayPal transaction réussie:", data);
-        // Notification du succès au parent
-        onSuccess({
-          provider: 'paypal',
-          id: data.transactionId,
-          transactionId: data.transactionId,
-          status: data.status,
-          details: data.details
-        });
-      } catch (error: any) {
-        console.error("Erreur lors du traitement PayPal:", error);
-        setError(error.message || "Une erreur est survenue lors du traitement du paiement");
-        onError(error);
-      } finally {
-        setIsProcessing(false);
-      }
+    onSuccess: (data) => {
+      setError(null);
+      console.log("PayPal transaction réussie:", data);
+      onSuccess({
+        ...data,
+        provider: 'paypal',
+        amount,
+      });
     },
-    onError: (err) => {
-      setError(err.message || "Erreur lors de l'initialisation de PayPal");
-      onError(err);
+    onError: (error) => {
+      console.error("Erreur lors du traitement PayPal:", error);
+      setError(error.message || "Erreur lors du traitement du paiement");
+      onError(error);
     }
   });
-  
+
+  // Gestion des erreurs
+  useEffect(() => {
+    if (error) {
+      try {
+        // Ne rien faire ici, l'erreur est déjà configurée
+      } catch (err: any) {
+        console.error("Erreur lors du traitement de l'erreur PayPal:", err);
+      }
+    }
+  }, [error]);
+
   // Initialisation des boutons PayPal lorsque le SDK est chargé
   useEffect(() => {
     if (isLoaded && paypalContainerRef.current) {
@@ -70,38 +74,60 @@ export function PayPalButtonsForm({
       initializePayPalButtons('paypal-button-container');
     }
   }, [isLoaded, initializePayPalButtons]);
-  
+
+  // Calculer le montant en EUR depuis n'importe quelle devise
+  const amountInEUR = userCurrency.code !== 'EUR' 
+    ? convertToEur(amount, userCurrency.code) as number
+    : amount;
+
+  // Format du montant en EUR pour l'affichage
+  const formattedEURAmount = new Intl.NumberFormat('fr-FR', {
+    style: 'currency',
+    currency: 'EUR',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(amountInEUR);
+
   return (
-    <div className="space-y-4">
-      <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-md border border-blue-100 dark:border-blue-800/50 text-[10px] text-blue-700 dark:text-blue-300 mb-2">
+    <div className="w-full flex flex-col gap-3">
+      {/* Info - Note informative sur le paiement */}
+      <div className="mb-2 text-xs leading-relaxed text-slate-700">
         Vous serez redirigé vers PayPal pour finaliser votre paiement en toute sécurité.
       </div>
       
-      {error && (
-        <div className="text-red-500 text-xs mt-2 p-2 bg-red-50 dark:bg-red-900/10 rounded-md">
-          {error}
+      {/* Message de conversion de devise */}
+      {userCurrency.code !== 'EUR' && (
+        <div className="p-2 bg-blue-50 border border-blue-200 rounded-md text-xs text-blue-700 mb-3">
+          <p><strong>Information importante :</strong> Vous voyez le prix en {userCurrency.symbol}{amount.toLocaleString('fr-FR')} ({userCurrency.code}), 
+          mais le paiement sera traité en {formattedEURAmount} (EUR).</p>
+          <p>Cette conversion est nécessaire car PayPal ne supporte pas directement les paiements en {userCurrency.code}.</p>
         </div>
       )}
-      
+
       {/* Container pour les boutons PayPal */}
       <div id="paypal-button-container" ref={paypalContainerRef} className="w-full min-h-[100px] flex items-center justify-center">
         {paypalLoading && (
-          <div className="w-full h-[100px] flex flex-col items-center justify-center space-y-2">
-            <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+          <div className="flex flex-col items-center justify-center">
+            <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-1"></div>
             <p className="text-[10px] text-slate-500">Chargement PayPal...</p>
           </div>
         )}
       </div>
-      
+
       {/* PayPal protection info */}
-      <div className="mt-1">
-        <p className="text-[9px] text-slate-500 dark:text-slate-400 flex items-center">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-          </svg>
-          Protection acheteur PayPal incluse
-        </p>
+      <div className="mt-1 text-xs text-center text-slate-600 flex items-center justify-center gap-1">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3">
+          <path fillRule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clipRule="evenodd" />
+        </svg>
+        Protection acheteur PayPal incluse
       </div>
+
+      {/* Afficher les erreurs */}
+      {error && (
+        <div className="mt-2 text-xs text-red-600">
+          {error}
+        </div>
+      )}
     </div>
   );
 } 

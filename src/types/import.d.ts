@@ -1,0 +1,1 @@
+// Ce fichier peut contenir d'autres importations de types globaux si nécessaire 

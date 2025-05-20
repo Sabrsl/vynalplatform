@@ -212,7 +212,10 @@ export const CACHE_EVENT_GROUPS = {
     'admin_validation_services_',
     CACHE_KEYS.ADMIN_SERVICES_LIST,
     CACHE_KEYS.ADMIN_VALIDATION_SERVICES,
-    CACHE_KEYS.SERVICES // Invalider aussi le cache des services côté client
+    CACHE_KEYS.SERVICES, // Invalider aussi le cache des services côté client
+    'freelance_services_', // Préfixe pour les services des freelances
+    CACHE_KEYS.FREELANCE_SERVICES, // Clé pour les services freelance si existante
+    'service_details_' // Préfixe pour les détails des services
   ],
   [CACHE_EVENT_TYPES.USERS_UPDATED]: [
     'admin_users_list',

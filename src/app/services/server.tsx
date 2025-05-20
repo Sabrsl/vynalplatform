@@ -88,11 +88,12 @@ export async function getAllCategoriesAndSubcategories() {
 
 /**
  * Charge tous les services actifs et validés
+ * @param options Options de récupération
  */
-export async function getAllValidatedServices() {
-  const supabase = getSupabaseServer();
+export async function getAllValidatedServices(options?: { noCache?: string }) {
+  const supabase = getSupabaseServer(options);
 
-  // Récupération des services actifs
+  // Récupération des services actifs et validés
   const { data: services, error } = await supabase
     .from('services')
     .select(`
@@ -101,28 +102,33 @@ export async function getAllValidatedServices() {
       categories:categories(id, name, slug),
       subcategories:subcategories(id, name, slug, category_id)
     `)
-    .eq('status', 'active')
+    .eq('status', 'approved')  // Uniquement le statut approuvé, sans vérifier 'active'
     .order('created_at', { ascending: false })
-    .limit(20);
+    .limit(100);
 
   if (error) {
     console.error('Erreur lors du chargement des services:', error);
     return [];
   }
 
-  // Si aucun service actif n'est trouvé, essayer sans le filtre de statut
   if (!services || services.length === 0) {
-    const { data: backupServices, error: backupError } = await supabase
-      .from('services')
-      .select(`
-        *,
-        profiles:profiles(id, username, full_name, avatar_url, bio),
-        categories:categories(id, name, slug),
-        subcategories:subcategories(id, name, slug, category_id)
-      `)
-      .limit(20);
-      
-    return (backupServices || []) as Service[];
+    console.log('Aucun service approuvé trouvé');
+    
+    // Vérifier s'il existe des services approuvés mais inactifs pour le debug
+    if (options?.noCache) {
+      const { data: inactiveServices } = await supabase
+        .from('services')
+        .select('id, title, status, active')
+        .eq('status', 'approved')
+        .limit(5);
+        
+      if (inactiveServices && inactiveServices.length > 0) {
+        console.log('Debug: Services approuvés:', 
+          inactiveServices.map(s => `ID: ${s.id.substring(0, 8)}, Titre: ${s.title.substring(0, 20)}, Active: ${s.active}`).join(', '));
+      }
+    }
+    
+    return [];
   }
 
   return services as Service[];
@@ -140,10 +146,14 @@ export type ServicesPageData = {
 /**
  * Charge toutes les données pour la page des services
  * Cette fonction est utilisée pour générer la page statique
+ * @param options Options de récupération
  */
-export async function getServicesPageData(): Promise<ServicesPageData> {
+export async function getServicesPageData(options?: { noCache?: string }): Promise<ServicesPageData> {
   const { categories, subcategories } = await getAllCategoriesAndSubcategories();
-  const services = await getAllValidatedServices();
+  const services = await getAllValidatedServices(options);
+
+  // Log de debug pour voir combien de services sont approuvés et actifs
+  console.log(`getServicesPageData: ${services.length} services approuvés et actifs récupérés`);
 
   return {
     categories,

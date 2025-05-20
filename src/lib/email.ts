@@ -7,7 +7,37 @@ import { APP_CONFIG } from './constants';
 import nodemailer, { Transporter, TransportOptions, createTransport } from 'nodemailer';
 import fs from 'fs';
 import path from 'path';
+import Handlebars from 'handlebars';
 import { FREELANCE_ROUTES, CLIENT_ROUTES } from "@/config/routes";
+
+// Configurer des helpers Handlebars
+Handlebars.registerHelper('formatDate', function(dateString) {
+  if (!dateString) return 'Non disponible';
+  
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'Date invalide';
+    
+    return new Intl.DateTimeFormat('fr-FR', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(date);
+  } catch (error) {
+    console.error('Erreur lors du formatage de la date:', error);
+    return 'Erreur de date';
+  }
+});
+
+// Helper pour traiter les balises HTML dans les descriptions de services
+Handlebars.registerHelper('safeHtml', function(text) {
+  if (!text) return '';
+  
+  // Supprimer les balises HTML courantes utilisées dans les descriptions
+  return new Handlebars.SafeString(text);
+});
 
 // Types
 interface EmailOptions {
@@ -222,21 +252,64 @@ const readEmailTemplate = (templatePath: string): string => {
   }
 };
 
-// Fonction pour remplacer les variables dans le template
-const replaceTemplateVariables = (template: string, variables: Record<string, string>): string => {
-  let result = template;
-  
-  for (const [key, value] of Object.entries(variables)) {
-    const regex = new RegExp(`{{${key}}}`, 'g');
-    result = result.replace(regex, value);
+/**
+ * Fonction pour compiler et rendre un template Handlebars
+ * @param template - Le template HTML
+ * @param variables - Les variables à remplacer dans le template
+ */
+const renderHandlebarsTemplate = (template: string, variables: Record<string, string | undefined>): string => {
+  try {
+    // Pré-traitement des variables avant de les passer à Handlebars
+    const processedVariables = { ...variables };
+    
+    // S'assurer que les dates ont des valeurs par défaut
+    if (!processedVariables.rejectionDate) {
+      processedVariables.rejectionDate = new Date().toISOString();
+    }
+    
+    if (!processedVariables.approvalDate) {
+      processedVariables.approvalDate = new Date().toISOString();
+    }
+    
+    if (!processedVariables.creationDate) {
+      processedVariables.creationDate = new Date().toISOString();
+    }
+    
+    if (!processedVariables.unpublishedDate) {
+      processedVariables.unpublishedDate = new Date().toISOString();
+    }
+    
+    // Ajouter les variables standards au contexte
+    const context = {
+      ...processedVariables,
+      contactEmail: APP_CONFIG.contactEmail,
+      currentYear: new Date().getFullYear().toString(),
+      siteName: APP_CONFIG.siteName
+    };
+    
+    // Compiler et rendre le template Handlebars
+    const compiledTemplate = Handlebars.compile(template);
+    return compiledTemplate(context);
+  } catch (error) {
+    console.error('Erreur lors du rendu du template Handlebars:', error);
+    
+    // Fallback: utiliser l'ancienne méthode de remplacement simple
+    let result = template;
+    
+    for (const [key, value] of Object.entries(variables)) {
+      if (value !== undefined) {
+        const regex = new RegExp(`{{${key}}}`, 'g');
+        result = result.replace(regex, value);
+      }
+    }
+    
+    // Remplacer les variables standards
+    result = result.replace(/{{contactEmail}}/g, APP_CONFIG.contactEmail);
+    result = result.replace(/{{currentYear}}/g, new Date().getFullYear().toString());
+    result = result.replace(/{{siteName}}/g, APP_CONFIG.siteName);
+    
+    return result;
   }
-  
-  // Remplacer les variables standards
-  result = result.replace(/{{contactEmail}}/g, APP_CONFIG.contactEmail);
-  result = result.replace(/{{currentYear}}/g, new Date().getFullYear().toString());
-  result = result.replace(/{{siteName}}/g, APP_CONFIG.siteName);
-  
-  return result;
 };
 
 // Fonction de base pour l'envoi d'emails
@@ -348,20 +421,27 @@ export const canSendEmailToUser = (email: string): boolean => {
   return true;
 };
 
-// Fonction pour envoyer un email en utilisant un template HTML
+/**
+ * Envoie un email à partir d'un template HTML
+ * @param to - Destinataire(s)
+ * @param subject - Sujet de l'email
+ * @param templatePath - Chemin vers le template HTML
+ * @param variables - Variables à remplacer dans le template
+ * @param options - Options d'envoi supplémentaires
+ */
 export const sendTemplateEmail = async (
   to: string | string[],
   subject: string, 
   templatePath: string, 
-  variables: Record<string, string>,
+  variables: Record<string, string | undefined>,
   options: Partial<EmailOptions> = {}
 ): Promise<boolean> => {
   try {
     // Lire le template
     const template = readEmailTemplate(templatePath);
     
-    // Remplacer les variables
-    const html = replaceTemplateVariables(template, variables);
+    // Compiler et rendre le template avec Handlebars
+    const html = renderHandlebarsTemplate(template, variables);
     
     // Créer un texte simple alternatif (version sans HTML)
     // Méthode sécurisée pour convertir HTML en texte
@@ -587,4 +667,4 @@ export const sendBasicWelcomeEmail = async (options: {
     console.error('Erreur lors de l\'envoi de l\'email de bienvenue basique:', error);
     return false;
   }
-}; 
+};

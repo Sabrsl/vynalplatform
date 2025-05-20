@@ -14,6 +14,7 @@ import { validateMessage } from '@/lib/message-validation';
 import { Loader } from '@/components/ui/loader';
 import { FREELANCE_ROUTES, CLIENT_ROUTES } from "@/config/routes";
 import { useUser } from '@/hooks/useUser';
+import { cn } from '@/lib/utils';
 
 interface MessagingDialogProps {
   freelanceId: string;
@@ -42,6 +43,13 @@ const MessagingDialog = ({
   
   const { createConversation, isLoading, error: storeError, sendMessage } = useMessagingStore();
   
+  // Fonction centralisée pour fermer le modal
+  const handleClose = () => {
+    setShowModal(false);
+    setMessage('');
+    setError(null);
+  };
+  
   // Effet pour gérer les erreurs du store
   useEffect(() => {
     if (storeError) {
@@ -53,7 +61,7 @@ const MessagingDialog = ({
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        setShowModal(false);
+        handleClose();
       }
     };
     
@@ -160,7 +168,10 @@ const MessagingDialog = ({
     <>
       <Button 
         variant={buttonVariant} 
-        className={className} 
+        className={cn(
+          className,
+          "text-slate-800 dark:text-white"
+        )} 
         onClick={handleOpenModal}
         disabled={authLoading}
         size={size}
@@ -174,14 +185,14 @@ const MessagingDialog = ({
           {/* Overlay */}
           <div 
             className="fixed inset-0 bg-black/70 dark:bg-black/80 backdrop-blur-sm transition-opacity" 
-            onClick={() => setShowModal(false)}
+            onClick={handleClose}
           />
           
           {/* Modal content */}
           <div className="relative bg-white dark:bg-vynal-purple-dark/90 border border-gray-200 dark:border-vynal-purple-secondary/30 rounded-xl shadow-lg p-6 w-full max-w-[425px] z-50 transition-all transform scale-100">
             {/* Close button */}
             <button 
-              onClick={() => setShowModal(false)}
+              onClick={handleClose}
               className="absolute right-4 top-4 text-gray-500 hover:text-gray-700 dark:text-vynal-text-secondary dark:hover:text-vynal-text-primary transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-vynal-purple-light rounded-full"
               aria-label="Fermer"
             >
@@ -190,11 +201,11 @@ const MessagingDialog = ({
             </button>
             
             {/* Header */}
-            <div className="mb-5">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-vynal-text-primary">
+            <div className="mb-4">
+              <h2 className="text-lg font-semibold text-slate-800 dark:text-vynal-text-primary">
                 Envoyer un message à {freelanceName}
               </h2>
-              <p className="text-sm text-gray-600 dark:text-vynal-text-secondary mt-1.5">
+              <p className="text-xs text-slate-600 dark:text-vynal-text-secondary mt-1">
                 Utilisez ce formulaire pour envoyer un message direct au freelance.
               </p>
             </div>
@@ -211,7 +222,7 @@ const MessagingDialog = ({
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 placeholder="Écrivez votre message ici..."
-                className="min-h-[120px] resize-none bg-gray-50 dark:bg-vynal-purple-darkest/50 border-gray-300 dark:border-vynal-purple-mid/30 focus:border-vynal-purple-light focus:ring-vynal-purple-light/20 transition-colors"
+                className="min-h-[120px] resize-none bg-gray-50 dark:bg-vynal-purple-darkest/50 border-gray-300 dark:border-vynal-purple-mid/30 focus:border-vynal-purple-light focus:ring-vynal-purple-light/20 transition-colors text-slate-800 dark:text-white placeholder:text-[10px] placeholder:text-slate-500 dark:placeholder:text-vynal-text-secondary/50 text-xs"
                 disabled={isLoading}
                 autoFocus
               />
@@ -220,9 +231,9 @@ const MessagingDialog = ({
             <div className="flex justify-end space-x-3">
               <Button 
                 variant="outline"
-                onClick={() => setShowModal(false)}
+                onClick={handleClose}
                 disabled={isLoading}
-                className="border-gray-300 text-gray-700 hover:bg-gray-100 dark:border-vynal-purple-light/50 dark:text-white dark:hover:bg-vynal-purple-dark/20 transition-colors"
+                className="border-gray-300 text-slate-800 hover:bg-gray-100 dark:border-vynal-purple-light/50 dark:text-white dark:hover:bg-vynal-purple-dark/20 transition-colors"
               >
                 Annuler
               </Button>

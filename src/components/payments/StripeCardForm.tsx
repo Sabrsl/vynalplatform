@@ -206,7 +206,7 @@ function StripeCardFormContent({
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       {/* Notification sur la devise utilisée pour le paiement */}
-      <PaymentCurrencyNotice compact />
+      <PaymentCurrencyNotice amount={amount} compact />
       
       <div className="p-3 border rounded-md bg-slate-50 dark:bg-vynal-purple-dark/20">
         <CardElement 

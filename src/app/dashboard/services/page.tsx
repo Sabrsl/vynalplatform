@@ -18,7 +18,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { formatPrice } from "@/lib/utils";
-import { Plus, PenSquare, Trash2, Clock, AlertCircle, BarChart3, CheckCircle2, DollarSign, Layers, Eye, ShoppingBag, MessageSquare, RefreshCw, XCircle, CheckCircle } from "lucide-react";
+import { Plus, PenSquare, Trash2, Clock, AlertCircle, BarChart3, CheckCircle2, DollarSign, Layers, Eye, ShoppingBag, MessageSquare, RefreshCw, XCircle, CheckCircle, X } from "lucide-react";
 import { Loader } from "@/components/ui/loader";
 import { supabase } from "@/lib/supabase/client";
 import { Badge } from "@/components/ui/badge";
@@ -38,6 +38,16 @@ import {
 } from "@/components/ui/dialog";
 import { ServicesPageSkeleton } from "@/components/skeletons/ServicesPageSkeleton";
 import { ServiceRulesModal } from "@/components/services/ServiceRulesModal";
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/ui/alert";
+import ServiceNotificationAlert from "@/components/notifications/ServiceNotificationAlert";
+import { Database } from "@/types/database";
+
+// Type de notification basé directement sur le type de la base de données
+type Notification = Database['public']['Tables']['notifications']['Row'];
 
 // Performance optimizations - Dynamic imports
 import dynamic from 'next/dynamic';
@@ -1022,6 +1032,54 @@ export default function ServicesPage() {
     router.push("/dashboard/services/new");
   };
 
+  // État local pour les notifications de service
+  const [serviceNotifications, setServiceNotifications] = useState<Notification[]>([]);
+  
+  // Fonction pour récupérer les notifications de service
+  const fetchServiceNotifications = useCallback(async () => {
+    if (!user?.id) return;
+    
+    try {
+      const { data } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('read', false)
+        .in('type', ['service_approved', 'service_rejected', 'service_unpublished'])
+        .order('created_at', { ascending: false });
+      
+      if (data) {
+        setServiceNotifications(data);
+      }
+    } catch (error) {
+      console.error('Erreur lors de la récupération des notifications de service:', error);
+    }
+  }, [user?.id]);
+
+  // Marquer une notification comme lue
+  const markNotificationAsRead = useCallback(async (notificationId: string) => {
+    if (!user?.id) return;
+    
+    try {
+      await supabase
+        .from('notifications')
+        .update({ read: true })
+        .eq('id', notificationId);
+      
+      // Mettre à jour l'état local
+      setServiceNotifications(prev => 
+        prev.filter(notif => notif.id !== notificationId)
+      );
+    } catch (error) {
+      console.error('Erreur lors du marquage de la notification comme lue:', error);
+    }
+  }, [user?.id]);
+
+  // Récupérer les notifications au chargement et à chaque changement de services
+  useEffect(() => {
+    fetchServiceNotifications();
+  }, [fetchServiceNotifications, services]);
+
   // Display skeleton during initial loading
   if (loading && !isRefreshing) {
     return <ServicesPageSkeleton />;
@@ -1060,13 +1118,26 @@ export default function ServicesPage() {
         </div>
       </div>
 
+      {/* Afficher les notifications de service en haut de la page */}
+      {serviceNotifications.length > 0 && (
+        <div className="mb-4">
+          {serviceNotifications.map(notification => (
+            <ServiceNotificationAlert
+              key={notification.id}
+              notification={notification}
+              onClose={() => markNotificationAsRead(notification.id)}
+            />
+          ))}
+        </div>
+      )}
+
       {/* Affichage des erreurs */}
       {error && (
         <ErrorDisplay
           title="Erreur lors du chargement"
           message={error}
           retryAction={() => profile && loadServices(profile.id)}
-          retryLabel="Réessayer"
+          retryLabel="Actualiser"
         />
       )}
 

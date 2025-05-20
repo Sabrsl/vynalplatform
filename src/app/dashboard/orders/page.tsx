@@ -13,6 +13,13 @@ import { useUser } from "@/hooks/useUser";
 import { useOrders, TabValue } from "@/hooks/useOrders";
 import { OrdersPageSkeleton } from "@/components/skeletons/OrdersPageSkeleton";
 import { Badge } from "@/components/ui/badge";
+import { Database } from "@/types/database";
+import OrderNotificationAlert from "@/components/notifications/OrderNotificationAlert";
+import { supabase } from "@/lib/supabase/client";
+import { useAuth } from "@/hooks/useAuth"; 
+
+// Type de notification basé directement sur le type de la base de données
+type Notification = Database['public']['Tables']['notifications']['Row'];
 
 // Optimisé et mémoizé: Composant pour afficher une statistique dans une carte
 const StatCard = memo(({ 
@@ -396,7 +403,11 @@ OrdersList.displayName = 'OrdersList';
 // Composant principal
 export default function OrdersPage() {
   const { isFreelance } = useUser();
+  const { user } = useAuth();
   const [tempSearchQuery, setTempSearchQuery] = useState("");
+  
+  // État local pour les notifications de commande
+  const [orderNotifications, setOrderNotifications] = useState<Notification[]>([]);
   
   const { 
     orders,
@@ -422,11 +433,57 @@ export default function OrdersPage() {
     useCache: true
   });
 
+  // Fonction pour récupérer les notifications de commande
+  const fetchOrderNotifications = useCallback(async () => {
+    if (!user?.id) return;
+    
+    try {
+      const { data } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('read', false)
+        .in('type', ['new_order', 'order_confirmed', 'order_cancelled', 'order_delivered', 'dispute_opened', 'dispute_message', 'dispute_resolved'])
+        .order('created_at', { ascending: false });
+      
+      if (data) {
+        setOrderNotifications(data);
+      }
+    } catch (error) {
+      console.error('Erreur lors de la récupération des notifications de commande:', error);
+    }
+  }, [user?.id]);
+
+  // Marquer une notification comme lue
+  const markNotificationAsRead = useCallback(async (notificationId: string) => {
+    if (!user?.id) return;
+    
+    try {
+      await supabase
+        .from('notifications')
+        .update({ read: true })
+        .eq('id', notificationId);
+      
+      // Mettre à jour l'état local
+      setOrderNotifications(prev => 
+        prev.filter(notif => notif.id !== notificationId)
+      );
+    } catch (error) {
+      console.error('Erreur lors du marquage de la notification comme lue:', error);
+    }
+  }, [user?.id]);
+
+  // Récupérer les notifications au chargement et à chaque changement d'ordres
+  useEffect(() => {
+    fetchOrderNotifications();
+  }, [fetchOrderNotifications, orders]);
+
   // Écouter les événements d'invalidation du cache
   useEffect(() => {
     // Fonction pour rafraîchir les données en cas d'invalidation du cache
     const handleCacheInvalidated = () => {
       refreshOrders();
+      fetchOrderNotifications(); // Ajouter la récupération des notifications quand le cache est invalidé
     };
     
     // S'abonner aux événements d'invalidation spécifiques aux commandes freelance
@@ -438,7 +495,7 @@ export default function OrdersPage() {
       window.removeEventListener('vynal:freelance-orders-updated', handleCacheInvalidated);
       window.removeEventListener('vynal:freelance-cache-invalidated', handleCacheInvalidated);
     };
-  }, [refreshOrders]);
+  }, [refreshOrders, fetchOrderNotifications]);
 
   // Calculer le nombre total de pages
   const totalPages = Math.ceil(totalCount / itemsPerPage);
@@ -484,6 +541,19 @@ export default function OrdersPage() {
         refreshOrders={refreshOrders}
         getLastRefreshText={getLastRefreshText}
       />
+
+      {/* Afficher les notifications de commande en haut de la page */}
+      {orderNotifications.length > 0 && (
+        <div className="mb-2">
+          {orderNotifications.map(notification => (
+            <OrderNotificationAlert
+              key={notification.id}
+              notification={notification}
+              onClose={() => markNotificationAsRead(notification.id)}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Vue d'ensemble des statistiques */}
       <StatsOverview stats={stats} loading={loading} />

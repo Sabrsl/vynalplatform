@@ -15,6 +15,7 @@ import { useLogout } from '@/hooks/useLogout';
 import { NavigationLoadingState } from '@/app/providers';
 import { useUser } from '@/hooks/useUser';
 import { PUBLIC_ROUTES, AUTH_ROUTES, CLIENT_ROUTES, FREELANCE_ROUTES } from '@/config/routes';
+import Image from 'next/image';
 
 import { 
   X,
@@ -133,7 +134,14 @@ const MobileMenuHeader = memo(({
           className="bg-gradient-to-br from-vynal-accent-primary to-vynal-accent-secondary h-7 w-7 rounded-lg flex items-center justify-center shadow-md shadow-vynal-accent-primary/20 cursor-pointer hover:scale-105 transition-transform"
           onClick={navigateToHome}
         >
-          <span className="text-white font-bold text-xs">VY</span>
+          <Image 
+            src="/assets/logo/logo_vynal_platform_simple.svg" 
+            alt="Vynal Platform Logo" 
+            className="h-5 w-auto dark:brightness-110 transition-all duration-300" 
+            width={20}
+            height={20}
+            priority
+          />
         </span>
         <div 
           className="cursor-pointer"
@@ -331,6 +339,12 @@ const AuthenticatedMenuContent = memo(({
           icon: Settings,
           label: "Paramètres",
           callback: "settings"
+        },
+        {
+          href: "/contact",
+          icon: HelpCircle,
+          label: "Aide",
+          callback: "help"
         }
       ]
     };
@@ -699,6 +713,11 @@ export default function MobileMenu({ isOpen, onClose, user, activePath, setActiv
         setActivePath(`${CLIENT_ROUTES.DASHBOARD}/favorites`);
         onClose();
         router.push(`${CLIENT_ROUTES.DASHBOARD}/favorites`);
+      },
+      help: () => {
+        setActivePath("/contact");
+        onClose();
+        router.push("/contact");
       }
     };
     

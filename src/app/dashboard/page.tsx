@@ -424,9 +424,12 @@ const QuickActions = memo(() => (
     </CardHeader>
     <CardContent className="px-4 pb-4 sm:px-6 sm:pb-6">
       <div className="grid grid-cols-2 gap-2 sm:gap-3">
-        <Link href={`${FREELANCE_ROUTES.SERVICES}/new`} className="bg-vynal-purple-secondary/5 dark:bg-vynal-purple-secondary/10 hover:bg-vynal-purple-secondary/10 dark:hover:bg-vynal-purple-secondary/20 p-2 sm:p-4 rounded-lg flex flex-col items-center text-center gap-1 sm:gap-2 transition-colors">
-          <Package className="h-4 w-4 sm:h-5 sm:w-5 text-vynal-accent-primary" />
-          <span className="text-[10px] sm:text-xs font-medium text-vynal-purple-light dark:text-vynal-text-primary">Créer un service</span>
+        <Link 
+          href={`${FREELANCE_ROUTES.SERVICES}/new`} 
+          className="bg-vynal-accent-primary/15 dark:bg-vynal-accent-primary/10 hover:bg-vynal-accent-primary/20 dark:hover:bg-vynal-accent-primary/15 p-2 sm:p-4 rounded-lg flex flex-col items-center text-center gap-1 sm:gap-2 transition-all duration-300 border border-vynal-accent-primary/20 dark:border-vynal-accent-primary/20"
+        >
+          <Package className="h-4 w-4 sm:h-5 sm:w-5 text-vynal-accent-primary dark:text-vynal-accent-primary/70" />
+          <span className="text-[10px] sm:text-xs font-medium text-vynal-accent-primary dark:text-vynal-accent-primary/70">Créer un service</span>
         </Link>
         <Link href={FREELANCE_ROUTES.MESSAGES} className="bg-vynal-purple-secondary/5 dark:bg-vynal-purple-secondary/10 hover:bg-vynal-purple-secondary/10 dark:hover:bg-vynal-purple-secondary/20 p-2 sm:p-4 rounded-lg flex flex-col items-center text-center gap-1 sm:gap-2 transition-colors">
           <MessageCircle className="h-4 w-4 sm:h-5 sm:w-5 text-vynal-accent-primary" />
