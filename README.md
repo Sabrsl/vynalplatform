@@ -126,7 +126,3 @@ Ce logiciel est la propriété exclusive de Vynal Platform. Toute utilisation, r
 
 - [Sabrsl](https://github.com/Sabrsl) - Fondateur et développeur principal
 - Équipe Vynal - Design, développement et opérations`
-
-Ces optimisations permettent de réduire considérablement la charge sur le serveur Supabase et d'améliorer les performances de l'application.
-
-© 2025 Vynal Platform. Tous droits réservés.
