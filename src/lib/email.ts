@@ -446,17 +446,30 @@ export const sendTemplateEmail = async (
     // Créer un texte simple alternatif (version sans HTML)
     // Méthode sécurisée pour convertir HTML en texte
     const text = (() => {
+      // Décoder les entités HTML communes (dans un ordre précis et sécurisé)
+      const decodeHtmlEntities = (html: string): string => {
+        const entitiesMap: Record<string, string> = {
+          '&amp;': '&', 
+          '&lt;': '<', 
+          '&gt;': '>', 
+          '&quot;': '"', 
+          '&#39;': "'",
+          '&#x27;': "'",
+          '&#x2F;': '/',
+          '&nbsp;': ' '
+        };
+        
+        // Remplacer toutes les entités HTML connues
+        return html.replace(/&amp;|&lt;|&gt;|&quot;|&#39;|&#x27;|&#x2F;|&nbsp;/g, 
+          (entity) => entitiesMap[entity] || entity
+        );
+      };
+      
       // 1. Supprimer les balises HTML
       let plainText = html.replace(/<[^>]*>/g, '');
       
-      // 2. Décoder les entités HTML communes (dans un ordre précis)
-      plainText = plainText
-        .replace(/&amp;/g, '&')  // Décoder &amp; en premier pour éviter les doubles décodages
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .replace(/&quot;/g, '"')
-        .replace(/&#39;/g, "'")
-        .replace(/&nbsp;/g, ' ');
+      // 2. Décoder les entités HTML de façon sécurisée
+      plainText = decodeHtmlEntities(plainText);
       
       // 3. Normaliser les espaces
       plainText = plainText.replace(/\s+/g, ' ').trim();

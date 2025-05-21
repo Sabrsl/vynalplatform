@@ -1,7 +1,12 @@
 import CryptoJS from 'crypto-js';
 
 // Clé secrète pour la signature HMAC
-const SECRET_KEY = process.env.NEXT_PUBLIC_HMAC_SECRET_KEY || 'vynal-platform-document-verification-key';
+const SECRET_KEY = process.env.NEXT_PUBLIC_HMAC_SECRET_KEY;
+
+// Vérifier que la clé est définie
+if (!SECRET_KEY) {
+  console.error('ERREUR: NEXT_PUBLIC_HMAC_SECRET_KEY n\'est pas définie. La signature des documents ne fonctionnera pas correctement.');
+}
 
 /**
  * Génère une signature HMAC-SHA256 pour un document
@@ -9,6 +14,10 @@ const SECRET_KEY = process.env.NEXT_PUBLIC_HMAC_SECRET_KEY || 'vynal-platform-do
  * @returns La signature HMAC-SHA256 encodée en Base64
  */
 export const signDocument = (payload: any): string => {
+  if (!SECRET_KEY) {
+    throw new Error('Clé de signature non configurée. Contactez l\'administrateur.');
+  }
+
   // Conversion du payload en chaîne JSON triée par clés pour assurer la cohérence
   const sortedPayload = typeof payload === 'string' 
     ? payload 
@@ -28,6 +37,10 @@ export const signDocument = (payload: any): string => {
  * @returns true si la signature est valide, false sinon
  */
 export const verifyDocumentSignature = (payload: any, signature: string): boolean => {
+  if (!SECRET_KEY) {
+    throw new Error('Clé de signature non configurée. Contactez l\'administrateur.');
+  }
+
   // Recalcul de la signature à partir du payload
   const calculatedSignature = signDocument(payload);
   

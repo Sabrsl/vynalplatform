@@ -48,7 +48,11 @@ export function sanitizeContent(content: string): string {
   // Supprimer les balises HTML potentiellement dangereuses
   let sanitized = content.replace(/<(script|iframe|object|embed|form|style)[^>]*>[\s\S]*?<\/\1>/gi, '');
   
+  // Supprimer toutes les balises HTML
+  sanitized = sanitized.replace(/<[^>]*>/g, '');
+  
   // Échapper les caractères spéciaux pour éviter les injections
+  // Important: ordre spécifique pour éviter les problèmes d'échappement double
   sanitized = sanitized
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -56,11 +60,19 @@ export function sanitizeContent(content: string): string {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
     
-  // Supprimer les événements JavaScript dans les attributs
+  // Supprimer les événements JavaScript dans les attributs (mesure de sécurité supplémentaire)
   sanitized = sanitized.replace(/\s+on\w+\s*=\s*("[^"]*"|'[^']*')/gi, '');
   
-  // Supprimer les URIs dangereux
-  sanitized = sanitized.replace(/\s+(href|src|data|action)\s*=\s*("javascript:[^"]*"|'javascript:[^']*')/gi, '');
+  // Supprimer les URIs dangereux (javascript:, data:, vbscript:)
+  sanitized = sanitized.replace(/\s+(href|src|data|action)\s*=\s*("[^"]*"|'[^']*')/gi, function(match) {
+    if (/javascript:|data:|vbscript:|file:/i.test(match)) {
+      return ' data-removed-unsafe-attribute';
+    }
+    return match;
+  });
+  
+  // Protection supplémentaire contre les attaques XSS
+  sanitized = sanitized.replace(/javascript:|data:|vbscript:|file:/gi, 'invalid:');
   
   return sanitized;
 }

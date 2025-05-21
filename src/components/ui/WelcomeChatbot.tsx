@@ -473,55 +473,106 @@ Y a-t-il un aspect particulier sur lequel vous souhaitez plus d'informations ?`;
 
   // Convertir le texte avec des sauts de ligne en JSX avec des <br />
   const formatMessage = (text: string) => {
-    return text.split('\n').map((line, index) => {
-      // Détecter les liens dans le format /chemin
+    // Échapper les caractères spéciaux pour éviter les injections XSS
+    const escapeHtml = (str: string) => {
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    };
+    
+    // Sécuriser le texte avant de le traiter
+    const safeText = escapeHtml(text);
+    
+    return safeText.split('\n').map((line, index) => {
+      // Détecter les liens dans le format /chemin en utilisant une méthode sécurisée
       const linkRegex = /(\/[a-z-]+)/g;
       const parts = [];
       let lastIndex = 0;
       let match;
+      let processedLine = line;
 
-      while ((match = linkRegex.exec(line)) !== null) {
+      while ((match = linkRegex.exec(processedLine)) !== null) {
+        // Valider le format du chemin (uniquement lettres, chiffres et tirets)
+        if (!/^\/[a-z0-9-]+$/.test(match[1])) {
+          continue;
+        }
+        
         // Ajouter le texte avant le lien
         if (match.index > lastIndex) {
-          parts.push(line.slice(lastIndex, match.index));
+          parts.push(processedLine.slice(lastIndex, match.index));
         }
+        
         // Ajouter le lien avec le composant Link
         const path = match[1];
         let frenchText = '';
-        switch (path) {
-          case '/privacy-policy':
-            frenchText = 'politique de confidentialité';
-            break;
-          case '/terms-of-service':
-            frenchText = 'conditions d\'utilisation';
-            break;
-          case '/code-of-conduct':
-            frenchText = 'code de conduite';
-            break;
-          default:
-            frenchText = path.split('/').pop()?.replace(/-/g, ' ') || '';
+        
+        // Liste blanche des chemins autorisés
+        const validPaths = [
+          '/privacy-policy',
+          '/terms-of-service',
+          '/code-of-conduct',
+          '/contact',
+          '/about',
+          '/faq',
+          '/help'
+        ];
+        
+        if (validPaths.includes(path)) {
+          switch (path) {
+            case '/privacy-policy':
+              frenchText = 'politique de confidentialité';
+              break;
+            case '/terms-of-service':
+              frenchText = 'conditions d\'utilisation';
+              break;
+            case '/code-of-conduct':
+              frenchText = 'code de conduite';
+              break;
+            case '/contact':
+              frenchText = 'contact';
+              break;
+            case '/about':
+              frenchText = 'à propos';
+              break;
+            case '/faq':
+              frenchText = 'FAQ';
+              break;
+            case '/help':
+              frenchText = 'aide';
+              break;
+            default:
+              frenchText = path.split('/').pop()?.replace(/-/g, ' ') || '';
+          }
+          
+          parts.push(
+            <Link 
+              key={`link-${index}-${match.index}`}
+              href={path}
+              className="text-vynal-accent-primary hover:text-vynal-accent-secondary underline"
+            >
+              {frenchText}
+            </Link>
+          );
+        } else {
+          // Si ce n'est pas un chemin valide, l'ajouter comme texte normal
+          parts.push(match[0]);
         }
-        parts.push(
-          <Link 
-            key={`link-${index}-${match.index}`}
-            href={path}
-            className="text-vynal-accent-primary hover:text-vynal-accent-secondary underline"
-          >
-            {frenchText}
-          </Link>
-        );
+        
         lastIndex = match.index + match[0].length;
       }
 
       // Ajouter le reste du texte
-      if (lastIndex < line.length) {
-        parts.push(line.slice(lastIndex));
+      if (lastIndex < processedLine.length) {
+        parts.push(processedLine.slice(lastIndex));
       }
 
       return (
         <React.Fragment key={index}>
-          {parts.length > 0 ? parts : line}
-          {index < text.split('\n').length - 1 && <br />}
+          {parts.length > 0 ? parts : processedLine}
+          {index < safeText.split('\n').length - 1 && <br />}
         </React.Fragment>
       );
     });

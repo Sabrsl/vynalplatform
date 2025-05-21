@@ -88,8 +88,53 @@ export function setCachedData<T>(
   try {
     const { expiry = CACHE_EXPIRY.MEDIUM, priority = 'medium' } = options;
     
+    // Éviter le stockage de données sensibles
+    const sensitiveKeys = [
+      'token', 'password', 'credit', 'card', 'cvv', 'secret', 'api_key',
+      'apikey', 'auth', 'credentials', 'session', 'private'
+    ];
+    
+    // Vérifier si la clé pourrait contenir des données sensibles
+    const isSensitiveKey = sensitiveKeys.some(sensitiveKey => 
+      key.toLowerCase().includes(sensitiveKey)
+    );
+    
+    // Ne pas mettre en cache les données potentiellement sensibles
+    if (isSensitiveKey) {
+      console.warn(`Tentative de mise en cache de données potentiellement sensibles (${key}). Opération annulée pour des raisons de sécurité.`);
+      return;
+    }
+    
+    // Masquer les données sensibles avant stockage
+    let safeData: any = data;
+    
+    // Si c'est un objet, vérifier les propriétés sensibles
+    if (data && typeof data === 'object' && !Array.isArray(data)) {
+      safeData = JSON.parse(JSON.stringify(data));
+      
+      // Parcourir l'objet et masquer les propriétés sensibles
+      const maskSensitiveFields = (obj: any) => {
+        if (!obj || typeof obj !== 'object') return;
+        
+        Object.keys(obj).forEach(prop => {
+          const propLower = prop.toLowerCase();
+          
+          // Vérifier si la propriété pourrait être sensible
+          if (sensitiveKeys.some(key => propLower.includes(key))) {
+            obj[prop] = typeof obj[prop] === 'string' ? '******' : null;
+          } 
+          // Récursion pour les objets imbriqués
+          else if (obj[prop] && typeof obj[prop] === 'object') {
+            maskSensitiveFields(obj[prop]);
+          }
+        });
+      };
+      
+      maskSensitiveFields(safeData);
+    }
+    
     const item = {
-      data,
+      data: safeData,
       expiry: Date.now() + expiry,
       priority,
       timestamp: Date.now(),
@@ -106,8 +151,52 @@ export function setCachedData<T>(
       
       // Réessayer après nettoyage
       try {
+        const { expiry = CACHE_EXPIRY.MEDIUM, priority = 'medium' } = options;
+        
+        // On réutilise le même code pour masquer les données sensibles
+        const sensitiveKeys = [
+          'token', 'password', 'credit', 'card', 'cvv', 'secret', 'api_key',
+          'apikey', 'auth', 'credentials', 'session', 'private'
+        ];
+        
+        const isSensitiveKey = sensitiveKeys.some(sensitiveKey => 
+          key.toLowerCase().includes(sensitiveKey)
+        );
+        
+        if (isSensitiveKey) {
+          return;
+        }
+        
+        // Masquer les données sensibles avant stockage
+        let safeData: any = data;
+        
+        // Si c'est un objet, vérifier les propriétés sensibles
+        if (data && typeof data === 'object' && !Array.isArray(data)) {
+          safeData = JSON.parse(JSON.stringify(data));
+          
+          // Parcourir l'objet et masquer les propriétés sensibles
+          const maskSensitiveFields = (obj: any) => {
+            if (!obj || typeof obj !== 'object') return;
+            
+            Object.keys(obj).forEach(prop => {
+              const propLower = prop.toLowerCase();
+              
+              // Vérifier si la propriété pourrait être sensible
+              if (sensitiveKeys.some(key => propLower.includes(key))) {
+                obj[prop] = typeof obj[prop] === 'string' ? '******' : null;
+              } 
+              // Récursion pour les objets imbriqués
+              else if (obj[prop] && typeof obj[prop] === 'object') {
+                maskSensitiveFields(obj[prop]);
+              }
+            });
+          };
+          
+          maskSensitiveFields(safeData);
+        }
+        
         const item = {
-          data,
+          data: safeData,
           expiry: Date.now() + (options.expiry || CACHE_EXPIRY.MEDIUM),
           priority: options.priority || 'medium',
           timestamp: Date.now(),

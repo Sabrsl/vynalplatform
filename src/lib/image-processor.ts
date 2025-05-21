@@ -82,16 +82,23 @@ export const validateImage = async (
     };
     
     img.onerror = () => {
+      URL.revokeObjectURL(img.src);
       resolve({ isValid: false, message: "Impossible de lire l'image" });
     };
     
-    const objectUrl = URL.createObjectURL(file);
-    // Validation de sécurité pour éviter les XSS
-    if (typeof objectUrl === 'string' && objectUrl.startsWith('blob:')) {
-      img.src = objectUrl;
-    } else {
-      URL.revokeObjectURL(objectUrl);
-      resolve({ isValid: false, message: "Format d'image non valide" });
+    // Créer une URL sécurisée pour l'image
+    try {
+      const objectUrl = URL.createObjectURL(file);
+      // Strictement vérifier que l'URL est un blob
+      if (objectUrl && typeof objectUrl === 'string' && objectUrl.startsWith('blob:')) {
+        img.src = objectUrl;
+      } else {
+        if (objectUrl) URL.revokeObjectURL(objectUrl);
+        resolve({ isValid: false, message: "Format d'image non valide" });
+      }
+    } catch (error) {
+      console.error("Erreur lors de la création de l'URL de l'image:", error);
+      resolve({ isValid: false, message: "Erreur lors du traitement de l'image" });
     }
   });
 };
@@ -102,6 +109,7 @@ export const validateImage = async (
 export const getImageDimensions = (file: File): Promise<{width: number, height: number}> => {
   return new Promise((resolve, reject) => {
     const img = new Image();
+    
     img.onload = () => {
       URL.revokeObjectURL(img.src);
       resolve({
@@ -111,16 +119,23 @@ export const getImageDimensions = (file: File): Promise<{width: number, height: 
     };
     
     img.onerror = () => {
+      URL.revokeObjectURL(img.src);
       reject(new Error('Impossible de lire les dimensions de l\'image'));
     };
     
-    const objectUrl = URL.createObjectURL(file);
-    // Validation de sécurité pour éviter les XSS
-    if (typeof objectUrl === 'string' && objectUrl.startsWith('blob:')) {
-      img.src = objectUrl;
-    } else {
-      URL.revokeObjectURL(objectUrl);
-      reject(new Error("Format d'image non valide"));
+    // Créer une URL sécurisée pour l'image
+    try {
+      const objectUrl = URL.createObjectURL(file);
+      // Strictement vérifier que l'URL est un blob
+      if (objectUrl && typeof objectUrl === 'string' && objectUrl.startsWith('blob:')) {
+        img.src = objectUrl;
+      } else {
+        if (objectUrl) URL.revokeObjectURL(objectUrl);
+        reject(new Error("Format d'image non valide"));
+      }
+    } catch (error) {
+      console.error("Erreur lors de la création de l'URL de l'image:", error);
+      reject(new Error("Erreur lors du traitement de l'image"));
     }
   });
 };
@@ -253,6 +268,25 @@ export function enhanceImageQuality(
   ctx.drawImage(blurCanvas, 0, 0);
   ctx.globalCompositeOperation = 'source-over';
 }
+
+// Fonction sécurisée pour créer une URL d'objet
+const createSecureObjectURL = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    try {
+      const objectUrl = URL.createObjectURL(file);
+      // Strictement vérifier que l'URL est un blob
+      if (objectUrl && typeof objectUrl === 'string' && objectUrl.startsWith('blob:')) {
+        resolve(objectUrl);
+      } else {
+        if (objectUrl) URL.revokeObjectURL(objectUrl);
+        reject(new Error("Format d'image non valide"));
+      }
+    } catch (error) {
+      console.error("Erreur lors de la création de l'URL de l'image:", error);
+      reject(new Error("Erreur lors du traitement de l'image"));
+    }
+  });
+};
 
 /**
  * Fonction principale de traitement d'image
@@ -421,23 +455,15 @@ export const processImage = async (
       reject(new Error('Échec du chargement de l\'image pour traitement'));
     };
     
-    const objectUrl = URL.createObjectURL(file);
-    // Validation de sécurité pour éviter les XSS
-    if (typeof objectUrl === 'string' && objectUrl.startsWith('blob:')) {
-      img.src = objectUrl;
-    } else {
-      URL.revokeObjectURL(objectUrl);
-      clearTimeout(timeoutId);
-      reject(new Error("Format d'image non valide"));
-    }
-    
-    // S'assurer que l'URL est libérée si l'image n'est pas chargée
-    img.onload = img.onload.bind(img);
-    img.onerror = function() {
-      URL.revokeObjectURL(objectUrl);
-      clearTimeout(timeoutId);
-      reject(new Error('Impossible de charger l\'image'));
-    };
+    // Utiliser la fonction sécurisée pour créer l'URL
+    createSecureObjectURL(file)
+      .then(objectUrl => {
+        img.src = objectUrl;
+      })
+      .catch(error => {
+        clearTimeout(timeoutId);
+        reject(error);
+      });
   });
 };
 

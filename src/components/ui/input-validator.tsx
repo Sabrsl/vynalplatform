@@ -137,6 +137,9 @@ export const InputValidator: React.FC<InputValidatorProps> = ({
   
   // Fonction de nettoyage des données
   const sanitizeInput = (input: string): string => {
+    // Si l'entrée est nulle ou vide, retourner une chaîne vide
+    if (!input) return '';
+    
     // Adaptation selon le type
     switch (type) {
       case 'email':
@@ -155,22 +158,28 @@ export const InputValidator: React.FC<InputValidatorProps> = ({
         // Ne garder que les chiffres et quelques caractères autorisés
         return input.replace(/[^\d+\-\s()]/g, '');
         
+      case 'password':
+        // Ne pas modifier les mots de passe, mais supprimer les caractères de contrôle
+        return input.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+        
       default:
         // Supprimer les balises HTML et scripts
         let sanitized = input.replace(/<[^>]*>/g, '');
         
         // Échapper les caractères spéciaux (sauf pour les mots de passe)
-        if (type !== 'password') {
-          sanitized = sanitized
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#039;');
-        }
+        // Important: ordre spécifique pour éviter les problèmes d'échappement double
+        sanitized = sanitized
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
         
         // Supprimer les caractères de contrôle
         sanitized = sanitized.replace(/[\x00-\x1F\x7F-\x9F]/g, '');
+        
+        // Protection supplémentaire contre les attaques XSS
+        sanitized = sanitized.replace(/javascript:|data:|vbscript:|file:/gi, 'invalid:');
         
         return sanitized;
     }
