@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseServer, getServerSession } from '@/lib/supabase/server';
 
+// Marquer cette route comme dynamique car elle utilise des cookies
+export const dynamic = 'force-dynamic';
+
 /**
  * API pour récupérer les services du freelance connecté
  * Utilisé pour le rafraîchissement côté client

@@ -3,6 +3,9 @@ import { getSupabaseServer } from '@/lib/supabase/server';
 import { getServicesPageData } from '@/app/services/server';
 import { headers } from 'next/headers';
 
+// Marquer cette route comme dynamique car elle utilise headers
+export const dynamic = 'force-dynamic';
+
 /**
  * API pour récupérer les données des services
  * Utilisé pour le rafraîchissement côté client

@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { processNotifications } from '@/lib/workers/notificationWorker';
 
+// Marquer cette route comme dynamique pour éviter l'erreur de build
+export const dynamic = 'force-dynamic';
+
 /**
  * API pour les tâches cron de Vynal Platform
  * Cet endpoint est conçu pour être appelé par un service cron ou un job scheduler

@@ -80,13 +80,13 @@ export function DisputeMessageForm({
     if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(extension || '')) {
       return (
         <span aria-label="Image">
-          <Image className="h-3 w-3 sm:h-4 sm:w-4 text-indigo-500" strokeWidth={2.5} />
+          <Image className="h-3 w-3 sm:h-4 sm:w-4 text-indigo-500" strokeWidth={2.5} aria-hidden="true" />
         </span>
       );
     }
     return (
       <span aria-label="Document">
-        <FileText className="h-3 w-3 sm:h-4 sm:w-4 text-indigo-500" strokeWidth={2.5} />
+        <FileText className="h-3 w-3 sm:h-4 sm:w-4 text-indigo-500" strokeWidth={2.5} aria-hidden="true" />
       </span>
     );
   }, []);

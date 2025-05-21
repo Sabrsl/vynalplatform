@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { processNotifications } from '@/lib/workers/notificationWorker';
 
+// Marquer cette route comme dynamique pour éviter l'erreur de build
+export const dynamic = 'force-dynamic';
+
 /**
  * API pour le traitement périodique des notifications par cron job
  * Cet endpoint est conçu pour être appelé automatiquement par un service cron

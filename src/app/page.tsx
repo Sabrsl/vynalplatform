@@ -266,7 +266,8 @@ export default function Home() {
   return (
     <PageLayout fullGradient={true}>
       {/* Chatbot visible uniquement sur la page d'accueil */}
-      <WelcomeChatbotDynamic />
+      {/* WelcomeChatbotDynamic temporairement désactivé */}
+      {/* <WelcomeChatbotDynamic /> */}
       
       {/* Hero Section - LCP */}
       <section className="text-slate-800 dark:text-vynal-text-primary py-16 md:py-24">
@@ -501,7 +502,7 @@ export default function Home() {
                     Zéro contrainte
                   </h3>
                   <p className="text-white/90 mb-4">
-                   Passez à l’action sans embaucher.
+                   Passez à l'action sans embaucher.
                    Vos données sont protégées, votre confidentialité est respectée. Et en cas de besoin, notre assistance est disponible 24/7.
                   </p>
                 </div>
