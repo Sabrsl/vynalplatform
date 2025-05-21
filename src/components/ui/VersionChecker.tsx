@@ -5,7 +5,7 @@ import { useVersionCheck } from '@/hooks/useVersionCheck';
 import { UpdateNotification } from './UpdateNotification';
 
 interface VersionCheckerProps {
-  checkInterval?: number; // Intervalle en ms (par défaut: 15 minutes)
+  checkInterval?: number; // Intervalle en ms (par défaut: 2 minutes)
 }
 
 /**

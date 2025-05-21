@@ -193,7 +193,7 @@ export default function RootLayout({
           <div id="navigation-progress-indicator" className="fixed top-0 left-0 w-full h-1 bg-gradient-to-r from-vynal-purple-primary via-vynal-accent-primary to-vynal-purple-primary bg-size-200 animate-gradient-x z-50 hidden" />
           
           {/* Système de détection des mises à jour */}
-          <VersionChecker checkInterval={15 * 60 * 1000} />
+          <VersionChecker checkInterval={2 * 60 * 1000} />
         </Providers>
         
         {/* Script de performance avec Next/Script */}

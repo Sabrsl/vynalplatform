@@ -7,11 +7,34 @@ interface VersionInfo {
 }
 
 /**
+ * Compare deux versions sémantiques (SemVer)
+ * @param v1 La première version (ex: "1.2.3")
+ * @param v2 La deuxième version (ex: "1.3.0")
+ * @returns -1 si v1 < v2, 0 si v1 == v2, 1 si v1 > v2
+ */
+function compareVersions(v1: string, v2: string): number {
+  const v1Parts = v1.split('.').map(part => parseInt(part, 10));
+  const v2Parts = v2.split('.').map(part => parseInt(part, 10));
+  
+  // Comparer les parties numériques une par une
+  for (let i = 0; i < Math.max(v1Parts.length, v2Parts.length); i++) {
+    const v1Part = v1Parts[i] || 0;
+    const v2Part = v2Parts[i] || 0;
+    
+    if (v1Part > v2Part) return 1;
+    if (v1Part < v2Part) return -1;
+  }
+  
+  // Les versions sont identiques
+  return 0;
+}
+
+/**
  * Hook pour vérifier périodiquement si une nouvelle version du site est disponible
- * @param interval Temps en millisecondes entre chaque vérification (défaut: 15 minutes)
+ * @param interval Temps en millisecondes entre chaque vérification (défaut: 2 minutes)
  * @returns Un objet contenant l'état des mises à jour et une fonction pour rafraîchir la page
  */
-export function useVersionCheck(interval = 15 * 60 * 1000) {
+export function useVersionCheck(interval = 2 * 60 * 1000) {
   const [hasUpdate, setHasUpdate] = useState(false);
   const [currentVersion, setCurrentVersion] = useState<string | null>(null);
   const [newVersion, setNewVersion] = useState<string | null>(null);
@@ -37,8 +60,9 @@ export function useVersionCheck(interval = 15 * 60 * 1000) {
         return;
       }
       
-      // Vérifier si la version a changé
-      if (versionInfo.version !== storedVersionRef.current) {
+      // Vérifier si la version a changé et si elle est plus récente
+      if (versionInfo.version !== storedVersionRef.current &&
+          compareVersions(versionInfo.version, storedVersionRef.current) > 0) {
         setHasUpdate(true);
         setNewVersion(versionInfo.version);
       }
