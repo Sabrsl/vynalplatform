@@ -446,7 +446,6 @@ export const sendTemplateEmail = async (
     // Créer un texte simple alternatif (version sans HTML)
     // Méthode sécurisée pour convertir HTML en texte
     const text = (() => {
-      // Décoder les entités HTML communes (dans un ordre précis et sécurisé)
       const decodeHtmlEntities = (html: string): string => {
         const entitiesMap: Record<string, string> = {
           '&amp;': '&', 
@@ -465,8 +464,12 @@ export const sendTemplateEmail = async (
         );
       };
       
-      // 1. Supprimer les balises HTML
+      // 1. Supprimer les balises HTML complètement
+      // Première passe pour les balises fermantes
       let plainText = html.replace(/<[^>]*>/g, '');
+      
+      // Deuxième passe pour capturer les balises potentiellement incomplètes
+      plainText = plainText.replace(/<[^>]*$/g, '');
       
       // 2. Décoder les entités HTML de façon sécurisée
       plainText = decodeHtmlEntities(plainText);

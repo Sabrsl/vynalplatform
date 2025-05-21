@@ -166,6 +166,9 @@ export const InputValidator: React.FC<InputValidatorProps> = ({
         // Supprimer les balises HTML et scripts
         let sanitized = input.replace(/<[^>]*>/g, '');
         
+        // Deuxième passe pour capturer les balises potentiellement incomplètes
+        sanitized = sanitized.replace(/<[^>]*$/g, '');
+        
         // Échapper les caractères spéciaux (sauf pour les mots de passe)
         // Important: ordre spécifique pour éviter les problèmes d'échappement double
         sanitized = sanitized

@@ -45,11 +45,14 @@ export interface ValidationResult {
 export function sanitizeContent(content: string): string {
   if (!content) return '';
   
-  // Supprimer les balises HTML potentiellement dangereuses
+  // Supprimer les balises HTML potentiellement dangereuses et tous les scripts inclus
   let sanitized = content.replace(/<(script|iframe|object|embed|form|style)[^>]*>[\s\S]*?<\/\1>/gi, '');
   
-  // Supprimer toutes les balises HTML
+  // Supprimer toutes les balises HTML de manière plus robuste
   sanitized = sanitized.replace(/<[^>]*>/g, '');
+  
+  // Ajouter une deuxième passe pour capturer les balises potentiellement incomplètes
+  sanitized = sanitized.replace(/<[^>]*$/g, '');
   
   // Échapper les caractères spéciaux pour éviter les injections
   // Important: ordre spécifique pour éviter les problèmes d'échappement double
@@ -63,10 +66,10 @@ export function sanitizeContent(content: string): string {
   // Supprimer les événements JavaScript dans les attributs (mesure de sécurité supplémentaire)
   sanitized = sanitized.replace(/\s+on\w+\s*=\s*("[^"]*"|'[^']*')/gi, '');
   
-  // Supprimer les URIs dangereux (javascript:, data:, vbscript:)
-  sanitized = sanitized.replace(/\s+(href|src|data|action)\s*=\s*("[^"]*"|'[^']*')/gi, function(match) {
-    if (/javascript:|data:|vbscript:|file:/i.test(match)) {
-      return ' data-removed-unsafe-attribute';
+  // Supprimer les URIs dangereux (javascript:, data:, vbscript:, file:)
+  sanitized = sanitized.replace(/((href|src|data|action)\s*=\s*)(["'])(.*?)\3/gi, (match, prefix, attr, quote, url) => {
+    if (/javascript:|data:|vbscript:|file:/i.test(url)) {
+      return `${prefix}${quote}invalid:removed${quote}`;
     }
     return match;
   });

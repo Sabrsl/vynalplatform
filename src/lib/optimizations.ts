@@ -46,35 +46,128 @@ export interface CacheOptions {
 }
 
 /**
- * Récupère des données du cache
- * @param key La clé du cache
- * @returns Les données ou null si non trouvées ou expirées
+ * Récupérer les clés de cryptage des variables d'environnement
+ * Les valeurs de fallback ne sont utilisées qu'en environnement de développement
+ */
+const getEncryptionKeys = () => {
+  const key = process.env.ENCRYPTION_KEY || process.env.NEXT_PUBLIC_ENCRYPTION_KEY;
+  const iv = process.env.ENCRYPTION_IV || process.env.NEXT_PUBLIC_ENCRYPTION_IV;
+  
+  if (!key || !iv) {
+    throw new Error('Les clés de chiffrement ne sont pas définies dans les variables d\'environnement');
+  }
+  
+  return {
+    key,
+    iv,
+    isProduction: process.env.NODE_ENV === 'production'
+  };
+};
+
+/**
+ * Fonction pour crypter une chaîne
+ * Utilise les clés d'environnement pour le cryptage
+ */
+function simpleEncrypt(data: string): string {
+  if (typeof window === 'undefined') return data;
+  
+  try {
+    const { key, iv, isProduction } = getEncryptionKeys();
+    
+    // En production, ne jamais retourner les données non cryptées
+    if (!key && isProduction) {
+      console.error('Clé de cryptage non définie dans l\'environnement de production');
+      return '';
+    }
+    
+    // Méthode basique de chiffrement avec les clés d'environnement
+    const encodedData = encodeURIComponent(data);
+    const encodedKey = btoa(key).substring(0, 32);
+    const encodedIv = btoa(iv).substring(0, 16);
+    
+    const encrypted = Array.from(encodedData)
+      .map((char, index) => {
+        const keyChar = encodedKey.charCodeAt(index % encodedKey.length);
+        const ivChar = encodedIv.charCodeAt(index % encodedIv.length);
+        return String.fromCharCode(char.charCodeAt(0) ^ keyChar ^ ivChar);
+      })
+      .join('');
+    
+    return btoa(encrypted);
+  } catch (error) {
+    console.error('Erreur lors du cryptage des données:', error);
+    // En cas d'erreur, ne retourner les données non cryptées qu'en dev
+    return process.env.NODE_ENV === 'production' ? '' : data;
+  }
+}
+
+/**
+ * Fonction pour décrypter une chaîne cryptée
+ * Utilise les mêmes clés d'environnement que pour le cryptage
+ */
+function simpleDecrypt(encryptedData: string): string {
+  if (typeof window === 'undefined') return encryptedData;
+  
+  try {
+    const { key, iv, isProduction } = getEncryptionKeys();
+    
+    // En production, ne jamais continuer sans clé de décryptage
+    if (!key && isProduction) {
+      console.error('Clé de décryptage non définie dans l\'environnement de production');
+      return '';
+    }
+    
+    const encodedKey = btoa(key).substring(0, 32);
+    const encodedIv = btoa(iv).substring(0, 16);
+    
+    const decrypted = Array.from(atob(encryptedData))
+      .map((char, index) => {
+        const keyChar = encodedKey.charCodeAt(index % encodedKey.length);
+        const ivChar = encodedIv.charCodeAt(index % encodedIv.length);
+        return String.fromCharCode(char.charCodeAt(0) ^ keyChar ^ ivChar);
+      })
+      .join('');
+    
+    return decodeURIComponent(decrypted);
+  } catch (error) {
+    console.error('Erreur lors du décryptage des données:', error);
+    // En cas d'erreur, retourner une chaîne vide ou les données cryptées
+    return encryptedData;
+  }
+}
+
+/**
+ * Récupérer des données du cache local
+ * @param key La clé du cache à récupérer
+ * @returns Les données récupérées ou null si absentes/expirées
  */
 export function getCachedData<T>(key: string): T | null {
   if (typeof window === 'undefined') return null;
   
   try {
-    const item = localStorage.getItem(key);
-    if (!item) return null;
+    const storedItem = localStorage.getItem(key);
+    if (!storedItem) return null;
     
-    const { data, expiry } = JSON.parse(item);
+    // Décrypter les données si nécessaire
+    const decryptedItem = simpleDecrypt(storedItem);
+    const item = JSON.parse(decryptedItem);
     
-    // Vérifier si les données ont expiré
-    if (expiry && Date.now() > expiry) {
+    // Vérifier l'expiration
+    if (item.expiry < Date.now()) {
       localStorage.removeItem(key);
       return null;
     }
     
-    return data as T;
+    return item.data as T;
   } catch (error) {
-    console.warn(`Erreur lors de la récupération des données en cache pour "${key}"`, error);
+    console.warn(`Erreur lors de la récupération du cache pour "${key}"`, error);
     return null;
   }
 }
 
 /**
- * Stocke des données dans le cache
- * @param key La clé du cache
+ * Stocker des données dans le cache local
+ * @param key La clé de cache
  * @param data Les données à stocker
  * @param options Options de cache (expiration, priorité)
  */
@@ -88,20 +181,19 @@ export function setCachedData<T>(
   try {
     const { expiry = CACHE_EXPIRY.MEDIUM, priority = 'medium' } = options;
     
-    // Éviter le stockage de données sensibles
+    // Liste des mots-clés sensibles qui devraient être évités dans les clés de cache
     const sensitiveKeys = [
       'token', 'password', 'credit', 'card', 'cvv', 'secret', 'api_key',
       'apikey', 'auth', 'credentials', 'session', 'private'
     ];
     
-    // Vérifier si la clé pourrait contenir des données sensibles
+    // Vérifier si la clé contient des mots-clés sensibles
     const isSensitiveKey = sensitiveKeys.some(sensitiveKey => 
       key.toLowerCase().includes(sensitiveKey)
     );
     
-    // Ne pas mettre en cache les données potentiellement sensibles
     if (isSensitiveKey) {
-      console.warn(`Tentative de mise en cache de données potentiellement sensibles (${key}). Opération annulée pour des raisons de sécurité.`);
+      console.warn(`Tentative de mise en cache d'une donnée potentiellement sensible avec la clé "${key}". Opération ignorée.`);
       return;
     }
     
@@ -140,7 +232,9 @@ export function setCachedData<T>(
       timestamp: Date.now(),
     };
     
-    localStorage.setItem(key, JSON.stringify(item));
+    // Crypter les données avant stockage
+    const encryptedData = simpleEncrypt(JSON.stringify(item));
+    localStorage.setItem(key, encryptedData);
   } catch (error) {
     console.warn(`Erreur lors du stockage en cache pour "${key}"`, error);
     
@@ -149,11 +243,11 @@ export function setCachedData<T>(
     if (error instanceof DOMException && error.name === 'QuotaExceededError') {
       clearLowPriorityCache();
       
-      // Réessayer après nettoyage
+      // Réessayer après nettoyage avec les mêmes mécanismes de sécurité
       try {
         const { expiry = CACHE_EXPIRY.MEDIUM, priority = 'medium' } = options;
         
-        // On réutilise le même code pour masquer les données sensibles
+        // Vérifier à nouveau la clé sensible
         const sensitiveKeys = [
           'token', 'password', 'credit', 'card', 'cvv', 'secret', 'api_key',
           'apikey', 'auth', 'credentials', 'session', 'private'
@@ -201,7 +295,10 @@ export function setCachedData<T>(
           priority: options.priority || 'medium',
           timestamp: Date.now(),
         };
-        localStorage.setItem(key, JSON.stringify(item));
+        
+        // Crypter les données avant stockage
+        const encryptedData = simpleEncrypt(JSON.stringify(item));
+        localStorage.setItem(key, encryptedData);
       } catch (retryError) {
         console.error(`Impossible de stocker en cache même après nettoyage pour "${key}"`, retryError);
       }

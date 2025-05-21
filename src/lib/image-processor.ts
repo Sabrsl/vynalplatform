@@ -23,57 +23,64 @@ export interface ProcessedImageResult {
 }
 
 /**
- * Fonction de validation d'image
+ * Fonction pour valider qu'une URL est sécurisée
+ * Vérifie qu'il s'agit bien d'une URL blob: valide
+ */
+function isSecureBlobUrl(url: string): boolean {
+  return (
+    typeof url === 'string' && 
+    url.startsWith('blob:') && 
+    /^blob:https?:\/\//.test(url)
+  );
+}
+
+/**
+ * Fonction pour créer une URL d'objet de manière sécurisée
  */
 export const validateImage = async (
   file: File, 
   options?: ImageProcessorOptions
 ): Promise<{ isValid: boolean; message?: string }> => {
-  const opts = options || {
-    targetWidth: 1200,
-    targetHeight: 800,
-    maxFileSize: 5
-  };
-  
-  // Vérifier le type MIME
-  if (!file.type.startsWith('image/')) {
-    return { isValid: false, message: "Le fichier n'est pas une image" };
-  }
-  
-  // Vérifier la taille du fichier
-  if (opts.maxFileSize && file.size > opts.maxFileSize * 1024 * 1024) {
-    return { 
-      isValid: false, 
-      message: `La taille de l'image ne doit pas dépasser ${opts.maxFileSize}MB` 
-    };
-  }
-  
   return new Promise((resolve) => {
+    if (!file) {
+      resolve({ isValid: false, message: "Aucun fichier fourni" });
+      return;
+    }
+    
+    // Vérifier le type MIME
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+    if (!validTypes.includes(file.type)) {
+      resolve({ isValid: false, message: "Format d'image non supporté" });
+      return;
+    }
+    
+    // Vérifier la taille
+    const maxSize = options?.maxFileSize || 5; // Par défaut 5MB
+    if (file.size > maxSize * 1024 * 1024) {
+      resolve({ 
+        isValid: false, 
+        message: `L'image est trop volumineuse (maximum ${maxSize}MB)` 
+      });
+      return;
+    }
+    
+    // Vérifier les dimensions
     const img = new Image();
+    
     img.onload = () => {
-      URL.revokeObjectURL(img.src);
-      const width = img.width;
-      const height = img.height;
-      const ratio = width / height;
-      const targetRatio = (opts.targetWidth || 1200) / (opts.targetHeight || 800);
-      
-      // Vérifier les dimensions minimales
-      const minWidth = (opts.targetWidth || 1200) * 0.6;
-      
-      if (width < minWidth) {
-        resolve({ 
-          isValid: false, 
-          message: `L'image est trop petite. Largeur minimale recommandée: ${minWidth}px` 
-        });
-        return;
+      // Nettoyer l'URL
+      if (img.src && isSecureBlobUrl(img.src)) {
+        URL.revokeObjectURL(img.src);
       }
       
-      // Vérifier si le ratio est loin de l'idéal
-      const ratioDeviation = Math.abs(ratio - targetRatio) / targetRatio;
-      if (ratioDeviation > 0.2) {
+      // Vérifier les dimensions minimales et maximales si spécifiées
+      const minWidth = options?.targetWidth ? options.targetWidth / 2 : 100;
+      const minHeight = options?.targetHeight ? options.targetHeight / 2 : 100;
+      
+      if (img.width < minWidth || img.height < minHeight) {
         resolve({ 
-          isValid: true, 
-          message: `Pour un meilleur affichage, utilisez des images au format 3:2` 
+          isValid: false, 
+          message: `L'image est trop petite (minimum ${minWidth}x${minHeight}px)` 
         });
         return;
       }
@@ -82,15 +89,17 @@ export const validateImage = async (
     };
     
     img.onerror = () => {
-      URL.revokeObjectURL(img.src);
-      resolve({ isValid: false, message: "Impossible de lire l'image" });
+      // Nettoyer l'URL en cas d'erreur
+      if (img.src && isSecureBlobUrl(img.src)) {
+        URL.revokeObjectURL(img.src);
+      }
+      resolve({ isValid: false, message: "Impossible de charger l'image" });
     };
     
-    // Créer une URL sécurisée pour l'image
     try {
+      // Créer une URL sécurisée pour l'image
       const objectUrl = URL.createObjectURL(file);
-      // Strictement vérifier que l'URL est un blob
-      if (objectUrl && typeof objectUrl === 'string' && objectUrl.startsWith('blob:')) {
+      if (isSecureBlobUrl(objectUrl)) {
         img.src = objectUrl;
       } else {
         if (objectUrl) URL.revokeObjectURL(objectUrl);
@@ -104,14 +113,17 @@ export const validateImage = async (
 };
 
 /**
- * Fonction pour récupérer les dimensions d'une image
+ * Fonction pour récupérer les dimensions d'une image de manière sécurisée
  */
 export const getImageDimensions = (file: File): Promise<{width: number, height: number}> => {
   return new Promise((resolve, reject) => {
     const img = new Image();
     
     img.onload = () => {
-      URL.revokeObjectURL(img.src);
+      // Nettoyer l'URL
+      if (img.src && isSecureBlobUrl(img.src)) {
+        URL.revokeObjectURL(img.src);
+      }
       resolve({
         width: img.width,
         height: img.height
@@ -119,15 +131,17 @@ export const getImageDimensions = (file: File): Promise<{width: number, height: 
     };
     
     img.onerror = () => {
-      URL.revokeObjectURL(img.src);
+      // Nettoyer l'URL en cas d'erreur
+      if (img.src && isSecureBlobUrl(img.src)) {
+        URL.revokeObjectURL(img.src);
+      }
       reject(new Error('Impossible de lire les dimensions de l\'image'));
     };
     
     // Créer une URL sécurisée pour l'image
     try {
       const objectUrl = URL.createObjectURL(file);
-      // Strictement vérifier que l'URL est un blob
-      if (objectUrl && typeof objectUrl === 'string' && objectUrl.startsWith('blob:')) {
+      if (isSecureBlobUrl(objectUrl)) {
         img.src = objectUrl;
       } else {
         if (objectUrl) URL.revokeObjectURL(objectUrl);
@@ -274,8 +288,7 @@ const createSecureObjectURL = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
     try {
       const objectUrl = URL.createObjectURL(file);
-      // Strictement vérifier que l'URL est un blob
-      if (objectUrl && typeof objectUrl === 'string' && objectUrl.startsWith('blob:')) {
+      if (isSecureBlobUrl(objectUrl)) {
         resolve(objectUrl);
       } else {
         if (objectUrl) URL.revokeObjectURL(objectUrl);
