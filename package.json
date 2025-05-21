@@ -1,6 +1,6 @@
 {
   "name": "vynal-platform",
-  "version": "0.1.124",
+  "version": "0.1.126",
   "private": true,
   "scripts": {
     "dev": "cross-env NODE_OPTIONS='--max-old-space-size=4096' NODE_ENV=development next dev",
@@ -101,6 +101,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.25.1",
+    "@types/crypto-js": "^4.2.2",
     "@types/node": "^20.11.19",
     "@types/pdfkit": "^0.13.9",
     "@types/qrcode": "^1.5.5",
