@@ -98,6 +98,70 @@ export function useUser(): UseUserResult {
   const pendingRefreshRef = useRef<boolean>(false);
   const subscriptionRef = useRef<any>(null);
   const lastFetchTimeRef = useRef<number>(0);
+  const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Effet pour limiter le temps de chargement
+  useEffect(() => {
+    // Si loading est true, on définit un timeout pour le limiter
+    if (loading) {
+      // Nettoyer tout timeout existant d'abord
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+      }
+      
+      // Créer un nouveau timeout qui sortira de l'état de chargement après 3 secondes
+      loadingTimeoutRef.current = setTimeout(() => {
+        if (loadingRef.current) {
+          // Si toujours en chargement après 3 secondes, on sort de cet état
+          console.warn('[useUser] Timeout de chargement atteint, sortie forcée de l\'état de chargement');
+          setLoading(false);
+          loadingRef.current = false;
+          
+          // Si nous n'avons pas de profil mais un utilisateur, créer un profil minimal
+          if (!profile && user) {
+            const minimalProfile: UserProfile = {
+              id: user.id,
+              username: user.user_metadata?.username || user.email?.split('@')[0] || null,
+              full_name: user.user_metadata?.full_name || null,
+              avatar_url: user.user_metadata?.avatar_url || null,
+              email: user.email || null,
+              role: (user.user_metadata?.role as any) || 'client',
+              created_at: user.created_at,
+              updated_at: user.updated_at || user.created_at,
+              bio: null,
+              verification_level: null,
+              last_seen: null,
+              phone: null,
+              verified_at: null,
+              last_data_download: null,
+              last_profile_pdf_download: null,
+              is_admin: user.user_metadata?.role === 'admin' || false,
+              is_suspended: false,
+              is_active: true,
+              is_certified: false,
+              certified_at: null,
+              certification_type: null
+            };
+            setProfile(minimalProfile);
+          }
+        }
+      }, 3000); // 3 secondes maximum d'attente
+    } else {
+      // Si loading est false, on annule tout timeout existant
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+        loadingTimeoutRef.current = null;
+      }
+    }
+    
+    // Nettoyage lors du démontage
+    return () => {
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+        loadingTimeoutRef.current = null;
+      }
+    };
+  }, [loading, profile, user]);
   
   // Fonction de nettoyage
   const cleanup = useCallback(() => {
@@ -107,6 +171,11 @@ export function useUser(): UseUserResult {
     
     if (subscriptionRef.current) {
       supabase.removeChannel(subscriptionRef.current);
+    }
+    
+    if (loadingTimeoutRef.current) {
+      clearTimeout(loadingTimeoutRef.current);
+      loadingTimeoutRef.current = null;
     }
   }, []);
 
@@ -164,6 +233,11 @@ export function useUser(): UseUserResult {
     
     // Ne pas mettre à jour avec des valeurs vides si elles sont déjà nulles
     const cleanUpdates = Object.entries(updates).reduce((acc, [key, value]) => {
+      // Ne jamais autoriser la mise à jour de l'email pour des raisons de sécurité
+      if (key === 'email') {
+        return acc;
+      }
+      
       // Ne pas inclure les propriétés undefined ou qui ne changent pas
       if (value !== undefined && profile?.[key as keyof UserProfile] !== value) {
         acc[key as keyof UserProfile] = value as any;
@@ -488,6 +562,12 @@ export function useUser(): UseUserResult {
           
           // Mettre à jour le profil avec les données complètes de la base uniquement si le composant est toujours monté
           if (isMounted) {
+            console.log("Données complètes du profil récupérées:", {
+              id: data?.id,
+              username: data?.username,
+              fullName: data?.full_name
+            });
+            
             setProfile(data);
             setError(null);
             setLoading(false);

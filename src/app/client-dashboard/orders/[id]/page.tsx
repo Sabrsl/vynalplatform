@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, Fragment } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabase/client";
@@ -151,6 +151,11 @@ const getFileName = (fileUrl: string) => {
   }
 };
 
+// Classes de style unifiées pour une UI cohérente
+const mainCardClasses = "bg-white/30 dark:bg-slate-900/30 backdrop-blur-sm border border-slate-200/30 dark:border-slate-700/30 shadow-sm rounded-lg transition-all duration-200";
+const secondaryCardClasses = "bg-white/20 dark:bg-slate-900/20 backdrop-blur-sm border border-slate-200/20 dark:border-slate-700/20 shadow-none rounded-lg transition-all duration-200";
+const innerCardClasses = "bg-white/25 dark:bg-slate-800/25 backdrop-blur-sm border border-slate-200/15 dark:border-slate-700/15";
+
 export default function OrderDetailPage() {
   const params = useParams();
   const orderId = params?.id as string;
@@ -176,12 +181,77 @@ export default function OrderDetailPage() {
   const isFetchingRef = useRef(false);
   const initialLoadRef = useRef(true);
   
-  // Classes de style unifiées pour une UI cohérente
-  const mainCardClasses = "bg-white/30 dark:bg-slate-900/30 backdrop-blur-sm border border-slate-200/30 dark:border-slate-700/30 shadow-sm rounded-lg transition-all duration-200";
-  const secondaryCardClasses = "bg-white/20 dark:bg-slate-900/20 backdrop-blur-sm border border-slate-200/20 dark:border-slate-700/20 shadow-none rounded-lg transition-all duration-200";
-  const innerCardClasses = "bg-white/25 dark:bg-slate-800/25 backdrop-blur-sm border border-slate-200/15 dark:border-slate-700/15";
+  // Classes de style pour les textes
   const titleClasses = "text-slate-800 dark:text-vynal-text-primary";
   const subtitleClasses = "text-slate-600 dark:text-vynal-text-secondary";
+  
+  // Formattage de la description avec préservation des sauts de ligne et sections
+  const formatDescription = useCallback((description: string) => {
+    if (!description) return "Aucune description disponible";
+    
+    try {
+      // Définir les sections principales avec leurs emojis
+      const mainSections = [
+        "📝 Description du service",
+        "🎯 Ce que vous obtiendrez",
+        "🛠️ Ce dont j'ai besoin de vous",
+        "⏱️ Délais et révisions",
+        "❌ Ce qui n'est pas inclus"
+      ];
+
+      // Diviser le texte en sections
+      const sections = description.split('\n\n');
+      let currentSection = "";
+      let currentContent = "";
+      const formattedSections = [];
+
+      for (const section of sections) {
+        const lines = section.split('\n');
+        const title = lines[0];
+        const content = lines.slice(1).join('\n');
+
+        // Si c'est une section principale
+        if (mainSections.some(mainSection => title.includes(mainSection))) {
+          // Si on avait une section précédente, l'ajouter
+          if (currentSection) {
+            formattedSections.push(
+              <div key={currentSection} className="mb-4">
+                <h4 className={`text-xs sm:text-sm font-medium mb-2 ${titleClasses}`}>{currentSection}</h4>
+                <div className={`text-[8px] sm:text-xs ${subtitleClasses} whitespace-pre-wrap`}>{currentContent}</div>
+              </div>
+            );
+          }
+          currentSection = title;
+          currentContent = content;
+        } else {
+          // Si ce n'est pas une section principale, l'ajouter au contenu actuel
+          currentContent += (currentContent ? '\n\n' : '') + section;
+        }
+      }
+
+      // Ajouter la dernière section
+      if (currentSection) {
+        formattedSections.push(
+          <div key={currentSection} className="mb-4">
+            <h4 className={`text-xs sm:text-sm font-medium mb-2 ${titleClasses}`}>{currentSection}</h4>
+            <div className={`text-[8px] sm:text-xs ${subtitleClasses} whitespace-pre-wrap`}>{currentContent}</div>
+          </div>
+        );
+      }
+
+      // Retourner les sections avec des séparateurs
+      return formattedSections.map((section, index) => (
+        <Fragment key={index}>
+          {section}
+          {index < formattedSections.length - 1 && (
+            <div className="h-[1px] bg-gradient-to-r from-transparent via-slate-300 dark:via-slate-700 to-transparent my-3" />
+          )}
+        </Fragment>
+      ));
+    } catch {
+      return description;
+    }
+  }, [titleClasses, subtitleClasses]);
 
   // Récupération de la commande avec cache
   const fetchOrder = useCallback(async (forceRefresh = false) => {
@@ -920,6 +990,15 @@ export default function OrderDetailPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
             <div className={`p-3 rounded-lg ${secondaryCardClasses}`}>
               <div className="flex justify-between items-center mb-2">
+                <span className={`text-[8px] sm:text-xs font-medium ${titleClasses}`}>Statut</span>
+                <Badge 
+                  variant="outline" 
+                  className={getStatusBadgeClasses(order.status)}
+                >
+                  {getStatusText(order.status)}
+                </Badge>
+              </div>
+              <div className="flex justify-between items-center mb-2">
                 <span className={`text-[8px] sm:text-xs font-medium ${titleClasses}`}>Prix total</span>
                 <Badge variant="outline" className="bg-vynal-accent-primary/20 text-vynal-accent-primary border-vynal-accent-primary/30 text-[8px] sm:text-[10px]">
                   <CurrencyDisplay amount={order.price} displayFullName={true} />
@@ -953,8 +1032,10 @@ export default function OrderDetailPage() {
           
           <div className="mb-4">
             <h3 className={`text-[10px] sm:text-sm font-medium mb-2 ${titleClasses}`}>Description du service</h3>
-            <div className={`p-3 rounded-lg ${secondaryCardClasses} text-[8px] sm:text-xs ${subtitleClasses}`}>
-              {order.service.description}
+            <div className={`p-3 rounded-lg ${secondaryCardClasses}`}>
+              <div className="prose prose-sm max-w-none overflow-hidden break-words">
+                {formatDescription(order.service.description)}
+              </div>
             </div>
           </div>
           

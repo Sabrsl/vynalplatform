@@ -64,18 +64,9 @@ const AuthLayout = memo(({ children, pathname }: { children: React.ReactNode, pa
     exit={{ opacity: 0 }}
     transition={{ duration: 0.3 }}
   >
-    <AnimatePresence mode="wait">
-      <motion.div 
-        key={pathname}
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -10 }}
-        transition={{ duration: 0.3 }}
-        className="p-4 sm:p-6 md:p-8 flex items-center justify-center"
-      >
-        {children}
-      </motion.div>
-    </AnimatePresence>
+    <div className="p-4 sm:p-6 md:p-8 flex items-center justify-center">
+      {children}
+    </div>
   </motion.div>
 ));
 

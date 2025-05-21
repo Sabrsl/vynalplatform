@@ -417,7 +417,7 @@ export default function ClientDashboardPage() {
                         className={`${subtitleClasses} h-4 border-slate-200/20 dark:border-slate-700/20`}
                         asChild
                       >
-                        <Link href={`/freelancers/${freelancer.id}`}>Profil</Link>
+                        <Link href={`/profile/id/${freelancer.id}`}>Profil</Link>
                       </Button>
                     </div>
                   </div>

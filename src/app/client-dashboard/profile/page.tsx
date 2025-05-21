@@ -35,6 +35,7 @@ export default function ClientProfilePage() {
   // Optimisation: Utiliser useEffect avec dépendances précises
   useEffect(() => {
     if (profile && user) {
+      console.log("Données de profil chargées:", { username: profile.username, fullName: profile.full_name });
       setFormData({
         full_name: profile.full_name || "",
         username: profile.username || "",
@@ -268,8 +269,8 @@ export default function ClientProfilePage() {
                 <Label htmlFor="username" className="text-[10px] sm:text-xs text-slate-900 dark:text-vynal-text-primary">Nom d'utilisateur</Label>
                 <Input
                   id="username"
-                  className={inputClasses}
-                  value={formData.username}
+                  className={`${inputClasses} bg-slate-50 dark:bg-slate-800/60`}
+                  value={formData.username || "(Non défini)"}
                   onChange={(e) => handleChange(e, 'username')}
                   disabled={true}
                 />
@@ -285,8 +286,11 @@ export default function ClientProfilePage() {
                   className={inputClasses}
                   value={formData.email}
                   onChange={(e) => handleChange(e, 'email')}
-                  disabled={!isEditing}
+                  disabled={true}
                 />
+                <p className="text-[8px] sm:text-[10px] text-amber-600 dark:text-amber-400">
+                  Pour des raisons de sécurité, l'adresse email ne peut pas être modifiée.
+                </p>
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="phone" className="text-[10px] sm:text-xs text-slate-900 dark:text-vynal-text-primary">Téléphone</Label>

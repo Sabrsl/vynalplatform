@@ -367,6 +367,29 @@ const MobileMenuButton = memo(({
     setMobileMenuOpen(!mobileMenuOpen);
   }, [mobileMenuOpen, setMobileMenuOpen]);
 
+  // État local pour suivre le compteur de tentatives
+  const [loadAttempts, setLoadAttempts] = useState(0);
+
+  // Effet pour gérer les tentatives de chargement répétées
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout | null = null;
+    
+    // Si l'utilisateur est authentifié et le profil est toujours en chargement après un certain temps,
+    // on incrémente le compteur de tentatives
+    if (isAuthenticated && profileLoading) {
+      timeoutId = setTimeout(() => {
+        setLoadAttempts(prev => prev + 1);
+      }, 3000); // 3 secondes d'attente
+    }
+    
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [isAuthenticated, profileLoading]);
+
+  // Après plusieurs tentatives de chargement, on force l'affichage même si le profil est en chargement
+  const shouldShowUserAvatar = isAuthenticated && (!profileLoading || loadAttempts > 1);
+
   return (
     <button
       onClick={toggleMenu}
@@ -381,8 +404,8 @@ const MobileMenuButton = memo(({
       }`}
       aria-label="Menu"
     >
-      {/* Si authentifié et profile chargé, afficher l'avatar de l'utilisateur */}
-      {isAuthenticated && !profileLoading ? (
+      {/* Si authentifié et profile chargé ou tentatives répétées, afficher l'avatar de l'utilisateur */}
+      {shouldShowUserAvatar ? (
         avatarUrl ? (
           <Image 
             src={avatarUrl} 
@@ -631,6 +654,7 @@ function Header() {
   const [isNavigating, setIsNavigating] = useState<boolean>(false);
   const [isMounted, setIsMounted] = useState<boolean>(false);
   const [isOpen, setIsOpen] = useState<boolean>(false);
+  const [profileLoadAttempts, setProfileLoadAttempts] = useState<number>(0);
   
   // Références
   const searchBarRef = useRef<HTMLDivElement>(null);
@@ -663,6 +687,26 @@ function Header() {
       }
     }
   }, [pathname]);
+  
+  // Effet pour gérer les tentatives de chargement répétées du profil
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout | null = null;
+    
+    // Si l'utilisateur est authentifié et le profil est toujours en chargement après un certain temps,
+    // on incrémente le compteur de tentatives
+    if (auth.isAuthenticated && userProfile.loading) {
+      timeoutId = setTimeout(() => {
+        setProfileLoadAttempts(prev => prev + 1);
+      }, 3000); // 3 secondes d'attente
+    }
+    
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [auth.isAuthenticated, userProfile.loading]);
+  
+  // Après plusieurs tentatives de chargement, on force l'affichage même si le profil est en chargement
+  const shouldShowUserMenu = auth.isAuthenticated && (!userProfile.loading || profileLoadAttempts > 1);
   
   // Fonction pour changer le thème
   const toggleTheme = useCallback(() => {
@@ -805,14 +849,22 @@ function Header() {
     setIsLoggingOut(true);
     
     try {
-      await auth.signOut();
-      
       // Nettoyage des tokens locaux
-      localStorage.removeItem('supabase.auth.token');
-      localStorage.removeItem('sb-refresh-token');
-      localStorage.removeItem('sb-access-token');
+      try {
+        localStorage.removeItem('supabase.auth.token');
+        localStorage.removeItem('sb-refresh-token');
+        localStorage.removeItem('sb-access-token');
+        localStorage.removeItem('supabase.auth.expires_at');
+      } catch (storageError) {
+        console.warn("Erreur lors du nettoyage du stockage local:", storageError);
+      }
       
-      await supabase.auth.signOut();
+      // Un seul appel à signOut
+      const { error } = await auth.signOut();
+      
+      if (error) {
+        throw error;
+      }
       
       // Redirection après un court délai
       setTimeout(() => {
@@ -1018,7 +1070,7 @@ function Header() {
                  </motion.button>
                  <UnauthenticatedMenu router={router} />
                 </div>
-              ) : userStatus.authLoading || userStatus.profileLoading ? (
+              ) : userStatus.authLoading || (userStatus.profileLoading && profileLoadAttempts <= 1) ? (
                 // État de chargement
                 <motion.div
                   initial={{ opacity: 0 }}
@@ -1044,7 +1096,7 @@ function Header() {
                     <Loader className="h-5 w-5 animate-spin text-vynal-purple-secondary dark:text-vynal-text-secondary" strokeWidth={2.5} />
                   </Button>
                 </motion.div>
-              ) : (
+              ) : shouldShowUserMenu ? (
                 // Utilisateur connecté
                 <motion.div 
                   className="flex items-center gap-1 sm:gap-2"
@@ -1106,6 +1158,14 @@ function Header() {
                           width={36}
                           height={36}
                           className="h-full w-full object-cover"
+                          onError={(e) => {
+                            // Si l'image ne peut pas être chargée, on affiche les initiales
+                            e.currentTarget.style.display = 'none';
+                            // On peut aussi appliquer un className au parent pour forcer l'affichage des initiales
+                            if (e.currentTarget.parentElement) {
+                              e.currentTarget.parentElement.classList.add('avatar-fallback');
+                            }
+                          }}
                         />
                       ) : (
                         <div className={`h-full w-full flex items-center justify-center ${
@@ -1114,7 +1174,7 @@ function Header() {
                             : "bg-vynal-purple-100 text-vynal-purple-600"
                         }`}>
                           <span className="text-sm font-medium">
-                            {userStatus.username?.charAt(0).toUpperCase()}
+                            {userStatus.username?.charAt(0).toUpperCase() || 'U'}
                           </span>
                         </div>
                       )}
@@ -1216,6 +1276,18 @@ function Header() {
                       )}
                     </AnimatePresence>
                   </div>
+                </motion.div>
+              ) : (
+                // Fallback en cas d'erreur d'état 
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="flex items-center space-x-2"
+                >
+                  <Button variant="ghost" size="icon" onClick={() => window.location.reload()}>
+                    <AlertTriangle className="h-5 w-5 text-amber-500" strokeWidth={2.5} />
+                  </Button>
                 </motion.div>
               )}
             </AnimatePresence>

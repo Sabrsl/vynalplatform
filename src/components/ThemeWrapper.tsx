@@ -1,6 +1,6 @@
 "use client";
 
-import React, { ReactNode, useMemo, memo } from "react";
+import React, { ReactNode, useMemo, memo, useEffect, useState } from "react";
 import { useTheme } from 'next-themes';
 import { cn } from "@/lib/utils";
 
@@ -29,25 +29,38 @@ const ThemeWrapper = memo(function ThemeWrapper({
   fullGradient = true,
   className = "",
 }: ThemeWrapperProps) {
-  const { theme } = useTheme();
-  const isDark = theme === 'dark';
+  const { theme, resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  
+  // Éviter le flash initial en attendant que le thème soit résolu
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  
+  const isDark = mounted && (resolvedTheme === 'dark' || theme === 'dark');
   
   // Mémoriser les classes CSS pour éviter les recalculs à chaque rendu
   const wrapperClasses = useMemo(() => {
-    const bgClass = isDark 
-      ? "bg-vynal-purple-dark"
-      : "bg-white";
+    // Si non monté, utiliser une classe opaque pour éviter le flash
+    if (!mounted) {
+      return cn(
+        "fixed inset-0 min-h-screen w-full h-full",
+        "bg-white dark:bg-vynal-purple-dark",
+        className,
+        "opacity-0"
+      );
+    }
     
     return cn(
       "fixed inset-0 min-h-screen w-full h-full",
-      bgClass,
+      isDark ? "bg-vynal-purple-dark" : "bg-white",
       className,
       "transition-colors duration-300"
     );
-  }, [isDark, className]);
+  }, [isDark, className, mounted]);
   
   // Optimisation : rendu conditionnel des éléments décoratifs pour réduire le coût
-  const renderDecorativeElements = fullGradient && (
+  const renderDecorativeElements = fullGradient && mounted && (
     <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
       <div className={cn(
         "absolute -top-64 -right-64 w-[600px] h-[600px]",
@@ -70,6 +83,7 @@ const ThemeWrapper = memo(function ThemeWrapper({
     <>
       <div className={wrapperClasses} />
       <div className="relative min-h-screen">
+        {renderDecorativeElements}
         <div className="relative z-10">
           {children}
         </div>
