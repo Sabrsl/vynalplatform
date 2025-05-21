@@ -350,11 +350,101 @@
     function verifyRendering() {
       const body = document.body;
       const computedBodyStyle = window.getComputedStyle(body);
+      const isDarkMode = document.documentElement.classList.contains('dark');
       
       // Vérifier si le corps a une couleur de fond, sinon en appliquer une via une classe
       if (computedBodyStyle.backgroundColor === 'rgba(0, 0, 0, 0)' || 
           computedBodyStyle.backgroundColor === 'transparent') {
         body.classList.add('vynal-legacy-fixes');
+      }
+      
+      // Vérification des fonds selon le mode (clair ou sombre)
+      if (isDarkMode) {
+        // Si la couleur de fond en mode sombre n'est pas la bonne, appliquer le fix
+        const bgColor = computedBodyStyle.backgroundColor;
+        // Convertir la couleur en format hexadécimal pour comparaison si possible
+        let isCorrectDarkBg = false;
+        
+        // Vérification des couleurs de fond attendues en mode sombre
+        if (bgColor.startsWith('rgb')) {
+          // Format rgb: vérifier si c'est proche de #100422 (16,4,34)
+          const rgbMatch = bgColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+          if (rgbMatch) {
+            const [_, r, g, b] = rgbMatch;
+            isCorrectDarkBg = (
+              (Number(r) <= 25 && Number(r) >= 10) && 
+              (Number(g) <= 10 && Number(g) >= 0) && 
+              (Number(b) <= 40 && Number(b) >= 25)
+            );
+          }
+        } else if (bgColor.startsWith('#')) {
+          // Format hex
+          isCorrectDarkBg = (bgColor.toLowerCase() === '#100422');
+        }
+        
+        if (!isCorrectDarkBg) {
+          console.log("Correction de la couleur de fond en mode sombre appliquée");
+          
+          // Appliquer directement la couleur de fond
+          body.style.backgroundColor = '#100422';
+          
+          // Assurer que le pseudo-élément before a aussi la bonne couleur de fond
+          const emergencyDarkBgStyle = document.createElement('style');
+          emergencyDarkBgStyle.id = 'emergency-dark-bg-styles';
+          emergencyDarkBgStyle.textContent = `
+            .dark body {
+              background-color: #100422 !important;
+            }
+            .dark body::before {
+              background: linear-gradient(180deg, #100422 0%, #0e0021 100%) !important;
+              background-attachment: fixed !important;
+            }
+          `;
+          document.head.appendChild(emergencyDarkBgStyle);
+        }
+      } else {
+        // Vérification du mode clair
+        const bgColor = computedBodyStyle.backgroundColor;
+        let isCorrectLightBg = false;
+        
+        // Vérification si la couleur de fond est blanche ou proche
+        if (bgColor.startsWith('rgb')) {
+          const rgbMatch = bgColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+          if (rgbMatch) {
+            const [_, r, g, b] = rgbMatch;
+            isCorrectLightBg = (
+              (Number(r) >= 240) && 
+              (Number(g) >= 240) && 
+              (Number(b) >= 240)
+            );
+          }
+        } else if (bgColor.startsWith('#')) {
+          // Format hex (blanc ou très proche)
+          isCorrectLightBg = (
+            bgColor.toLowerCase() === '#ffffff' || 
+            bgColor.toLowerCase() === '#fff' ||
+            bgColor.toLowerCase() === '#f9f7ff' ||
+            bgColor.toLowerCase() === '#fafafa'
+          );
+        }
+        
+        if (!isCorrectLightBg) {
+          console.log("Correction de la couleur de fond en mode clair appliquée");
+          
+          // Assurer un fond blanc en mode clair
+          const emergencyLightBgStyle = document.createElement('style');
+          emergencyLightBgStyle.id = 'emergency-light-bg-styles';
+          emergencyLightBgStyle.textContent = `
+            body {
+              background-color: #ffffff !important;
+            }
+            body::before {
+              background: linear-gradient(180deg, #f9f7ff 0%, #ffffff 100%) !important;
+              background-attachment: fixed !important;
+            }
+          `;
+          document.head.appendChild(emergencyLightBgStyle);
+        }
       }
       
       // Vérifier aléatoirement quelques éléments de texte pour s'assurer qu'ils ont une couleur
@@ -382,9 +472,64 @@
         const emergencyStyle = document.createElement('style');
         emergencyStyle.id = 'emergency-styles';
         emergencyStyle.textContent = `
+          /* --- STYLES D'URGENCE --- */
+          /* Styles généraux */
           .vynal-emergency-fixes * { color: #1e293b !important; }
           .vynal-emergency-fixes.dark * { color: #FFFFFF !important; }
           .vynal-emergency-fixes a, .vynal-emergency-fixes button { color: #FF66B2 !important; }
+          
+          /* Fonds d'urgence */
+          .vynal-emergency-fixes body { background-color: #ffffff !important; }
+          .vynal-emergency-fixes.dark body { background-color: #100422 !important; }
+          
+          /* Textes d'urgence */
+          .vynal-emergency-fixes .text-vynal-text-primary { color: #2C1A4C !important; }
+          .vynal-emergency-fixes.dark .text-vynal-text-primary { color: #FFFFFF !important; }
+          .vynal-emergency-fixes .text-vynal-text-secondary { color: #555555 !important; }
+          .vynal-emergency-fixes.dark .text-vynal-text-secondary { color: #D6D6D6 !important; }
+          .vynal-emergency-fixes .text-vynal-accent-primary { color: #FF66B2 !important; }
+          .vynal-emergency-fixes.dark .text-vynal-accent-primary { color: #FF66B2 !important; }
+          .vynal-emergency-fixes .text-vynal-accent-secondary { color: #7B1FA2 !important; }
+          .vynal-emergency-fixes.dark .text-vynal-accent-secondary { color: #FF007F !important; }
+          
+          /* Fonds d'urgence */
+          .vynal-emergency-fixes .bg-vynal-accent-primary { background-color: #FF66B2 !important; }
+          .vynal-emergency-fixes .bg-vynal-accent-secondary { background-color: #7B1FA2 !important; }
+          
+          /* Dégradés d'urgence */
+          .vynal-emergency-fixes .bg-gradient-to-r,
+          .vynal-emergency-fixes .bg-gradient-to-b { background-image: none !important; }
+          .vynal-emergency-fixes .bg-gradient-to-r.from-vynal-accent-secondary.to-vynal-accent-primary { 
+            background-color: #FF66B2 !important; 
+          }
+          .vynal-emergency-fixes.dark .bg-gradient-to-r.dark\\:from-vynal-accent-primary.dark\\:to-vynal-accent-secondary {
+            background-color: #FF66B2 !important;
+          }
+          .vynal-emergency-fixes .bg-gradient-to-b.from-white.to-slate-50 {
+            background-color: #ffffff !important;
+          }
+          .vynal-emergency-fixes.dark .bg-gradient-to-b.dark\\:from-vynal-purple-dark.dark\\:to-vynal-purple-darkest {
+            background-color: #100422 !important;
+          }
+          
+          /* Boutons d'urgence */
+          .vynal-emergency-fixes .btn-vynal-primary {
+            background-color: #FF66B2 !important;
+            color: #2C1A4C !important;
+          }
+          .vynal-emergency-fixes .btn-vynal-primary:hover {
+            background-color: #FF007F !important;
+          }
+          
+          /* Pseudo-éléments */
+          .vynal-emergency-fixes body::before {
+            background: linear-gradient(180deg, #f9f7ff 0%, #ffffff 100%) !important;
+            background-attachment: fixed !important;
+          }
+          .vynal-emergency-fixes.dark body::before {
+            background: linear-gradient(180deg, #100422 0%, #0e0021 100%) !important;
+            background-attachment: fixed !important;
+          }
         `;
         document.head.appendChild(emergencyStyle);
       }

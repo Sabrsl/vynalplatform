@@ -3,125 +3,68 @@
  * Ce fichier ne sera chargé que sur les anciens navigateurs qui ne supportent pas les variables CSS
  */
 
-/* Fallbacks pour les couleurs de base en mode clair */
-.text-vynal-text-primary {
-  color: #2C1A4C !important; /* Fallback spécifique pour les navigateurs très anciens */
+/* --- COULEURS DE BASE --- */
+/* Mode clair - Textes */
+.text-vynal-text-primary { color: #2C1A4C !important; }
+.text-vynal-text-secondary { color: #555555 !important; }
+.text-vynal-accent-primary { color: #FF66B2 !important; }
+.text-vynal-accent-secondary { color: #7B1FA2 !important; }
+
+/* Mode sombre - Textes */
+.dark .text-vynal-text-primary { color: #FFFFFF !important; }
+.dark .text-vynal-text-secondary { color: #D6D6D6 !important; }
+.dark .text-vynal-accent-primary { color: #FF66B2 !important; }
+.dark .text-vynal-accent-secondary { color: #FF007F !important; }
+
+/* Fallbacks pour les classes texte Tailwind */
+.text-slate-600 { color: #475569 !important; }
+.text-slate-700 { color: #334155 !important; }
+.text-slate-800 { color: #1e293b !important; }
+.text-slate-900 { color: #0f172a !important; }
+.text-white { color: #FFFFFF !important; }
+
+/* --- BORDURES --- */
+.border-vynal-border { border-color: #E0E0E0 !important; }
+.dark .border-vynal-border { border-color: #2A0C57 !important; }
+.border-slate-200 { border-color: #e2e8f0 !important; }
+.border-slate-300 { border-color: #cbd5e1 !important; }
+.dark .border-slate-700\/30 { border-color: rgba(51, 65, 85, 0.3) !important; }
+
+/* --- FONDS --- */
+/* Couleurs de fond */
+.bg-vynal-accent-primary { background-color: #FF66B2 !important; }
+.bg-vynal-accent-secondary { background-color: #7B1FA2 !important; }
+.bg-white\/30 { background-color: rgba(255, 255, 255, 0.3) !important; }
+.bg-white\/40 { background-color: rgba(255, 255, 255, 0.4) !important; }
+.dark .bg-slate-800\/30 { background-color: rgba(30, 41, 59, 0.3) !important; }
+.dark .bg-slate-800\/40 { background-color: rgba(30, 41, 59, 0.4) !important; }
+
+/* Fallback spécifique pour le fond en mode sombre */
+.dark body {
+  background-color: #100422 !important; /* Fond principal en mode sombre */
 }
 
-.text-vynal-text-secondary {
-  color: #555555 !important;
+.dark body::before {
+  background: linear-gradient(180deg, #100422 0%, #0e0021 100%) !important;
+  background-attachment: fixed !important;
 }
 
-.text-vynal-accent-primary {
-  color: #FF66B2 !important;
-}
-
-.text-vynal-accent-secondary {
-  color: #7B1FA2 !important;
-}
-
-/* Fallbacks pour les couleurs en mode sombre */
-.dark .text-vynal-text-primary {
-  color: #FFFFFF !important;
-}
-
-.dark .text-vynal-text-secondary {
-  color: #D6D6D6 !important;
-}
-
-.dark .text-vynal-accent-primary {
-  color: #FF66B2 !important;
-}
-
-.dark .text-vynal-accent-secondary {
-  color: #FF007F !important;
-}
-
-/* Fallbacks pour les classes Tailwind classiques */
-.text-slate-600 {
-  color: #475569 !important;
-}
-
-.text-slate-700 {
-  color: #334155 !important;
-}
-
-.text-slate-800 {
-  color: #1e293b !important;
-}
-
-.text-slate-900 {
-  color: #0f172a !important;
-}
-
-.text-white {
-  color: #FFFFFF !important;
-}
-
-/* Fallbacks pour les couleurs de bordure */
-.border-vynal-border {
-  border-color: #E0E0E0 !important;
-}
-
-.dark .border-vynal-border {
-  border-color: #2A0C57 !important;
-}
-
-.border-slate-200 {
-  border-color: #e2e8f0 !important;
-}
-
-.border-slate-300 {
-  border-color: #cbd5e1 !important;
-}
-
-.dark .border-slate-700\/30 {
-  border-color: rgba(51, 65, 85, 0.3) !important;
-}
-
-/* Fallbacks pour les couleurs de fond */
-.bg-vynal-accent-primary {
-  background-color: #FF66B2 !important;
-}
-
-.bg-vynal-accent-secondary {
-  background-color: #7B1FA2 !important;
-}
-
-.bg-white\/30 {
-  background-color: rgba(255, 255, 255, 0.3) !important;
-}
-
-.bg-white\/40 {
-  background-color: rgba(255, 255, 255, 0.4) !important;
-}
-
-.dark .bg-slate-800\/30 {
-  background-color: rgba(30, 41, 59, 0.3) !important;
-}
-
-.dark .bg-slate-800\/40 {
-  background-color: rgba(30, 41, 59, 0.4) !important;
-}
-
+/* --- DÉGRADÉS --- */
 /* Fallbacks pour les dégradés */
 .bg-gradient-to-r.from-vynal-accent-secondary.to-vynal-accent-primary {
-  background: #FF66B2 !important; /* Couleur dominante si pas de support pour les dégradés */
+  background: #FF66B2 !important;
 }
-
 .dark .bg-gradient-to-r.dark\:from-vynal-accent-primary.dark\:to-vynal-accent-secondary {
   background: #FF66B2 !important;
 }
-
 .bg-gradient-to-b.from-white.to-slate-50 {
   background: #ffffff !important;
 }
-
 .dark .bg-gradient-to-b.dark\:from-vynal-purple-dark.dark\:to-vynal-purple-darkest {
   background: #100422 !important;
 }
 
-/* Fallbacks pour les boutons */
+/* --- BOUTONS --- */
 .btn-vynal-primary {
   background-color: #FF66B2 !important;
   color: #2C1A4C !important;
@@ -136,29 +79,26 @@
   transform: scale(1.02) !important;
 }
 
+/* Boutons outline clairs et sombres */
 .btn-vynal-outline {
   transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
-
 .btn-vynal-outline.light {
   border-color: rgba(255, 102, 178, 0.3) !important;
   color: #2C1A4C !important;
 }
-
 .btn-vynal-outline.light:hover {
   background-color: rgba(255, 102, 178, 0.1) !important;
 }
-
 .btn-vynal-outline.dark {
   background-color: rgba(42, 12, 87, 0.1) !important;
   border-color: rgba(42, 12, 87, 0.4) !important;
 }
-
 .btn-vynal-outline.dark:hover {
   background-color: rgba(42, 12, 87, 0.2) !important;
 }
 
-/* Styles de carte */
+/* --- CARTES --- */
 .card-vynal {
   overflow: hidden !important;
   border-width: 1px !important;
@@ -176,53 +116,28 @@
   background-color: rgba(16, 4, 34, 0.2) !important;
 }
 
-/* Autres styles de texte */
-.text-vynal-title {
-  color: #2C1A4C !important;
-}
+/* --- TEXTES SPÉCIFIQUES --- */
+/* Styles de titres et corps */
+.text-vynal-title { color: #2C1A4C !important; }
+.dark .text-vynal-title { color: #FFFFFF !important; }
 
-.dark .text-vynal-title {
-  color: #FFFFFF !important;
-}
+.text-vynal-body { color: #555555 !important; }
+.dark .text-vynal-body { color: #D6D6D6 !important; }
 
-.text-vynal-body {
-  color: #555555 !important;
-}
+.icon-vynal { color: #2C1A4C !important; }
+.dark .icon-vynal { color: #FF66B2 !important; }
 
-.dark .text-vynal-body {
-  color: #D6D6D6 !important;
-}
+.vynal-service-text { color: #2C1A4C !important; }
+.dark .vynal-service-text { color: #D6D6D6 !important; }
 
-.icon-vynal {
-  color: #2C1A4C !important;
-}
-
-.dark .icon-vynal {
-  color: #FF66B2 !important;
-}
-
-.vynal-service-text {
-  color: #2C1A4C !important;
-}
-
-.dark .vynal-service-text {
-  color: #D6D6D6 !important;
-}
-
-.prose {
-  color: #2C1A4C !important;
-}
-
-.dark .prose {
-  color: #FFFFFF !important;
-}
+/* Prose */
+.prose { color: #2C1A4C !important; }
+.dark .prose { color: #FFFFFF !important; }
 
 /* Force white text */
-.force-white-text, .force-white-text span {
-  color: white !important;
-}
+.force-white-text, .force-white-text span { color: white !important; }
 
-/* Support de base pour font-poppins */
+/* --- FALLBACKS POLICES --- */
 @font-face {
   font-family: 'Poppins Fallback';
   src: local('Arial'), local('Helvetica'), local('Sans-Serif');
@@ -230,13 +145,13 @@
   font-style: normal;
 }
 
-/* Si la police Poppins ne se charge pas, utiliser une police de repli */
 body:not([class*="font-poppins"]) {
   font-family: 'Poppins Fallback', Arial, sans-serif !important;
 }
 
-/* Correction pour les navigateurs qui ne supportent pas gap dans flexbox */
+/* --- CORRECTION FLEXBOX --- */
 @supports not (gap: 1rem) {
+  /* Horizontal gaps */
   .flex.gap-2 > * + *,
   .flex.gap-3 > * + *,
   .flex.gap-4 > * + *,
@@ -244,6 +159,7 @@ body:not([class*="font-poppins"]) {
     margin-left: 0.5rem !important;
   }
   
+  /* Vertical gaps */
   .flex-col.gap-2 > * + *,
   .flex-col.gap-3 > * + *,
   .flex-col.gap-4 > * + *,
@@ -251,6 +167,7 @@ body:not([class*="font-poppins"]) {
     margin-top: 0.5rem !important;
   }
   
+  /* Grid gaps */
   .grid.gap-2 > * + *,
   .grid.gap-3 > * + *,
   .grid.gap-4 > * + *,
@@ -259,7 +176,7 @@ body:not([class*="font-poppins"]) {
   }
 }
 
-/* Styles d'animation simplifiés pour anciens navigateurs */
+/* --- ANIMATIONS SIMPLIFIÉES --- */
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
@@ -283,7 +200,7 @@ body:not([class*="font-poppins"]) {
   background-size: 200% 100%;
 }
 
-/* Fallbacks pour mark */
+/* --- ÉLÉMENTS MARK --- */
 mark {
   background-color: rgba(255, 102, 178, 0.3) !important;
   padding: 0 0.15rem !important;
@@ -296,8 +213,9 @@ mark:hover {
   background-color: rgba(255, 102, 178, 0.5) !important;
 }
 
-/* Améliorations d'accessibilité pour les contrastes de texte */
+/* --- ACCESSIBILITÉ --- */
 @media (forced-colors: active) {
+  /* Forcer des contrastes élevés */
   .text-vynal-text-primary,
   .text-vynal-text-secondary,
   .text-slate-600,
