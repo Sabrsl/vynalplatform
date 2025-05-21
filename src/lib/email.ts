@@ -468,6 +468,13 @@ export const sendTemplateEmail = async (
       // Première passe pour les balises fermantes
       let plainText = html.replace(/<[^>]*>/g, '');
       
+      // Appliquer plusieurs passes pour garantir l'élimination de balises imbriquées
+      let previousText;
+      do {
+        previousText = plainText;
+        plainText = plainText.replace(/<[^>]*>/g, '');
+      } while (previousText !== plainText);
+      
       // Deuxième passe pour capturer les balises potentiellement incomplètes
       plainText = plainText.replace(/<[^>]*$/g, '');
       

@@ -48,10 +48,15 @@ export function sanitizeContent(content: string): string {
   // Supprimer les balises HTML potentiellement dangereuses et tous les scripts inclus
   let sanitized = content.replace(/<(script|iframe|object|embed|form|style)[^>]*>[\s\S]*?<\/\1>/gi, '');
   
-  // Supprimer toutes les balises HTML de manière plus robuste
-  sanitized = sanitized.replace(/<[^>]*>/g, '');
+  // Appliquer plusieurs passes pour éliminer les balises HTML imbriquées
+  let previousContent;
+  do {
+    previousContent = sanitized;
+    // Supprimer toutes les balises HTML
+    sanitized = sanitized.replace(/<[^>]*>/g, '');
+  } while (sanitized !== previousContent);
   
-  // Ajouter une deuxième passe pour capturer les balises potentiellement incomplètes
+  // Supprimer les balises potentiellement incomplètes
   sanitized = sanitized.replace(/<[^>]*$/g, '');
   
   // Échapper les caractères spéciaux pour éviter les injections
@@ -64,18 +69,28 @@ export function sanitizeContent(content: string): string {
     .replace(/'/g, '&#039;');
     
   // Supprimer les événements JavaScript dans les attributs (mesure de sécurité supplémentaire)
-  sanitized = sanitized.replace(/\s+on\w+\s*=\s*("[^"]*"|'[^']*')/gi, '');
+  // Appliquer plusieurs passes pour éliminer les attributs imbriqués
+  do {
+    previousContent = sanitized;
+    sanitized = sanitized.replace(/\s+on\w+\s*=\s*("[^"]*"|'[^']*')/gi, '');
+  } while (sanitized !== previousContent);
   
   // Supprimer les URIs dangereux (javascript:, data:, vbscript:, file:)
-  sanitized = sanitized.replace(/((href|src|data|action)\s*=\s*)(["'])(.*?)\3/gi, (match, prefix, attr, quote, url) => {
-    if (/javascript:|data:|vbscript:|file:/i.test(url)) {
-      return `${prefix}${quote}invalid:removed${quote}`;
-    }
-    return match;
-  });
+  do {
+    previousContent = sanitized;
+    sanitized = sanitized.replace(/((href|src|data|action)\s*=\s*)(["'])(.*?)\3/gi, (match, prefix, attr, quote, url) => {
+      if (/javascript:|data:|vbscript:|file:/i.test(url)) {
+        return `${prefix}${quote}invalid:removed${quote}`;
+      }
+      return match;
+    });
+  } while (sanitized !== previousContent);
   
   // Protection supplémentaire contre les attaques XSS
-  sanitized = sanitized.replace(/javascript:|data:|vbscript:|file:/gi, 'invalid:');
+  do {
+    previousContent = sanitized;
+    sanitized = sanitized.replace(/javascript:|data:|vbscript:|file:/gi, 'invalid:');
+  } while (sanitized !== previousContent);
   
   return sanitized;
 }

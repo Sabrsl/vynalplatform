@@ -35,6 +35,24 @@ function isSecureBlobUrl(url: string): boolean {
 }
 
 /**
+ * Fonction sécurisée pour attribuer une source à une image
+ * Protection contre les attaques XSS
+ */
+function setImageSrcSafely(image: HTMLImageElement, url: string): void {
+  if (!url) return;
+  
+  // Vérifier que l'URL est un blob URL sécurisé
+  if (isSecureBlobUrl(url)) {
+    // Utiliser setAttribute qui est plus sûr que la propriété directe
+    image.setAttribute('src', url);
+  } else {
+    // Si l'URL n'est pas sécurisée, révoquer et lever une erreur
+    URL.revokeObjectURL(url);
+    throw new Error("URL d'image non sécurisée");
+  }
+}
+
+/**
  * Fonction pour créer une URL d'objet de manière sécurisée
  */
 export const validateImage = async (
@@ -100,7 +118,7 @@ export const validateImage = async (
       // Créer une URL sécurisée pour l'image
       const objectUrl = URL.createObjectURL(file);
       if (isSecureBlobUrl(objectUrl)) {
-        img.src = objectUrl;
+        setImageSrcSafely(img, objectUrl);
       } else {
         if (objectUrl) URL.revokeObjectURL(objectUrl);
         resolve({ isValid: false, message: "Format d'image non valide" });
@@ -142,7 +160,7 @@ export const getImageDimensions = (file: File): Promise<{width: number, height: 
     try {
       const objectUrl = URL.createObjectURL(file);
       if (isSecureBlobUrl(objectUrl)) {
-        img.src = objectUrl;
+        setImageSrcSafely(img, objectUrl);
       } else {
         if (objectUrl) URL.revokeObjectURL(objectUrl);
         reject(new Error("Format d'image non valide"));
@@ -471,7 +489,7 @@ export const processImage = async (
     // Utiliser la fonction sécurisée pour créer l'URL
     createSecureObjectURL(file)
       .then(objectUrl => {
-        img.src = objectUrl;
+        setImageSrcSafely(img, objectUrl);
       })
       .catch(error => {
         clearTimeout(timeoutId);
