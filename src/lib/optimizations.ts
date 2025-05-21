@@ -1,6 +1,7 @@
 /**
  * Utilitaires d'optimisation des performances pour l'application
  * Ces fonctions permettent d'améliorer les performances, notamment via le cache
+ * Version sécurisée - Compatible avec la production
  */
 
 // Durées d'expiration du cache en millisecondes
@@ -43,15 +44,34 @@ export const CACHE_KEYS = {
 export interface CacheOptions {
   expiry?: number;
   priority?: 'low' | 'medium' | 'high';
+  sensitive?: boolean; // Nouveau paramètre pour indiquer des données sensibles
 }
 
+// Liste des mots-clés sensibles qui devraient être évités dans les clés de cache
+const SENSITIVE_KEYWORDS = [
+  'token', 'password', 'credit', 'card', 'cvv', 'secret', 'api_key',
+  'apikey', 'auth', 'credentials', 'session', 'private', 'key',
+  'access', 'jwt', 'oauth', 'login', 'pass', 'pwd', 'ssn', 'fiscal'
+];
+
 /**
- * Récupérer les clés de cryptage des variables d'environnement
- * Les valeurs de fallback ne sont utilisées qu'en environnement de développement
+ * Version sécurisée de la récupération des clés de cryptage
+ * Compatibilité maintenue avec l'ancien code
  */
 const getEncryptionKeys = () => {
-  const key = process.env.ENCRYPTION_KEY || process.env.NEXT_PUBLIC_ENCRYPTION_KEY;
-  const iv = process.env.ENCRYPTION_IV || process.env.NEXT_PUBLIC_ENCRYPTION_IV;
+  const key = process.env.ENCRYPTION_KEY;
+  const iv = process.env.ENCRYPTION_IV;
+  
+  // Utiliser ces clés seulement côté serveur
+  if (typeof window !== 'undefined') {
+    // En environnement client, retourner un objet compatible
+    // mais ne contenant pas de vraies clés
+    return {
+      key: 'secure-placeholder-key',
+      iv: 'secure-placeholder-iv', 
+      isProduction: process.env.NODE_ENV === 'production'
+    };
+  }
   
   if (!key || !iv) {
     throw new Error('Les clés de chiffrement ne sont pas définies dans les variables d\'environnement');
@@ -65,73 +85,108 @@ const getEncryptionKeys = () => {
 };
 
 /**
- * Fonction pour crypter une chaîne
- * Utilise les clés d'environnement pour le cryptage
+ * Vérifie si une chaîne contient des mots-clés sensibles
+ * @param input Chaîne à vérifier
+ * @returns true si la chaîne contient des mots sensibles
+ */
+function containsSensitiveInfo(input: string): boolean {
+  const inputLower = input.toLowerCase();
+  return SENSITIVE_KEYWORDS.some(keyword => inputLower.includes(keyword));
+}
+
+/**
+ * Masque les données sensibles dans un objet
+ * @param data Les données à analyser
+ * @returns Les données avec champs sensibles masqués
+ */
+function maskSensitiveData(data: any): any {
+  // Si ce n'est pas un objet, retourner tel quel
+  if (!data || typeof data !== 'object') return data;
+  
+  // Créer une copie pour ne pas modifier l'original
+  const safeData = Array.isArray(data) 
+    ? [...data] 
+    : { ...data };
+  
+  // Parcourir l'objet et masquer les données sensibles
+  const processObject = (obj: any) => {
+    if (!obj || typeof obj !== 'object') return;
+    
+    Object.keys(obj).forEach(prop => {
+      const propLower = prop.toLowerCase();
+      
+      // Vérifier si la propriété semble sensible
+      if (SENSITIVE_KEYWORDS.some(key => propLower.includes(key))) {
+        obj[prop] = typeof obj[prop] === 'string' ? '[MASQUÉ]' : null;
+      }
+      // Vérifier si la valeur ressemble à un JWT (format eyJ...)
+      else if (
+        typeof obj[prop] === 'string' && 
+        obj[prop].match(/^eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\./)
+      ) {
+        obj[prop] = '[TOKEN MASQUÉ]';
+      }
+      // Récursion pour les objets imbriqués
+      else if (obj[prop] && typeof obj[prop] === 'object') {
+        processObject(obj[prop]);
+      }
+    });
+  };
+  
+  processObject(safeData);
+  return safeData;
+}
+
+/**
+ * Version sécurisée de simpleEncrypt maintenant la compatibilité
+ * Cette fonction ne fait plus de vrai chiffrement côté client
  */
 function simpleEncrypt(data: string): string {
   if (typeof window === 'undefined') return data;
   
   try {
-    const { key, iv, isProduction } = getEncryptionKeys();
-    
-    // En production, ne jamais retourner les données non cryptées
-    if (!key && isProduction) {
-      console.error('Clé de cryptage non définie dans l\'environnement de production');
-      return '';
+    // Vérifier si les données contiennent des informations sensibles
+    if (containsSensitiveInfo(data)) {
+      // Ne pas stocker les données sensibles côté client
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('Tentative de stockage de données sensibles évitée');
+      }
+      return btoa('{"data":{},"sensitive":true}');
     }
     
-    // Méthode basique de chiffrement avec les clés d'environnement
-    const encodedData = encodeURIComponent(data);
-    const encodedKey = btoa(key).substring(0, 32);
-    const encodedIv = btoa(iv).substring(0, 16);
-    
-    const encrypted = Array.from(encodedData)
-      .map((char, index) => {
-        const keyChar = encodedKey.charCodeAt(index % encodedKey.length);
-        const ivChar = encodedIv.charCodeAt(index % encodedIv.length);
-        return String.fromCharCode(char.charCodeAt(0) ^ keyChar ^ ivChar);
-      })
-      .join('');
-    
-    return btoa(encrypted);
+    // Utiliser le format compatible avec l'ancien code
+    // mais sans réellement exposer les clés de chiffrement
+    return btoa(data);
   } catch (error) {
-    console.error('Erreur lors du cryptage des données:', error);
-    // En cas d'erreur, ne retourner les données non cryptées qu'en dev
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('Erreur lors du formatage des données pour le cache');
+    }
+    // En cas d'erreur, ne retourner les données non formatées qu'en dev
     return process.env.NODE_ENV === 'production' ? '' : data;
   }
 }
 
 /**
- * Fonction pour décrypter une chaîne cryptée
- * Utilise les mêmes clés d'environnement que pour le cryptage
+ * Version sécurisée de simpleDecrypt maintenant la compatibilité
  */
 function simpleDecrypt(encryptedData: string): string {
   if (typeof window === 'undefined') return encryptedData;
   
   try {
-    const { key, iv, isProduction } = getEncryptionKeys();
+    // Tenter de décoder les données
+    const decoded = atob(encryptedData);
     
-    // En production, ne jamais continuer sans clé de décryptage
-    if (!key && isProduction) {
-      console.error('Clé de décryptage non définie dans l\'environnement de production');
-      return '';
+    // Vérifier si c'est un marqueur de données sensibles
+    if (decoded.includes('"sensitive":true')) {
+      return JSON.stringify({data: {}, expiry: 0});
     }
     
-    const encodedKey = btoa(key).substring(0, 32);
-    const encodedIv = btoa(iv).substring(0, 16);
-    
-    const decrypted = Array.from(atob(encryptedData))
-      .map((char, index) => {
-        const keyChar = encodedKey.charCodeAt(index % encodedKey.length);
-        const ivChar = encodedIv.charCodeAt(index % encodedIv.length);
-        return String.fromCharCode(char.charCodeAt(0) ^ keyChar ^ ivChar);
-      })
-      .join('');
-    
-    return decodeURIComponent(decrypted);
+    return decoded;
   } catch (error) {
-    console.error('Erreur lors du décryptage des données:', error);
-    // En cas d'erreur, retourner une chaîne vide ou les données cryptées
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('Erreur lors du décodage des données du cache');
+    }
+    // En cas d'erreur, retourner les données d'origine
     return encryptedData;
   }
 }
@@ -145,10 +200,18 @@ export function getCachedData<T>(key: string): T | null {
   if (typeof window === 'undefined') return null;
   
   try {
+    // Vérifier si la clé contient des mots-clés sensibles
+    if (containsSensitiveInfo(key)) {
+      if (process.env.NODE_ENV === 'development') {
+        console.warn(`Tentative de récupération d'une clé sensible "${key}". Cette opération est ignorée.`);
+      }
+      return null;
+    }
+    
     const storedItem = localStorage.getItem(key);
     if (!storedItem) return null;
     
-    // Décrypter les données si nécessaire
+    // Décoder les données
     const decryptedItem = simpleDecrypt(storedItem);
     const item = JSON.parse(decryptedItem);
     
@@ -160,7 +223,9 @@ export function getCachedData<T>(key: string): T | null {
     
     return item.data as T;
   } catch (error) {
-    console.warn(`Erreur lors de la récupération du cache pour "${key}"`, error);
+    if (process.env.NODE_ENV === 'development') {
+      console.warn(`Erreur lors de la récupération du cache pour "${key}"`);
+    }
     return null;
   }
 }
@@ -179,51 +244,18 @@ export function setCachedData<T>(
   if (typeof window === 'undefined') return;
   
   try {
-    const { expiry = CACHE_EXPIRY.MEDIUM, priority = 'medium' } = options;
-    
-    // Liste des mots-clés sensibles qui devraient être évités dans les clés de cache
-    const sensitiveKeys = [
-      'token', 'password', 'credit', 'card', 'cvv', 'secret', 'api_key',
-      'apikey', 'auth', 'credentials', 'session', 'private'
-    ];
+    const { expiry = CACHE_EXPIRY.MEDIUM, priority = 'medium', sensitive = false } = options;
     
     // Vérifier si la clé contient des mots-clés sensibles
-    const isSensitiveKey = sensitiveKeys.some(sensitiveKey => 
-      key.toLowerCase().includes(sensitiveKey)
-    );
-    
-    if (isSensitiveKey) {
-      console.warn(`Tentative de mise en cache d'une donnée potentiellement sensible avec la clé "${key}". Opération ignorée.`);
+    if (containsSensitiveInfo(key) || sensitive) {
+      if (process.env.NODE_ENV === 'development') {
+        console.warn(`Tentative de mise en cache d'une donnée potentiellement sensible avec la clé "${key}". Opération ignorée.`);
+      }
       return;
     }
     
     // Masquer les données sensibles avant stockage
-    let safeData: any = data;
-    
-    // Si c'est un objet, vérifier les propriétés sensibles
-    if (data && typeof data === 'object' && !Array.isArray(data)) {
-      safeData = JSON.parse(JSON.stringify(data));
-      
-      // Parcourir l'objet et masquer les propriétés sensibles
-      const maskSensitiveFields = (obj: any) => {
-        if (!obj || typeof obj !== 'object') return;
-        
-        Object.keys(obj).forEach(prop => {
-          const propLower = prop.toLowerCase();
-          
-          // Vérifier si la propriété pourrait être sensible
-          if (sensitiveKeys.some(key => propLower.includes(key))) {
-            obj[prop] = typeof obj[prop] === 'string' ? '******' : null;
-          } 
-          // Récursion pour les objets imbriqués
-          else if (obj[prop] && typeof obj[prop] === 'object') {
-            maskSensitiveFields(obj[prop]);
-          }
-        });
-      };
-      
-      maskSensitiveFields(safeData);
-    }
+    const safeData = maskSensitiveData(data);
     
     const item = {
       data: safeData,
@@ -232,75 +264,45 @@ export function setCachedData<T>(
       timestamp: Date.now(),
     };
     
-    // Crypter les données avant stockage
-    const encryptedData = simpleEncrypt(JSON.stringify(item));
-    localStorage.setItem(key, encryptedData);
+    // Formater les données pour le stockage
+    const encodedData = simpleEncrypt(JSON.stringify(item));
+    localStorage.setItem(key, encodedData);
   } catch (error) {
-    console.warn(`Erreur lors du stockage en cache pour "${key}"`, error);
+    if (process.env.NODE_ENV === 'development') {
+      console.warn(`Erreur lors du stockage en cache pour "${key}"`);
+    }
     
-    // En cas d'erreur de stockage (par exemple, quota dépassé),
-    // essayer de libérer de l'espace en supprimant les éléments de faible priorité
+    // En cas d'erreur de stockage (quota dépassé),
+    // essayer de libérer de l'espace
     if (error instanceof DOMException && error.name === 'QuotaExceededError') {
       clearLowPriorityCache();
       
-      // Réessayer après nettoyage avec les mêmes mécanismes de sécurité
+      // Réessayer après nettoyage
       try {
-        const { expiry = CACHE_EXPIRY.MEDIUM, priority = 'medium' } = options;
+        const { expiry = CACHE_EXPIRY.MEDIUM, priority = 'medium', sensitive = false } = options;
         
-        // Vérifier à nouveau la clé sensible
-        const sensitiveKeys = [
-          'token', 'password', 'credit', 'card', 'cvv', 'secret', 'api_key',
-          'apikey', 'auth', 'credentials', 'session', 'private'
-        ];
-        
-        const isSensitiveKey = sensitiveKeys.some(sensitiveKey => 
-          key.toLowerCase().includes(sensitiveKey)
-        );
-        
-        if (isSensitiveKey) {
+        // Vérifier à nouveau la sensibilité
+        if (containsSensitiveInfo(key) || sensitive) {
           return;
         }
         
-        // Masquer les données sensibles avant stockage
-        let safeData: any = data;
-        
-        // Si c'est un objet, vérifier les propriétés sensibles
-        if (data && typeof data === 'object' && !Array.isArray(data)) {
-          safeData = JSON.parse(JSON.stringify(data));
-          
-          // Parcourir l'objet et masquer les propriétés sensibles
-          const maskSensitiveFields = (obj: any) => {
-            if (!obj || typeof obj !== 'object') return;
-            
-            Object.keys(obj).forEach(prop => {
-              const propLower = prop.toLowerCase();
-              
-              // Vérifier si la propriété pourrait être sensible
-              if (sensitiveKeys.some(key => propLower.includes(key))) {
-                obj[prop] = typeof obj[prop] === 'string' ? '******' : null;
-              } 
-              // Récursion pour les objets imbriqués
-              else if (obj[prop] && typeof obj[prop] === 'object') {
-                maskSensitiveFields(obj[prop]);
-              }
-            });
-          };
-          
-          maskSensitiveFields(safeData);
-        }
+        // Masquer les données sensibles
+        const safeData = maskSensitiveData(data);
         
         const item = {
           data: safeData,
-          expiry: Date.now() + (options.expiry || CACHE_EXPIRY.MEDIUM),
-          priority: options.priority || 'medium',
+          expiry: Date.now() + expiry,
+          priority,
           timestamp: Date.now(),
         };
         
-        // Crypter les données avant stockage
-        const encryptedData = simpleEncrypt(JSON.stringify(item));
-        localStorage.setItem(key, encryptedData);
+        // Formater les données pour le stockage
+        const encodedData = simpleEncrypt(JSON.stringify(item));
+        localStorage.setItem(key, encodedData);
       } catch (retryError) {
-        console.error(`Impossible de stocker en cache même après nettoyage pour "${key}"`, retryError);
+        if (process.env.NODE_ENV === 'development') {
+          console.error(`Impossible de stocker en cache même après nettoyage pour "${key}"`);
+        }
       }
     }
   }
@@ -324,14 +326,20 @@ export function clearLowPriorityCache(): void {
         const item = localStorage.getItem(key);
         if (!item) continue;
         
-        const { priority = 'low', timestamp = 0 } = JSON.parse(item);
+        // Tenter de décoder et parser l'élément
+        const decryptedItem = simpleDecrypt(item);
+        const parsedItem = JSON.parse(decryptedItem);
+        
+        const priority = parsedItem.priority || 'low';
+        const timestamp = parsedItem.timestamp || 0;
+        
         cacheItems.push({ key, priority, timestamp });
       } catch {
-        // Ignorer les éléments qui ne sont pas au format JSON
+        // Ignorer les éléments qui ne sont pas au format attendu
       }
     }
     
-    // Trier les éléments par priorité et horodatage (supprimer d'abord les plus anciens de faible priorité)
+    // Trier les éléments par priorité et horodatage
     cacheItems.sort((a, b) => {
       // Priorité d'abord
       const priorityOrder = { low: 0, medium: 1, high: 2 };
@@ -352,7 +360,9 @@ export function clearLowPriorityCache(): void {
       }
     }
   } catch (error) {
-    console.error('Erreur lors du nettoyage du cache', error);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Erreur lors du nettoyage du cache');
+    }
   }
 }
 
@@ -447,4 +457,55 @@ export function throttle<T extends (...args: any[]) => any>(
       }, limit - (Date.now() - lastRan));
     }
   };
-} 
+}
+
+// ====== API sécurisée côté serveur ======
+
+/**
+ * Interface pour le service de cryptographie côté serveur
+ * À utiliser uniquement dans les API routes et composants serveur
+ * @deprecated Utilisez l'implémentation de src/lib/security/server-crypto-service.ts à la place
+ */
+export interface ServerCryptoService {
+  encrypt: (data: string) => Promise<string>;
+  decrypt: (encryptedData: string) => Promise<string>;
+}
+
+/**
+ * Crée une instance du service de cryptographie serveur
+ * @deprecated Utilisez createServerCryptoService depuis '@/lib/security/server-crypto-service' à la place
+ * @returns Service de cryptographie
+ */
+export async function createServerCryptoService(): Promise<ServerCryptoService | null> {
+  // Cette fonction est maintenant dépréciée
+  console.warn('Cette fonction est dépréciée. Utilisez createServerCryptoService depuis @/lib/security/server-crypto-service');
+  
+  // Cette fonction ne doit être appelée que côté serveur
+  if (typeof window !== 'undefined') {
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('Le service de cryptographie serveur ne peut pas être créé côté client');
+    }
+    return null;
+  }
+  
+  try {
+    // Utiliser l'implémentation officielle de manière asynchrone
+    const { createServerCryptoService: officialCreateService } = await import('./security/server-crypto-service');
+    const officialService = officialCreateService();
+    
+    // Wrapper pour adapter l'interface synchrone à une interface asynchrone
+    return {
+      encrypt: async (data: string): Promise<string> => {
+        return officialService.encrypt(data);
+      },
+      decrypt: async (encryptedData: string): Promise<string> => {
+        return officialService.decrypt(encryptedData);
+      }
+    };
+  } catch (error) {
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Erreur lors de la création du service de cryptographie:', error);
+    }
+    throw new Error('Impossible de créer le service de cryptographie');
+  }
+}

@@ -1,14 +1,27 @@
 /**
- * Module de gestion des emails pour Vynal Platform
- * Ce module utilise Nodemailer comme fournisseur d'email
+ * Module d'email amélioré avec sécurité renforcée
+ * Gère l'envoi d'emails et le rendu des templates
  */
 
-import { APP_CONFIG } from './constants';
-import nodemailer, { Transporter, TransportOptions, createTransport } from 'nodemailer';
+import nodemailer, { Transporter, TransportOptions } from 'nodemailer';
+import Handlebars from 'handlebars';
 import fs from 'fs';
 import path from 'path';
-import Handlebars from 'handlebars';
+import { APP_CONFIG } from './constants';
+import sanitizeHtml from 'sanitize-html';
 import { FREELANCE_ROUTES, CLIENT_ROUTES } from "@/config/routes";
+
+// Logger dédié pour les emails
+const emailLogger = {
+  info: (message: string) => {
+    if (process.env.NODE_ENV !== 'production' || process.env.EMAIL_DEBUG === 'true') {
+      console.log(`[EMAIL INFO] ${message}`);
+    }
+  },
+  error: (message: string, error?: any) => {
+    console.error(`[EMAIL ERROR] ${message}`, error || '');
+  }
+};
 
 // Configurer des helpers Handlebars
 Handlebars.registerHelper('formatDate', function(dateString) {
@@ -82,10 +95,10 @@ interface PasswordResetOptions {
 }
 
 // Cache pour le transporteur
-let transporter: Transporter | null = null;
+let transporter: nodemailer.Transporter | null = null;
 
 // Configuration et création du transporteur d'email
-const createTransporter = (): Transporter => {
+const createTransporter = (): nodemailer.Transporter => {
   // Si le transporteur est déjà créé, le retourner
   if (transporter) {
     return transporter;
@@ -149,7 +162,7 @@ const createTransporter = (): Transporter => {
     
     try {
       // Créer et stocker le transporteur
-      transporter = createTransport(transportConfig);
+      transporter = nodemailer.createTransport(transportConfig);
       console.log('Transporteur Resend créé avec succès');
       return transporter;
     } catch (error) {
@@ -186,24 +199,12 @@ const createTransporter = (): Transporter => {
 
   try {
     // Créer et stocker le transporteur
-    transporter = createTransport(transportConfig);
+    transporter = nodemailer.createTransport(transportConfig);
     console.log('Transporteur SMTP créé avec succès');
     return transporter;
   } catch (error) {
     console.error('Erreur lors de la création du transporteur SMTP:', error);
     throw error;
-  }
-};
-
-// Logger spécifique aux emails pour faciliter le débogage
-const emailLogger = {
-  info: (message: string) => {
-    if (process.env.NODE_ENV !== 'production' || process.env.EMAIL_DEBUG === 'true') {
-      console.log(`[EMAIL INFO] ${message}`);
-    }
-  },
-  error: (message: string, error?: any) => {
-    console.error(`[EMAIL ERROR] ${message}`, error || '');
   }
 };
 
@@ -396,10 +397,8 @@ export const verifyEmailService = async (): Promise<boolean> => {
   try {
     const emailTransporter = createTransporter();
     await emailTransporter.verify();
-    emailLogger.info('Service d\'email vérifié avec succès');
     return true;
   } catch (error) {
-    emailLogger.error('Échec de la vérification du service d\'email:', error);
     return false;
   }
 };
@@ -413,7 +412,6 @@ export const canSendEmailToUser = (email: string): boolean => {
   const rateLimitSeconds = parseInt(process.env.EMAIL_RATE_LIMIT_SECONDS || '60', 10);
   
   if (now - lastSent < rateLimitSeconds * 1000) {
-    emailLogger.info(`Limitation de taux pour l'email à ${email}. Dernier envoi il y a ${Math.floor((now - lastSent) / 1000)}s`);
     return false;
   }
   
@@ -443,47 +441,41 @@ export const sendTemplateEmail = async (
     // Compiler et rendre le template avec Handlebars
     const html = renderHandlebarsTemplate(template, variables);
     
-    // Créer un texte simple alternatif (version sans HTML)
-    // Méthode sécurisée pour convertir HTML en texte
+    // Convertir le HTML en texte brut de manière sécurisée
     const text = (() => {
-      const decodeHtmlEntities = (html: string): string => {
-        const entitiesMap: Record<string, string> = {
-          '&amp;': '&', 
-          '&lt;': '<', 
-          '&gt;': '>', 
-          '&quot;': '"', 
-          '&#39;': "'",
-          '&#x27;': "'",
-          '&#x2F;': '/',
-          '&nbsp;': ' '
-        };
+      // Map des entités HTML courantes
+      const entitiesMap: Record<string, string> = {
+        '&amp;': '&',
+        '&lt;': '<',
+        '&gt;': '>',
+        '&quot;': '"',
+        '&#39;': "'",
+        '&#x27;': "'",
+        '&#x2F;': '/',
+        '&nbsp;': ' '
+      };
         
+      // Fonction pour décoder les entités HTML
+      const decodeHtmlEntities = (html: string): string => {
+          
         // Remplacer toutes les entités HTML connues
         return html.replace(/&amp;|&lt;|&gt;|&quot;|&#39;|&#x27;|&#x2F;|&nbsp;/g, 
           (entity) => entitiesMap[entity] || entity
         );
       };
-      
-      // 1. Supprimer les balises HTML complètement
-      // Première passe pour les balises fermantes
-      let plainText = html.replace(/<[^>]*>/g, '');
-      
-      // Appliquer plusieurs passes pour garantir l'élimination de balises imbriquées
-      let previousText;
-      do {
-        previousText = plainText;
-        plainText = plainText.replace(/<[^>]*>/g, '');
-      } while (previousText !== plainText);
-      
-      // Deuxième passe pour capturer les balises potentiellement incomplètes
-      plainText = plainText.replace(/<[^>]*$/g, '');
-      
+        
+      // 1. Supprimer les balises HTML complètement et sécuriser le contenu
+      let plainText = sanitizeHtml(html, {
+        allowedTags: [], // Supprimer toutes les balises HTML
+        allowedAttributes: {} // Supprimer tous les attributs
+      });
+        
       // 2. Décoder les entités HTML de façon sécurisée
       plainText = decodeHtmlEntities(plainText);
-      
+        
       // 3. Normaliser les espaces
       plainText = plainText.replace(/\s+/g, ' ').trim();
-      
+        
       return plainText;
     })();
     
@@ -496,7 +488,6 @@ export const sendTemplateEmail = async (
       ...options
     });
   } catch (error) {
-    emailLogger.error('Erreur lors de l\'envoi du template d\'email:', error);
     return false;
   }
 };

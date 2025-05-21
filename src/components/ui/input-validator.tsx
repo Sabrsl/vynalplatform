@@ -3,6 +3,7 @@ import { Input } from './input';
 import { Textarea } from './textarea';
 import { Label } from './label';
 import { AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
+import sanitizeHtml from 'sanitize-html';
 
 // Types de validation disponibles
 export type ValidationTiming = 'onChange' | 'onBlur' | 'onSubmit';
@@ -135,63 +136,21 @@ export const InputValidator: React.FC<InputValidatorProps> = ({
     unique: 'Cette valeur existe déjà'
   };
   
-  // Fonction de nettoyage des données
+  // Fonction pour nettoyer les entrées utilisateur
   const sanitizeInput = (input: string): string => {
-    // Si l'entrée est nulle ou vide, retourner une chaîne vide
     if (!input) return '';
     
-    // Adaptation selon le type
     switch (type) {
-      case 'email':
-        // Normaliser les emails (tout en minuscules)
-        return input.toLowerCase().trim().replace(/\s+/g, '');
-      
-      case 'url':
-        // Normaliser les URLs
-        return input.trim().replace(/\s+/g, '');
-        
-      case 'number':
-        // Ne garder que les chiffres et le point/virgule décimal
-        return input.replace(/[^\d.,]/g, '').replace(',', '.');
-        
-      case 'phone':
-        // Ne garder que les chiffres et quelques caractères autorisés
-        return input.replace(/[^\d+\-\s()]/g, '');
-        
       case 'password':
         // Ne pas modifier les mots de passe, mais supprimer les caractères de contrôle
         return input.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
         
       default:
-        // Supprimer les balises HTML et scripts
-        let sanitized = input.replace(/<[^>]*>/g, '');
-        
-        // Appliquer plusieurs passes pour garantir l'élimination de balises imbriquées
-        let previousContent;
-        do {
-          previousContent = sanitized;
-          sanitized = sanitized.replace(/<[^>]*>/g, '');
-        } while (sanitized !== previousContent);
-        
-        // Deuxième passe pour capturer les balises potentiellement incomplètes
-        sanitized = sanitized.replace(/<[^>]*$/g, '');
-        
-        // Échapper les caractères spéciaux (sauf pour les mots de passe)
-        // Important: ordre spécifique pour éviter les problèmes d'échappement double
-        sanitized = sanitized
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;')
-          .replace(/"/g, '&quot;')
-          .replace(/'/g, '&#039;');
-        
-        // Supprimer les caractères de contrôle
-        sanitized = sanitized.replace(/[\x00-\x1F\x7F-\x9F]/g, '');
-        
-        // Protection supplémentaire contre les attaques XSS
-        sanitized = sanitized.replace(/javascript:|data:|vbscript:|file:/gi, 'invalid:');
-        
-        return sanitized;
+        // Utiliser sanitize-html pour sécuriser le contenu
+        return sanitizeHtml(input, {
+          allowedTags: [], // Supprimer toutes les balises HTML
+          allowedAttributes: {} // Supprimer tous les attributs
+        });
     }
   };
 
