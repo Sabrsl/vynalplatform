@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Settings, Bell, Lock, Globe, Moon, Sun, Loader2, RefreshCw, AlertTriangle } from "lucide-react";
+import { Settings, Bell, Lock, Globe, Moon, Sun, Loader2, RefreshCw, AlertTriangle, Trash, Database } from "lucide-react";
 import { ClientDashboardPageSkeleton } from "@/components/skeletons/ClientDashboardPageSkeleton";
 import { useUser } from "@/hooks/useUser";
 import { useAuth } from "@/hooks/useAuth";
@@ -18,6 +18,7 @@ import { invalidateAllClientCache } from "@/lib/optimizations/client-cache";
 import { toast } from "sonner";
 import CurrencySelector from "@/components/settings/CurrencySelector";
 import { refreshPriceComponents, clearCurrencyCache, validatePaymentCurrency } from "@/lib/utils/currency-updater";
+import CacheClearConfirmationDialog from "@/components/modals/CacheClearConfirmationDialog";
 
 interface SettingsState {
   theme: string;
@@ -195,6 +196,40 @@ export default function ClientSettingsPage() {
       </div>,
       { duration: 4000 }
     );
+  }, [user, updateLastRefresh]);
+
+  // Fonction pour effacer totalement le cache de l'utilisateur
+  const handleClearCache = useCallback(async () => {
+    if (!user) return;
+    
+    try {
+      // Invalider tous les caches associés à cet utilisateur
+      invalidateAllClientCache(user.id);
+      
+      // Effacer également le cache de devise
+      clearCurrencyCache();
+      
+      // Forcer la mise à jour des données
+      const refreshEvent = new CustomEvent('force-dashboard-refresh', {
+        detail: { timestamp: Date.now(), source: 'cache-clear' },
+        bubbles: true
+      });
+      window.dispatchEvent(refreshEvent);
+      
+      // Mettre à jour la référence de dernier rafraîchissement
+      updateLastRefresh();
+      
+      toast.success("Cache effacé avec succès", {
+        duration: 3000,
+        position: "top-center",
+      });
+    } catch (error) {
+      console.error('Erreur lors de l\'effacement du cache:', error);
+      toast.error("Erreur lors de l'effacement du cache", {
+        duration: 3000,
+        position: "top-center",
+      });
+    }
   }, [user, updateLastRefresh]);
 
   // Classes de style harmonisées avec les autres pages
@@ -470,6 +505,36 @@ export default function ClientSettingsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Ajout d'une carte pour l'effacement du cache en bas de page */}
+      <Card className={cn(mainCardClasses, "mt-8")}>
+        <CardHeader className="p-3 border-b border-slate-200/10 dark:border-slate-700/10">
+          <CardTitle className={`text-sm sm:text-base md:text-sm flex items-center ${titleClasses}`}>
+            <Database className="mr-2 h-3 w-3 sm:h-3.5 sm:w-3.5 text-red-500" />
+            Maintenance du cache
+          </CardTitle>
+          <CardDescription className={`text-[8px] sm:text-[9px] ${subtitleClasses}`}>
+            Gestion des données mises en cache sur votre appareil
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-3 space-y-3">
+          <div className="text-[9px] text-slate-700 dark:text-vynal-text-secondary">
+            <p className="mb-2">
+              Le cache stocke temporairement des données sur votre appareil pour améliorer les performances de navigation.
+            </p>
+            <div className="p-2.5 bg-amber-50/30 dark:bg-amber-900/10 border border-amber-200/40 dark:border-amber-700/20 rounded-md mb-3">
+              <p className="text-[8px] text-amber-700 dark:text-amber-400/80 flex items-start">
+                <AlertTriangle className="h-3 w-3 mr-2 shrink-0 mt-0.5" />
+                <span>L'effacement du cache peut être utile en cas d'affichage incorrect ou de problèmes de performances.</span>
+              </p>
+            </div>
+          </div>
+          <CacheClearConfirmationDialog 
+            onConfirm={handleClearCache} 
+            userType="client"
+          />
+        </CardContent>
+      </Card>
     </div>
   );
 }

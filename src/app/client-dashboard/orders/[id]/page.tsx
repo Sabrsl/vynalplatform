@@ -66,17 +66,17 @@ const getStatusBadgeClasses = (status: OrderDetail['status']) => {
   
   switch(status) {
     case 'in_progress':
-      return cn(baseClasses, "bg-amber-500/10 text-amber-500 border-amber-500/20");
+      return cn(baseClasses, "bg-blue-700/10 text-blue-700 border-blue-700/20");
     case 'completed':
-      return cn(baseClasses, "bg-emerald-500/10 text-emerald-500 border-emerald-500/20");
+      return cn(baseClasses, "bg-green-700/10 text-green-700 border-green-700/20");
     case 'delivered':
       return cn(baseClasses, "bg-vynal-accent-primary/10 text-vynal-accent-primary border-vynal-accent-primary/20");
     case 'pending':
-      return cn(baseClasses, "bg-slate-500/10 text-slate-500 border-slate-500/20");
+      return cn(baseClasses, "bg-yellow-700/10 text-yellow-700 border-yellow-700/20");
     case 'revision_requested':
-      return cn(baseClasses, "bg-amber-500/10 text-amber-500 border-amber-500/20");
+      return cn(baseClasses, "bg-orange-700/10 text-orange-700 border-orange-700/20");
     case 'cancelled':
-      return cn(baseClasses, "bg-red-500/10 text-red-500 border-red-500/20");
+      return cn(baseClasses, "bg-red-700/10 text-red-700 border-red-700/20");
     default:
       return baseClasses;
   }

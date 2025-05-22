@@ -51,6 +51,7 @@ import {
   Save,
   Upload,
   Crown,
+  Database
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { useUser } from "@/hooks/useUser";
@@ -78,6 +79,8 @@ import CurrencySelector from "@/components/settings/CurrencySelector";
 import { refreshPriceComponents, clearCurrencyCache } from "@/lib/utils/currency-updater";
 import { invalidateAllClientCache } from "@/lib/optimizations/client-cache";
 import { toast } from "sonner";
+import { invalidateCachePattern } from "@/lib/optimizations";
+import CacheClearConfirmationDialog from "@/components/modals/CacheClearConfirmationDialog";
 
 // Définir une interface pour le profil utilisateur
 interface UserProfile {
@@ -1170,6 +1173,60 @@ export default function SettingsPage() {
     }
   };
 
+  // Fonction pour effacer totalement le cache de l'utilisateur
+  const handleClearCache = useCallback(async () => {
+    if (!authUser) return;
+    
+    try {
+      // Invalider tous les caches associés à cet utilisateur (utiliser la fonction du client comme base)
+      invalidateAllClientCache(authUser.id);
+      
+      // Invalider les caches spécifiques au freelance
+      const freelancePatterns = [
+        'freelance_services_',
+        'freelance_stats_',
+        'freelance_orders_',
+        'freelance_profile_',
+        'freelance_dashboard_'
+      ];
+      
+      // Parcourir tous les patterns et invalider les clés correspondantes
+      freelancePatterns.forEach(pattern => {
+        invalidateCachePattern(pattern);
+      });
+      
+      // Effacer également le cache de devise
+      clearCurrencyCache();
+      
+      // Forcer la mise à jour des données du tableau de bord
+      if (typeof window !== 'undefined') {
+        const refreshEvent = new CustomEvent('force-dashboard-refresh', {
+          detail: { timestamp: Date.now(), source: 'cache-clear' },
+          bubbles: true
+        });
+        window.dispatchEvent(refreshEvent);
+        
+        // Émettre un événement pour informer les composants
+        window.dispatchEvent(new CustomEvent('vynal:freelance-cache-invalidated'));
+      }
+      
+      // Mettre à jour la référence de dernier rafraîchissement
+      updateLastRefresh();
+      
+      toast({
+        title: "Cache effacé",
+        description: "Toutes les données en cache ont été supprimées avec succès",
+      });
+    } catch (error) {
+      console.error('Erreur lors de l\'effacement du cache:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible d'effacer le cache. Veuillez réessayer.",
+        variant: "destructive",
+      });
+    }
+  }, [authUser, updateLastRefresh]);
+
   return (
     <div className="w-full h-full overflow-x-hidden overflow-y-auto scrollbar-hide bg-gray-50/50 dark:bg-transparent">
       <div className="p-2 sm:p-4 space-y-6 sm:space-y-8 pb-12 max-w-[1600px] mx-auto">
@@ -1787,6 +1844,49 @@ export default function SettingsPage() {
                   </Button>
                 </div>
             </CardContent>
+            </Card>
+
+            <Card className="overflow-hidden border border-vynal-border dark:border-vynal-purple-secondary/40 shadow-sm bg-white dark:bg-vynal-purple-dark/20">
+              <CardHeader className="px-4 sm:px-6 py-3 sm:py-4 bg-gradient-to-r from-white to-slate-50 dark:from-vynal-purple-dark/60 dark:to-vynal-purple-dark/20">
+                <CardTitle className="flex items-center gap-2 text-[9px] sm:text-[10px]">
+                  <div className="p-1.5 rounded-md bg-red-400/10 dark:bg-red-500/20">
+                    <Database className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-red-500 dark:text-red-400" />
+                  </div>
+                  <span className="text-vynal-purple-light dark:text-vynal-text-primary">Maintenance du cache</span>
+                </CardTitle>
+                <CardDescription className="text-[8px] sm:text-[9px] text-vynal-purple-secondary dark:text-vynal-text-secondary/80 mt-1">
+                  Gestion des données mises en cache sur votre appareil
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="px-4 sm:px-6 py-3 sm:py-4">
+                <div className="space-y-3">
+                  <p className="text-[9px] text-vynal-purple-secondary dark:text-vynal-text-secondary">
+                    Le cache stocke temporairement des données sur votre appareil pour améliorer les performances de navigation. Vous pouvez l'effacer en cas de problèmes d'affichage ou de performances.
+                  </p>
+                  
+                  <div className="p-2.5 bg-amber-50/30 dark:bg-amber-900/10 border border-amber-200/40 dark:border-amber-700/20 rounded-md">
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle className="h-3 w-3 text-amber-500 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                      <div className="space-y-1">
+                        <p className="text-[9px] font-medium text-vynal-purple-dark/90 dark:text-vynal-text-primary/90">
+                          Informations importantes
+                        </p>
+                        <ul className="text-[8px] text-amber-700 dark:text-amber-400/80 space-y-0.5 list-disc pl-3">
+                          <li>L'effacement du cache nécessitera le rechargement des données depuis le serveur</li>
+                          <li>Les performances de l'application peuvent être temporairement ralenties</li>
+                          <li>Vos services, statistiques et commandes seront actualisés</li>
+                          <li>Vos préférences et paramètres resteront inchangés</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+
+                  <CacheClearConfirmationDialog 
+                    onConfirm={handleClearCache} 
+                    userType="freelance"
+                  />
+                </div>
+              </CardContent>
             </Card>
         </TabsContent>
       </Tabs>

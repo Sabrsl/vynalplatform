@@ -44,11 +44,14 @@ import {
   Database,
   BellRing,
   Lock,
-  AlertCircle
+  AlertCircle,
+  Trash,
+  AlertTriangle
 } from 'lucide-react';
-import { getCachedData, setCachedData, CACHE_EXPIRY, CACHE_KEYS } from '@/lib/optimizations';
+import { getCachedData, setCachedData, CACHE_EXPIRY, CACHE_KEYS, invalidateCache } from '@/lib/optimizations';
 import { supabase } from '@/lib/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
+import CacheClearConfirmationDialog from '@/components/modals/CacheClearConfirmationDialog';
 
 // Interface pour les paramètres
 interface SystemSettings {
@@ -224,6 +227,63 @@ export default function SettingsPage() {
     }, 1000);
   };
 
+  // Fonction pour effacer le cache administrateur
+  const clearAdminCache = async () => {
+    try {
+      // Invalider les caches administrateur principaux
+      const cacheKeysToInvalidate = [
+        CACHE_KEYS.ADMIN_SYSTEM_CONFIG,
+        CACHE_KEYS.ADMIN_STATS,
+        CACHE_KEYS.ADMIN_ALERTS,
+        CACHE_KEYS.ADMIN_SERVICES_LIST,
+        CACHE_KEYS.ADMIN_USERS_LIST,
+        CACHE_KEYS.ADMIN_WITHDRAWALS,
+      ];
+      
+      // Invalider chaque clé de cache
+      let invalidatedCount = 0;
+      cacheKeysToInvalidate.forEach(key => {
+        invalidateCache(key);
+        invalidatedCount++;
+      });
+      
+      // Invalider également les motifs de cache communs pour l'admin
+      [
+        'admin_',
+        'validation_',
+        'stats_',
+        'users_list_',
+        'services_list_',
+        'admin_notifications_count_'
+      ].forEach(pattern => {
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && key.includes(pattern)) {
+            localStorage.removeItem(key);
+            invalidatedCount++;
+          }
+        }
+      });
+      
+      // Émettre un événement pour informer les composants de l'invalidation
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('vynal:admin-cache-invalidated'));
+      }
+      
+      toast({
+        title: "Cache effacé",
+        description: `${invalidatedCount} entrées de cache ont été supprimées`
+      });
+    } catch (error) {
+      console.error('Erreur lors de l\'effacement du cache admin:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible d'effacer le cache. Veuillez réessayer.",
+        variant: "destructive"
+      });
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
@@ -233,16 +293,18 @@ export default function SettingsPage() {
             Configuration des paramètres de la plateforme
           </p>
         </div>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={handleRefresh}
-          disabled={loading}
-          className="flex items-center gap-1 text-xs"
-        >
-          <RefreshCw className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`} />
-          {loading ? 'Chargement...' : 'Actualiser'}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleRefresh}
+            disabled={loading}
+            className="flex items-center gap-1 text-xs"
+          >
+            <RefreshCw className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`} />
+            {loading ? 'Chargement...' : 'Actualiser'}
+          </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="general" className="space-y-3">
@@ -513,29 +575,29 @@ export default function SettingsPage() {
                       <FileText className="h-3 w-3 mr-1" />
                       Télécharger les logs
                     </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="outline" size="sm" className="justify-start text-red-500 hover:text-red-600 text-xs">
-                          <Trash2 className="h-3 w-3 mr-1" />
-                          Vider le cache
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle className="text-sm">Êtes-vous sûr ?</AlertDialogTitle>
-                          <AlertDialogDescription className="text-xs">
-                            Cette action va effacer toutes les données en cache. Les performances du site peuvent être temporairement ralenties.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel className="text-xs">Annuler</AlertDialogCancel>
-                          <AlertDialogAction className="bg-red-500 hover:bg-red-600 text-xs">
-                            Continuer
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
                   </div>
+                </div>
+                
+                <Separator />
+                
+                <div className="space-y-2">
+                  <Label className="text-[8px]">Gestion du cache système</Label>
+                  <div className="text-[8px] text-gray-500 dark:text-vynal-text-secondary mb-2">
+                    Effacer le cache peut résoudre certains problèmes d'affichage ou de performance.
+                  </div>
+                  <div className="p-2 bg-amber-50/30 dark:bg-amber-900/10 border border-amber-200/40 dark:border-amber-700/20 rounded-md mb-2">
+                    <p className="text-[8px] text-amber-700 dark:text-amber-400/80 flex items-start">
+                      <AlertTriangle className="h-3 w-3 mr-2 shrink-0 mt-0.5" />
+                      <span>
+                        L'effacement du cache administrateur n'affecte pas les données des utilisateurs,
+                        mais peut temporairement ralentir le tableau de bord administrateur.
+                      </span>
+                    </p>
+                  </div>
+                  <CacheClearConfirmationDialog 
+                    onConfirm={clearAdminCache} 
+                    userType="admin"
+                  />
                 </div>
               </div>
             </CardContent>

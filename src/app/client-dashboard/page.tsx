@@ -124,16 +124,16 @@ export default function ClientDashboardPage() {
     
     switch(status) {
       case "in_progress":
-        return cn(baseClasses, "bg-amber-500/20 text-amber-600 border-amber-500/30 hover:bg-amber-500/25 dark:bg-amber-500/10 dark:text-amber-500 dark:border-amber-500/20 dark:hover:bg-amber-500/15");
+        return cn(baseClasses, "bg-blue-700/10 text-blue-700 border-blue-700/20 hover:bg-blue-700/15 hover:border-blue-700/30 dark:bg-blue-500/10 dark:border-blue-500/20 dark:hover:bg-blue-500/20 dark:hover:border-blue-500/40");
       case "completed":
       case "delivered":
-        return cn(baseClasses, "bg-emerald-500/20 text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-500 dark:border-emerald-500/20 dark:hover:bg-emerald-500/15");
+        return cn(baseClasses, "bg-green-700/10 text-green-700 border-green-700/20 hover:bg-green-700/15 hover:border-green-700/30 dark:bg-green-500/10 dark:border-green-500/20 dark:hover:bg-green-500/20 dark:hover:border-green-500/40");
       case "pending":
-        return cn(baseClasses, "bg-slate-500/20 text-slate-600 border-slate-500/30 hover:bg-slate-500/25 dark:bg-slate-500/10 dark:text-slate-500 dark:border-slate-500/20 dark:hover:bg-slate-500/15");
+        return cn(baseClasses, "bg-yellow-700/10 text-yellow-700 border-yellow-700/20 hover:bg-yellow-700/15 hover:border-yellow-700/30 dark:bg-yellow-500/10 dark:border-yellow-500/20 dark:hover:bg-yellow-500/20 dark:hover:border-yellow-500/40");
       case "revision_requested":
-        return cn(baseClasses, "bg-blue-500/20 text-blue-600 border-blue-500/30 hover:bg-blue-500/25 dark:bg-blue-500/10 dark:text-blue-500 dark:border-blue-500/20 dark:hover:bg-blue-500/15");
+        return cn(baseClasses, "bg-orange-700/10 text-orange-700 border-orange-700/20 hover:bg-orange-700/15 hover:border-orange-700/30 dark:bg-orange-500/10 dark:border-orange-500/20 dark:hover:bg-orange-500/20 dark:hover:border-orange-500/40");
       case "cancelled":
-        return cn(baseClasses, "bg-red-500/20 text-red-600 border-red-500/30 hover:bg-red-500/25 dark:bg-red-500/10 dark:text-red-500 dark:border-red-500/20 dark:hover:bg-red-500/15");
+        return cn(baseClasses, "bg-red-700/10 text-red-700 border-red-700/20 hover:bg-red-700/15 hover:border-red-700/30 dark:bg-red-500/10 dark:border-red-500/20 dark:hover:bg-red-500/20 dark:hover:border-red-500/40");
       default:
         return baseClasses;
     }
@@ -160,9 +160,9 @@ export default function ClientDashboardPage() {
   }, []);
 
   // Classes dynamiques
-  const titleClasses = 'text-vynal-purple-dark dark:text-vynal-text-primary';
-  const subtitleClasses = 'text-vynal-purple-secondary dark:text-vynal-text-secondary';
-  const mainCardClasses = 'bg-white dark:bg-vynal-purple-dark/30 border border-slate-200 dark:border-vynal-purple-secondary/10 hover:border-slate-300 dark:hover:border-vynal-purple-secondary/20 transition-all shadow-sm';  
+  const titleClasses = 'text-slate-800 dark:text-vynal-text-primary';
+  const subtitleClasses = 'text-slate-600 dark:text-vynal-text-secondary';
+  const mainCardClasses = 'bg-white/30 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700/30 hover:border-slate-300 dark:hover:border-slate-700/40 transition-all duration-200 shadow-sm backdrop-blur-sm';  
   
   // Nom d'utilisateur formaté pour l'affichage
   const userName = useMemo(() => {
@@ -208,13 +208,13 @@ export default function ClientDashboardPage() {
                 <CardTitle className={`text-[10px] sm:text-xs font-medium ${titleClasses}`}>
                   Commandes en cours
                 </CardTitle>
-                <ShoppingCart className="h-3 w-3 sm:h-3 sm:w-3 text-amber-500" />
+                <ShoppingCart className="h-3 w-3 sm:h-3 sm:w-3 text-vynal-accent-primary" />
               </CardHeader>
               <CardContent className="p-0 pt-1 sm:pt-1">
-                <div className={`text-lg sm:text-xl font-bold text-amber-600 dark:text-amber-400`}>{stats.activeOrders}</div>
+                <div className={`text-lg sm:text-xl font-bold text-vynal-accent-primary dark:text-vynal-accent-primary`}>{stats.activeOrders}</div>
                 <p className={`text-[8px] sm:text-[10px] ${subtitleClasses}`}>
                   <span className="flex items-center">
-                    <TrendingUp className="h-2 w-2 mr-1 text-amber-500" />
+                    <TrendingUp className="h-2 w-2 mr-1 text-vynal-accent-primary" />
                     Commandes actives
                   </span>
                 </p>
@@ -229,7 +229,7 @@ export default function ClientDashboardPage() {
                 <CheckCircle className="h-3 w-3 sm:h-3 sm:w-3 text-emerald-500" />
               </CardHeader>
               <CardContent className="p-0 pt-1 sm:pt-1">
-                <div className="text-lg sm:text-xl font-bold text-green-600 dark:text-green-400">{stats.completedOrders}</div>
+                <div className="text-lg sm:text-xl font-bold text-emerald-500 dark:text-emerald-400">{stats.completedOrders}</div>
                 <p className={`text-[8px] sm:text-[10px] ${subtitleClasses}`}>
                   <span className="flex items-center">
                     <TrendingUp className="h-2 w-2 mr-1 text-emerald-500" />
@@ -294,7 +294,7 @@ export default function ClientDashboardPage() {
                 <Button 
                   variant="ghost" 
                   size="sm" 
-                  className={`${subtitleClasses} text-gray-600 dark:text-gray-400 hover:text-vynal-accent-primary dark:hover:text-vynal-accent-primary flex items-center gap-1 text-xs`}
+                  className={`${subtitleClasses} text-slate-600 dark:text-slate-400 hover:text-vynal-accent-primary dark:hover:text-vynal-accent-primary flex items-center gap-1 text-xs`}
                   asChild
                 >
                   <Link href={CLIENT_ROUTES.ORDERS}>Voir tout</Link>
@@ -304,7 +304,7 @@ export default function ClientDashboardPage() {
             <CardContent className="p-3 sm:p-4">
               <div className="space-y-2 sm:space-y-3">
                 {recentOrders.map((order) => (
-                  <Card className={`${mainCardClasses} cursor-pointer transition-all duration-300 hover:shadow-md group hover:border-vynal-accent-primary/20`} key={order.id}>
+                  <Card className={`${mainCardClasses} cursor-pointer transition-all duration-200 hover:shadow-md group hover:border-vynal-accent-primary/20`} key={order.id}>
                     <Link href={`${CLIENT_ROUTES.ORDERS}/${order.id}`}>
                       <CardContent className="p-2.5 sm:p-3">
                         <div className="flex flex-col">
@@ -348,13 +348,13 @@ export default function ClientDashboardPage() {
                     Freelances recommandés
                   </CardTitle>
                   <CardDescription className={`text-[10px] sm:text-[10px] ${subtitleClasses}`}>
-                    Nos meilleurs freelances certifiés et évalués
+                    Découvrez nos meilleurs freelances
                   </CardDescription>
                 </div>
                 <Button 
                   variant="ghost" 
                   size="sm" 
-                  className={`${subtitleClasses} text-gray-600 dark:text-gray-400 hover:text-vynal-accent-primary dark:hover:text-vynal-accent-primary flex items-center gap-1 text-xs`}
+                  className={`${subtitleClasses} text-slate-600 dark:text-slate-400 hover:text-vynal-accent-primary dark:hover:text-vynal-accent-primary flex items-center gap-1 text-xs`}
                   asChild
                 >
                   <Link href="/services">Explorer</Link>
@@ -362,67 +362,43 @@ export default function ClientDashboardPage() {
               </div>
             </CardHeader>
             <CardContent className="p-3 sm:p-4">
-              <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                 {freelancers.map((freelancer) => (
-                  <div
-                    key={freelancer.id}
-                    className={`p-3 rounded-lg ${mainCardClasses}`}
-                  >
-                    <div className="flex items-center gap-2 sm:gap-3 mb-2">
-                      <Avatar className="h-8 w-8 ring-1 ring-slate-200/30 dark:ring-slate-700/30">
-                        <AvatarImage src={freelancer.avatar_url || ''} alt={freelancer.full_name || 'Freelance'} className="object-cover" />
-                        <AvatarFallback className="bg-slate-100/50 dark:bg-slate-800/50 text-slate-900 dark:text-vynal-text-primary">
-                          {(freelancer.full_name || freelancer.username || 'F').charAt(0)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-1">
-                            <p className={`text-[9px] sm:text-[9px] font-medium ${titleClasses}`}>
-                              {freelancer.full_name || freelancer.username || 'Anonyme'}
+                  <Card key={freelancer.id} className={`${mainCardClasses} cursor-pointer transition-all duration-200 hover:shadow-md group hover:border-vynal-accent-primary/20`}>
+                    <Link href={`/profile/id/${freelancer.id}`}>
+                      <CardContent className="p-2.5 sm:p-3">
+                        <div className="flex items-start space-x-3">
+                          <Avatar className="h-8 w-8 sm:h-10 sm:w-10">
+                            <AvatarImage src={freelancer.avatar_url || ''} alt={freelancer.full_name || 'Freelance'} />
+                            <AvatarFallback className="bg-slate-100/30 dark:bg-slate-800/30 text-slate-600 dark:text-slate-400">
+                              {(freelancer.full_name || freelancer.username || 'F').charAt(0)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between">
+                              <h3 className="font-medium text-[10px] sm:text-xs text-slate-800 dark:text-vynal-text-primary group-hover:text-vynal-accent-primary transition-colors">
+                                {freelancer.full_name || freelancer.username || 'Anonyme'}
+                              </h3>
+                              {freelancer.is_certified && (
+                                <Badge variant="outline" className="text-[8px] sm:text-[10px] bg-vynal-accent-primary/10 text-vynal-accent-primary border-vynal-accent-primary/20 hover:bg-vynal-accent-primary/15 hover:border-vynal-accent-primary/30 dark:bg-vynal-accent-primary/10 dark:border-vynal-accent-primary/20 dark:hover:bg-vynal-accent-primary/20 dark:hover:border-vynal-accent-primary/40">
+                                  Expert
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-[8px] sm:text-[10px] text-slate-600 dark:text-vynal-text-secondary mt-0.5">
+                              {freelancer.specialty || 'Divers'}
                             </p>
-                            {freelancer.is_certified && (
-                              <Badge className="text-[6px] sm:text-[6px] bg-vynal-accent-primary/20 text-vynal-accent-primary border border-vynal-accent-primary/30 hover:bg-vynal-accent-primary/25 dark:bg-vynal-accent-primary/10 dark:text-vynal-accent-primary dark:border-vynal-accent-primary/20 dark:hover:bg-vynal-accent-primary/15 px-1 h-2.5">
-                                Expert
-                              </Badge>
-                            )}
+                            <div className="flex items-center mt-1.5 text-[8px] sm:text-[10px] text-slate-500 dark:text-vynal-text-secondary/70">
+                              <Star className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1 text-amber-500" />
+                              <span>{freelancer.rating?.toFixed(1) || '0.0'} ({freelancer.completed_projects || 0} projets)</span>
+                            </div>
                           </div>
                         </div>
-                        <p className={`text-[7px] sm:text-[7px] ${subtitleClasses}`}>
-                          {freelancer.specialty || 'Divers'}
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center justify-between mt-1.5">
-                      <div className="flex items-center gap-2">
-                        <div className="flex items-center gap-2">
-                          <div className="flex items-center gap-1 bg-yellow-500/20 text-yellow-600 border border-yellow-500/30 hover:bg-yellow-500/25 dark:bg-yellow-500/10 dark:text-yellow-500 dark:border-yellow-500/20 dark:hover:bg-yellow-500/15 px-1.5 py-0.5 rounded-full">
-                            <Star className="h-1.5 w-1.5" />
-                            <span className={`text-[7px] sm:text-[7px] font-medium ${titleClasses}`}>
-                              {freelancer.rating.toFixed(1)}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-1 bg-emerald-500/20 text-emerald-600 border border-emerald-500/30 hover:bg-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-500 dark:border-emerald-500/20 dark:hover:bg-emerald-500/15 px-1.5 py-0.5 rounded-full">
-                            <CheckCircle className="h-1.5 w-1.5" />
-                            <span className={`text-[7px] sm:text-[7px] ${subtitleClasses}`}>
-                              {freelancer.completed_projects}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className={`${subtitleClasses} h-4 border-slate-200/20 dark:border-slate-700/20`}
-                        asChild
-                      >
-                        <Link href={`/profile/id/${freelancer.id}`}>Profil</Link>
-                      </Button>
-                    </div>
-                  </div>
+                      </CardContent>
+                    </Link>
+                  </Card>
                 ))}
-                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
