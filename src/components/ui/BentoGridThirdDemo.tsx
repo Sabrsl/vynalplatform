@@ -191,9 +191,9 @@ const SkeletonFour = () => {
         <Image
           src="/images/profil2.webp"
           alt="avatar"
-          width={40}
-          height={40}
-          className="rounded-full h-10 w-10"
+          width={96}
+          height={112}
+          className="rounded-full h-10 w-10 object-cover"
         />
         <p className="sm:text-sm text-xs text-center font-poppins font-semibold text-neutral-600 mt-4">
          Un souci ? On trouve une solution rapide et équitable
@@ -209,9 +209,9 @@ const SkeletonFour = () => {
         <Image
           src="/images/profil3.webp"
           alt="avatar"
-          width={40}
-          height={40}
-          className="rounded-full h-10 w-10"
+          width={96}
+          height={112}
+          className="rounded-full h-10 w-10 object-cover"
         />
         <p className="sm:text-sm text-xs text-center font-poppins font-semibold text-neutral-600 mt-4">
          Commandez l'esprit tranquille : satisfait ou remboursé
