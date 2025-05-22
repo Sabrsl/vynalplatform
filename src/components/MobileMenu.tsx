@@ -610,8 +610,10 @@ export default function MobileMenu({ isOpen, onClose, user, activePath, setActiv
   const handleSignOut = useCallback(() => {
     NavigationLoadingState.setIsNavigating(true);
     onClose();
-    logout();
-  }, [logout, onClose]);
+    
+    // Utiliser la fonction de déconnexion centralisée
+    import('@/lib/auth').then(m => m.signOut());
+  }, [onClose]);
   
   // Naviguer et fermer le menu
   const navigateAndClose = useCallback((path: string) => {

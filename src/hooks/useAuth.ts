@@ -390,21 +390,13 @@ export function useAuth() {
     try {
       setLoading(true);
       
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      // Utiliser la fonction centralisée de déconnexion
+      const result = await import('@/lib/auth').then(m => m.signOut());
       
-      try {
-        localStorage.removeItem('supabase.auth.token');
-        localStorage.removeItem('sb-refresh-token');
-        localStorage.removeItem('sb-access-token');
-        localStorage.removeItem('supabase.auth.expires_at');
-      } catch (storageError) {
-        console.warn("Erreur lors du nettoyage du stockage local:", storageError);
-      }
-      
+      // Mise à jour de l'état local
       setUser(null);
       
-      return { success: true };
+      return result;
     } catch (error) {
       console.error("Erreur lors de la déconnexion:", error);
       return { 

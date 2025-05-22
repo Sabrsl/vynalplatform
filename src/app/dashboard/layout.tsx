@@ -30,6 +30,10 @@ import { useUser } from "@/hooks/useUser";
 import { FREELANCE_ROUTES, AUTH_ROUTES } from "@/config/routes";
 import { listenToFreelanceCacheInvalidation } from "@/lib/optimizations/freelance-cache";
 import Image from "next/image";
+import { useTheme } from "next-themes";
+import { useLogout } from "@/hooks/useLogout";
+//@ts-ignore
+import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
 
 // Mémoriser les icônes par path pour éviter les re-créations
 const NAV_ICONS = {
@@ -217,21 +221,30 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, loading, signOut } = useAuth();
-  const { profile, isClient, isFreelance } = useUser();
-  const router = useRouter();
+  const { push } = useRouter();
   const pathname = usePathname();
+  const [collapsed, setCollapsed] = useState(false);
+  const { theme } = useTheme();
+  const { user, signOut: authSignOut } = useAuth();
+  const { logout, isLoggingOut } = useLogout();
+  const [totalUnreadCount] = useUnreadNotifications();
+  const router = useRouter();
   const [initialized, setInitialized] = useState(false);
   
+  // Utiliser la fonction de déconnexion du hook useLogout qui appelle déjà la fonction centralisée
+  const handleSignOut = useCallback(() => {
+    logout();
+  }, [logout]);
+
   // Optimisation : mémoriser les informations utilisateur
   const userInfo = useMemo(() => ({ 
     userId: user?.id,
-    isClient,
-    isFreelance
-  }), [user?.id, isClient, isFreelance]);
+    isClient: user?.user_metadata?.role === 'client',
+    isFreelance: user?.user_metadata?.role === 'freelance'
+  }), [user?.id, user?.user_metadata?.role]);
   
   // Notifications non lues - optimisé
-  const { totalUnreadCount, refresh: refreshNotifications } = useUserNotifications(userInfo.userId);
+  const { refresh: refreshNotifications } = useUserNotifications(userInfo.userId);
 
   // Gestionnaire unifié pour la navigation
   const handleNavClick = useCallback((e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
@@ -287,24 +300,22 @@ export default function DashboardLayout({
     };
   }, [userInfo.userId, refreshNotifications]);
 
-  // Redirection vers l'authentification si non connecté
+  // Redirection vers la page de connexion si non connecté
   useEffect(() => {
-    if (loading) return;
-    
     if (!user) {
-      router.push(AUTH_ROUTES.LOGIN);
+      push(AUTH_ROUTES.LOGIN);
     }
-  }, [user, loading, router]);
+  }, [user, push]);
 
   // Mettre à jour le state mais sans redirection supplémentaire
   useEffect(() => {
-    if (!loading && user && profile) {
+    if (!user && !userInfo.userId) {
       setInitialized(true);
     }
-  }, [loading, user, profile]);
+  }, [user, userInfo.userId]);
 
   // Loading state - optimisé
-  if (loading || !user) {
+  if (isLoggingOut || !user) {
     return (
       <div className="grid h-screen place-items-center bg-slate-50 dark:bg-vynal-purple-dark">
         <div className="flex flex-col items-center gap-4">
@@ -326,10 +337,10 @@ export default function DashboardLayout({
           <MainNavigation 
             totalUnreadCount={totalUnreadCount} 
             handleNavClick={handleNavClick}
-            signOut={signOut}
+            signOut={handleSignOut}
           />
         </div>
-        <UserProfile user={user} signOut={signOut} />
+        <UserProfile user={user} signOut={handleSignOut} />
       </aside>
 
       {/* Main content */}

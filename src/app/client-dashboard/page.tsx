@@ -191,7 +191,6 @@ export default function ClientDashboardPage() {
                 Bienvenue, {userName}
               </p>
             </div>
-            {/* Ajouter le bouton de rafraîchissement */}
             <RefreshButton 
               onClick={handleRefresh} 
               isRefreshing={isRefreshing} 

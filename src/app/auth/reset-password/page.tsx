@@ -144,8 +144,9 @@ export default function ResetPasswordPage() {
         // Indiquer le succès
         setSuccess(true);
         
-        // Se déconnecter
-        await supabase.auth.signOut();
+        // Se déconnecter en utilisant la fonction centralisée
+        const { signOut } = await import('@/lib/auth');
+        await signOut();
         
         // Rediriger l'utilisateur vers la page appropriée en fonction de son rôle
         setTimeout(() => {

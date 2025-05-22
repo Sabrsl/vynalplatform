@@ -510,6 +510,7 @@ export default function ClientOrdersPage() {
       );
     }
 
+    // Utiliser un Fragment pour minimiser les éléments DOM
     return (
       <Fragment>
         {orders.map((order) => (
@@ -630,46 +631,46 @@ export default function ClientOrdersPage() {
           <TabsList className="bg-slate-100/70 dark:bg-slate-800/20 p-1 rounded-lg border border-slate-200/50 dark:border-slate-700/20 w-full flex flex-nowrap overflow-x-auto scrollbar-hide">
             <TabsTrigger 
               value="all"
-              className="flex-none whitespace-nowrap data-[state=active]:bg-vynal-accent-primary/30 data-[state=active]:text-vynal-accent-primary dark:data-[state=active]:bg-vynal-accent-primary/5 dark:data-[state=active]:text-vynal-accent-primary/40 text-[10px] sm:text-xs text-slate-700 dark:text-slate-300"
+              className="flex-none whitespace-nowrap data-[state=active]:bg-vynal-accent-primary/30 data-[state=active]:text-vynal-accent-primary dark:data-[state=active]:bg-vynal-accent-primary/5 dark:data-[state=active]:text-vynal-accent-primary/40 data-[state=active]:shadow-sm text-[10px] sm:text-xs text-slate-700 dark:text-slate-300 hover:bg-vynal-accent-primary/10"
             >
               Tous
-              <Badge className="ml-2 bg-vynal-accent-primary/20 text-vynal-accent-primary border border-vynal-accent-primary/30 text-[8px]">
+              <Badge className="ml-2 bg-vynal-accent-primary/20 text-vynal-accent-primary border border-vynal-accent-primary/30 text-[8px] hover:bg-vynal-accent-primary/30">
                 {counts.totalCount}
               </Badge>
             </TabsTrigger>
             <TabsTrigger 
               value="active"
-              className="flex-none whitespace-nowrap data-[state=active]:bg-blue-700/30 data-[state=active]:text-blue-700 dark:data-[state=active]:bg-blue-700/5 dark:data-[state=active]:text-blue-700/40 text-[10px] sm:text-xs text-slate-700 dark:text-slate-300"
+              className="flex-none whitespace-nowrap data-[state=active]:bg-amber-500/30 data-[state=active]:text-amber-600 dark:data-[state=active]:bg-amber-500/5 dark:data-[state=active]:text-amber-500/40 data-[state=active]:shadow-sm text-[10px] sm:text-xs text-slate-700 dark:text-slate-300 hover:bg-amber-500/10"
             >
               En cours
-              <Badge className="ml-2 bg-blue-700/20 text-blue-700 border border-blue-700/30 text-[8px]">
+              <Badge className="ml-2 bg-amber-500/20 text-amber-500 border border-amber-500/30 text-[8px] hover:bg-amber-500/30">
                 {counts.activeCount}
               </Badge>
             </TabsTrigger>
             <TabsTrigger 
               value="pending"
-              className="flex-none whitespace-nowrap data-[state=active]:bg-yellow-700/30 data-[state=active]:text-yellow-700 dark:data-[state=active]:bg-yellow-700/5 dark:data-[state=active]:text-yellow-700/40 text-[10px] sm:text-xs text-slate-700 dark:text-slate-300"
+              className="flex-none whitespace-nowrap data-[state=active]:bg-slate-500/30 data-[state=active]:text-slate-600 dark:data-[state=active]:bg-slate-500/5 dark:data-[state=active]:text-slate-500/40 data-[state=active]:shadow-sm text-[10px] sm:text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-500/10"
             >
               En attente
-              <Badge className="ml-2 bg-yellow-700/20 text-yellow-700 border border-yellow-700/30 text-[8px]">
+              <Badge className="ml-2 bg-slate-500/20 text-slate-500 border border-slate-500/30 text-[8px] hover:bg-slate-500/30">
                 {counts.pendingCount}
               </Badge>
             </TabsTrigger>
             <TabsTrigger 
               value="completed"
-              className="flex-none whitespace-nowrap data-[state=active]:bg-green-700/30 data-[state=active]:text-green-700 dark:data-[state=active]:bg-green-700/5 dark:data-[state=active]:text-green-700/40 text-[10px] sm:text-xs text-slate-700 dark:text-slate-300"
+              className="flex-none whitespace-nowrap data-[state=active]:bg-emerald-500/30 data-[state=active]:text-emerald-600 dark:data-[state=active]:bg-emerald-500/5 dark:data-[state=active]:text-emerald-500/40 data-[state=active]:shadow-sm text-[10px] sm:text-xs text-slate-700 dark:text-slate-300 hover:bg-emerald-500/10"
             >
               Terminées
-              <Badge className="ml-2 bg-green-700/20 text-green-700 border border-green-700/30 text-[8px]">
+              <Badge className="ml-2 bg-emerald-500/20 text-emerald-500 border border-emerald-500/30 text-[8px] hover:bg-emerald-500/30">
                 {counts.completedCount}
               </Badge>
             </TabsTrigger>
             <TabsTrigger 
               value="cancelled"
-              className="flex-none whitespace-nowrap data-[state=active]:bg-red-700/30 data-[state=active]:text-red-700 dark:data-[state=active]:bg-red-700/5 dark:data-[state=active]:text-red-700/40 text-[10px] sm:text-xs text-slate-700 dark:text-slate-300"
+              className="flex-none whitespace-nowrap data-[state=active]:bg-red-500/30 data-[state=active]:text-red-600 dark:data-[state=active]:bg-red-500/5 dark:data-[state=active]:text-red-500/40 data-[state=active]:shadow-sm text-[10px] sm:text-xs text-slate-700 dark:text-slate-300 hover:bg-red-500/10"
             >
               Annulées
-              <Badge className="ml-2 bg-red-700/20 text-red-700 border border-red-700/30 text-[8px]">
+              <Badge className="ml-2 bg-red-500/20 text-red-500 border border-red-500/30 text-[8px] hover:bg-red-500/30">
                 {counts.cancelledCount}
               </Badge>
             </TabsTrigger>

@@ -151,11 +151,6 @@ const getFileName = (fileUrl: string) => {
   }
 };
 
-// Classes de style unifiées pour une UI cohérente
-const mainCardClasses = "bg-white/30 dark:bg-slate-900/30 backdrop-blur-sm border border-slate-200/30 dark:border-slate-700/30 shadow-sm rounded-lg transition-all duration-200";
-const secondaryCardClasses = "bg-white/20 dark:bg-slate-900/20 backdrop-blur-sm border border-slate-200/20 dark:border-slate-700/20 shadow-none rounded-lg transition-all duration-200";
-const innerCardClasses = "bg-white/25 dark:bg-slate-800/25 backdrop-blur-sm border border-slate-200/15 dark:border-slate-700/15";
-
 export default function OrderDetailPage() {
   const params = useParams();
   const orderId = params?.id as string;
@@ -180,6 +175,11 @@ export default function OrderDetailPage() {
   const [success, setSuccess] = useState<string | null>(null);
   const isFetchingRef = useRef(false);
   const initialLoadRef = useRef(true);
+  
+  // Classes de style unifiées pour une UI cohérente
+  const mainCardClasses = "bg-white/30 dark:bg-slate-900/30 backdrop-blur-sm border border-slate-200/30 dark:border-slate-700/30 shadow-sm rounded-lg transition-all duration-200";
+  const secondaryCardClasses = "bg-white/20 dark:bg-slate-900/20 backdrop-blur-sm border border-slate-200/20 dark:border-slate-700/20 shadow-none rounded-lg transition-all duration-200";
+  const innerCardClasses = "bg-white/25 dark:bg-slate-800/25 backdrop-blur-sm border border-slate-200/15 dark:border-slate-700/15";
   
   // Classes de style pour les textes
   const titleClasses = "text-slate-800 dark:text-vynal-text-primary";
@@ -1446,4 +1446,4 @@ export default function OrderDetailPage() {
       </DialogRadix.Root>
     </div>
   );
-} 
+}

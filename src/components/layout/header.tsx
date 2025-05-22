@@ -375,7 +375,7 @@ const MobileMenuButton = memo(({
     let timeoutId: NodeJS.Timeout | null = null;
     
     // Si l'utilisateur est authentifié et le profil est toujours en chargement après un certain temps,
-    // on incrémente le compteur de tentatives
+    // on incrémente le compteur de tentatives et on considère que c'est un chargement bloqué
     if (isAuthenticated && profileLoading) {
       timeoutId = setTimeout(() => {
         setLoadAttempts(prev => prev + 1);

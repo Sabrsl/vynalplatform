@@ -5,6 +5,7 @@ import { supabase } from './supabase/client';
  * - Gère les erreurs proprement
  * - Utilise un timeout pour éviter les redirections bloquantes
  * - Nettoie le localStorage des clés liées à l'authentification
+ * - Nettoie le cache de l'application et du navigateur
  */
 export async function signOut() {
   try {
@@ -22,8 +23,28 @@ export async function signOut() {
       localStorage.removeItem('last_signup_attempt');
       localStorage.removeItem('last_refresh');
       localStorage.removeItem('active_path');
+      
+      // Nettoyage des préférences utilisateur
+      localStorage.removeItem('vynal_currency_preference');
+      localStorage.removeItem('vynal_currency_timestamp');
+      localStorage.removeItem('theme_preference');
+      
+      // Nettoyage des données de session
+      sessionStorage.clear();
+      
+      // Nettoyage du cache du navigateur
+      if ('caches' in window) {
+        try {
+          const cacheNames = await caches.keys();
+          await Promise.all(
+            cacheNames.map(cacheName => caches.delete(cacheName))
+          );
+        } catch (cacheError) {
+          console.warn("Erreur lors du nettoyage du cache:", cacheError);
+        }
+      }
     } catch (e) {
-      console.warn("Impossible de nettoyer le localStorage:", e);
+      console.warn("Impossible de nettoyer le stockage:", e);
     }
     
     // Déconnexion de Supabase avec option scope: 'global' pour déconnecter de tous les onglets
