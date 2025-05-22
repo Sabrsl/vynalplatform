@@ -66,6 +66,10 @@ function isValidClientRoute(pathname: string): boolean {
 // Ne pas rediriger ces routes même si l'utilisateur est authentifié
 const noRedirectRoutes = ['/', '/services', '/about', '/how-it-works', '/contact'];
 
+// Cache des rôles pour éviter les requêtes répétées
+const roleCache = new Map<string, { role: string | null, timestamp: number }>();
+const ROLE_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
   const supabase = createMiddlewareClient({ req, res });
@@ -85,32 +89,55 @@ export async function middleware(req: NextRequest) {
   const isPublicRoute = noRedirectRoutes.includes(pathname) || 
                       noRedirectRoutes.some(route => pathname.startsWith(`${route}/`));
   
-  // Cache local pour le rôle utilisateur (valide uniquement pour cette requête)
-  let userRole: string | null = null;
-  
-  // Récupérer le rôle utilisateur de manière optimisée
+  // Fonction optimisée pour récupérer le rôle utilisateur avec cache
   const getUserRole = async (): Promise<string | null> => {
-    if (userRole !== null) return userRole; // Retourner le rôle si déjà récupéré
-    
     if (!session) return null;
     
+    const userId = session.user?.id;
+    if (!userId) return null;
+    
+    // Vérifier le cache pour ce rôle
+    const cachedRole = roleCache.get(userId);
+    const now = Date.now();
+    
+    if (cachedRole && (now - cachedRole.timestamp < ROLE_CACHE_DURATION)) {
+      return cachedRole.role;
+    }
+    
     try {
-      const { data, error } = await supabase.rpc('get_user_role');
-      
-      if (error) {
-        console.error("Erreur lors de la récupération du rôle");
-        return null;
+      // D'abord essayer via les métadonnées de l'utilisateur (plus rapide)
+      if (session.user?.user_metadata?.role) {
+        const role = session.user.user_metadata.role;
+        roleCache.set(userId, { role, timestamp: now });
+        return role;
       }
       
-      userRole = data;
+      // Ensuite essayer via la fonction RPC
+      const { data, error } = await supabase.rpc('get_user_role');
+      if (error) {
+        console.error("Erreur RPC:", error.message);
+        
+        // Fallback sur la récupération du profil
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', session.user.id)
+          .single();
+          
+        const role = profile?.role || null;
+        roleCache.set(userId, { role, timestamp: now });
+        return role;
+      }
+      
+      roleCache.set(userId, { role: data, timestamp: now });
       return data;
     } catch (err) {
-      console.error("Erreur lors de la récupération du rôle");
+      console.error("Erreur lors de la récupération du rôle:", err);
       return null;
     }
   };
   
-  // Si l'utilisateur est sur une route publique, ne jamais le rediriger automatiquement
+  // Si l'utilisateur est sur une route publique, ne jamais le rediriger
   if (isPublicRoute) {
     return res;
   }
@@ -122,16 +149,18 @@ export async function middleware(req: NextRequest) {
     
     if (role === 'client') {
       url.pathname = '/client-dashboard';
+      return NextResponse.redirect(url);
     } else if (role === 'freelance') {
       url.pathname = '/dashboard';
+      return NextResponse.redirect(url);
     } else if (role === 'admin') {
       url.pathname = '/admin';
+      return NextResponse.redirect(url);
     } else {
       // Fallback par défaut
       url.pathname = '/dashboard';
+      return NextResponse.redirect(url);
     }
-    
-    return NextResponse.redirect(url);
   }
   
   // Si l'utilisateur n'est pas connecté et tente d'accéder à une zone protégée
@@ -158,14 +187,36 @@ export async function middleware(req: NextRequest) {
   if (session && (isDashboardRoute || isClientDashboardRoute)) {
     const role = await getUserRole();
     
+    // Ne pas vérifier les rôles si la navigation est entre des sous-routes du même dashboard
+    const isNestedDashboardRoute = 
+      (isDashboardRoute && pathname !== '/dashboard') || 
+      (isClientDashboardRoute && pathname !== '/client-dashboard');
+      
+    if (isNestedDashboardRoute) {
+      // Pour les sous-routes, vérifier seulement si la route est valide
+      if (isDashboardRoute && !isValidRoute(pathname)) {
+        url.pathname = '/dashboard';
+        return NextResponse.redirect(url);
+      }
+      
+      if (isClientDashboardRoute && !isValidClientRoute(pathname)) {
+        url.pathname = '/client-dashboard';
+        return NextResponse.redirect(url);
+      }
+      
+      // Si c'est valide, ne pas rediriger
+      return res;
+    }
+    
+    // Rediriger seulement pour les routes principales des dashboards
     // Rediriger les clients qui tentent d'accéder au dashboard freelance
-    if (role === 'client' && isDashboardRoute) {
+    if (role === 'client' && isDashboardRoute && pathname === '/dashboard') {
       url.pathname = '/client-dashboard';
       return NextResponse.redirect(url);
     }
     
     // Rediriger les freelances qui tentent d'accéder au dashboard client
-    if (role === 'freelance' && isClientDashboardRoute) {
+    if (role === 'freelance' && isClientDashboardRoute && pathname === '/client-dashboard') {
       url.pathname = '/dashboard';
       return NextResponse.redirect(url);
     }
@@ -176,22 +227,14 @@ export async function middleware(req: NextRequest) {
     const role = await getUserRole();
     
     if (role !== 'admin') {
+      // Si l'utilisateur n'est pas admin, le rediriger vers une page d'erreur 403
+      console.log('Accès administrateur refusé pour un utilisateur avec le rôle:', role);
       url.pathname = '/unauthorized';
       return NextResponse.redirect(url);
-    }
-  }
-  
-  // Vérification des routes valides
-  if (session) {
-    // Rediriger vers la route principale si la route spécifique n'existe pas
-    if (isDashboardRoute && !isValidRoute(pathname)) {
-      url.pathname = '/dashboard';
-      return NextResponse.redirect(url);
-    }
-    
-    if (isClientDashboardRoute && !isValidClientRoute(pathname)) {
-      url.pathname = '/client-dashboard';
-      return NextResponse.redirect(url);
+    } else {
+      // Si c'est un admin et qu'il accède à une route admin valide, laisser passer
+      console.log('Accès administrateur autorisé');
+      return res;
     }
   }
   

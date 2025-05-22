@@ -189,18 +189,65 @@ function LoginForm({ redirectPath = "/dashboard" }: LoginFormProps) {
         // Indiquer que la navigation commence pour activer les états de chargement
         NavigationLoadingState.setIsNavigating(true);
         
+        // Fonction alternative pour récupérer le rôle en cas d'échec de la RPC
+        const getFallbackUserRole = async () => {
+          try {
+            // 1. Essayer d'abord via la session utilisateur
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user?.user_metadata?.role) {
+              console.log("Rôle récupéré via user_metadata:", user.user_metadata.role);
+              return user.user_metadata.role;
+            }
+            
+            // 2. Sinon essayer de récupérer depuis le profil
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('role')
+              .eq('id', user?.id)
+              .single();
+              
+            if (profile?.role) {
+              console.log("Rôle récupéré via le profil:", profile.role);
+              return profile.role;
+            }
+            
+            console.log("Impossible de déterminer le rôle utilisateur");
+            return null;
+          } catch (err) {
+            console.error("Erreur lors de la récupération du rôle alternatif:", err);
+            return null;
+          }
+        };
+        
         // Récupérer le rôle utilisateur pour la redirection appropriée
-        const { data } = await supabase.rpc('get_user_role');
-        const userRole = data;
+        let userRole;
+        try {
+          const { data, error: roleError } = await supabase.rpc('get_user_role');
+          if (roleError) {
+            console.error("Erreur lors de la récupération du rôle via RPC:", roleError);
+            userRole = await getFallbackUserRole();
+          } else {
+            userRole = data;
+          }
+        } catch (err) {
+          console.error("Exception lors de la récupération du rôle:", err);
+          userRole = await getFallbackUserRole();
+        }
+        
+        console.log("Rôle utilisateur final détecté:", userRole);
         
         // Rediriger en fonction du rôle
         if (userRole === 'client') {
+          console.log("Redirection vers le dashboard client");
           router.push('/client-dashboard');
         } else if (userRole === 'freelance') {
+          console.log("Redirection vers le dashboard freelance");
           router.push('/dashboard');
         } else if (userRole === 'admin') {
+          console.log("Redirection vers le dashboard admin");
           router.push('/admin');
         } else {
+          console.log("Redirection vers le chemin par défaut:", redirectPath);
           // Fallback au chemin par défaut si le rôle n'est pas déterminé
           router.push(redirectPath);
         }
@@ -215,9 +262,9 @@ function LoginForm({ redirectPath = "/dashboard" }: LoginFormProps) {
       }
     } catch (err) {
       incrementLoginAttempts();
+      console.error("Login error:", err);
       // Utiliser setError directement au lieu de debouncedSetError pour une réponse immédiate
       setError("Une erreur est survenue. Veuillez réessayer.");
-      console.error("Login error:", err);
     } finally {
       setIsLoading(false);
     }

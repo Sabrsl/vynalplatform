@@ -181,6 +181,63 @@ export const ClientGuard = memo(({ children }: { children: ReactNode }) => {
 });
 ClientGuard.displayName = 'ClientGuard';
 
+// Garde pour les pages admin
+export const AdminGuard = memo(({ children }: { children: ReactNode }) => {
+  const router = useRouter();
+  const { toast } = useToast();
+  const { isAdmin, isLoading, isAuthenticated, roleVerified } = useRoleVerification();
+  const [isRedirecting, setIsRedirecting] = useState(false);
+  
+  // Effectuer la redirection si nécessaire
+  useEffect(() => {
+    // Attendre que le chargement soit terminé et le rôle vérifié
+    if (!isLoading && roleVerified) {
+      // Si l'utilisateur n'est pas authentifié, rediriger vers la connexion
+      if (!isAuthenticated) {
+        setIsRedirecting(true);
+        toast({
+          title: "Authentification requise",
+          description: "Veuillez vous connecter pour accéder à cette page."
+        });
+        router.push('/auth/login');
+        return;
+      }
+      
+      // Si l'utilisateur est authentifié mais n'est pas admin, rediriger
+      if (isAuthenticated && !isAdmin) {
+        setIsRedirecting(true);
+        toast({
+          title: "Accès restreint",
+          description: "Cette section est réservée aux administrateurs. Redirection vers votre espace personnel..."
+        });
+        
+        // Rediriger vers le dashboard approprié en fonction du rôle
+        setTimeout(() => {
+          const userProfile = localStorage.getItem('user_profile');
+          const profile = userProfile ? JSON.parse(userProfile) : null;
+          const role = profile?.role || 'freelance'; // Par défaut rediriger vers le dashboard freelance
+          
+          if (role === 'client') {
+            router.push('/client-dashboard');
+          } else {
+            router.push('/dashboard');
+          }
+        }, 300);
+      }
+    }
+  }, [isLoading, roleVerified, isAuthenticated, isAdmin, router, toast]);
+  
+  // Afficher un écran de chargement si nécessaire
+  if (isLoading || isRedirecting || (roleVerified && !isAdmin && isAuthenticated)) {
+    return <LoadingScreen message="Vérification des privilèges d'administration..." />;
+  }
+  
+  // Si tout est OK, afficher le contenu
+  return <>{children}</>;
+});
+
+AdminGuard.displayName = 'AdminGuard';
+
 /**
  * Fonction utilitaire pour déterminer si un chemin est une route freelance
  */

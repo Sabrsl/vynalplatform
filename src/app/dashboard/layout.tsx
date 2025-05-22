@@ -27,7 +27,7 @@ import { useUserNotifications } from "@/hooks/useUserNotifications";
 import NotificationBadge from "@/components/ui/notification-badge";
 import { NavigationLoadingState } from "@/app/providers";
 import { useUser } from "@/hooks/useUser";
-import { FREELANCE_ROUTES, AUTH_ROUTES } from "@/config/routes";
+import { FREELANCE_ROUTES, AUTH_ROUTES, CLIENT_ROUTES } from "@/config/routes";
 import { listenToFreelanceCacheInvalidation } from "@/lib/optimizations/freelance-cache";
 import Image from "next/image";
 import { useTheme } from "next-themes";
@@ -221,32 +221,23 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { push } = useRouter();
+  const { user, loading: authLoading } = useAuth();
+  const router = useRouter();
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const { theme } = useTheme();
-  const { user, signOut: authSignOut } = useAuth();
-  const { logout, isLoggingOut } = useLogout();
+  const { logout } = useLogout();
   const [totalUnreadCount] = useUnreadNotifications();
-  const router = useRouter();
-  const [initialized, setInitialized] = useState(false);
+  const { profile, isFreelance, loading: profileLoading } = useUser();
+  const [isInitialized, setIsInitialized] = useState(false);
+  const { activePath, isNavigating, setActivePath } = NavigationLoadingState;
   
   // Utiliser la fonction de déconnexion du hook useLogout qui appelle déjà la fonction centralisée
   const handleSignOut = useCallback(() => {
     logout();
   }, [logout]);
 
-  // Optimisation : mémoriser les informations utilisateur
-  const userInfo = useMemo(() => ({ 
-    userId: user?.id,
-    isClient: user?.user_metadata?.role === 'client',
-    isFreelance: user?.user_metadata?.role === 'freelance'
-  }), [user?.id, user?.user_metadata?.role]);
-  
-  // Notifications non lues - optimisé
-  const { refresh: refreshNotifications } = useUserNotifications(userInfo.userId);
-
-  // Gestionnaire unifié pour la navigation
+  // Gestionnaire unifié pour la navigation - Similaire à celui du client
   const handleNavClick = useCallback((e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
     e.preventDefault();
     NavigationLoadingState.setIsNavigating(true);
@@ -255,74 +246,64 @@ export default function DashboardLayout({
     // Naviguer sans réinitialiser immédiatement le scroll
     router.push(href, { scroll: false });
     
-    // Utiliser un court délai pour réinitialiser la position après navigation
+    // Utiliser requestAnimationFrame pour réinitialiser la position après navigation
     requestAnimationFrame(() => {
       window.scrollTo(0, 0);
     });
   }, [router]);
 
-  // Écoute des événements d'invalidation de cache freelance
+  // Vérification d'authentification et de rôle - Similaire à celle du client
   useEffect(() => {
-    if (!userInfo.userId) return;
+    if (authLoading || profileLoading) return;
     
-    // Callback à exécuter lorsque le cache est invalidé
+    // Rediriger vers la connexion si non authentifié
+    if (!user) {
+      router.push("/auth/login");
+      return;
+    }
+    
+    // Rediriger vers le dashboard client si l'utilisateur est client
+    if (profile && profile.role === 'client') {
+      router.push(CLIENT_ROUTES.DASHBOARD);
+      return;
+    }
+    
+    // Initialiser l'état une fois l'utilisateur chargé et le rôle vérifié
+    if (!isInitialized) {
+      setIsInitialized(true);
+    }
+  }, [user, authLoading, profileLoading, router, isInitialized, profile]);
+
+  useEffect(() => {
+    setActivePath(pathname || "/dashboard");
+  }, [pathname, setActivePath]);
+  
+  // Écouteur des invalidations de cache
+  useEffect(() => {
+    if (!user?.id) return;
+    
+    // Créer un handler pour les événements d'invalidation de cache
     const handleCacheInvalidation = () => {
-      // Actualiser les notifications
-      refreshNotifications();
-      // Trigger la navigation end pour actualiser les composants au besoin
+      // Force rafraîchissement lors de l'invalidation
       window.dispatchEvent(new CustomEvent('vynal:navigation-end'));
     };
     
-    // S'abonner aux événements d'invalidation de cache
     const unsubscribe = listenToFreelanceCacheInvalidation(handleCacheInvalidation);
-    
-    return () => {
-      // Se désabonner en quittant
-      unsubscribe();
-    };
-  }, [userInfo.userId, refreshNotifications]);
+    return () => unsubscribe();
+  }, [user?.id]);
 
-  // Détection de visibilité d'onglet pour rafraîchir les notifications
-  useEffect(() => {
-    // Ne rien faire si l'utilisateur n'est pas connecté
-    if (!userInfo.userId) return;
-    
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        refreshNotifications();
-      }
-    };
-    
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [userInfo.userId, refreshNotifications]);
-
-  // Redirection vers la page de connexion si non connecté
-  useEffect(() => {
-    if (!user) {
-      push(AUTH_ROUTES.LOGIN);
-    }
-  }, [user, push]);
-
-  // Mettre à jour le state mais sans redirection supplémentaire
-  useEffect(() => {
-    if (!user && !userInfo.userId) {
-      setInitialized(true);
-    }
-  }, [user, userInfo.userId]);
-
-  // Loading state - optimisé
-  if (isLoggingOut || !user) {
+  // Afficher un loader pendant le chargement
+  if (authLoading || profileLoading || !isInitialized) {
     return (
-      <div className="grid h-screen place-items-center bg-slate-50 dark:bg-vynal-purple-dark">
+      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-vynal-purple-dark">
         <div className="flex flex-col items-center gap-4">
-          <div className="bg-gradient-to-br from-purple-600 to-violet-700 h-6 w-6 rounded-lg flex items-center justify-center shadow-md shadow-purple-200/40 dark:from-vynal-accent-primary dark:to-vynal-accent-secondary dark:shadow-vynal-accent-primary/20">
-            <span className="text-white font-bold text-xs dark:text-vynal-text-primary">VY</span>
+          <div className="bg-gradient-to-br from-vynal-accent-primary to-vynal-accent-secondary h-8 w-8 rounded-lg flex items-center justify-center shadow-md">
+            <span className="text-white font-bold text-sm">F</span>
           </div>
-          <Loader className="h-6 w-6 animate-spin text-vynal-purple-dark dark:text-vynal-accent-primary" />
+          <Loader className="h-8 w-8 animate-spin text-vynal-accent-primary" />
+          <p className="text-sm text-vynal-purple-secondary dark:text-vynal-text-secondary">
+            Chargement du tableau de bord...
+          </p>
         </div>
       </div>
     );
@@ -330,23 +311,45 @@ export default function DashboardLayout({
 
   return (
     <div className="flex min-h-screen bg-white dark:bg-vynal-purple-dark">
-      {/* Sidebar - Hidden on mobile */}
-      <aside className="hidden md:block w-16 md:w-20 h-screen border-r border-slate-100 dark:border-vynal-purple-secondary/20 bg-white dark:bg-vynal-purple-dark/30 hover:md:w-60 group transition-all duration-300 overflow-hidden flex flex-col justify-between">
-        <div className="flex-1 flex flex-col">
-          <Logo />
+      {/* Sidebar responsive avec effet de hover sur desktop */}
+      <aside className="group w-14 sm:w-16 hover:w-48 sm:hover:w-56 transition-all duration-300 ease-in-out bg-white shadow-md shadow-slate-200/50 hidden lg:flex lg:flex-col z-30 dark:bg-vynal-purple-dark dark:shadow-vynal-purple-secondary/10">
+        <Logo />
+        <div className="flex-1 overflow-y-auto overflow-x-hidden py-3 px-2 custom-scrollbar no-scrollbar">
           <MainNavigation 
             totalUnreadCount={totalUnreadCount} 
-            handleNavClick={handleNavClick}
+            handleNavClick={handleNavClick} 
             signOut={handleSignOut}
           />
         </div>
         <UserProfile user={user} signOut={handleSignOut} />
       </aside>
 
-      {/* Main content */}
-      <main className="flex-1 w-full md:w-[calc(100%-4rem)] lg:w-[calc(100%-5rem)] overflow-y-auto p-4 sm:p-6 bg-gray-50 dark:bg-vynal-purple-dark" data-content="loaded">
-        {children}
-      </main>
+      {/* Main content area */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Mobile header */}
+        <header className="lg:hidden flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-vynal-purple-secondary/10 bg-white dark:bg-vynal-purple-dark">
+          <div className="flex items-center space-x-2">
+            <Menu className="h-5 w-5 text-slate-600 dark:text-vynal-text-secondary" />
+            <span className="text-sm font-medium text-slate-800 dark:text-vynal-text-primary">Dashboard Freelance</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            {totalUnreadCount > 0 && (
+              <div className="relative">
+                <MessageSquare className="h-5 w-5 text-slate-600 dark:text-vynal-text-secondary" />
+                <NotificationBadge count={totalUnreadCount} className="absolute -top-1 -right-1" />
+              </div>
+            )}
+            <button onClick={handleSignOut}>
+              <LogOut className="h-5 w-5 text-slate-600 dark:text-vynal-text-secondary" />
+            </button>
+          </div>
+        </header>
+        
+        {/* Content */}
+        <main className="flex-1 overflow-auto bg-slate-50/70 dark:bg-vynal-purple-dark/30 p-4">
+          {children}
+        </main>
+      </div>
     </div>
   );
 }

@@ -28,14 +28,44 @@ export async function GET(request: NextRequest) {
       // Récupération du rôle utilisateur pour la redirection appropriée
       const { data: userRole, error: roleError } = await supabase.rpc('get_user_role');
       
+      let finalRole = userRole;
+      
       if (roleError) {
-        console.error('Erreur lors de la récupération du rôle:', roleError);
-        return NextResponse.redirect(new URL(redirectTo, requestUrl.origin));
+        console.error('Erreur lors de la récupération du rôle via RPC:', roleError);
+        
+        // Récupération alternative du rôle
+        try {
+          // Essayer d'abord via la session utilisateur
+          const { data: { user } } = await supabase.auth.getUser();
+          
+          if (user?.user_metadata?.role) {
+            console.log('Rôle récupéré via user_metadata:', user.user_metadata.role);
+            finalRole = user.user_metadata.role;
+          } else {
+            // Sinon essayer de récupérer depuis le profil
+            const { data: profile, error: profileError } = await supabase
+              .from('profiles')
+              .select('role')
+              .eq('id', user?.id)
+              .single();
+              
+            if (!profileError && profile?.role) {
+              console.log('Rôle récupéré via le profil:', profile.role);
+              finalRole = profile.role;
+            } else {
+              console.log('Impossible de déterminer le rôle utilisateur, utilisation du rôle par défaut.');
+              finalRole = 'freelance'; // Par défaut, rediriger vers le dashboard freelance
+            }
+          }
+        } catch (err) {
+          console.error('Exception lors de la récupération alternative du rôle:', err);
+          finalRole = 'freelance'; // Par défaut, rediriger vers le dashboard freelance
+        }
       }
       
       // Si le rôle est récupéré avec succès
-      if (userRole) {
-        console.log('Utilisateur authentifié avec le rôle:', userRole);
+      if (finalRole) {
+        console.log('Utilisateur authentifié avec le rôle final:', finalRole);
         
         // Récupérer les informations de l'utilisateur pour l'email de bienvenue
         const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -73,7 +103,7 @@ export async function GET(request: NextRequest) {
             const emailResult = await sendBasicWelcomeEmail({
               to: user.email || '',
               name: userName,
-              role: userRole as 'client' | 'freelance'
+              role: finalRole as 'client' | 'freelance'
             });
             
             console.log('Résultat de l\'envoi de l\'email de bienvenue:', emailResult ? 'Succès' : 'Échec');
@@ -83,11 +113,12 @@ export async function GET(request: NextRequest) {
         }
         
         // Redirection en fonction du rôle
-        if (userRole === 'client') {
+        if (finalRole === 'client') {
           return NextResponse.redirect(new URL('/client-dashboard', requestUrl.origin));
-        } else if (userRole === 'freelance') {
+        } else if (finalRole === 'freelance') {
+          console.log('Redirection du freelance vers le dashboard principal');
           return NextResponse.redirect(new URL('/dashboard', requestUrl.origin));
-        } else if (userRole === 'admin') {
+        } else if (finalRole === 'admin') {
           return NextResponse.redirect(new URL('/admin', requestUrl.origin));
         }
       }

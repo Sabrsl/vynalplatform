@@ -151,18 +151,31 @@ function simpleEncrypt(data: string): string {
       if (process.env.NODE_ENV === 'development') {
         console.warn('Tentative de stockage de données sensibles évitée');
       }
-      return btoa('{"data":{},"sensitive":true}');
+      return btoa(JSON.stringify({ data: {}, sensitive: true }));
     }
     
-    // Utiliser le format compatible avec l'ancien code
-    // mais sans réellement exposer les clés de chiffrement
-    return btoa(data);
+    // Limiter la taille des données pour éviter les problèmes de performance
+    if (data.length > 1000000) { // Limite de 1MB
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('Données trop volumineuses pour le cache, troncation');
+      }
+      // Stocker un résultat vide mais valide
+      return btoa(JSON.stringify({ data: { truncated: true }, sensitive: false }));
+    }
+    
+    // Utiliser btoa de manière sécurisée
+    try {
+      return btoa(data);
+    } catch (encodingError) {
+      // En cas d'erreur d'encodage (caractères non-ASCII), utiliser une méthode plus robuste
+      return btoa(unescape(encodeURIComponent(data)));
+    }
   } catch (error) {
     if (process.env.NODE_ENV === 'development') {
-      console.warn('Erreur lors du formatage des données pour le cache');
+      console.warn('Erreur lors du formatage des données pour le cache', error);
     }
-    // En cas d'erreur, ne retourner les données non formatées qu'en dev
-    return process.env.NODE_ENV === 'production' ? '' : data;
+    // En cas d'erreur, retourner une chaîne encodée vide mais valide
+    return btoa(JSON.stringify({ data: {}, error: true }));
   }
 }
 
@@ -174,20 +187,26 @@ function simpleDecrypt(encryptedData: string): string {
   
   try {
     // Tenter de décoder les données
-    const decoded = atob(encryptedData);
+    let decoded;
+    try {
+      decoded = atob(encryptedData);
+    } catch (decodingError) {
+      // Si l'atob échoue, retourner un JSON valide vide
+      return JSON.stringify({ data: {}, expiry: 0 });
+    }
     
-    // Vérifier si c'est un marqueur de données sensibles
-    if (decoded.includes('"sensitive":true')) {
-      return JSON.stringify({data: {}, expiry: 0});
+    // Vérifier si c'est un marqueur de données sensibles ou tronquées
+    if (decoded.includes('"sensitive":true') || decoded.includes('"truncated":true') || decoded.includes('"error":true')) {
+      return JSON.stringify({ data: {}, expiry: 0 });
     }
     
     return decoded;
   } catch (error) {
     if (process.env.NODE_ENV === 'development') {
-      console.warn('Erreur lors du décodage des données du cache');
+      console.warn('Erreur lors du décodage des données du cache', error);
     }
-    // En cas d'erreur, retourner les données d'origine
-    return encryptedData;
+    // En cas d'erreur, retourner un JSON valide
+    return JSON.stringify({ data: {}, expiry: 0 });
   }
 }
 
@@ -246,6 +265,12 @@ export function setCachedData<T>(
   try {
     const { expiry = CACHE_EXPIRY.MEDIUM, priority = 'medium', sensitive = false } = options;
     
+    // Si data est null, supprimer la clé de cache
+    if (data === null) {
+      localStorage.removeItem(key);
+      return;
+    }
+    
     // Vérifier si la clé contient des mots-clés sensibles
     if (containsSensitiveInfo(key) || sensitive) {
       if (process.env.NODE_ENV === 'development') {
@@ -264,46 +289,34 @@ export function setCachedData<T>(
       timestamp: Date.now(),
     };
     
-    // Formater les données pour le stockage
-    const encodedData = simpleEncrypt(JSON.stringify(item));
-    localStorage.setItem(key, encodedData);
+    // Formater les données pour le stockage avec une gestion d'erreurs améliorée
+    try {
+      const jsonString = JSON.stringify(item);
+      
+      // Vérifier la taille des données avant tentative de stockage (limite de localStorage ~5MB)
+      if (jsonString.length > 4000000) { // Limite prudente à 4MB
+        if (process.env.NODE_ENV === 'development') {
+          console.warn(`Données trop volumineuses pour le cache (${Math.round(jsonString.length/1024)}KB) pour "${key}". Opération ignorée.`);
+        }
+        return;
+      }
+      
+      const encodedData = simpleEncrypt(jsonString);
+      localStorage.setItem(key, encodedData);
+    } catch (stringifyError) {
+      if (process.env.NODE_ENV === 'development') {
+        console.warn(`Erreur lors de la sérialisation des données pour "${key}"`, stringifyError);
+      }
+    }
   } catch (error) {
     if (process.env.NODE_ENV === 'development') {
-      console.warn(`Erreur lors du stockage en cache pour "${key}"`);
+      console.warn(`Erreur lors du stockage en cache pour "${key}"`, error);
     }
     
     // En cas d'erreur de stockage (quota dépassé),
     // essayer de libérer de l'espace
     if (error instanceof DOMException && error.name === 'QuotaExceededError') {
       clearLowPriorityCache();
-      
-      // Réessayer après nettoyage
-      try {
-        const { expiry = CACHE_EXPIRY.MEDIUM, priority = 'medium', sensitive = false } = options;
-        
-        // Vérifier à nouveau la sensibilité
-        if (containsSensitiveInfo(key) || sensitive) {
-          return;
-        }
-        
-        // Masquer les données sensibles
-        const safeData = maskSensitiveData(data);
-        
-        const item = {
-          data: safeData,
-          expiry: Date.now() + expiry,
-          priority,
-          timestamp: Date.now(),
-        };
-        
-        // Formater les données pour le stockage
-        const encodedData = simpleEncrypt(JSON.stringify(item));
-        localStorage.setItem(key, encodedData);
-      } catch (retryError) {
-        if (process.env.NODE_ENV === 'development') {
-          console.error(`Impossible de stocker en cache même après nettoyage pour "${key}"`);
-        }
-      }
     }
   }
 }
