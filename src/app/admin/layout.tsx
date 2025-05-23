@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useUser } from '@/hooks/useUser';
 import { useAuth } from '@/hooks/useAuth';
@@ -40,6 +40,7 @@ import AlertService from "@/utils/alertService";
 import { AdminGuard } from '@/lib/guards/roleGuards';
 import { useLogout } from '@/hooks/useLogout';
 import { FREELANCE_ROUTES, CLIENT_ROUTES } from '@/config/routes';
+import { NavigationLoadingState } from '@/app/providers';
 
 export default function AdminLayout({
   children,
@@ -75,9 +76,10 @@ export default function AdminLayout({
     : sidebarCollapsed && !sidebarHovered ? "w-16" : "w-64";
 
   // Gestion de la déconnexion
-  const handleSignOut = () => {
+  const handleSignOut = useCallback(() => {
+    NavigationLoadingState.setIsNavigating(true);
     logout();
-  };
+  }, [logout]);
 
   // Détection de la taille d'écran
   useEffect(() => {

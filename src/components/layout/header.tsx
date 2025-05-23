@@ -849,37 +849,24 @@ function Header() {
     setIsLoggingOut(true);
     
     try {
-      // Nettoyage des tokens locaux
-      try {
-        localStorage.removeItem('supabase.auth.token');
-        localStorage.removeItem('sb-refresh-token');
-        localStorage.removeItem('sb-access-token');
-        localStorage.removeItem('supabase.auth.expires_at');
-      } catch (storageError) {
-        console.warn("Erreur lors du nettoyage du stockage local:", storageError);
-      }
+      // Utiliser la fonction signOut centralisée et améliorée
+      const { success, error } = await import('@/lib/auth').then(m => m.signOut());
       
-      // Un seul appel à signOut
-      const { error } = await auth.signOut();
-      
-      if (error) {
+      if (!success && error) {
         throw error;
       }
       
-      // Redirection après un court délai
-      setTimeout(() => {
-        window.location.href = '/';
-      }, 500);
+      // Note: La redirection est déjà gérée dans signOut()
     } catch (error) {
       console.error("Erreur lors de la déconnexion:", error);
       setIsLoggingOut(false);
       
       // Redirection de secours en cas d'erreur
       setTimeout(() => {
-        window.location.href = '/';
+        window.location.href = '/?nocache=' + Date.now();
       }, 1000);
     }
-  }, [auth, isLoggingOut]);
+  }, [isLoggingOut]);
   
   // Fonctions utilitaires mémorisées
   const isActive = useCallback((path: string): boolean => {

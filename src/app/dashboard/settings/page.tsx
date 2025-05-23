@@ -78,6 +78,7 @@ import CurrencySelector from "@/components/settings/CurrencySelector";
 import { refreshPriceComponents, clearCurrencyCache } from "@/lib/utils/currency-updater";
 import { invalidateAllClientCache } from "@/lib/optimizations/client-cache";
 import { toast } from "sonner";
+import { useLogout } from "@/hooks/useLogout";
 
 // Définir une interface pour le profil utilisateur
 interface UserProfile {
@@ -100,7 +101,8 @@ export default function SettingsPage() {
   // Hooks de navigation et état
   const router = useRouter();
   const { toast } = useToast();
-  const { user: authUser, signOut } = useAuth();
+  const { user: authUser } = useAuth();
+  const { logout } = useLogout();
   const { profile, loading: isUserLoading } = useUser();
   const { lastRefresh, updateLastRefresh, getLastRefreshText } = useLastRefresh();
   
@@ -1050,7 +1052,7 @@ export default function SettingsPage() {
       
       // Dans une application réelle, vous supprimeriez le compte Supabase ici
       
-      await signOut();
+      await logout();
       router.push("/");
       
       toast({
@@ -1509,7 +1511,7 @@ export default function SettingsPage() {
                     <Button
                       variant="outline"
                         size="sm" 
-                        onClick={signOut}
+                        onClick={logout}
                         className="text-xs h-8 border-vynal-border bg-white hover:bg-slate-50 dark:border-vynal-purple-secondary/40 dark:bg-vynal-purple-secondary/5 dark:text-vynal-text-primary dark:hover:bg-vynal-purple-secondary/10"
                     >
                         Déconnexion

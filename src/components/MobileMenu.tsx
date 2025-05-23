@@ -611,8 +611,15 @@ export default function MobileMenu({ isOpen, onClose, user, activePath, setActiv
     NavigationLoadingState.setIsNavigating(true);
     onClose();
     
-    // Utiliser la fonction de déconnexion centralisée
-    import('@/lib/auth').then(m => m.signOut());
+    // Utiliser la fonction de déconnexion centralisée avec gestion d'erreur
+    import('@/lib/auth').then(m => m.signOut())
+      .catch(error => {
+        console.error("Erreur lors de la déconnexion depuis le menu mobile:", error);
+        // Redirection de secours en cas d'erreur
+        setTimeout(() => {
+          window.location.href = '/?nocache=' + Date.now();
+        }, 500);
+      });
   }, [onClose]);
   
   // Naviguer et fermer le menu
