@@ -1,5 +1,5 @@
 [
-  { "code": "XOF", "name": "Franc CFA UEMOA", "symbol": "₣", "rate_to_xof": 1, "decimals": 0 },
+  { "code": "XOF", "name": "Franc CFA UEMOA", "symbol": "FCFA", "rate_to_xof": 1, "decimals": 0 },
   { "code": "XAF", "name": "Franc CFA CEMAC", "symbol": "₣", "rate_to_xof": 1, "decimals": 0 },
   { "code": "USD", "name": "Dollar US", "symbol": "$", "rate_to_xof": 0.0017, "decimals": 2 },
   { "code": "EUR", "name": "Euro", "symbol": "€", "rate_to_xof": 0.0015, "decimals": 2 },

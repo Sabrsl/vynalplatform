@@ -1,25 +1,28 @@
 import React, { useMemo, useCallback, memo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Category, Subcategory } from '@/hooks/useCategories';
+import { Category, Subcategory, UISubcategoryType } from '@/hooks/useCategories';
 import { motion } from 'framer-motion';
 import { Tag } from 'lucide-react';
 
 interface SubcategoriesGridProps {
-  category: Category;
-  subcategories: Subcategory[];
+  category?: Category;
+  subcategories: Subcategory[] | UISubcategoryType[];
   selectedSubcategory: string | null;
+  onSelectSubcategory?: (subcategory: Subcategory | UISubcategoryType) => void;
   className?: string;
 }
 
 /**
- * Composant ultra-moderne pour l'affichage des sous-catégories
- * Support des thèmes clair/sombre et adaptation mobile optimisée
+ * Composant optimisé pour l'affichage des sous-catégories
+ * - Gestion sécurisée des propriétés optionnelles
+ * - Performance améliorée avec réduction des animations
  */
 const SubcategoriesGrid: React.FC<SubcategoriesGridProps> = ({
   category,
   subcategories,
   selectedSubcategory,
+  onSelectSubcategory,
   className = '',
 }) => {
   const router = useRouter();
@@ -27,28 +30,26 @@ const SubcategoriesGrid: React.FC<SubcategoriesGridProps> = ({
   // Vérifie s'il y a des sous-catégories disponibles
   const hasSubcategories = subcategories.length > 0;
 
-  // Animation variants mémorisés
+  // Animation variants simplifiés
   const containerVariants = useMemo(() => ({
     hidden: { opacity: 0 },
     show: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.02,
-        delayChildren: 0.05
+        staggerChildren: 0.01, // Réduit pour performance
+        delayChildren: 0.02
       }
     }
   }), []);
 
   const itemVariants = useMemo(() => ({
-    hidden: { opacity: 0, y: 5, scale: 0.95 },
+    hidden: { opacity: 0, y: 2 }, // Simplifié
     show: { 
       opacity: 1, 
-      y: 0, 
-      scale: 1,
+      y: 0,
       transition: {
-        type: "spring",
-        stiffness: 250,
-        damping: 15
+        type: "tween", // Plus léger que "spring"
+        duration: 0.2
       }
     }
   }), []);
@@ -62,26 +63,39 @@ const SubcategoriesGrid: React.FC<SubcategoriesGridProps> = ({
   );
 
   // Gestion du clic sur une sous-catégorie (mémorisé)
-  const handleSubcategoryClick = useCallback((e: React.MouseEvent, subcategorySlug: string) => {
+  const handleSubcategoryClick = useCallback((e: React.MouseEvent, subcategory: Subcategory | UISubcategoryType) => {
     e.preventDefault();
-    router.push(`/services?category=${category.slug}&subcategory=${subcategorySlug}`);
-  }, [router, category.slug]);
+    
+    // Si un gestionnaire de clic personnalisé est fourni, l'utiliser
+    if (onSelectSubcategory) {
+      onSelectSubcategory(subcategory);
+      return;
+    }
+    
+    // Sinon, construire l'URL en gérant le cas où category est undefined
+    const categorySlug = category?.slug || '';
+    const subcategorySlug = subcategory.slug || '';
+    router.push(`/services?category=${categorySlug}&subcategory=${subcategorySlug}`);
+  }, [router, category?.slug, onSelectSubcategory]);
 
   // Fonction mémorisée pour générer les classes d'élément
   const getItemClassName = useCallback((isSelected: boolean) => {
-    return `flex items-center justify-center rounded-full backdrop-blur-md 
-      transition-all duration-300 px-3 py-1.5 h-full
-      border ${isSelected
-        ? 'bg-indigo-500/10 dark:bg-indigo-900/30 border-indigo-400/50 dark:border-indigo-600/40 shadow-md shadow-indigo-500/5 dark:shadow-indigo-800/5' 
+    return `flex items-center justify-center rounded-full transition-colors duration-200
+      px-3 py-1.5 h-full border ${isSelected
+        ? 'bg-indigo-500/10 dark:bg-indigo-900/30 border-indigo-400/50 dark:border-indigo-600/40' 
         : 'bg-white hover:bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/5 hover:border-indigo-300/40 dark:hover:border-indigo-700/30'
       }`;
   }, []);
 
-  // Génération de groupes pour une meilleure organisation
+  // Déterminer si on doit activer les animations basées sur les préférences utilisateur
+  const prefersReducedMotion = typeof window !== 'undefined' && 
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // Génération de groupes pour une meilleure organisation (optimisé)
   const subcategoriesGroups = useMemo(() => {
     if (!hasSubcategories) return [];
     
-    const groups: Subcategory[][] = [];
+    const groups: (Subcategory | UISubcategoryType)[][] = [];
     const groupSize = 8; // Taille optimale pour le mobile et desktop
     
     for (let i = 0; i < sortedSubcategories.length; i += groupSize) {
@@ -91,6 +105,7 @@ const SubcategoriesGrid: React.FC<SubcategoriesGridProps> = ({
     return groups;
   }, [sortedSubcategories, hasSubcategories]);
 
+  // Message si aucune sous-catégorie n'est disponible
   if (!hasSubcategories) {
     return (
       <motion.div 
@@ -106,7 +121,7 @@ const SubcategoriesGrid: React.FC<SubcategoriesGridProps> = ({
             strokeWidth={2.5} />
         </div>
         <p className="text-[10px] xs:text-xs text-gray-500 dark:text-gray-400">
-          Aucune sous-catégorie disponible pour {category.name}
+          Aucune sous-catégorie disponible {category ? `pour ${category.name}` : ''}
         </p>
       </motion.div>
     );
@@ -115,11 +130,10 @@ const SubcategoriesGrid: React.FC<SubcategoriesGridProps> = ({
   return (
     <motion.div
       className={`mb-6 ${className}`}
-      variants={containerVariants}
-      initial="hidden"
+      variants={!prefersReducedMotion ? containerVariants : undefined}
+      initial={!prefersReducedMotion ? "hidden" : "show"}
       animate="show"
       data-testid="subcategories-grid"
-      aria-label={`Sous-catégories de ${category.name}`}
     >
       <div className="space-y-2">
         {subcategoriesGroups.map((group, groupIndex) => (
@@ -129,19 +143,20 @@ const SubcategoriesGrid: React.FC<SubcategoriesGridProps> = ({
           >
             {group.map((subcategory) => {
               const isSelected = selectedSubcategory === subcategory.slug;
-              const url = `/services?category=${category.slug}&subcategory=${subcategory.slug}`;
+              const categorySlug = category?.slug || '';
+              const url = `/services?category=${categorySlug}&subcategory=${subcategory.slug}`;
               
               return (
                 <motion.div 
                   key={subcategory.id} 
-                  variants={itemVariants} 
+                  variants={!prefersReducedMotion ? itemVariants : undefined}
                   className="flex-shrink-0"
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.98 }}
+                  whileHover={!prefersReducedMotion ? { scale: 1.02 } : undefined}
+                  whileTap={!prefersReducedMotion ? { scale: 0.98 } : undefined}
                 >
                   <Link 
                     href={url}
-                    onClick={(e) => handleSubcategoryClick(e, subcategory.slug)}
+                    onClick={(e) => handleSubcategoryClick(e, subcategory)}
                     aria-label={`Sous-catégorie: ${subcategory.name}`}
                     aria-current={isSelected ? 'page' : undefined}
                     className="block"

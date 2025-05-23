@@ -8,7 +8,7 @@
 // Limites par section
 export const SECTION_LIMITS = {
   intro: { min: 50, max: 5000 },
-  service: { min: 1000, max: 10000 },
+  service: { min: 300, max: 10000 },
   deliverables: { min: 50, max: 5000 },
   requirements: { min: 50, max: 5000 },
   timing: { min: 50, max: 5000 },

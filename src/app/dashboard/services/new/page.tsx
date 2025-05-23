@@ -217,7 +217,7 @@ ${newFields.exclusions}`;
 
   // Fonction pour vérifier si la description du service est valide
   const isServiceDescriptionValid = () => {
-    return getServiceDescriptionLength() >= 1000;
+    return getServiceDescriptionLength() >= 300;
   };
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -276,8 +276,8 @@ ${newFields.exclusions}`;
       }
       
       // Vérifier uniquement la longueur de la description du service
-      if (getServiceDescriptionLength() < 1000) {
-        throw new Error("La description du service doit contenir au moins 1000 caractères");
+      if (getServiceDescriptionLength() < 300) {
+        throw new Error("La description du service doit contenir au moins 300 caractères");
       }
       
       if (getServiceDescriptionLength() > 10000) {

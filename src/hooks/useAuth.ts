@@ -39,6 +39,9 @@ export function useAuth() {
   const [user, setUser] = useState<EnhancedUser | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<any>(null);
+  
+  // Référence pour suivre si le composant est monté
+  const isMountedRef = useRef(true);
 
   // Résoudre l'URL de redirection complète
   const getRedirectUrl = useCallback((path: string): string => {
@@ -94,14 +97,15 @@ export function useAuth() {
 
   // Vérifier et initialiser la session
   useEffect(() => {
-    // Fonction pour éviter les appels multiples concurrents
-    let isMounted = true;
+    // Définir le composant comme monté
+    isMountedRef.current = true;
     
     const checkSession = async () => {
       // Si une requête est déjà en cours, ignorer celle-ci
       if (USER_SESSION_CACHE.pendingRequest) return;
       
       try {
+        if (!isMountedRef.current) return;
         setLoading(true);
         
         // Vérifier d'abord le cache
@@ -124,7 +128,7 @@ export function useAuth() {
         await requestCoordinator.scheduleRequest(
           'check_auth_session',
           async () => {
-            if (!isMounted) return;
+            if (!isMountedRef.current) return;
             
             const { data: { session }, error: sessionError } = await supabase.auth.getSession();
             
@@ -138,9 +142,17 @@ export function useAuth() {
             if (session) {
               // Si l'utilisateur est connecté, récupérer également son profil pour vérifier le rôle
               try {
-                // Utiliser les métadonnées si disponibles pour éviter une requête inutile
-                if (session.user.user_metadata?.role) {
-                  // Récupérer le profil pour s'assurer que les métadonnées sont à jour
+                // Optimisation: Vérifier si nous avons besoin de récupérer le profil
+                const hasCompleteMetadata = 
+                  session.user.user_metadata?.role && 
+                  session.user.user_metadata?.full_name && 
+                  session.user.user_metadata?.username;
+                  
+                if (hasCompleteMetadata) {
+                  // Si nous avons déjà toutes les métadonnées nécessaires, pas besoin de récupérer le profil
+                  setUser(session.user as EnhancedUser);
+                } else if (session.user.user_metadata?.role) {
+                  // Récupérer le profil seulement pour mettre à jour les informations manquantes
                   const { data: profile, error: profileError } = await supabase
                     .from('profiles')
                     .select('full_name, username, avatar_url, role')
@@ -235,11 +247,15 @@ export function useAuth() {
         );
       } catch (err) {
         console.error("Erreur lors de la vérification de la session:", err);
-        setError(err);
-        setUser(null);
+        if (isMountedRef.current) {
+          setError(err);
+          setUser(null);
+        }
       } finally {
         USER_SESSION_CACHE.pendingRequest = false;
-        setLoading(false);
+        if (isMountedRef.current) {
+          setLoading(false);
+        }
       }
     };
     
@@ -249,7 +265,7 @@ export function useAuth() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         // Optimiser en évitant les mises à jour inutiles
-        if (!isMounted) return;
+        if (!isMountedRef.current) return;
         
         console.log("Événement d'authentification:", event);
         
@@ -271,7 +287,8 @@ export function useAuth() {
     );
     
     return () => {
-      isMounted = false;
+      // Marquer le composant comme démonté
+      isMountedRef.current = false;
       subscription.unsubscribe();
     };
   }, [syncUserRole]);
@@ -311,7 +328,9 @@ export function useAuth() {
           "Une erreur est survenue lors de la connexion"
       };
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   }, []);
 
@@ -338,7 +357,9 @@ export function useAuth() {
           "Une erreur est survenue lors de la connexion avec Google"
       };
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   }, [getRedirectUrl]);
 
@@ -381,7 +402,9 @@ export function useAuth() {
           "Une erreur est survenue lors de l'inscription"
       };
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   }, [getRedirectUrl]);
 
@@ -407,7 +430,9 @@ export function useAuth() {
           "Une erreur est survenue lors de la déconnexion"
       };
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   }, []);
 
@@ -442,7 +467,9 @@ export function useAuth() {
           "Une erreur est survenue lors de la demande de réinitialisation"
       };
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   }, []);
 
@@ -476,7 +503,9 @@ export function useAuth() {
           "Une erreur est survenue lors de la mise à jour du mot de passe"
       };
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   }, []);
 

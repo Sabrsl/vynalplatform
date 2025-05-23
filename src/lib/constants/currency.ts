@@ -12,7 +12,7 @@ export const CURRENCY = {
   /**
    * Symbole du Franc CFA
    */
-  primarySymbol: '₣',
+  primarySymbol: 'FCFA',
   
   /**
    * Locale par défaut pour le formatage des montants
@@ -66,7 +66,7 @@ export const CURRENCY = {
    * Informations détaillées sur les devises supportées
    */
   info: {
-    XOF: { name: 'Franc CFA UEMOA', symbol: '₣', decimals: 0 },
+    XOF: { name: 'Franc CFA UEMOA', symbol: 'FCFA', decimals: 0 },
     XAF: { name: 'Franc CFA CEMAC', symbol: '₣', decimals: 0 },
     EUR: { name: 'Euro', symbol: '€', decimals: 2 },
     USD: { name: 'Dollar américain', symbol: '$', decimals: 2 },

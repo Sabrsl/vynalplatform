@@ -3,7 +3,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Eye, PenSquare, Trash2, Star, ImageIcon, Shield, Medal, Sparkles } from "lucide-react";
+import { Eye, PenSquare, Trash2, Star, ImageIcon, Shield, Medal, Sparkles, ChevronRight } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatPrice } from "@/lib/utils";
 import { CURRENCY } from "@/lib/constants";
@@ -16,12 +16,14 @@ import { cn } from "@/lib/utils";
 import { useTheme } from "next-themes"; // Assurez-vous d'avoir installé next-themes
 import { CertificationBadge } from '@/components/ui/certification-badge';
 import { PriceDisplay } from './PriceDisplay';
+import Link from 'next/link';
 
 // Extension du type pour inclure les propriétés supplémentaires
 interface ExtendedService extends ServiceWithFreelanceAndCategories {
   images?: string[];
   short_description?: string;
   admin_notes?: string | null;
+  slug?: string;
 }
 
 interface ServiceCardProps {
@@ -31,6 +33,8 @@ interface ServiceCardProps {
   isDeleting?: boolean;
   showStatusBadge?: boolean;
   useDemo?: boolean;
+  isPriority?: boolean;
+  onClick?: (serviceId: string) => void;
   onView?: (serviceId: string) => void;
   onEdit?: (serviceId: string) => void;
   onDelete?: (serviceId: string) => void;
@@ -65,12 +69,13 @@ const ServiceImage = memo(({
         <Image 
           src={image} 
           alt={title || "Service"} 
-          className="object-cover object-center transition-transform duration-500 group-hover:scale-105"
+          className="object-cover object-center transition-transform duration-300 group-hover:scale-105"
           onError={onError}
           fill
           sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
-          priority={isPriority || (typeof image === 'string' && image.includes('storage/v1/object/public/services'))}
-          quality={70}
+          priority={isPriority}
+          quality={60}
+          loading={isPriority ? "eager" : "lazy"}
         />
       </div>
     ) : (
@@ -332,6 +337,7 @@ function arePropsEqual(prevProps: ServiceCardProps, nextProps: ServiceCardProps)
       prevProps.isDeleting !== nextProps.isDeleting ||
       prevProps.showStatusBadge !== nextProps.showStatusBadge ||
       prevProps.useDemo !== nextProps.useDemo ||
+      prevProps.isPriority !== nextProps.isPriority ||
       prevProps.className !== nextProps.className) {
     return false;
   }
@@ -383,6 +389,8 @@ const ServiceCard = memo<ServiceCardProps>(
     isDeleting = false,
     showStatusBadge = true,
     useDemo = false,
+    isPriority = false,
+    onClick,
     onView,
     onEdit,
     onDelete,
@@ -501,20 +509,19 @@ const ServiceCard = memo<ServiceCardProps>(
     
     // Event handlers with proper dependency tracking
     const handleCardClick = useCallback((e: React.MouseEvent) => {
-      e.preventDefault();
-      if (!service.id) return;
-      
-      if (isManageable && onView) {
-        onView(service.id);
+      // Empêcher la navigation si on est en mode admin
+      if (isManageable) {
+        e.preventDefault();
         return;
       }
       
-      const targetPath = useDemo 
-        ? `/services/demo/${service.id}`
-        : service.slug ? `/services/${service.slug}` : `/services/${service.id}`;
-      
-      router.push(targetPath);
-    }, [service.id, service.slug, isManageable, onView, useDemo, router]);
+      // Pour les utilisateurs, rediriger vers la page du service
+      if (onClick) {
+        e.preventDefault();
+        onClick(service.id);
+      }
+      // Dans tous les autres cas, laisser le comportement par défaut du lien (navigation native)
+    }, [isManageable, onClick, service.id]);
     
     const handleView = useCallback((e: React.MouseEvent) => { 
       e.stopPropagation();
@@ -627,77 +634,96 @@ const ServiceCard = memo<ServiceCardProps>(
   
     // Simplified JSX structure - grouped by logical sections
     return (
-      <div 
-        id={`service-card-${service.id}`}
-        className="group overflow-hidden transition-all duration-300 border border-slate-200 dark:border-vynal-purple-secondary/40 rounded-lg relative flex flex-col h-full bg-white/95 dark:bg-vynal-purple-dark/90 backdrop-blur-sm shadow-sm hover:shadow-md dark:shadow-none dark:hover:shadow-none"
+      <Link
+        href={service.slug ? `/services/${service.slug}` : `/services/details/${service.id}`}
         onClick={handleCardClick}
-        tabIndex={0}
-        role="button"
-        aria-label={`Voir les détails de ${service.title || "Service"}`}
-        onKeyDown={handleKeyDown}
+        className={cn(
+          "group flex flex-col overflow-hidden rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-vynal-accent-primary/50 h-full",
+          isManageable ? "cursor-default" : "cursor-pointer hover:shadow-sm",
+          className
+        )}
       >
-        {/* Image section with badges */}
-        <ServiceImage 
-          image={hasValidImage ? service.images?.[0] : undefined}
-          title={service.title || ""}
-          onError={handleImageError}
-          isPriority={state.imagePriority}
-        >
-          {showStatusBadge && <StatusBadges active={service.active} status={service.status} />}
-        </ServiceImage>
-        
-        {/* Content section */}
-        <div className="pt-1.5 px-2 flex flex-col flex-grow">
-          {/* Profile and rating */}
-          <div className="flex justify-between items-center h-6 mb-1">
-            <FreelanceAvatar 
-              profile={service.profiles} 
-              onError={handleAvatarError} 
-              onClick={goToFreelanceProfile} 
-            />
+        <div className="flex flex-col overflow-hidden border border-slate-200 hover:border-slate-300 dark:border-slate-700/30 h-full bg-white/30 dark:bg-slate-900/30 rounded-lg shadow-none hover:shadow-sm transition-all duration-200 backdrop-blur-sm">
+          <div className="relative">
+            {/* Image optimisée */}
+            <ServiceImage
+              image={hasValidImage ? service.images?.[0] : undefined}
+              title={service.title}
+              onError={handleImageError}
+              isPriority={isPriority}
+            >
+              {showStatusBadge && <StatusBadges active={service.active} status={service.status} />}
+            </ServiceImage>
             
-            <div className="flex items-center flex-shrink-0">
-              <Rating 
-                averageRating={averageRating} 
-                reviewCount={reviewCount} 
-                isNew={isNew} 
-              />
-            </div>
+            {/* Options d'administration si nécessaire */}
+            {isManageable && (
+              <div className="absolute top-2 right-2 z-20 flex space-x-1">
+                <ActionButtons 
+                  isManageable={isManageable}
+                  isDeletable={isDeletable}
+                  isDeleting={isDeleting}
+                  onView={handleView}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                />
+              </div>
+            )}
           </div>
           
-          {/* Title and description */}
-          <div className="mb-3 mt-1">
-            <h3 className="text-sm leading-tight text-black dark:text-white/70 line-clamp-2 font-light break-words">
-              {highlightedTitle}
-            </h3>
+          <div className="p-3 flex flex-col flex-grow justify-between space-y-1">
+            {/* Informations du vendeur et évaluations */}
+            <div className="flex items-center justify-between">
+              <FreelanceAvatar
+                profile={service.profiles}
+                onError={handleAvatarError}
+                onClick={goToFreelanceProfile}
+              />
+              
+              <div className="flex items-center">
+                <Rating
+                  averageRating={averageRating}
+                  reviewCount={reviewCount}
+                  isNew={isNew}
+                />
+              </div>
+            </div>
             
-            {service.short_description && (
-              <p className="mt-0.5 text-[10px] text-slate-600 dark:text-vynal-text-secondary/80 line-clamp-2">
-                {service.short_description}
-              </p>
+            {/* Titre et catégorie */}
+            <div>
+              <h3 className="text-sm font-light line-clamp-2 text-slate-800 dark:text-vynal-text-primary mb-0.5">
+                {highlightedTitle}
+              </h3>
+              
+              {service.categories && (
+                <div className="flex items-center text-[9px] text-slate-600 dark:text-vynal-text-secondary">
+                  <span className="truncate max-w-[120px]">{service.categories.name}</span>
+                  {service.subcategories && (
+                    <>
+                      <ChevronRight className="h-2.5 w-2.5 mx-0.5 text-slate-600/70 dark:text-vynal-text-secondary/70" />
+                      <span className="truncate max-w-[120px]">{service.subcategories.name}</span>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+            
+            {/* Espace flexible pour pousser le prix vers le bas */}
+            <div className="flex-grow"></div>
+            
+            {/* Ajout du prix dans le footer */}
+            {service.price !== undefined && service.price > 0 && (
+              <div className="flex justify-between items-center mt-auto pt-2">
+                <div className="flex flex-col">
+                  <span className="text-[9px] text-slate-600 dark:text-vynal-text-secondary/80 font-medium">À partir de</span>
+                  <span className="text-sm font-semibold text-slate-800 dark:text-vynal-accent-primary mt-0.5 price-value">
+                    <PriceDisplay price={service.price || 0} showFixedIndicator={false} />
+                  </span>
+                </div>
+              </div>
             )}
           </div>
         </div>
-        
-        {/* Footer section */}
-        <div className="mt-auto px-2 pb-1.5 flex items-center justify-between">
-          <div className="flex flex-col">
-            <span className="text-[9px] text-slate-600 dark:text-vynal-text-secondary/80 font-medium">À partir de</span>
-            <span className="text-base font-medium text-black dark:text-vynal-accent-primary mt-0.5 price-value">
-              <PriceDisplay price={service.price || 0} showFixedIndicator={false} />
-            </span>
-          </div>
-          
-          <ActionButtons 
-            isManageable={isManageable}
-            isDeletable={isDeletable}
-            isDeleting={isDeleting}
-            onView={handleView}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-          />
-        </div>
-      </div>
+      </Link>
     );
   },
   arePropsEqual

@@ -72,12 +72,12 @@ export const validateImage = async (
       return;
     }
     
-    // Vérifier la taille
-    const maxSize = options?.maxFileSize || 5; // Par défaut 5MB
-    if (file.size > maxSize * 1024 * 1024) {
+    // Vérifier la taille maximale d'upload (2 MB)
+    const maxUploadSize = 2; // 2 MB
+    if (file.size > maxUploadSize * 1024 * 1024) {
       resolve({ 
         isValid: false, 
-        message: `L'image est trop volumineuse (maximum ${maxSize}MB)` 
+        message: `L'image est trop volumineuse (maximum ${maxUploadSize}MB)` 
       });
       return;
     }
@@ -331,22 +331,22 @@ export const processImage = async (
     targetHeight: 800,
     enhanceQuality: false,
     preserveContent: true,
-    outputQuality: 0.92,
-    outputFormat: 'jpeg' as const,
+    outputQuality: 0.8,
+    outputFormat: 'webp' as const,
+    maxFileSize: 15, // 15ko maximum
     ...options
   };
-  
-  // Toujours désactiver l'amélioration automatique quelle que soit la valeur passée
-  opts.enhanceQuality = false;
+
+  // Forcer le format WebP
+  opts.outputFormat = 'webp';
   
   return new Promise((resolve, reject) => {
-    // Ajout d'un timeout pour éviter le traitement infini
     const timeoutId = setTimeout(() => {
       reject(new Error("Le traitement a pris trop de temps et a été interrompu"));
-    }, 15000); // 15 secondes max
+    }, 30000);
     
     const img = new Image();
-    img.onload = () => {
+    img.onload = async () => {
       try {
         // Obtenir les dimensions originales
         const originalWidth = img.width;
@@ -363,13 +363,19 @@ export const processImage = async (
           
           if (Math.abs(originalRatio - targetRatio) > 0.01) {
             if (originalRatio > targetRatio) {
-              // Image plus large, adapter la hauteur
               targetHeight = Math.round(targetWidth / originalRatio);
             } else {
-              // Image plus haute, adapter la largeur
               targetWidth = Math.round(targetHeight * originalRatio);
             }
           }
+        }
+
+        // Réduction préalable pour les grandes images
+        const maxDimension = 1200; // Dimension maximale réduite
+        if (originalWidth > maxDimension || originalHeight > maxDimension) {
+          const scale = Math.min(maxDimension / originalWidth, maxDimension / originalHeight);
+          targetWidth = Math.round(originalWidth * scale);
+          targetHeight = Math.round(originalHeight * scale);
         }
         
         // Créer un canvas pour le traitement
@@ -395,86 +401,74 @@ export const processImage = async (
         // Dessiner l'image avec la meilleure qualité
         ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
         
-        // Amélioration de la qualité simplifiée pour éviter les problèmes
-        if (opts.enhanceQuality) {
-          try {
-            // Léger ajustement du contraste uniquement
-            const imageData = ctx.getImageData(0, 0, targetWidth, targetHeight);
-            const data = imageData.data;
-            
-            // Ajustement de contraste simplifié
-            for (let i = 0; i < data.length; i += 4) {
-              // Éviter de toucher au canal alpha
-              for (let j = 0; j < 3; j++) {
-                // Légère amélioration du contraste (formule douce)
-                const val = data[i + j];
-                data[i + j] = Math.max(0, Math.min(255, val * 1.05 - 10));
-              }
-            }
-            
-            ctx.putImageData(imageData, 0, 0);
-          } catch (enhanceError) {
-            console.warn("Échec de l'amélioration de l'image");
-            // Continuer sans amélioration en cas d'erreur
-          }
+        // Fonction pour compresser l'image avec une qualité donnée
+        const compressImage = (quality: number): Promise<Blob> => {
+          return new Promise((resolve, reject) => {
+            canvas.toBlob(
+              (blob) => {
+                if (!blob) {
+                  reject(new Error('Échec de la conversion canvas en blob'));
+                  return;
+                }
+                resolve(blob);
+              },
+              'image/webp',
+              quality
+            );
+          });
+        };
+
+        // Compression progressive simple
+        let quality = 0.8;
+        let blob = await compressImage(quality);
+        let attempts = 0;
+        const maxAttempts = 10;
+
+        // Si la première tentative est trop grande, réduire la taille
+        if (blob.size > opts.maxFileSize * 1024) {
+          const scale = Math.sqrt(opts.maxFileSize * 1024 / blob.size);
+          targetWidth = Math.round(targetWidth * scale);
+          targetHeight = Math.round(targetHeight * scale);
+          
+          canvas.width = targetWidth;
+          canvas.height = targetHeight;
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(0, 0, targetWidth, targetHeight);
+          ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+          
+          blob = await compressImage(quality);
         }
+
+        // Compression simple et progressive
+        while (blob.size > opts.maxFileSize * 1024 && attempts < maxAttempts) {
+          quality -= 0.1;
+          if (quality < 0.6) quality = 0.6;
+          blob = await compressImage(quality);
+          attempts++;
+        }
+
+        if (blob.size > opts.maxFileSize * 1024) {
+          clearTimeout(timeoutId);
+          reject(new Error(`L'image est trop volumineuse. Veuillez choisir une image plus légère.`));
+          return;
+        }
+
+        // Créer un nouveau fichier
+        const newFileName = file.name.split('.').slice(0, -1).join('.') + '.webp';
         
-        // Récupérer le format de sortie et la qualité
-        const outputFormat = opts.outputFormat;
-        const mimeType = outputFormat === 'webp' 
-          ? 'image/webp' 
-          : outputFormat === 'png' 
-            ? 'image/png' 
-            : 'image/jpeg';
+        const processedFile = new File([blob], newFileName, {
+          type: 'image/webp',
+          lastModified: Date.now()
+        });
         
-        // Qualité optimisée selon le format
-        const quality = outputFormat === 'webp' ? 0.85 : 0.9;
-        
-        // Convertir le canvas en Blob avec la qualité améliorée
-        canvas.toBlob(
-          (blob) => {
-            clearTimeout(timeoutId);
-            
-            if (!blob) {
-              reject(new Error('Échec de la conversion canvas en blob'));
-              return;
-            }
-            
-            // Créer un nouveau fichier
-            const extension = outputFormat === 'webp' ? 'webp' : outputFormat === 'png' ? 'png' : 'jpg';
-            const newFileName = file.name.split('.').slice(0, -1).join('.') + '.' + extension;
-            
-            const processedFile = new File([blob], newFileName, {
-              type: mimeType,
-              lastModified: Date.now()
-            });
-            
-            // Si le fichier traité est plus grand, utiliser l'original
-            if (blob.size > file.size * 1.1) {
-              console.info("Image traitée, taille supérieure à l'originale, conservation de l'original");
-              
-              resolve({
-                file: file,
-                width: originalWidth,
-                height: originalHeight,
-                format: file.type.split('/')[1],
-                sizeKB: Math.round(file.size / 1024)
-              });
-              return;
-            }
-            
-            // Résultat avec métadonnées
-            resolve({
-              file: processedFile,
-              width: targetWidth,
-              height: targetHeight,
-              format: outputFormat,
-              sizeKB: Math.round(blob.size / 1024)
-            });
-          }, 
-          mimeType, 
-          quality
-        );
+        // Résultat avec métadonnées
+        resolve({
+          file: processedFile,
+          width: targetWidth,
+          height: targetHeight,
+          format: 'webp',
+          sizeKB: Math.round(blob.size / 1024)
+        });
       } catch (error) {
         clearTimeout(timeoutId);
         reject(error);
@@ -486,15 +480,20 @@ export const processImage = async (
       reject(new Error('Échec du chargement de l\'image pour traitement'));
     };
     
-    // Utiliser la fonction sécurisée pour créer l'URL
-    createSecureObjectURL(file)
-      .then(objectUrl => {
+    // Créer une URL sécurisée pour l'image
+    try {
+      const objectUrl = URL.createObjectURL(file);
+      if (isSecureBlobUrl(objectUrl)) {
         setImageSrcSafely(img, objectUrl);
-      })
-      .catch(error => {
+      } else {
+        if (objectUrl) URL.revokeObjectURL(objectUrl);
         clearTimeout(timeoutId);
-        reject(error);
-      });
+        reject(new Error("Format d'image non valide"));
+      }
+    } catch (error) {
+      clearTimeout(timeoutId);
+      reject(new Error("Erreur lors du traitement de l'image"));
+    }
   });
 };
 

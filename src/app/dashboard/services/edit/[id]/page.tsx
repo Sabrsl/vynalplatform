@@ -252,7 +252,7 @@ export default function EditServicePage() {
 
   // Fonction pour vérifier si la description du service est valide
   const isServiceDescriptionValid = () => {
-    return getServiceDescriptionLength() >= 1000;
+    return getServiceDescriptionLength() >= 300;
   };
 
   const handleDescriptionChange = (field: string, value: string) => {
@@ -334,8 +334,8 @@ ${newFields.exclusions}`;
       }
       
       // Vérifier uniquement la longueur de la description du service
-      if (formData.description.trim().length < 1000) {
-        throw new Error("La description du service doit contenir au moins 1000 caractères");
+      if (formData.description.trim().length < 300) {
+        throw new Error("La description du service doit contenir au moins 300 caractères");
       }
       
       if (formData.description.trim().length > 10000) {
@@ -581,7 +581,7 @@ ${newFields.exclusions}`;
                         }`}
                       />
                       <p className="text-[8px] sm:text-[10px] text-vynal-purple-dark/80 dark:text-vynal-text-secondary">
-                        {getServiceDescriptionLength()}/10000 caractères (minimum 1000 caractères requis)
+                        {getServiceDescriptionLength()}/10000 caractères (minimum 300 caractères requis)
                       </p>
                     </div>
                   </div>

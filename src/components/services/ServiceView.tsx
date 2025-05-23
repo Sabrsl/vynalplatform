@@ -1328,14 +1328,7 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                         </div>
                         
                         {serviceMeta.freelance.id && (
-                          <Link 
-                            href={
-                              user?.profile?.id === serviceMeta.freelance.id
-                                ? FREELANCE_ROUTES.SERVICES
-                                : `/services?freelancer=${serviceMeta.freelance.id}`
-                            } 
-                            className="w-full block"
-                          >
+                          <div className="w-full">
                             <Button 
                               variant="ghost" 
                               className={cn(
@@ -1343,15 +1336,21 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                                 isDarkMode
                                   ? "text-vynal-text-secondary hover:text-vynal-text-primary hover:bg-vynal-purple-secondary/20"
                                   : "text-[#2C1A4C] hover:text-[#2C1A4C] hover:bg-[#FF66B2]/10"
-                              )} 
+                              )}
                               size="sm"
+                              onClick={() => {
+                                const url = user?.profile?.id === serviceMeta.freelance.id
+                                  ? FREELANCE_ROUTES.SERVICES
+                                  : `/services?freelancer=${serviceMeta.freelance.id}`;
+                                router.push(url);
+                              }}
                             >
                               {user?.profile?.id === serviceMeta.freelance.id 
                                 ? "Gérer mes services" 
                                 : "Voir tous ses services"}
                               <ChevronRight className="h-3.5 w-3.5 ml-0.5 group-hover:translate-x-1 transition-transform icon-vynal" aria-hidden="true" />
                             </Button>
-                          </Link>
+                          </div>
                         )}
                       </div>
                     </>
@@ -1435,17 +1434,17 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                         : `/services/${relatedService.id}`;
                       
                       return (
-                        <Link 
-                          href={linkPath} 
+                        <div 
                           key={relatedService.id}
                           className="block transition-transform duration-300 hover:scale-[1.02]"
                         >
                           <ServiceCard 
                             service={relatedService} 
                             className="h-full"
-                            useDemo={false} 
+                            useDemo={false}
+                            onClick={() => router.push(linkPath)}
                           />
-                        </Link>
+                        </div>
                       );
                     })
                   ) : (
@@ -1473,7 +1472,10 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                 
                 {/* Affichage "Voir tous les services" uniquement si nécessaire */}
                 {!loadingRelated && filteredRelatedServices.length > 0 && filteredRelatedServices.length < 3 && (
-                  <Link href={`/services?freelancer=${serviceMeta.freelance.id}`} className="block">
+                  <div 
+                    className="block cursor-pointer"
+                    onClick={() => router.push(`/services?freelancer=${serviceMeta.freelance.id}`)}
+                  >
                     <Card className={cn(
                       "h-full border border-dashed group hover:border-solid transition-colors flex items-center justify-center",
                       isDarkMode 
@@ -1506,7 +1508,7 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                         </p>
                       </CardContent>
                     </Card>
-                  </Link>
+                  </div>
                 )}
               </div>
             )}

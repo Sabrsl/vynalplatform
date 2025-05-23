@@ -68,27 +68,33 @@ const ServiceImageUploader: React.FC<ServiceImageUploaderProps> = ({
           targetHeight: 1080,
           preserveContent: true,
           outputFormat: 'webp',
-          enhanceQuality: true
+          enhanceQuality: true,
+          maxFileSize: 25, // 25ko maximum pour la sortie
+          outputQuality: 0.92 // Qualité initiale plus élevée
         }).catch(err => {
+          if (err.message.includes('25ko')) {
+            throw new Error("L'image n'a pas pu être optimisée suffisamment. Veuillez choisir une image plus légère ou réduire sa taille.");
+          }
           console.warn("Échec du traitement de l'image:", err);
           return null;
         });
         
-        // Si le traitement a échoué, utiliser le fichier original
-        const fileToUpload = processedResult ? processedResult.file : file;
+        if (!processedResult) {
+          continue;
+        }
         
         // Générer un nom de fichier unique avec extension correcte
-        const fileExt = processedResult ? 'webp' : file.name.split('.').pop();
+        const fileExt = 'webp';
         const uniqueId = crypto.randomUUID();
         const fileName = `temp_${uniqueId}.${fileExt}`;
         
         // Télécharger le fichier vers Supabase
         const { data, error } = await supabase.storage
           .from('services')
-          .upload(fileName, fileToUpload, {
+          .upload(fileName, processedResult.file, {
             cacheControl: '604800', // 7 jours
             upsert: false,
-            contentType: processedResult ? 'image/webp' : file.type
+            contentType: 'image/webp'
           });
         
         if (error) {
@@ -227,6 +233,8 @@ const ServiceImageUploader: React.FC<ServiceImageUploaderProps> = ({
             Vous pouvez ajouter jusqu'à {maxImages - images.length} image{maxImages - images.length > 1 ? 's' : ''} supplémentaire{maxImages - images.length > 1 ? 's' : ''}
             <br/>
             Les images seront automatiquement optimisées et converties en WebP
+            <br/>
+            Taille maximale : 2 MB par image
           </p>
           <input
             type="file"

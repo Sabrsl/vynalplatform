@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo, Suspense, lazy, memo } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { formatPrice } from '@/lib/utils';
@@ -15,11 +15,17 @@ import {
   AlertCircle,
   Users,
   User,
-  CreditCard
+  CreditCard,
+  LayoutGrid,
+  MapPin
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import ServiceCard from '@/components/services/ServiceCard';
+import ServicesList from '@/components/services/ServicesList';
+import ServiceListSkeleton from '@/components/services/ServiceListSkeleton';
+
 import CategoriesGrid from '@/components/categories/CategoriesGrid';
+import HorizontalCategoriesScroll from '@/components/categories/HorizontalCategoriesScroll';
 import SubcategoriesGrid from '@/components/categories/SubcategoriesGrid';
 import SearchBarSimple from '@/components/categories/SearchBarSimple';
 import BreadcrumbTrail from '@/components/categories/BreadcrumbTrail';
@@ -36,6 +42,10 @@ import { ServiceWithFreelanceAndCategories } from '@/hooks/useServices';
 import { UICategoryType, UISubcategoryType, adaptCategoryForUI, adaptSubcategoryForUI } from '@/hooks/useCategories';
 import { addRefreshListener } from '@/lib/services/servicesRefreshService';
 import { setCachedData } from '@/lib/optimizations';
+import { FixedSizeGrid } from 'react-window';
+import AutoSizer from 'react-virtualized-auto-sizer';
+import InfiniteLoader from 'react-window-infinite-loader';
+import { useInView } from 'react-intersection-observer';
 
 // Utilisons les fonctions d'adaptation des catégories depuis les hooks
 
@@ -92,135 +102,12 @@ const adaptServiceForSearch = (service: Service): ServiceWithFreelanceAndCategor
   updated_at: service.updated_at || service.created_at,
   status: (service.status === 'inactive' ? 'pending' : service.status) as 'active' | 'pending' | 'rejected' | 'approved',
   active: true,
+  // Préserver le slug pour la navigation statique
+  slug: service.slug || ''
 });
 
 // Sous-composants extraits avec React.memo pour éviter les re-rendus inutiles
-const StatsSection = React.memo(({ statsData }: { statsData: typeof STATS_DATA }) => (
-  <section className="py-10 bg-gradient-to-r from-gray-50 to-white dark:from-vynal-purple-dark/80 dark:to-vynal-purple-dark/95 border-t border-gray-100 dark:border-vynal-purple-secondary/30">
-    <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-      <div className="max-w-3xl mx-auto">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
-          {/* Freelances */}
-          <div className="relative flex flex-col items-center px-3 py-5">
-            {/* Cercle décoratif */}
-            <div className="absolute -z-10 w-16 h-16 bg-gradient-to-br from-pink-50 to-purple-50 dark:from-vynal-accent-primary/5 dark:to-vynal-accent-secondary/5 rounded-full top-0 left-1/2 -translate-x-1/2 -translate-y-1/4 blur-md opacity-80"></div>
-            
-            {/* Icône avec cercle */}
-            <div className="flex items-center justify-center w-10 h-10 mb-3 rounded-full bg-white dark:bg-vynal-purple-secondary/10 shadow-sm">
-              <Users className="h-4 w-4 text-vynal-accent-primary" />
-            </div>
-            
-            {/* Nombre avec gradient */}
-            <h3 className="text-2xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-vynal-accent-primary to-purple-600 dark:from-vynal-accent-primary dark:to-vynal-accent-secondary">
-              {statsData.freelancersCount}
-            </h3>
-            
-            {/* Texte */}
-            <p className="text-xs text-vynal-body mt-1 text-center">
-              Freelances
-            </p>
-          </div>
-          
-          {/* Clients */}
-          <div className="relative flex flex-col items-center px-3 py-5">
-            {/* Cercle décoratif */}
-            <div className="absolute -z-10 w-16 h-16 bg-gradient-to-br from-pink-50 to-purple-50 dark:from-vynal-accent-primary/5 dark:to-vynal-accent-secondary/5 rounded-full top-0 left-1/2 -translate-x-1/2 -translate-y-1/4 blur-md opacity-80"></div>
-            
-            {/* Icône avec cercle */}
-            <div className="flex items-center justify-center w-10 h-10 mb-3 rounded-full bg-white dark:bg-vynal-purple-secondary/10 shadow-sm">
-              <User className="h-4 w-4 text-vynal-accent-primary" />
-            </div>
-            
-            {/* Nombre avec gradient */}
-            <h3 className="text-2xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-vynal-accent-primary to-purple-600 dark:from-vynal-accent-primary dark:to-vynal-accent-secondary">
-              {statsData.clientsCount}
-            </h3>
-            
-            {/* Texte */}
-            <p className="text-xs text-vynal-body mt-1 text-center">
-              Clients satisfaits
-            </p>
-          </div>
-          
-          {/* Paiements */}
-          <div className="relative flex flex-col items-center px-3 py-5">
-            {/* Cercle décoratif */}
-            <div className="absolute -z-10 w-16 h-16 bg-gradient-to-br from-pink-50 to-purple-50 dark:from-vynal-accent-primary/5 dark:to-vynal-accent-secondary/5 rounded-full top-0 left-1/2 -translate-x-1/2 -translate-y-1/4 blur-md opacity-80"></div>
-            
-            {/* Icône avec cercle */}
-            <div className="flex items-center justify-center w-10 h-10 mb-3 rounded-full bg-white dark:bg-vynal-purple-secondary/10 shadow-sm">
-              <CreditCard className="h-4 w-4 text-vynal-accent-primary" />
-            </div>
-            
-            {/* Nombre avec gradient */}
-            <h3 className="text-2xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-vynal-accent-primary to-purple-600 dark:from-vynal-accent-primary dark:to-vynal-accent-secondary">
-              {statsData.totalPayments}
-            </h3>
-            
-            {/* Texte */}
-            <p className="text-xs text-vynal-body mt-1 text-center">
-              Total des transactions
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-));
-StatsSection.displayName = 'StatsSection';
-
-const HeroSection = React.memo(({ totalCount, categories, selectedCategory, getSubcategoriesCount }: { 
-  totalCount: number, 
-  categories: UICategoryType[], 
-  selectedCategory: string | null,
-  getSubcategoriesCount: (categoryId: string) => number
-}) => (
-  <section className="bg-gradient-to-b from-indigo-50 to-white dark:from-vynal-purple-dark dark:to-vynal-purple-darkest text-gray-900 dark:text-vynal-text-primary py-8 lg:py-14 relative overflow-hidden">
-    {/* Background decorations */}
-    <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-indigo-200/20 dark:bg-vynal-accent-primary/20 rounded-full blur-3xl"></div>
-      <div className="absolute -top-24 -right-24 w-96 h-96 bg-indigo-100/20 dark:bg-vynal-accent-secondary/20 rounded-full blur-3xl"></div>
-      <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-indigo-200/20 dark:bg-vynal-accent-primary/20 rounded-full blur-3xl"></div>
-      <div className="absolute inset-0 bg-[url('/img/grid-pattern.svg')] bg-center opacity-0 dark:opacity-10"></div>
-    </div>
-
-    <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-      {/* Hero content */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="text-center max-w-3xl mx-auto pt-4 md:pt-6"
-      >
-        <span className="inline-block px-2 py-0.5 text-[10px] font-medium bg-slate-100/30 dark:bg-slate-800/30 rounded-full backdrop-blur-sm mb-2 text-slate-700 dark:text-vynal-text-primary">
-          {totalCount > 0 ? `+${totalCount}` : "Des"} services disponibles
-        </span>
-        <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-2 leading-tight text-slate-800 dark:text-vynal-text-primary">
-          Trouvez le service idéal
-        </h1>
-        <p className="text-sm sm:text-base text-slate-600 dark:text-vynal-text-secondary mb-4 sm:mb-6 max-w-2xl mx-auto">
-          Des milliers de freelances talentueux prêts à réaliser vos projets
-        </p>
-      </motion.div>
-      
-      {/* Categories grid */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.1 }}
-        className="max-w-5xl mx-auto"
-      >
-        <CategoriesGrid 
-          categories={categories}
-          selectedCategory={selectedCategory}
-          getSubcategoriesCount={getSubcategoriesCount}
-          className="bg-transparent"
-        />
-      </motion.div>
-    </div>
-  </section>
-));
-HeroSection.displayName = 'HeroSection';
+const StatsSection = lazy(() => import('@/components/services/StatsSection'));
 
 const NavigationBar = React.memo(({ 
   activeCategory, 
@@ -231,13 +118,13 @@ const NavigationBar = React.memo(({
 }: { 
   activeCategory: UICategoryType | undefined, 
   activeSubcategory: UISubcategoryType | undefined,
-  viewMode: 'grid' | 'list',
-  setViewMode: (mode: 'grid' | 'list') => void,
+  viewMode: 'grid' | 'list' | 'map',
+  setViewMode: (mode: 'grid' | 'list' | 'map') => void,
   handleSearch: (query: string) => void
 }) => {
   return (
     <section className="bg-gray-50 dark:bg-vynal-purple-dark/90 border-t border-gray-200 dark:border-vynal-purple-secondary/30 sticky top-0 z-10">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-3">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-16 py-3">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           {/* Breadcrumbs */}
           <BreadcrumbTrail 
@@ -251,21 +138,19 @@ const NavigationBar = React.memo(({
               onSearch={handleSearch}
             />
             
-            <div className="hidden sm:flex items-center space-x-1 bg-slate-100/30 dark:bg-slate-800/30 rounded-lg p-1">
-              <button
-                onClick={() => setViewMode('grid')}
-                className={`p-1.5 rounded-md transition-all duration-200 ${viewMode === 'grid' ? 'bg-white/40 dark:bg-slate-800/40 text-vynal-accent-primary' : 'text-slate-700 dark:text-vynal-text-primary hover:bg-slate-100 dark:hover:bg-slate-800/25'}`}
-                title="Vue en grille"
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
               >
-                <Grid className="h-4 w-4" />
-              </button>
-              <button
-                onClick={() => setViewMode('list')}
-                className={`p-1.5 rounded-md transition-all duration-200 ${viewMode === 'list' ? 'bg-white/40 dark:bg-slate-800/40 text-vynal-accent-primary' : 'text-slate-700 dark:text-vynal-text-primary hover:bg-slate-100 dark:hover:bg-slate-800/25'}`}
-                title="Vue en liste"
-              >
-                <List className="h-4 w-4" />
-              </button>
+                {viewMode === 'grid' ? (
+                  <List className="h-5 w-5" />
+                ) : (
+                  <LayoutGrid className="h-5 w-5" />
+                )}
+              </Button>
             </div>
           </div>
         </div>
@@ -311,52 +196,97 @@ const ResultsHeader = React.memo(({
 ));
 ResultsHeader.displayName = 'ResultsHeader';
 
-const ServicesGrid = React.memo(({ 
-  services, 
-  currentPage, 
-  totalPages, 
-  handlePageChange,
+// Composant de rendu de ligne virtualisée
+const VirtualizedGrid = memo(({ 
+  services,
+  hasNextPage,
+  isNextPageLoading,
+  loadNextPage,
   viewMode
 }: { 
-  services: any[], 
-  currentPage: number, 
-  totalPages: number, 
-  handlePageChange: (page: number) => void,
-  viewMode: 'grid' | 'list'
-}) => (
-  <>
-    <div className={`grid grid-cols-1 ${viewMode === 'grid' ? 'sm:grid-cols-2 lg:grid-cols-4' : ''} gap-6`}>
-      {services.map((service) => (
-        <ServiceCard
-          key={service.id}
-          service={service}
-          showStatusBadge={false}
-          useDemo={false}
-          className="h-full shadow-none"
-        />
-      ))}
-    </div>
+  services: ServiceWithFreelanceAndCategories[],
+  hasNextPage: boolean,
+  isNextPageLoading: boolean,
+  loadNextPage: () => void,
+  viewMode: 'grid' | 'list' | 'map'
+}) => {
+  const { ref, inView } = useInView({
+    threshold: 0.1,
+    triggerOnce: false
+  });
+
+  // Charger automatiquement la page suivante quand l'élément est visible
+  useEffect(() => {
+    if (inView && hasNextPage && !isNextPageLoading) {
+      loadNextPage();
+    }
+  }, [inView, hasNextPage, isNextPageLoading, loadNextPage]);
+
+  // Optimisation de l'affichage selon le mode
+  const columnCount = useMemo(() => {
+    if (viewMode === 'list') return 1;
     
-    {/* Pagination controls */}
-    {services.length > 0 && (
-      <PaginationControls
-        currentPage={currentPage}
-        totalPages={totalPages}
-        onPageChange={handlePageChange}
-        className="mt-8"
-      />
-    )}
-  </>
-));
-ServicesGrid.displayName = 'ServicesGrid';
+    // Détection de la largeur d'écran pour le responsive
+    if (typeof window !== 'undefined') {
+      const width = window.innerWidth;
+      if (width < 640) return 1; // Mobile
+      if (width < 1024) return 2; // Tablet 
+      if (width < 1280) return 3; // Small desktop
+      return 4; // Large desktop
+    }
+    
+    return 4; // Default
+  }, [viewMode]);
+
+  return (
+    <div className="w-full">
+      <div className={`grid grid-cols-1 ${viewMode === 'grid' ? 'sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' : ''} gap-6`}>
+        {services.map((service, index) => (
+          <ServiceCard
+            key={service.id}
+            service={service}
+            showStatusBadge={false}
+            useDemo={false}
+            className="h-full shadow-none"
+            isPriority={index < 8} // Optimisation: priorité seulement pour les premières cartes
+          />
+        ))}
+      </div>
+
+      {/* Indicateur de chargement / déclencheur pour charger plus */}
+      {(hasNextPage || isNextPageLoading) && (
+        <div 
+          ref={ref}
+          className="w-full flex justify-center items-center py-8"
+        >
+          {isNextPageLoading ? (
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-500"></div>
+          ) : (
+            <Button 
+              variant="ghost" 
+              className="text-indigo-500"
+              onClick={loadNextPage}
+            >
+              Charger plus
+            </Button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+});
+VirtualizedGrid.displayName = 'VirtualizedGrid';
 
 // Type de props pour le composant principal
 interface ServicesClientPageProps {
   initialData: string;
 }
 
-// Nombre de services par page
-const ITEMS_PER_PAGE = 12;
+// Nombre de services par page - augmenté pour optimiser les performances
+const ITEMS_PER_PAGE = 20;
+
+// Type pour la fonction onSelectSubcategory
+type SubcategorySelectHandler = (subcategory: UISubcategoryType) => void;
 
 // Composant principal pour la page des services 
 export default function ServicesClientPage({ initialData }: ServicesClientPageProps) {
@@ -378,8 +308,25 @@ export default function ServicesClientPage({ initialData }: ServicesClientPagePr
   const [selectedCategory, setSelectedCategory] = useState(categorySlug);
   const [selectedSubcategory, setSelectedSubcategory] = useState(subcategorySlug);
   const [searchQuery, setSearchQuery] = useState(urlSearchQuery);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'list' | 'map'>(() => {
+    // Récupérer le mode de vue depuis localStorage ou utiliser 'grid' par défaut
+    if (typeof window !== 'undefined') {
+      const savedViewMode = localStorage.getItem('services_view_mode');
+      return (savedViewMode === 'list' ? 'list' : savedViewMode === 'map' ? 'map' : 'grid') as 'grid' | 'list' | 'map';
+    }
+    return 'grid';
+  });
+
+  // Sauvegarder le mode de vue dans localStorage quand il change
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('services_view_mode', viewMode);
+    }
+  }, [viewMode]);
+
   const [currentPage, setCurrentPage] = useState(page);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMorePages, setHasMorePages] = useState(true);
   
   // Données des catégories et services
   const [categories, setCategories] = useState<Category[]>(initialParsedData.categories);
@@ -432,92 +379,85 @@ export default function ServicesClientPage({ initialData }: ServicesClientPagePr
     return subcategories.filter(subcat => subcat.category_id === categoryId).length;
   }, [subcategories]);
   
-  // Filtrage des services en fonction des critères
-  const filteredServices = useMemo(() => allServices.filter(service => {
-    // Filtrer par catégorie et sous-catégorie
-    if (activeSubcategory) {
-      return service.subcategory_id === activeSubcategory.id;
+  // Services filtrés avec mémoisation
+  const filteredServices = useMemo(() => {
+    let results = [...allServices].map(adaptServiceForSearch);
+    
+    // Filtrer par catégorie
+    if (selectedCategory) {
+      results = results.filter(service => 
+        service.categories?.slug === selectedCategory
+      );
     }
     
-    if (activeCategory) {
-      return service.category_id === activeCategory.id;
+    // Filtrer par sous-catégorie
+    if (selectedSubcategory) {
+      results = results.filter(service => 
+        service.subcategories?.slug === selectedSubcategory
+      );
     }
     
-    return true;
-  }), [allServices, activeCategory, activeSubcategory]);
+    // Filtrer par recherche
+    if (searchQuery.trim()) {
+      results = filterServicesBySearchTerm(results, searchQuery);
+    }
+    
+    return results;
+  }, [allServices, selectedCategory, selectedSubcategory, searchQuery]);
+
+  // Pagination mémorisée
+  const paginatedServices = useMemo(() => {
+    const startIndex = 0;
+    const endIndex = currentPage * ITEMS_PER_PAGE;
+    return filteredServices.slice(startIndex, endIndex);
+  }, [filteredServices, currentPage]);
   
-  // Recherche par terme - adapter les services pour le type attendu par la fonction de recherche
-  const adaptedServicesForSearch = useMemo(() => 
-    filteredServices.map(adaptServiceForSearch),
-    [filteredServices]
-  );
-  
-  const searchResults = useMemo(() => 
-    searchQuery
-      ? filterServicesBySearchTerm(adaptedServicesForSearch, searchQuery)
-      : filteredServices,
-    [adaptedServicesForSearch, filteredServices, searchQuery]
-  );
-  
-  // Pagination
-  const totalItems = searchResults.length;
-  const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
-  
-  // Services à afficher pour la page courante
-  const paginatedServices = searchResults.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
-  );
-  
-  // Méthode pour mettre à jour l'URL
-  const updateURLParams = useCallback((params: { category?: string | null; subcategory?: string | null; page?: number; search?: string | null }) => {
-    const urlParams = new URLSearchParams(searchParams?.toString() || '');
-    
-    // Mise à jour des paramètres
-    if (params.category !== undefined) {
-      if (params.category) {
-        urlParams.set('category', params.category);
-      } else {
-        urlParams.delete('category');
-      }
+  // Calcul du total et des pages
+  const totalServices = useMemo(() => filteredServices.length, [filteredServices]);
+  const totalPages = useMemo(() => Math.ceil(totalServices / ITEMS_PER_PAGE), [totalServices]);
+
+  // Calcul de s'il y a plus de pages à charger
+  useEffect(() => {
+    setHasMorePages(currentPage < totalPages);
+  }, [currentPage, totalPages]);
+
+  // Fonction pour charger plus de services
+  const loadMoreServices = useCallback(() => {
+    if (currentPage < totalPages && !isLoadingMore) {
+      setIsLoadingMore(true);
+      // Simuler un délai de chargement pour UX
+      setTimeout(() => {
+        setCurrentPage(prev => prev + 1);
+        setIsLoadingMore(false);
+      }, 500);
     }
-    
-    if (params.subcategory !== undefined) {
-      if (params.subcategory) {
-        urlParams.set('subcategory', params.subcategory);
-      } else {
-        urlParams.delete('subcategory');
-      }
-    }
-    
-    if (params.page !== undefined) {
-      urlParams.set('page', params.page.toString());
-    }
-    
-    if (params.search !== undefined) {
-      if (params.search) {
-        urlParams.set('search', params.search);
-      } else {
-        urlParams.delete('search');
-      }
-    }
+  }, [currentPage, totalPages, isLoadingMore]);
+
+  // Réinitialiser la pagination lors du changement de filtres
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedCategory, selectedSubcategory, searchQuery]);
+
+  // Fonction optimisée pour le changement de page
+  const handlePageChange = useCallback((newPage: number) => {
+    setCurrentPage(newPage);
     
     // Mise à jour de l'URL
-    router.push(`${pathname}?${urlParams.toString()}`);
+    const params = new URLSearchParams(searchParams?.toString() || '');
+    params.set('page', newPage.toString());
+    
+    // Mettre à jour l'URL sans déclencher de navigation
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    
+    // Scroll au début des résultats
+    document.getElementById('services-results')?.scrollIntoView({ behavior: 'smooth' });
   }, [searchParams, router, pathname]);
-  
-  // Gestion du changement de page
-  const handlePageChange = (newPage: number) => {
-    setCurrentPage(newPage);
-    updateURLParams({ page: newPage });
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-  
+
   // Gestion de la recherche
   const handleSearch = (query: string) => {
     setSearchQuery(query);
     setCurrentPage(1);
-    updateURLParams({ search: query || null, page: 1 });
+    handlePageChange(1);
   };
   
   // Synchroniser les états locaux avec les paramètres d'URL
@@ -579,79 +519,148 @@ export default function ServicesClientPage({ initialData }: ServicesClientPagePr
     };
   }, [fetchServicesData]);
   
+  // Gestion de la sélection d'une sous-catégorie
+  const handleSelectSubcategory = useCallback<SubcategorySelectHandler>((subcategory) => {
+    setSelectedSubcategory(subcategory.slug);
+    setCurrentPage(1);
+    
+    // Mise à jour de l'URL
+    const params = new URLSearchParams(searchParams?.toString() || '');
+    params.set('subcategory', subcategory.slug);
+    params.set('page', '1');
+    
+    // Mettre à jour l'URL sans déclencher de navigation
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    
+    // Scroll au début des résultats
+    document.getElementById('services-results')?.scrollIntoView({ behavior: 'smooth' });
+  }, [searchParams, router, pathname]);
+
+  // Réinitialisation des filtres
+  const handleResetFilters = useCallback(() => {
+    setSelectedCategory(null);
+    setSelectedSubcategory(null);
+    setSearchQuery('');
+    setCurrentPage(1);
+    
+    // Mise à jour de l'URL
+    router.replace('/services', { scroll: false });
+  }, [router]);
+
   return (
-    <div className="min-h-screen bg-white dark:bg-vynal-purple-dark animate-in fade-in duration-300">
-      {/* Hero Section */}
-      <main data-content="loaded">
-        <HeroSection 
-          totalCount={allServices.length}
-          categories={sortedCategories}
-          selectedCategory={selectedCategory}
-          getSubcategoriesCount={getSubcategoriesCount}
-        />
-
-        {/* Navigation bar */}
-        <NavigationBar 
-          activeCategory={activeCategory} 
-          activeSubcategory={activeSubcategory}
-          viewMode={viewMode}
-          setViewMode={setViewMode}
-          handleSearch={handleSearch}
-        />
-
-        {/* Subcategories section */}
-        {activeCategory && activeSubcategories.length > 0 && (
-          <section className="bg-white dark:bg-vynal-purple-dark/80 border-y border-gray-200 dark:border-vynal-purple-secondary/30 shadow-sm">
-            <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
-              <SubcategoriesGrid 
-                subcategories={activeSubcategories}
-                selectedSubcategory={selectedSubcategory}
-                category={activeCategory}
-              />
-            </div>
-          </section>
-        )}
-
-        {/* Main content */}
-        <div className="container mx-auto px-4 lg:px-16 py-12">
-          {/* Results header */}
-          <ResultsHeader 
-            searchQuery={searchQuery}
-            activeSubcategory={activeSubcategory}
-            activeCategory={activeCategory}
-            totalCount={totalItems}
-            currentPage={currentPage}
-            totalPages={totalPages}
+    <div className="min-h-screen bg-white dark:bg-vynal-purple-darkest">
+      {/* Barre de catégories défilables placée juste avant la barre de navigation */}
+      <div className="relative py-1 sm:py-1.5 bg-slate-50 dark:bg-vynal-purple-dark border-b border-gray-100 dark:border-vynal-purple-secondary/20">
+        <div className="container mx-auto">
+          <HorizontalCategoriesScroll 
+            categories={sortedCategories}
+            selectedCategory={selectedCategory}
+            getSubcategoriesCount={getSubcategoriesCount}
+            className="bg-transparent"
           />
-          
-          {/* Services results */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.2 }}
-            className="w-full"
-          >
-            {paginatedServices.length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-vynal-body dark:text-vynal-text-secondary">
-                  Aucun service trouvé pour votre recherche.
-                </p>
-              </div>
+        </div>
+      </div>
+      
+      <NavigationBar 
+        activeCategory={activeCategory}
+        activeSubcategory={activeSubcategory}
+        viewMode={viewMode}
+        setViewMode={setViewMode}
+        handleSearch={handleSearch}
+      />
+      
+      <main className="container mx-auto px-3 sm:px-4 md:px-6 lg:px-16 py-4 sm:py-5 md:py-6" id="services-results">
+        {/* Sous-catégories si une catégorie est sélectionnée */}
+        {selectedCategory && activeSubcategories.length > 0 && (
+          <SubcategoriesGrid 
+            subcategories={activeSubcategories}
+            selectedSubcategory={selectedSubcategory}
+            onSelectSubcategory={handleSelectSubcategory}
+            className="mb-6"
+          />
+        )}
+        
+        {/* En-tête des résultats */}
+        <ResultsHeader 
+          searchQuery={searchQuery}
+          activeSubcategory={activeSubcategory}
+          activeCategory={activeCategory}
+          totalCount={totalServices}
+          currentPage={currentPage}
+          totalPages={totalPages}
+        />
+        
+        {/* Affichage des services */}
+        {totalServices === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <AlertCircle className="h-12 w-12 text-amber-500 mb-4" />
+            <h3 className="text-lg font-semibold text-vynal-title mb-2">
+              Aucun service trouvé
+            </h3>
+            <p className="text-vynal-body max-w-md mb-6">
+              {searchQuery 
+                ? `Nous n'avons trouvé aucun service correspondant à "${searchQuery}"`
+                : selectedSubcategory
+                  ? `Aucun service disponible dans cette sous-catégorie pour le moment`
+                  : selectedCategory
+                    ? `Aucun service disponible dans cette catégorie pour le moment`
+                    : `Aucun service disponible pour le moment`
+              }
+            </p>
+            <Button 
+              variant="outline" 
+              onClick={handleResetFilters}
+            >
+              Afficher tous les services
+            </Button>
+          </div>
+        ) : viewMode === 'list' ? (
+          // Affichage en mode liste
+          <div className="w-full">
+            {/* Squelette de chargement pendant le chargement initial */}
+            {isLoadingMore && paginatedServices.length === 0 ? (
+              <ServiceListSkeleton count={5} />
             ) : (
-              <ServicesGrid 
+              <ServicesList 
                 services={paginatedServices}
-                currentPage={currentPage}
-                totalPages={totalPages}
-                handlePageChange={handlePageChange}
-                viewMode={viewMode}
+                isPriority={true}
+                showStatusBadge={false}
               />
             )}
-          </motion.div>
-        </div>
+            
+            {/* Indicateur de chargement pour "charger plus" */}
+            {(hasMorePages || isLoadingMore) && (
+              <div className="w-full flex justify-center items-center py-8 mt-4">
+                {isLoadingMore ? (
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-500"></div>
+                ) : (
+                  <Button 
+                    variant="ghost" 
+                    className="text-indigo-500"
+                    onClick={loadMoreServices}
+                  >
+                    Charger plus
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+        ) : (
+          // Affichage en mode grille (par défaut)
+          <VirtualizedGrid 
+            services={paginatedServices}
+            hasNextPage={hasMorePages}
+            isNextPageLoading={isLoadingMore}
+            loadNextPage={loadMoreServices}
+            viewMode={viewMode}
+          />
+        )}
       </main>
-
-      {/* Stats footer */}
-      <StatsSection statsData={STATS_DATA} />
+      
+      {/* Section des statistiques chargée de façon différée */}
+      <Suspense fallback={null}>
+        <StatsSection statsData={STATS_DATA} />
+      </Suspense>
     </div>
   );
 } 

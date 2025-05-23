@@ -326,25 +326,6 @@ export default function DashboardLayout({
 
       {/* Main content area */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Mobile header */}
-        <header className="lg:hidden flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-vynal-purple-secondary/10 bg-white dark:bg-vynal-purple-dark">
-          <div className="flex items-center space-x-2">
-            <Menu className="h-5 w-5 text-slate-600 dark:text-vynal-text-secondary" />
-            <span className="text-sm font-medium text-slate-800 dark:text-vynal-text-primary">Dashboard Freelance</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            {totalUnreadCount > 0 && (
-              <div className="relative">
-                <MessageSquare className="h-5 w-5 text-slate-600 dark:text-vynal-text-secondary" />
-                <NotificationBadge count={totalUnreadCount} className="absolute -top-1 -right-1" />
-              </div>
-            )}
-            <button onClick={handleSignOut}>
-              <LogOut className="h-5 w-5 text-slate-600 dark:text-vynal-text-secondary" />
-            </button>
-          </div>
-        </header>
-        
         {/* Content */}
         <main className="flex-1 overflow-auto bg-slate-50/70 dark:bg-vynal-purple-dark/30 p-4">
           {children}

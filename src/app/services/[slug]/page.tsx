@@ -43,6 +43,10 @@ async function getServiceData(slug: string) {
   try {
     const supabase = getSupabaseServer();
     
+    if (!supabase) {
+      throw new Error("Impossible d'initialiser le client Supabase");
+    }
+    
     // Récupération du service avec ses catégories et profil
     const { data: service, error } = await supabase
       .from('services')

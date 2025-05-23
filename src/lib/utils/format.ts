@@ -14,11 +14,13 @@ export function formatDate(date: string | Date): string {
  * Utilisée par les composants serveur et les appels qui ne peuvent pas utiliser le hook useCurrency
  */
 export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('fr-FR', {
-    style: 'currency',
-    currency: CURRENCY.code,
+  // Pour XOF (FCFA), on affiche le symbole après le montant
+  const formatted = new Intl.NumberFormat('fr-FR', {
     minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
   }).format(amount);
+  
+  return `${formatted} ${CURRENCY.symbol}`;
 }
 
 // Format a number with thousands separator

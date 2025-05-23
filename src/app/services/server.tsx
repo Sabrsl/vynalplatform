@@ -50,6 +50,7 @@ export type Service = {
   profiles?: Profile;
   categories?: Category;
   subcategories?: Subcategory;
+  slug?: string;
 };
 
 /**

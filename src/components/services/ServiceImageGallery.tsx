@@ -369,7 +369,7 @@ const ServiceImageGallery: React.FC<ServiceImageGalleryProps> = ({
           </div>
           
           {/* Bouton de fermeture - fixe et très visible */}
-          <div className="absolute bottom-4 sm:top-4 sm:bottom-auto right-4 z-50">
+          <div className="absolute top-4 right-4 z-50">
             <button
               onClick={toggleFullscreen}
               className="bg-transparent border border-white text-white rounded-full w-8 h-8 flex items-center justify-center shadow-lg hover:bg-white/10 transition-all sm:bg-black/40 sm:w-9 sm:h-9 sm:hover:bg-white/10"

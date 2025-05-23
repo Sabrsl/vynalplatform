@@ -642,7 +642,7 @@ export default function useCurrency(options: UseCurrencyOptions = {}): UseCurren
    * Formate un montant selon la devise actuelle
    */
   const formatAmount = useCallback((amount: number): string => {
-    if (isNaN(amount)) return `${currency.symbol || ''}0`;
+    if (isNaN(amount)) return currency.code === 'XOF' ? `0 ${currency.symbol || ''}` : `${currency.symbol || ''}0`;
     
     // Convertir d'abord le montant dans la devise locale
     const convertedAmount = convertToLocalCurrency(amount);
@@ -653,8 +653,10 @@ export default function useCurrency(options: UseCurrencyOptions = {}): UseCurren
       maximumFractionDigits: currency.decimals,
     }).format(convertedAmount);
     
-    // Ajouter le symbole de la devise selon sa position habituelle
-    return `${currency.symbol || ''}${formattedAmount}`;
+    // Ajouter le symbole de la devise selon sa position
+    // Pour XOF (FCFA), placer le symbole après le montant
+    // Pour les autres devises, suivre la convention habituelle (symbole avant le montant)
+    return currency.code === 'XOF' ? `${formattedAmount} ${currency.symbol || ''}` : `${currency.symbol || ''}${formattedAmount}`;
   }, [currency, convertToLocalCurrency]);
   
   /**

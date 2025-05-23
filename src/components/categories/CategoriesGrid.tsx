@@ -3,7 +3,23 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Category } from '@/hooks/useCategories';
 import { motion } from 'framer-motion';
-import { getCategoryEmoji } from '@/lib/categoryIcons';
+import { 
+  Search, 
+  Code, 
+  Palette, 
+  Megaphone, 
+  FileText,
+  Film, 
+  GraduationCap, 
+  Briefcase,
+  Scissors,
+  Cpu,
+  FileSpreadsheet,
+  ShoppingBag,
+  Heart,
+  Leaf,
+  Sparkles
+} from 'lucide-react';
 
 interface CategoriesGridProps {
   categories: Category[];
@@ -13,9 +29,29 @@ interface CategoriesGridProps {
   className?: string;
 }
 
+// Mapping des catégories aux icônes Lucide (natives)
+const CATEGORY_ICONS: Record<string, React.ElementType> = {
+  'developpement-web-mobile': Code,
+  'design-graphique': Palette,
+  'marketing-digital': Megaphone,
+  'redaction-traduction': FileText,
+  'video-audio': Film,
+  'formation-education': GraduationCap,
+  'conseil-business': Briefcase,
+  'artisanat-creation': Scissors,
+  'agriculture-elevage': Leaf,
+  'informatique-reseaux': Cpu,
+  'services-administratifs': FileSpreadsheet,
+  'mode-beaute': ShoppingBag,
+  'religion-spiritualite': Heart,
+  'sante-bien-etre': Heart,
+  'intelligence-artificielle': Sparkles
+};
+
 /**
- * Composant ultra-moderne pour l'affichage d'une grille de catégories
- * Support des thèmes clair/sombre et adaptation mobile optimisée
+ * Composant optimisé pour l'affichage d'une grille de catégories
+ * - Performance améliorée avec icônes natives
+ * - Animations réduites pour les appareils à faible performance
  */
 const CategoriesGrid: React.FC<CategoriesGridProps> = ({
   categories,
@@ -26,27 +62,25 @@ const CategoriesGrid: React.FC<CategoriesGridProps> = ({
 }) => {
   const router = useRouter();
 
-  // Animation variants mémorisés
+  // Animation variants simplifiés
   const containerVariants = useMemo(() => ({
     hidden: { opacity: 0 },
     show: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.02
+        staggerChildren: 0.01 // Réduit pour plus de performance
       }
     }
   }), []);
 
   const itemVariants = useMemo(() => ({
-    hidden: { opacity: 0, y: 5, scale: 0.95 },
+    hidden: { opacity: 0, y: 2 }, // Simplifié
     show: { 
       opacity: 1, 
-      y: 0, 
-      scale: 1,
+      y: 0,
       transition: {
-        type: "spring",
-        stiffness: 300,
-        damping: 15
+        type: "tween", // Plus léger que "spring"
+        duration: 0.2
       }
     }
   }), []);
@@ -61,24 +95,31 @@ const CategoriesGrid: React.FC<CategoriesGridProps> = ({
   // Classe CSS pour les éléments sélectionnés/non-sélectionnés
   const getItemClassName = useCallback((isSelected: boolean) => {
     return `flex flex-col items-center justify-center 
-      rounded-xl backdrop-blur-sm transition-all duration-300
+      rounded-xl transition-colors duration-200
       py-1.5 px-1 h-full border
       ${isSelected 
-        ? 'bg-indigo-500/10 border-indigo-400/30 shadow-md shadow-indigo-500/5' 
+        ? 'bg-indigo-500/10 border-indigo-400/30' 
         : 'bg-white/5 border-gray-200/10 hover:bg-indigo-500/5 hover:border-indigo-300/20'
       }`;
   }, []);
 
+  // Déterminer si on doit activer les animations basées sur les préférences utilisateur
+  const prefersReducedMotion = typeof window !== 'undefined' && 
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
   return (
     <motion.div 
       className={`mb-3 ${className}`}
-      variants={containerVariants}
-      initial="hidden"
+      variants={!prefersReducedMotion ? containerVariants : undefined}
+      initial={!prefersReducedMotion ? "hidden" : "show"}
       animate="show"
       data-testid="categories-grid"
     >
-      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-1.5">
-        <motion.div variants={itemVariants} className="flex-shrink-0">
+      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-1 lg:gap-1.5">
+        <motion.div 
+          variants={!prefersReducedMotion ? itemVariants : undefined} 
+          className="flex-shrink-0"
+        >
           <Link 
             href={baseUrl}
             onClick={(e) => handleCategoryClick(e, null)}
@@ -87,7 +128,9 @@ const CategoriesGrid: React.FC<CategoriesGridProps> = ({
             className="block h-full"
           >
             <div className={getItemClassName(!selectedCategory)}>
-              <div className="text-base xs:text-lg sm:text-xl" aria-hidden="true">🔍</div>
+              <div className="flex items-center justify-center w-6 h-6" aria-hidden="true">
+                <Search className="h-4 w-4 text-indigo-500" />
+              </div>
               <span className="text-[8px] xs:text-[9px] sm:text-[10px] text-center font-medium mt-1 
                 text-white transition-colors">
                 Toutes
@@ -98,14 +141,14 @@ const CategoriesGrid: React.FC<CategoriesGridProps> = ({
         
         {categories.map((category) => {
           const isSelected = selectedCategory === category.slug;
-          const emoji = getCategoryEmoji(category.name);
+          const IconComponent = CATEGORY_ICONS[category.slug] || Briefcase;
           
           return (
             <motion.div 
               key={category.id} 
-              variants={itemVariants} 
+              variants={!prefersReducedMotion ? itemVariants : undefined}
               className="flex-shrink-0"
-              whileHover={{ scale: 1.02 }}
+              whileHover={!prefersReducedMotion ? { scale: 1.01 } : undefined}
             >
               <Link 
                 href={`${baseUrl}?category=${category.slug}`}
@@ -115,8 +158,8 @@ const CategoriesGrid: React.FC<CategoriesGridProps> = ({
                 className="block h-full"
               >
                 <div className={getItemClassName(isSelected)}>
-                  <div className="text-base xs:text-lg sm:text-xl relative">
-                    <span aria-hidden="true">{emoji}</span>
+                  <div className="flex items-center justify-center w-6 h-6">
+                    <IconComponent className="h-4 w-4 text-indigo-500" />
                   </div>
                   <span className="text-[8px] xs:text-[9px] sm:text-[10px] text-center font-medium 
                     truncate w-full mt-1 text-white transition-colors">

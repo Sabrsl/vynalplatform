@@ -39,7 +39,17 @@ export function formatPrice(price: number): string {
       // Convertir le prix
       const convertedPrice = price * rate;
       
-      // Formater avec la devise actuelle
+      // Si c'est XOF, formater avec le symbole après le montant
+      if (currencyCode === 'XOF') {
+        const symbol = CURRENCY_CONSTANTS.info?.XOF?.symbol || 'FCFA';
+        const formatted = new Intl.NumberFormat(CURRENCY_CONSTANTS.locale, {
+          minimumFractionDigits: decimals,
+          maximumFractionDigits: decimals,
+        }).format(convertedPrice);
+        return `${formatted} ${symbol}`;
+      }
+      
+      // Pour les autres devises, utiliser le formatage standard
       return new Intl.NumberFormat(CURRENCY_CONSTANTS.locale, {
         style: 'currency',
         currency: currencyCode,
@@ -53,11 +63,12 @@ export function formatPrice(price: number): string {
   }
   
   // Formatage par défaut (XOF) pour le rendu côté serveur ou en cas d'erreur
-  return new Intl.NumberFormat(CURRENCY.locale, {
-    style: 'currency',
-    currency: CURRENCY.code,
+  // Pour XOF, afficher le symbole après le montant
+  const formatted = new Intl.NumberFormat(CURRENCY.locale, {
     maximumFractionDigits: CURRENCY.decimalPlaces,
+    minimumFractionDigits: CURRENCY.decimalPlaces,
   }).format(price);
+  return `${formatted} ${CURRENCY.symbol}`;
 }
 
 /**

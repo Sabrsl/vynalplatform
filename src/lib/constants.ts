@@ -5,7 +5,7 @@
 // Devise
 export const CURRENCY = {
   code: 'XOF', // Franc CFA (BCEAO)
-  symbol: '₣',
+  symbol: 'FCFA',
   name: 'Franc CFA',
   locale: 'fr-FR',
   decimalPlaces: 0, // Pas de décimales pour le FCFA
