@@ -34,7 +34,7 @@ export const viewport: Viewport = {
   themeColor: [
     { media: '(prefers-color-scheme: light)', color: '#ffffff' },
     { media: '(prefers-color-scheme: dark)', color: '#100422' }
-  ], // Définir les couleurs du thème pour les navigateurs mobiles selon le mode
+  ], // S'adapte automatiquement au mode
 };
 
 export const metadata: Metadata = {
@@ -48,7 +48,8 @@ export const metadata: Metadata = {
       { url: '/favicon_vynalplatform.ico' },
       { url: '/favicon/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
       { url: '/favicon/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
-      { url: '/favicon/favicon-96x96.png', sizes: '96x96', type: 'image/png' }
+      { url: '/favicon/favicon-96x96.png', sizes: '96x96', type: 'image/png' },
+      { url: '/favicon/favicon-192x192.png', sizes: '192x192', type: 'image/png' }
     ],
     apple: [
       { url: '/favicon/apple-icon.png' },
@@ -62,17 +63,18 @@ export const metadata: Metadata = {
       { url: '/favicon/apple-icon-152x152.png', sizes: '152x152', type: 'image/png' },
       { url: '/favicon/apple-icon-180x180.png', sizes: '180x180', type: 'image/png' }
     ],
+    shortcut: '/favicon_vynalplatform.ico',
     other: [
-      { url: '/favicon/android-icon-192x192.png', sizes: '192x192', type: 'image/png' },
-      { url: '/favicon/ms-icon-144x144.png', sizes: '144x144', type: 'image/png' },
-      { url: '/favicon/ms-icon-150x150.png', sizes: '150x150', type: 'image/png' },
-      { url: '/favicon/ms-icon-310x310.png', sizes: '310x310', type: 'image/png' }
+      { url: '/favicon/android-icon-192x192.png', sizes: '192x192', type: 'image/png', rel: 'icon' },
+      { url: '/favicon/ms-icon-144x144.png', sizes: '144x144', type: 'image/png', rel: 'icon' },
+      { url: '/favicon/ms-icon-150x150.png', sizes: '150x150', type: 'image/png', rel: 'icon' },
+      { url: '/favicon/ms-icon-310x310.png', sizes: '310x310', type: 'image/png', rel: 'icon' }
     ]
   },
   // PWA et Apple Web App configuration
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'black-translucent',
+    statusBarStyle: 'black',
     title: 'Vynal'
   },
   // Amélioration pour les partages sociaux
@@ -139,14 +141,52 @@ export default function RootLayout({
         {/* Gestion des safe-area-inset pour les appareils mobiles */}
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         
-        {/* Configuration supplémentaire pour Apple et autres navigateurs */}
+        {/* Meta tags additionnels pour les moteurs de recherche */}
+        <link rel="icon" type="image/x-icon" href="/favicon_vynalplatform.ico" />
+        <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
+        <link rel="icon" type="image/png" sizes="192x192" href="/favicon/favicon-192x192.png" />
+        
+        {/* Configuration simple pour la barre de statut */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="msapplication-navbutton-color" content="#100422" />
         
-        {/* Meta tags pour forcer les couleurs fixes */}
+        {/* Couleurs simples : blanc en light, violet en dark */}
         <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
         <meta name="theme-color" content="#100422" media="(prefers-color-scheme: dark)" />
+        <meta name="theme-color" content="#ffffff" /> {/* Fallback par défaut */}
+        
+        {/* Script simple pour mise à jour dynamique */}
+        <script dangerouslySetInnerHTML={{
+          __html: `
+            (function() {
+              const updateStatusBar = () => {
+                const isDark = document.documentElement.classList.contains('dark');
+                const color = isDark ? '#100422' : '#ffffff';
+                
+                let meta = document.querySelector('meta[name="theme-color"]:not([media])');
+                if (!meta) {
+                  meta = document.createElement('meta');
+                  meta.name = 'theme-color';
+                  document.head.appendChild(meta);
+                }
+                meta.content = color;
+              };
+              
+              updateStatusBar();
+              
+              // Surveille les changements de classe dark
+              if (typeof MutationObserver !== 'undefined') {
+                const observer = new MutationObserver(updateStatusBar);
+                observer.observe(document.documentElement, { 
+                  attributes: true, 
+                  attributeFilter: ['class'] 
+                });
+              }
+            })();
+          `
+        }} />
         
         {/* Préchargement des ressources critiques */}
         <link rel="preload" href="/js/lcp-optimizer.js" as="script" />
