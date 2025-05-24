@@ -134,23 +134,52 @@ export default function RootLayout({
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         
         {/* Script pour forcer la couleur de la barre d'état selon le thème */}
-        <Script id="dynamic-theme-color" strategy="afterInteractive">
+        <Script id="dynamic-theme-color" strategy="beforeInteractive">
           {`
-            function setThemeColor() {
-              const isDark = document.documentElement.classList.contains('dark');
-              const color = isDark ? '#100422' : '#ffffff';
-              let meta = document.querySelector('meta[name="theme-color"]');
-              if (!meta) {
-                meta = document.createElement('meta');
-                meta.name = 'theme-color';
-                document.head.appendChild(meta);
+            (function() {
+              // Créer la meta une seule fois au chargement
+              function createMeta() {
+                let meta = document.querySelector('meta[name="theme-color"]');
+                if (!meta) {
+                  meta = document.createElement('meta');
+                  meta.name = 'theme-color';
+                  document.head.appendChild(meta);
+                }
+                return meta;
               }
-              meta.setAttribute('content', color);
-            }
-            setThemeColor();
-            // Pour les changements de thème dynamiques
-            const observer = new MutationObserver(setThemeColor);
-            observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+              
+              // Fonction simplifiée qui met à jour uniquement lors des changements de thème
+              function updateThemeColor() {
+                const isDark = document.documentElement.classList.contains('dark');
+                const meta = createMeta();
+                meta.content = isDark ? '#100422' : '#ffffff';
+              }
+              
+              // Exécution immédiate pour définir la couleur initiale
+              if (typeof window !== 'undefined') {
+                // Mise à jour immédiate
+                updateThemeColor();
+                
+                // Écouter uniquement les changements de thème
+                const observer = new MutationObserver(function(mutations) {
+                  for (let mutation of mutations) {
+                    if (mutation.attributeName === 'class' && 
+                        (document.documentElement.classList.contains('dark') || 
+                         !document.documentElement.classList.contains('dark'))) {
+                      updateThemeColor();
+                      break;
+                    }
+                  }
+                });
+                
+                // Observer uniquement les changements de classe sur <html>
+                observer.observe(document.documentElement, { 
+                  attributes: true, 
+                  attributeFilter: ['class'],
+                  subtree: false
+                });
+              }
+            })();
           `}
         </Script>
         

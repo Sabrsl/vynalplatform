@@ -110,14 +110,15 @@
   }
 }
 
-/* Style pour la barre d'état mobile */
+/* Style pour la barre d'état mobile - optimisé pour les performances */
 @supports (padding-top: env(safe-area-inset-top)) {
   html {
     --safe-area-inset-top: env(safe-area-inset-top);
     --status-bar-height: var(--safe-area-inset-top);
   }
   
-  body::before {
+  /* Élément fixe pour la barre d'état avec stacking context isolé */
+  .status-bar-adaptor::before {
     content: '';
     display: block;
     position: fixed;
@@ -126,11 +127,20 @@
     right: 0;
     height: var(--status-bar-height);
     background-color: var(--status-bar-bg);
+    /* Optimisations de performance */
     z-index: 9999;
+    will-change: background-color;
+    transition: background-color 0.3s ease;
+    /* Éviter les repaints */
+    backface-visibility: hidden;
+    transform: translateZ(0);
   }
   
+  /* Adaptation du padding automatique - placé directement sur l'élément de contenu */
   .status-bar-adaptor {
     padding-top: var(--safe-area-inset-top);
+    /* Force le layout immédiatement sans attendre la fin de l'animation */
+    contain: layout;
   }
 }
 
