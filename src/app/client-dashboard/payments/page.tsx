@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -10,13 +10,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PaginationControls } from "@/components/ui/pagination";
 import { 
   ArrowDown, ArrowUp, CreditCard, ExternalLink, Filter, 
-  History, Loader2, Wallet, Search, CheckCircle, AlertCircle, Clock, X, RefreshCw
+  History, Wallet, Search, CheckCircle, AlertCircle, Clock, X, RefreshCw
 } from "lucide-react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useClientPayments, Payment } from "@/hooks/useClientPayments";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { Loader } from "@/components/ui/loader";
 
 export default function ClientPaymentsPage() {
   const searchParams = useSearchParams();
@@ -196,7 +197,7 @@ export default function ClientPaymentsPage() {
       <div className="container max-w-6xl mx-auto px-4 py-6">
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center">
-            <Loader2 className="h-8 w-8 animate-spin text-vynal-accent-primary mx-auto mb-4" />
+            <Loader size="md" variant="secondary" className="mx-auto mb-4" />
             <p className={`${subtitleClasses} text-sm animate-pulse`}>
               Chargement de vos paiements...
             </p>
@@ -227,11 +228,16 @@ export default function ClientPaymentsPage() {
             disabled={isRefreshing}
           >
             {isRefreshing ? (
-              <Loader2 className="h-3 w-3 animate-spin text-vynal-accent-primary" />
+              <div className="flex items-center">
+                <Loader size="xs" variant="primary" className="mr-2" />
+                Actualisation...
+              </div>
             ) : (
-              <RefreshCw className="h-3 w-3" />
+              <>
+                <RefreshCw className="h-3 w-3 mr-2" />
+                Actualiser
+              </>
             )}
-            <span className="hidden sm:inline">{isRefreshing ? 'Actualisation...' : 'Actualiser'}</span>
           </Button>
         </div>
       </div>
@@ -302,11 +308,16 @@ export default function ClientPaymentsPage() {
               disabled={isRefreshing}
             >
               {isRefreshing ? (
-                <Loader2 className="h-3 w-3 animate-spin text-vynal-accent-primary" />
+                <div className="flex items-center">
+                  <Loader size="xs" variant="primary" className="mr-2" />
+                  Actualisation...
+                </div>
               ) : (
-                <RefreshCw className="h-3 w-3" />
+                <>
+                  <RefreshCw className="h-3 w-3 mr-2" />
+                  Actualiser
+                </>
               )}
-              <span className="hidden sm:inline">{isRefreshing ? 'Actualisation...' : 'Actualiser'}</span>
             </Button>
           </div>
         </CardHeader>

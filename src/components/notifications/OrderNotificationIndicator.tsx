@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback, memo } from "react";
 import { useOrderNotifications } from "./OrderNotificationProvider";
-import { Bell, Package, CheckCircle2, MailOpen, Loader2, MessageSquare } from "lucide-react";
+import { Bell, Package, CheckCircle2, MailOpen, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -12,6 +12,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { usePathname } from 'next/navigation';
 import { useNotificationStore } from "@/lib/stores/useNotificationStore";
 import { FREELANCE_ROUTES, CLIENT_ROUTES } from "@/config/routes";
+import { Loader } from '@/components/ui/loader';
 
 interface Notification {
   id: string;
@@ -136,9 +137,9 @@ export function OrderNotificationIndicator() {
   // Si en chargement, afficher un indicateur de chargement
   if (isLoading) {
     return (
-      <Button variant="ghost" size="icon" className="relative">
-        <Loader2 className="h-[1.2rem] w-[1.2rem] text-vynal-purple-secondary dark:text-vynal-text-secondary animate-spin" />
-      </Button>
+      <div className="flex items-center justify-center py-8">
+        <Loader size="md" variant="secondary" />
+      </div>
     );
   }
 
@@ -202,7 +203,7 @@ export function OrderNotificationIndicator() {
                 >
                   {isProcessing ? (
                     <>
-                      <Loader2 className="h-3 w-3 animate-spin" strokeWidth={2.5} />
+                      <Loader size="xs" variant="primary" className="mr-2" />
                       <span className="truncate">Traitement...</span>
                     </>
                   ) : (

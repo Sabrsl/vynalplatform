@@ -16,6 +16,7 @@ import { NavigationLoadingState } from '@/app/providers';
 import { useUser } from '@/hooks/useUser';
 import { PUBLIC_ROUTES, AUTH_ROUTES, CLIENT_ROUTES, FREELANCE_ROUTES } from '@/config/routes';
 import Image from 'next/image';
+import { Loader } from "@/components/ui/loader";
 
 import { 
   X,
@@ -38,7 +39,12 @@ import {
   Heart,
   Briefcase,
   HelpCircle,
-  Loader2
+  Plus,
+  Moon,
+  Sun,
+  Book,
+  Users,
+  LayoutDashboard
 } from 'lucide-react';
 
 interface NavItemProps {
@@ -191,7 +197,7 @@ const LoadingMenuContent = memo(() => {
   
   return (
     <div className="flex flex-col items-center justify-center flex-1 p-6">
-      <Loader2 className="h-8 w-8 animate-spin text-vynal-accent-primary mb-4" />
+      <Loader size="md" variant="secondary" className="mb-4" aria-hidden="true" />
       <p className={`text-xs ${isDark ? 'text-vynal-text-secondary' : 'text-vynal-purple-dark/70'}`}>
         Chargement de votre espace...
       </p>

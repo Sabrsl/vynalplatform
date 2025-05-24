@@ -1,37 +1,26 @@
 "use client";
 
-import React, { useEffect, useMemo, useState, useCallback, memo } from "react";
+import { ReactNode, useEffect, useMemo, useState, useCallback, memo } from "react";
 import { usePathname } from "next/navigation";
 import dynamic from "next/dynamic";
-import { Loader2 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import usePreventScrollReset from "@/hooks/usePreventScrollReset";
 import { useTheme } from "next-themes";
-import { AnimatePresence, motion } from "framer-motion";
+import { Loader } from "@/components/ui/loader";
+import Header from "./header";
+import Footer from "./footer";
 import PageTransition from "@/components/ui/page-transition";
 
 // Chargement dynamique des composants Header et Footer pour améliorer les performances
-const Header = dynamic(() => import("./header"), {
-  ssr: true
+const HeaderComponent = dynamic(() => import("./header"), {
+  ssr: true,
 });
 
-const Footer = dynamic(() => import("./footer"), {
+const FooterComponent = dynamic(() => import("./footer"), {
   ssr: true,
   loading: () => (
-    <footer className="bg-gray-900 text-white dark:bg-vynal-purple-dark border-t border-gray-800 dark:border-vynal-purple-secondary/30 relative overflow-hidden h-auto">
-      <div className="container mx-auto px-4 py-10 relative z-10 opacity-0">
-        {/* Structure squelette identique pour éviter le saut */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-          <div className="lg:col-span-2"></div>
-          <div></div>
-          <div></div>
-          <div></div>
-        </div>
-        <div className="mt-10 pt-8 border-t border-gray-800 dark:border-vynal-purple-secondary/30">
-          <div className="flex flex-col-reverse md:flex-row justify-between items-center"></div>
-        </div>
-      </div>
-    </footer>
-  )
+    <div className="h-16 bg-white dark:bg-gray-900 animate-pulse" />
+  ),
 });
 
 // Pages avec des mises en page spéciales - déplacé hors du composant pour éviter les recréations
@@ -49,14 +38,14 @@ interface MainLayoutProps {
 // Composant de chargement mémorisé pour éviter des rendus inutiles
 const LoadingSpinner = memo(() => (
   <div className="fixed inset-0 flex items-center justify-center">
-    <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+    <Loader size="md" variant="secondary" />
   </div>
 ));
 
 LoadingSpinner.displayName = "LoadingSpinner";
 
 // Composant d'authentification mémorisé
-const AuthLayout = memo(({ children, pathname }: { children: React.ReactNode, pathname: string | null }) => (
+const AuthLayout = memo(({ children, pathname }: { children: React.ReactNode; pathname: string | null }) => (
   <motion.div 
     className="min-h-screen overflow-hidden bg-gradient-to-br from-indigo-50 to-pink-50 dark:from-slate-900 dark:to-indigo-950"
     initial={{ opacity: 0 }}
@@ -86,21 +75,21 @@ const StandardLayout = memo(({
   children, 
   isFullWidth, 
   shouldHideFooter,
-  shouldHideHeader
+  shouldHideHeader,
 }: { 
-  children: React.ReactNode, 
-  isFullWidth: boolean, 
-  shouldHideFooter: boolean,
-  shouldHideHeader: boolean
+  children: React.ReactNode; 
+  isFullWidth: boolean; 
+  shouldHideFooter: boolean;
+  shouldHideHeader: boolean;
 }) => (
   <div className={`flex flex-col min-h-screen ${
     isFullWidth ? 'max-w-full' : 'max-w-screen-2xl mx-auto'
   }`}>
-    {!shouldHideHeader && <Header />}
+    {!shouldHideHeader && <HeaderComponent />}
     <main className="flex-grow">
       {children}
     </main>
-    {!shouldHideFooter && <Footer />}
+    {!shouldHideFooter && <FooterComponent />}
     <PageTransition />
   </div>
 ));

@@ -40,10 +40,16 @@ import {
   Tag,
   Calendar,
   Send,
-  Loader2,
   X,
   EyeOff,
-  RefreshCw
+  RefreshCw,
+  Check,
+  Dices,
+  ListFilter,
+  Settings,
+  SlidersHorizontal,
+  Star,
+  Trash,
 } from 'lucide-react';
 import {
   Dialog,
@@ -57,6 +63,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { createClient } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase/client';
 import { getCachedData, setCachedData, CACHE_EXPIRY, CACHE_KEYS } from '@/lib/optimizations';
+import { Loader } from "@/components/ui/loader";
 
 // Interface pour les services
 interface Service {

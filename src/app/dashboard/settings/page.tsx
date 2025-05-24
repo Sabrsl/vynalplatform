@@ -14,7 +14,6 @@ import {
   Download, 
   FileDown, 
   FileText, 
-  Loader2, 
   LockKeyhole, 
   LogOut, 
   Rocket, 
@@ -51,6 +50,9 @@ import {
   Save,
   Upload,
   Crown,
+  Moon,
+  Sun,
+  RefreshCw,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { useUser } from "@/hooks/useUser";

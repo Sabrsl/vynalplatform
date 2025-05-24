@@ -11,8 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { 
-  UserCircle, 
-  Loader2, 
+  UserCircle,  
   Upload, 
   Mail, 
   Check, 
@@ -22,13 +21,32 @@ import {
   Shield,
   Info,
   Phone,
-  Share2
+  Share2,
+  User,
+  MapPin,
+  Link2,
+  Twitter,
+  Briefcase,
+  Heart,
+  Clock,
+  MessageSquare,
+  MoreHorizontal,
+  BadgeCheck,
+  AlertTriangle,
+  Settings,
+  Edit3,
+  CircleAlert,
+  Flag,
+  CalendarCheck,
+  ChevronRight,
+  ImageIcon
 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { ProfileQRShare } from "@/components/profile/ProfileQRShare";
 import Image from "next/image";
 import { ProfilePageSkeleton } from "@/components/skeletons/ProfilePageSkeleton";
 import { CertificationBadge } from "@/components/ui/certification-badge";
+import { Loader } from "@/components/ui/loader";
 
 // Composant pour les messages d'alerte
 const AlertMessage = memo(({ 
@@ -96,7 +114,7 @@ const ProfileAvatar = memo(({
           className="bg-vynal-accent-primary dark:bg-vynal-accent-primary p-2 rounded-full cursor-pointer text-white hover:bg-vynal-accent-secondary dark:hover:bg-vynal-accent-secondary transition-colors shadow-sm"
         >
           {uploading ? (
-            <Loader2 size={16} className="animate-spin" />
+            <Loader size="sm" variant="secondary" />
           ) : (
             <Upload size={16} />
           )}
@@ -382,12 +400,15 @@ const ProfileEditForm = memo(({
             className="bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-white"
           >
             {saving ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <div className="flex items-center">
+                <Loader size="xs" variant="primary" className="mr-2" />
                 Enregistrement...
-              </>
+              </div>
             ) : (
-              "Enregistrer les modifications"
+              <>
+                <Check className="h-4 w-4 mr-2" />
+                Enregistrer
+              </>
             )}
           </Button>
         </div>

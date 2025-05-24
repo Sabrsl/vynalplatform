@@ -15,7 +15,6 @@ import {
   CreditCard,
   HelpCircle,
   BookOpen,
-  Loader
 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -33,6 +32,7 @@ import {
   invalidateAllClientCache 
 } from "@/lib/optimizations/client-cache";
 import Image from "next/image";
+import { Loader as CustomLoader } from "@/components/ui/loader";
 
 interface NavItemProps {
   href: string;
@@ -229,15 +229,7 @@ export default function ClientDashboardLayout({
   if (loading || profileLoading || !isInitialized) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-vynal-purple-dark">
-        <div className="flex flex-col items-center gap-4">
-          <div className="bg-gradient-to-br from-vynal-accent-primary to-vynal-accent-secondary h-8 w-8 rounded-lg flex items-center justify-center shadow-md">
-            <span className="text-white font-bold text-sm">C</span>
-          </div>
-          <Loader className="h-8 w-8 animate-spin text-vynal-accent-primary" />
-          <p className="text-sm text-vynal-purple-secondary dark:text-vynal-text-secondary">
-            Chargement du tableau de bord...
-          </p>
-        </div>
+        <CustomLoader size="lg" variant="primary" />
       </div>
     );
   }

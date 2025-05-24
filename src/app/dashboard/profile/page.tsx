@@ -12,8 +12,6 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { 
   UserCircle, 
-  Loader2, 
-  Upload, 
   Mail, 
   Check, 
   AlertCircle, 
@@ -22,13 +20,15 @@ import {
   Shield,
   Info,
   Phone,
-  Share2
+  Share2,
+  Upload
 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { ProfileQRShare } from "@/components/profile/ProfileQRShare";
 import Image from "next/image";
 import { ProfilePageSkeleton } from "@/components/skeletons/ProfilePageSkeleton";
 import { CertificationBadge } from "@/components/ui/certification-badge";
+import { Loader } from '@/components/ui/loader';
 
 export default function ProfilePage() {
   const { user } = useAuth();
@@ -311,7 +311,7 @@ export default function ProfilePage() {
                     className="bg-vynal-accent-primary dark:bg-vynal-accent-primary p-2 rounded-full cursor-pointer text-white hover:bg-vynal-accent-secondary dark:hover:bg-vynal-accent-secondary transition-colors shadow-sm"
               >
                     {uploading ? (
-                      <Loader2 size={16} className="animate-spin" />
+                      <Loader size="md" variant="secondary" />
                     ) : (
                 <Upload size={16} />
                     )}
@@ -527,10 +527,10 @@ export default function ProfilePage() {
                     className="bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-white"
                   >
                   {saving ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <div className="flex items-center">
+                      <Loader size="xs" variant="primary" className="mr-2" />
                       Enregistrement...
-                    </>
+                    </div>
                   ) : (
                     "Enregistrer les modifications"
                   )}

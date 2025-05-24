@@ -73,9 +73,9 @@ const CATEGORY_ORDER = [
 
 // Statistiques pour la page
 const STATS_DATA = {
-  freelancersCount: '50+',
-  clientsCount: '100+',
-  totalPayments: '5M+ FCFA'
+  freelancersCount: '20+',
+  clientsCount: '50+',
+  totalPayments: '2M+ FCFA'
 };
 
 // Adaptation pour le type ServiceWithFreelanceAndCategories
