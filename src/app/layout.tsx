@@ -31,10 +31,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
-    { media: '(prefers-color-scheme: dark)', color: '#100422' }
-  ], // Retour à l'adaptation automatique
+  themeColor: '#FF66B2', // Rose fixe pour tous les modes
 };
 
 export const metadata: Metadata = {
@@ -147,80 +144,17 @@ export default function RootLayout({
         <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
         <link rel="icon" type="image/png" sizes="192x192" href="/favicon/favicon-192x192.png" />
         
-        {/* Configuration adaptative selon le mode */}
+        {/* Configuration simple avec couleur rose fixe */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="msapplication-navbutton-color" content="#100422" />
+        <meta name="msapplication-navbutton-color" content="#FF66B2" />
         
-        {/* Pas de color-scheme fixe */}
-        <meta name="theme-color" content="#ffffff" />
+        {/* Couleur rose fixe avec fallbacks */}
+        <meta name="theme-color" content="#FF66B2" />
+        <meta name="theme-color" content="#FF66B2" media="(prefers-color-scheme: light)" />
+        <meta name="theme-color" content="#FF66B2" media="(prefers-color-scheme: dark)" />
         
-        {/* Script adaptatif optimisé */}
-        <script dangerouslySetInnerHTML={{
-          __html: `
-            (function() {
-              let lastColor = '';
-              
-              const updateStatusBarColor = () => {
-                // Détecte le mode actuel
-                const isDark = document.documentElement.classList.contains('dark');
-                const targetColor = isDark ? '#100422' : '#ffffff';
-                
-                // Skip si déjà la bonne couleur
-                if (lastColor === targetColor) return;
-                
-                const meta = document.querySelector('meta[name="theme-color"]:not([media])') || 
-                           document.createElement('meta');
-                
-                if (!meta.parentNode) {
-                  meta.name = 'theme-color';
-                  document.head.appendChild(meta);
-                }
-                
-                meta.content = targetColor;
-                lastColor = targetColor;
-              };
-              
-              // Exécution immédiate
-              updateStatusBarColor();
-              
-              // Observer les changements de classe dark
-              if (typeof MutationObserver !== 'undefined') {
-                const observer = new MutationObserver(updateStatusBarColor);
-                observer.observe(document.documentElement, { 
-                  attributes: true, 
-                  attributeFilter: ['class'] 
-                });
-              }
-              
-              // Timer de sécurité seulement si nécessaire
-              let checkInterval = setInterval(() => {
-                const currentMeta = document.querySelector('meta[name="theme-color"]:not([media])');
-                const isDark = document.documentElement.classList.contains('dark');
-                const expectedColor = isDark ? '#100422' : '#ffffff';
-                
-                if (!currentMeta || currentMeta.content !== expectedColor) {
-                  updateStatusBarColor();
-                } else {
-                  // Si stable, réduit la fréquence
-                  clearInterval(checkInterval);
-                  checkInterval = setInterval(() => {
-                    const meta = document.querySelector('meta[name="theme-color"]:not([media])');
-                    const dark = document.documentElement.classList.contains('dark');
-                    const expected = dark ? '#100422' : '#ffffff';
-                    if (!meta || meta.content !== expected) {
-                      updateStatusBarColor();
-                    }
-                  }, 2000); // Vérifie moins souvent
-                }
-              }, 500);
-              
-              // Events pour changements d'app
-              window.addEventListener('focus', updateStatusBarColor, { passive: true });
-              window.addEventListener('pageshow', updateStatusBarColor, { passive: true });
-            })();
-          `
-        }} />
+
         
         {/* Préchargement des ressources critiques */}
         <link rel="preload" href="/js/lcp-optimizer.js" as="script" />
