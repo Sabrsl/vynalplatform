@@ -8,4 +8,4 @@ Sitemap: https://vynalplatform.com/sitemap.xml
 # Exclude admin and private sections
 Disallow: /dashboard/
 Disallow: /admin/
-Disallow: /api/ 
+Disallow: /api/

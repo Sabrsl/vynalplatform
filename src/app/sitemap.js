@@ -5,25 +5,68 @@ export const dynamic = 'force-dynamic';
 
 export default async function sitemap() {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://vynalplatform.com';
+  const currentDate = new Date();
   
-  // Routes statiques
-  const staticRoutes = [
-    '',
-    '/services',
+  // Routes principales - contenu dynamique
+  const mainRoutes = [
+    {
+      url: `${baseUrl}`,
+      lastModified: currentDate,
+      changeFrequency: 'daily',
+      priority: 1.0
+    },
+    {
+      url: `${baseUrl}/services`,
+      lastModified: currentDate,
+      changeFrequency: 'daily',
+      priority: 0.9
+    },
+    {
+      url: `${baseUrl}/freelances-africains`,
+      lastModified: currentDate,
+      changeFrequency: 'weekly',
+      priority: 0.9
+    }
+  ];
+
+  // Routes informatives - mises à jour mensuelles
+  const infoRoutes = [
     '/about',
     '/how-it-works',
-    '/faq',
-    '/contact',
-    '/privacy-policy',
-    '/terms-of-service',
-    '/code-of-conduct',
-    '/devenir-freelance',
-    '/freelances-africains',
+    '/devenir-freelance'
   ].map(route => ({
     url: `${baseUrl}${route}`,
-    lastModified: new Date(),
-    changeFrequency: 'weekly',
-    priority: route === '' ? 1.0 : route === '/freelances-africains' ? 0.9 : 0.8
+    lastModified: currentDate,
+    changeFrequency: 'monthly',
+    priority: 0.8
+  }));
+
+  // Routes support - mises à jour moins fréquentes
+  const supportRoutes = [
+    {
+      url: `${baseUrl}/faq`,
+      lastModified: currentDate,
+      changeFrequency: 'monthly',
+      priority: 0.7
+    },
+    {
+      url: `${baseUrl}/contact`,
+      lastModified: currentDate,
+      changeFrequency: 'monthly',
+      priority: 0.6
+    }
+  ];
+
+  // Pages légales - rarement modifiées
+  const legalRoutes = [
+    '/privacy-policy',
+    '/terms-of-service',
+    '/code-of-conduct'
+  ].map(route => ({
+    url: `${baseUrl}${route}`,
+    lastModified: currentDate,
+    changeFrequency: 'yearly',
+    priority: 0.3
   }));
 
   // Récupérer les services dynamiques pour le sitemap
@@ -38,7 +81,14 @@ export default async function sitemap() {
     }));
   } catch (error) {
     console.error('Erreur lors de la récupération des services pour le sitemap:', error);
+    // En cas d'erreur, on continue avec un sitemap partiel
   }
   
-  return [...staticRoutes, ...serviceRoutes];
-} 
+  return [
+    ...mainRoutes,
+    ...infoRoutes, 
+    ...supportRoutes,
+    ...legalRoutes,
+    ...serviceRoutes
+  ];
+}
