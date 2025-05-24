@@ -31,7 +31,10 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1, // Désactiver le zoom
   userScalable: false, // Empêcher le zoom utilisateur
-  themeColor: '#1a1a2e', // Définir la couleur du thème pour les navigateurs mobiles
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
+    { media: '(prefers-color-scheme: dark)', color: '#100422' }
+  ], // Définir les couleurs du thème pour les navigateurs mobiles selon le mode
 };
 
 export const metadata: Metadata = {
@@ -127,6 +130,9 @@ export default function RootLayout({
         {/* Configuration du favicon pour IE/Edge */}
         <meta name="msapplication-config" content="/favicon/browserconfig.xml" />
         
+        {/* Gestion des safe-area-inset pour les appareils mobiles */}
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+        
         {/* Préchargement des ressources critiques */}
         <link rel="preload" href="/js/lcp-optimizer.js" as="script" />
         <link rel="preload" href="/css/performance-optimizations.css" as="style" />
@@ -182,7 +188,7 @@ export default function RootLayout({
           `}
         </Script>
       </head>
-      <body className={`${poppins.variable} font-poppins transition-colors duration-300`}>
+      <body className={`${poppins.variable} font-poppins transition-colors duration-300 status-bar-adaptor`}>
         <Providers>
           <ScrollRestoration />
           <Suspense fallback={<Loading />}>

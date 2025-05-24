@@ -53,6 +53,9 @@
     --vynal-btn-primary-bg: #FF66B2;
     --vynal-btn-primary-hover: #FF007F;
     --vynal-btn-primary-text: #2C1A4C;
+    
+    /* Variable pour la barre d'état */
+    --status-bar-bg: #ffffff;
   }
  
   .dark {
@@ -101,9 +104,36 @@
     --vynal-accent-primary: #FF66B2;
     --vynal-accent-secondary: #FF007F;
     --vynal-border: #2A0C57;
+    
+    /* Variable pour la barre d'état */
+    --status-bar-bg: #100422;
   }
 }
- 
+
+/* Style pour la barre d'état mobile */
+@supports (padding-top: env(safe-area-inset-top)) {
+  html {
+    --safe-area-inset-top: env(safe-area-inset-top);
+    --status-bar-height: var(--safe-area-inset-top);
+  }
+  
+  body::before {
+    content: '';
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--status-bar-height);
+    background-color: var(--status-bar-bg);
+    z-index: 9999;
+  }
+  
+  .status-bar-adaptor {
+    padding-top: var(--safe-area-inset-top);
+  }
+}
+
 @layer base {
   * {
     border-color: hsl(var(--border));
