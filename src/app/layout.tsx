@@ -147,36 +147,60 @@ export default function RootLayout({
         <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
         <link rel="icon" type="image/png" sizes="192x192" href="/favicon/favicon-192x192.png" />
         
-        {/* Configuration simple pour la barre de statut */}
+        {/* Script immédiat AVANT tout le reste pour éviter le flash */}
+        <script dangerouslySetInnerHTML={{
+          __html: `
+            (function() {
+              // Détection immédiate sans attendre le DOM
+              const isDark = localStorage.getItem('theme') === 'dark' || 
+                            (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
+              
+              if (isDark) {
+                document.documentElement.classList.add('dark');
+              }
+              
+              // Force la couleur IMMÉDIATEMENT
+              const meta = document.createElement('meta');
+              meta.name = 'theme-color';
+              meta.content = isDark ? '#100422' : '#ffffff';
+              document.head.appendChild(meta);
+            })();
+          `
+        }} />
+        
+        {/* Configuration statique en backup */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="msapplication-navbutton-color" content="#100422" />
         
-        {/* Couleurs simples : blanc en light, violet en dark */}
+        {/* Fallbacks pour navigateurs sans JS */}
         <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
         <meta name="theme-color" content="#100422" media="(prefers-color-scheme: dark)" />
-        <meta name="theme-color" content="#ffffff" /> {/* Fallback par défaut */}
         
-        {/* Script simple pour mise à jour dynamique */}
+        {/* Script de surveillance pour les changements après chargement */}
         <script dangerouslySetInnerHTML={{
           __html: `
-            (function() {
+            document.addEventListener('DOMContentLoaded', function() {
               const updateStatusBar = () => {
                 const isDark = document.documentElement.classList.contains('dark');
                 const color = isDark ? '#100422' : '#ffffff';
                 
+                // Met à jour le meta existant au lieu d'en créer un nouveau
                 let meta = document.querySelector('meta[name="theme-color"]:not([media])');
-                if (!meta) {
+                if (meta) {
+                  meta.content = color;
+                } else {
                   meta = document.createElement('meta');
                   meta.name = 'theme-color';
+                  meta.content = color;
                   document.head.appendChild(meta);
                 }
-                meta.content = color;
+                
+                // Sauvegarde dans localStorage pour la prochaine visite
+                localStorage.setItem('theme', isDark ? 'dark' : 'light');
               };
               
-              updateStatusBar();
-              
-              // Surveille les changements de classe dark
+              // Observer les changements de classe
               if (typeof MutationObserver !== 'undefined') {
                 const observer = new MutationObserver(updateStatusBar);
                 observer.observe(document.documentElement, { 
@@ -184,7 +208,10 @@ export default function RootLayout({
                   attributeFilter: ['class'] 
                 });
               }
-            })();
+              
+              // Double vérification après un court délai
+              setTimeout(updateStatusBar, 100);
+            });
           `
         }} />
         
