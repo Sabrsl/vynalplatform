@@ -29,12 +29,9 @@ function Loading() {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1, // Désactiver le zoom
-  userScalable: false, // Empêcher le zoom utilisateur
-  themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
-    { media: '(prefers-color-scheme: dark)', color: '#100422' }
-  ], // S'adapte automatiquement au mode
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: '#100422', // Couleur fixe, pas de conditions
 };
 
 export const metadata: Metadata = {
@@ -147,71 +144,71 @@ export default function RootLayout({
         <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
         <link rel="icon" type="image/png" sizes="192x192" href="/favicon/favicon-192x192.png" />
         
-        {/* Script immédiat AVANT tout le reste pour éviter le flash */}
+        {/* Forcer les couleurs sans laisser le système décider */}
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+        <meta name="msapplication-navbutton-color" content="#100422" />
+        
+        {/* Suppression des media queries pour éviter l'interférence système */}
+        <meta name="theme-color" content="#100422" />
+        <meta name="color-scheme" content="dark" />
+        
+        {/* Script optimisé pour les performances */}
         <script dangerouslySetInnerHTML={{
           __html: `
             (function() {
-              // Détection immédiate sans attendre le DOM
-              const isDark = localStorage.getItem('theme') === 'dark' || 
-                            (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
+              let lastColor = '';
               
-              if (isDark) {
-                document.documentElement.classList.add('dark');
-              }
-              
-              // Force la couleur IMMÉDIATEMENT
-              const meta = document.createElement('meta');
-              meta.name = 'theme-color';
-              meta.content = isDark ? '#100422' : '#ffffff';
-              document.head.appendChild(meta);
-            })();
-          `
-        }} />
-        
-        {/* Configuration statique en backup */}
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="msapplication-navbutton-color" content="#100422" />
-        
-        {/* Fallbacks pour navigateurs sans JS */}
-        <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
-        <meta name="theme-color" content="#100422" media="(prefers-color-scheme: dark)" />
-        
-        {/* Script de surveillance pour les changements après chargement */}
-        <script dangerouslySetInnerHTML={{
-          __html: `
-            document.addEventListener('DOMContentLoaded', function() {
-              const updateStatusBar = () => {
-                const isDark = document.documentElement.classList.contains('dark');
-                const color = isDark ? '#100422' : '#ffffff';
+              const forceVioletStatusBar = () => {
+                const targetColor = '#100422';
                 
-                // Met à jour le meta existant au lieu d'en créer un nouveau
-                let meta = document.querySelector('meta[name="theme-color"]:not([media])');
-                if (meta) {
-                  meta.content = color;
-                } else {
-                  meta = document.createElement('meta');
+                // Skip si déjà la bonne couleur
+                if (lastColor === targetColor) return;
+                
+                const meta = document.querySelector('meta[name="theme-color"]:not([media])') || 
+                           document.createElement('meta');
+                
+                if (!meta.parentNode) {
                   meta.name = 'theme-color';
-                  meta.content = color;
                   document.head.appendChild(meta);
                 }
                 
-                // Sauvegarde dans localStorage pour la prochaine visite
-                localStorage.setItem('theme', isDark ? 'dark' : 'light');
+                meta.content = targetColor;
+                lastColor = targetColor;
               };
               
-              // Observer les changements de classe
-              if (typeof MutationObserver !== 'undefined') {
-                const observer = new MutationObserver(updateStatusBar);
-                observer.observe(document.documentElement, { 
-                  attributes: true, 
-                  attributeFilter: ['class'] 
-                });
-              }
+              // Exécution immédiate
+              forceVioletStatusBar();
               
-              // Double vérification après un court délai
-              setTimeout(updateStatusBar, 100);
-            });
+              // Timer optimisé - seulement si nécessaire
+              let intervalId = setInterval(() => {
+                const currentMeta = document.querySelector('meta[name="theme-color"]:not([media])');
+                if (!currentMeta || currentMeta.content !== '#100422') {
+                  forceVioletStatusBar();
+                } else {
+                  // Si stable pendant 5s, arrête le timer
+                  clearInterval(intervalId);
+                  intervalId = null;
+                }
+              }, 1000);
+              
+              // Re-démarre le timer seulement si changements détectés
+              const restartTimer = () => {
+                if (!intervalId) {
+                  intervalId = setInterval(() => {
+                    const currentMeta = document.querySelector('meta[name="theme-color"]:not([media])');
+                    if (!currentMeta || currentMeta.content !== '#100422') {
+                      forceVioletStatusBar();
+                    }
+                  }, 1000);
+                }
+                forceVioletStatusBar();
+              };
+              
+              // Events légers
+              window.addEventListener('focus', restartTimer, { passive: true });
+              window.addEventListener('pageshow', restartTimer, { passive: true });
+            })();
           `
         }} />
         
