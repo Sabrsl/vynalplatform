@@ -196,6 +196,7 @@ const FreelanceAvatar = memo(({
         {profile?.is_certified && profile?.certification_type && (
           <CertificationBadge 
             type={profile.certification_type as 'standard' | 'premium' | 'expert'} 
+            size="xs"
           />
         )}
       </div>

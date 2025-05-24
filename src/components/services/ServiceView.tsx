@@ -5,6 +5,7 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useTheme } from "next-themes";
 import { useToast } from "@/components/ui/use-toast";
+import Image from "next/image";
 
 // Composants UI - import seulement ceux nécessaires
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CertificationBadge } from "@/components/ui/certification-badge";
+import EnhancedAvatar from "@/components/ui/enhanced-avatar";
 
 // Composants métier
 import ServiceCard from "@/components/services/ServiceCard";
@@ -422,7 +424,7 @@ const ServiceInfo = React.memo(({
   
   return (
   <div className={cn(
-    "flex flex-wrap gap-3 mb-5 py-3 px-3 rounded-lg border text-xs relative",
+    "flex flex-wrap gap-3 mb-4 py-3 px-1 rounded-lg border text-xs relative",
     isDarkMode 
       ? "bg-vynal-purple-darkest/30 border-vynal-purple-mid/20" 
       : "bg-gray-50 border-gray-200"
@@ -598,8 +600,8 @@ ServiceInfo.displayName = 'ServiceInfo';
  * Composant de garanties de service
  */
 const ServiceGuarantees = React.memo(({ deliveryTime }: { deliveryTime: number }) => (
-  <div className="pt-3 lg:pt-2">
-    <ul className="space-y-2.5 lg:space-y-2 mt-2">
+  <div className="pt-2 md:pt-2 lg:pt-2">
+    <ul className="space-y-2 md:space-y-2 lg:space-y-1 mt-1">
       <li className="flex items-center">
         <div className="w-4 flex justify-center">
           <Clock className="h-3 w-3 flex-shrink-0 icon-vynal" aria-hidden="true" />
@@ -629,6 +631,112 @@ const ServiceGuarantees = React.memo(({ deliveryTime }: { deliveryTime: number }
   </div>
 ));
 ServiceGuarantees.displayName = 'ServiceGuarantees';
+
+// Composant pour le badge d'information du freelance
+const FreelanceInfoBadge = React.memo(({ 
+  freelance, 
+  averageRating, 
+  reviewCount,
+  isDarkMode,
+  onViewProfile
+}: { 
+  freelance: any, 
+  averageRating: number,
+  reviewCount: number,
+  isDarkMode: boolean,
+  onViewProfile: () => void
+}) => {
+  if (!freelance) return null;
+
+  const initials = (() => {
+    try {
+      const nameSource = freelance.full_name || freelance.username || 'UN';
+      return nameSource
+        .split(' ')
+        .map((n: string) => n[0])
+        .join('')
+        .toUpperCase()
+        .substring(0, 2);
+    } catch {
+      return "UN";
+    }
+  })();
+
+  return (
+    <div className={cn(
+      "flex items-center justify-between p-3 mt-2 mb-4 rounded-lg border shadow-sm",
+      isDarkMode 
+        ? "bg-vynal-purple-darkest/30 border-vynal-purple-secondary/30 hover:bg-vynal-purple-darkest/40 transition-colors" 
+        : "bg-white border-gray-200/70 hover:border-gray-300/80 transition-colors"
+    )}>
+      <div className="flex items-center gap-3">
+        <EnhancedAvatar 
+          src={freelance.avatar_url} 
+          alt={freelance.username || freelance.full_name || 'Vendeur'}
+          fallback={initials}
+          className={cn(
+            "h-10 w-10 border",
+            isDarkMode 
+              ? "border-vynal-purple-secondary/40"
+              : "border-gray-200"
+          )}
+          fallbackClassName={cn(
+            "text-xs",
+            isDarkMode ? "bg-vynal-accent-primary text-vynal-purple-dark" : "bg-[#FF66B2] text-[#2C1A4C]"
+          )}
+        />
+        <div className="flex flex-col">
+          <div className="flex items-center gap-1.5">
+            <h3 className="text-sm font-medium truncate text-vynal-title">
+              {freelance.full_name || freelance.username || 'Vendeur'}
+            </h3>
+            {freelance.is_certified && freelance.certification_type && (
+              <CertificationBadge 
+                type={freelance.certification_type as 'standard' | 'premium' | 'expert'} 
+                size="sm"
+              />
+            )}
+          </div>
+          <div className="flex items-center mt-0.5">
+            <div className="flex space-x-0.5">
+              {Array.from({ length: 5 }).map((_, index) => (
+                <Star 
+                  key={index}
+                  className={cn(
+                    "h-3 w-3",
+                    index < Math.floor(averageRating)
+                      ? isDarkMode ? "text-vynal-accent-primary fill-vynal-accent-primary" : "text-[#A020F0] fill-[#A020F0]"
+                      : isDarkMode ? "text-vynal-purple-secondary/40 fill-vynal-purple-secondary/40" : "text-[#A020F0]/30 fill-[#A020F0]/30"
+                  )} 
+                />
+              ))}
+            </div>
+            <span className="text-[10px] ml-1.5 font-medium text-vynal-body">
+              {averageRating > 0 
+                ? `${averageRating.toFixed(1)} (${reviewCount})` 
+                : "Nouveau vendeur"}
+            </span>
+          </div>
+        </div>
+      </div>
+      <Button 
+        variant="ghost" 
+        size="sm" 
+        onClick={onViewProfile}
+        className={cn(
+          "h-8 px-2.5 text-[10px]",
+          isDarkMode 
+            ? "text-vynal-accent-primary hover:bg-vynal-purple-secondary/20" 
+            : "text-[#A020F0] hover:bg-purple-50/50"
+        )}
+      >
+        <User className="h-3 w-3 mr-1.5 flex-shrink-0" aria-hidden="true" />
+        Voir profil
+      </Button>
+    </div>
+  );
+});
+FreelanceInfoBadge.displayName = 'FreelanceInfoBadge';
 
 /**
  * Composant de vue détaillée d'un service - optimisé pour performances
@@ -705,7 +813,13 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
         ? service.active === 'true' 
         : Boolean(service.active),
       status: service.status || 'pending',
-      freelance: service.profiles || {
+      freelance: service.profiles ? {
+        ...service.profiles,
+        // Vérification supplémentaire pour s'assurer que l'avatar_url est une chaîne valide
+        avatar_url: service.profiles?.avatar_url && typeof service.profiles.avatar_url === 'string' && service.profiles.avatar_url.trim() !== '' 
+          ? service.profiles.avatar_url 
+          : null
+      } : {
         id: '',
         username: 'utilisateur',
         full_name: 'Utilisateur',
@@ -731,7 +845,7 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
       const nameSource = serviceMeta.freelance.full_name || serviceMeta.freelance.username || 'UN';
       return nameSource
         .split(' ')
-        .map(n => n[0])
+        .map((n: string) => n[0])
         .join('')
         .toUpperCase()
         .substring(0, 2);
@@ -816,60 +930,13 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
     
     return relatedServices
       .filter(rs => rs && rs.id && rs.id !== serviceMeta.id)
-      .slice(0, 3);
+      .slice(0, 4); // Augmenté à 4 services
   }, [relatedServices, serviceMeta?.id]);
   
   // Formattage du prix pour éviter les recalculs
   const formattedPrice = useMemo(() => 
     formatPrice(serviceMeta?.price || 0), 
   [serviceMeta?.price]);
-  
-  // Création de la liste d'étoiles de notation une seule fois
-  const ratingStars = useMemo(() => {
-    if (!averageRating) return null;
-    
-    return (
-      <div className="flex space-x-0.5">
-        {Array.from({ length: 5 }).map((_, index) => {
-          const star = index + 1;
-          const isFilled = star <= Math.floor(averageRating);
-          const isPartiallyFilled = !isFilled && star === Math.ceil(averageRating);
-          const fillPercentage = isPartiallyFilled 
-            ? Math.round((averageRating % 1) * 100) 
-            : 0;
-          
-          return (
-            <div key={star} className="relative">
-              {/* Étoile de fond */}
-              <Star className={cn(
-                "h-3.5 w-3.5",
-                isDarkMode 
-                  ? "text-vynal-purple-secondary/40 fill-vynal-purple-secondary/40" 
-                  : "text-[#A020F0]/30 fill-[#A020F0]/30"
-              )} />
-              
-              {/* Étoile colorée (complète ou partielle) */}
-              {(isFilled || isPartiallyFilled) && (
-                <div 
-                  className="absolute inset-0 overflow-hidden" 
-                  style={{ 
-                    width: isFilled ? '100%' : `${fillPercentage}%` 
-                  }}
-                >
-                  <Star className={cn(
-                    "h-3.5 w-3.5",
-                    isDarkMode 
-                      ? "text-vynal-accent-primary fill-vynal-accent-primary"
-                      : "text-[#A020F0] fill-[#A020F0]"
-                  )} />
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    );
-  }, [averageRating, isDarkMode]);
   
   // === Handlers d'événements ===
   // Toggle favoris
@@ -975,7 +1042,7 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
         </div>
       )}
       
-      <div className="container mx-auto px-3 sm:px-4 lg:px-6 relative">
+      <div className="container mx-auto px-3 sm:px-4 lg:px-3 relative">
         {/* Fil d'Ariane - version publique - temporairement masqué */}
         {/* Pour réactiver, supprimez simplement ce commentaire et décommentez le bloc ci-dessous
         {!isFreelanceView && serviceMeta?.category && (
@@ -1042,11 +1109,11 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-6 lg:gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-5 lg:gap-6">
           {/* Partie gauche: informations principales du service */}
           <div className="md:col-span-2">
             {/* Galerie d'images du service */}
-            <div className="mb-6 md:mb-7 lg:mb-8">
+            <div className="mb-3 md:mb-3">
               {serviceMeta.hasImages ? (
                 <ServiceImageGallery
                   images={serviceMeta.images}
@@ -1064,11 +1131,22 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
               )}
             </div>
 
+            {/* Information vendeur simplifiée */}
+            {serviceMeta.freelance && (
+              <FreelanceInfoBadge 
+                freelance={serviceMeta.freelance} 
+                averageRating={averageRating}
+                reviewCount={reviewCount}
+                isDarkMode={isDarkMode}
+                onViewProfile={handleViewProfile}
+              />
+            )}
+
             <Card className={cn(
               "card-vynal",
               isDarkMode ? "dark" : "light"
             )}>
-              <CardContent className="p-4 sm:p-5 lg:p-6">
+              <CardContent className="p-4 sm:p-4 lg:p-5">
                 {/* Statut du service - visible uniquement en mode admin */}
                 {isFreelanceView && serviceMeta.active !== undefined && (
                   <div className="mb-4 flex justify-between items-center">
@@ -1085,7 +1163,7 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                 )}
 
                 {/* Titre du service */}
-                <div className="mb-4 sm:mb-5">
+                <div className="mb-3 sm:mb-3">
                   <h1 
                     className={cn(
                       "text-xl sm:text-2xl font-bold break-words",
@@ -1111,7 +1189,7 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                 />
                 
                 {/* Description du service */}
-                <div className="mb-3 md:mb-4">
+                <div className="mb-3 md:mb-3">
                   <h2 className="text-base font-semibold mb-2 text-vynal-title">Description</h2>
                   <div className={cn(
                     "rounded-lg py-3 px-0",
@@ -1128,7 +1206,7 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
           
           {/* Partie droite: prix, actions, et info freelance */}
           <div className="md:col-span-1">
-            <div className="md:sticky md:top-4 space-y-5 md:space-y-6">
+            <div className="md:sticky md:top-4 space-y-4 md:space-y-4">
               {/* Carte de prix et actions */}
               <Card className={cn(
                 "card-vynal mt-5 md:mt-0", 
@@ -1152,8 +1230,8 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                   )}>Prix final, sans frais supplémentaires</p>
                 </div>
                 
-                <CardContent className="p-5 lg:p-4">
-                  <div className="space-y-4 mb-5">
+                <CardContent className="p-4 lg:p-4">
+                  <div className="space-y-3 mb-4 md:mb-4 lg:mb-4">
                     <OrderButton
                       serviceId={serviceMeta.id}
                       price={Number(serviceMeta.price)}
@@ -1185,7 +1263,33 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                   </div>
                   
                   {/* Garanties du service */}
-                  <ServiceGuarantees deliveryTime={serviceMeta.delivery_time} />
+                  <div className="mt-12 md:mt-4 lg:mt-4">
+                    <ServiceGuarantees deliveryTime={serviceMeta.delivery_time} />
+                  </div>
+
+                  {serviceMeta.freelance && serviceMeta.freelance.id && (
+                    <div className="mt-4 pt-4 pb-2 mb-6 sm:mb-0 border-t border-gray-200 dark:border-vynal-purple-secondary/30">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        className={cn(
+                          "w-full text-xs",
+                          isDarkMode 
+                            ? "text-vynal-text-secondary hover:text-vynal-text-primary hover:bg-vynal-purple-secondary/20"
+                            : "text-[#2C1A4C] hover:text-[#2C1A4C] hover:bg-[#FF66B2]/10"
+                        )}
+                        onClick={() => {
+                          const url = user?.profile?.id === serviceMeta.freelance.id
+                            ? FREELANCE_ROUTES.SERVICES
+                            : `/services?freelancer=${serviceMeta.freelance.id}`;
+                          router.push(url);
+                        }}
+                      >
+                        <Package2 className="h-3.5 w-3.5 mr-1.5 icon-vynal" aria-hidden="true" />
+                        Voir tous les services
+                      </Button>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
               
@@ -1221,171 +1325,6 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                   )}
                 </div>
               </div>
-              
-              {/* Informations sur le freelance */}
-              <Card className={cn(
-                "card-vynal", 
-                isDarkMode ? "dark" : "light"
-              )}>
-                <div className={cn(
-                  "p-5 lg:p-4",
-                  isDarkMode 
-                    ? "" 
-                    : "bg-gradient-to-r from-gray-50 to-white"
-                )}>
-                  <h3 className="font-semibold mb-2 text-vynal-title">À propos du vendeur</h3>
-                </div>
-                
-                <CardContent className="p-5 lg:p-4">
-                  {/* Vérifier la présence des données du freelance */}
-                  {serviceMeta.freelance && (
-                    <>
-                      <div className="flex items-center mb-3">
-                        <Avatar className={cn(
-                          "h-12 w-12 sm:h-14 sm:w-14 lg:h-12 lg:w-12 mr-3 border",
-                          isDarkMode 
-                            ? "border-vynal-purple-secondary/40"
-                            : "border-gray-200"
-                        )}>
-                          <AvatarImage 
-                            src={serviceMeta.freelance.avatar_url || undefined} 
-                            alt={serviceMeta.freelance.username || 'Avatar du vendeur'} 
-                            className="object-cover"
-                          />
-                          <AvatarFallback className={cn(
-                            "text-sm",
-                            isDarkMode ? "bg-vynal-accent-primary text-vynal-purple-dark" : "bg-[#FF66B2] text-[#2C1A4C]"
-                          )}>
-                            {freelanceInitials}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="overflow-hidden">
-                          <h3 className="text-sm sm:text-base truncate font-normal text-vynal-title">
-                            {serviceMeta.freelance.full_name || serviceMeta.freelance.username || 'Vendeur'}
-                          </h3>
-                          <div className="flex items-center">
-                            <p className="text-xs truncate text-vynal-body">
-                              @{serviceMeta.freelance.username || 'username'}
-                            </p>
-                            
-                            {/* Badge de certification */}
-                            {serviceMeta.freelance.is_certified && serviceMeta.freelance.certification_type && (
-                              <div className="ml-2">
-                                <CertificationBadge 
-                                  type={serviceMeta.freelance.certification_type as 'standard' | 'premium' | 'expert'} 
-                                  size="sm"
-                                />
-                              </div>
-                            )}
-                          </div>
-                          
-                          {/* Affichage de la note moyenne */}
-                          <div className="flex items-center mt-1">
-                            {ratingStars}
-                            <span className="text-xs ml-1.5 font-medium text-vynal-body">
-                              {averageRating > 0 
-                                ? `${averageRating.toFixed(1)} (${reviewCount})` 
-                                : "Aucun avis"}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      {/* Bio du vendeur si disponible */}
-                      {serviceMeta.freelance.bio && (
-                        <div className={cn(
-                          "mb-4 p-3 rounded-md",
-                          isDarkMode ? "" : "bg-gray-50"
-                        )}>
-                          <h4 className={cn(
-                            "text-xs font-normal mb-1",
-                            isDarkMode ? "text-vynal-title" : "text-slate-800"
-                          )}>À propos du vendeur</h4>
-                          <p className={cn(
-                            "text-xs line-clamp-3",
-                            isDarkMode ? "text-vynal-body" : "text-slate-600"
-                          )}>
-                            {serviceMeta.freelance.bio}
-                          </p>
-                        </div>
-                      )}
-                      
-                      <div className="space-y-3 lg:space-y-2">
-                        <div className="flex flex-col sm:flex-row gap-3 sm:gap-2">
-                          <Button 
-                            variant="outline" 
-                            className={cn(
-                              "w-full text-xs inline-flex items-center justify-center rounded-md font-medium transition-colors h-10 px-4 py-2",
-                              isDarkMode 
-                                ? "border bg-vynal-purple-dark/30 text-vynal-title border-vynal-purple-secondary/50 hover:bg-vynal-purple-secondary/30" 
-                                : "border bg-white text-vynal-title border-gray-200 hover:bg-gray-100"
-                            )}
-                            onClick={handleViewProfile}
-                          >
-                            <User className="h-3.5 w-3.5 mr-1.5 flex-shrink-0 icon-vynal" aria-hidden="true" />
-                            <span className="whitespace-nowrap">{user?.profile?.id === serviceMeta.freelance.id ? "Mon profil" : "Voir profil"}</span>
-                          </Button>
-                        </div>
-                        
-                        {serviceMeta.freelance.id && (
-                          <div className="w-full">
-                            <Button 
-                              variant="ghost" 
-                              className={cn(
-                                "w-full text-xs group",
-                                isDarkMode
-                                  ? "text-vynal-text-secondary hover:text-vynal-text-primary hover:bg-vynal-purple-secondary/20"
-                                  : "text-[#2C1A4C] hover:text-[#2C1A4C] hover:bg-[#FF66B2]/10"
-                              )}
-                              size="sm"
-                              onClick={() => {
-                                const url = user?.profile?.id === serviceMeta.freelance.id
-                                  ? FREELANCE_ROUTES.SERVICES
-                                  : `/services?freelancer=${serviceMeta.freelance.id}`;
-                                router.push(url);
-                              }}
-                            >
-                              {user?.profile?.id === serviceMeta.freelance.id 
-                                ? "Gérer mes services" 
-                                : "Voir tous ses services"}
-                              <ChevronRight className="h-3.5 w-3.5 ml-0.5 group-hover:translate-x-1 transition-transform icon-vynal" aria-hidden="true" />
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    </>
-                  )}
-                  {!serviceMeta.freelance && (
-                    <div className="text-center p-2 text-sm text-vynal-body">
-                      <p>Information du vendeur non disponible</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-              
-              {/* Ajout des avis sur le service - déplacé ici */}
-              {/* DÉSACTIVATION TEMPORAIRE DE L'AFFICHAGE DES REVIEWS
-              {!isFreelanceView && serviceMeta.id && (
-                <div
-                  ref={reviewsRef}
-                  className="mt-0"
-                >
-                  {reviewsInView && (
-                    <Suspense fallback={
-                      <div className={cn(
-                        "animate-pulse space-y-4",
-                        textStyles.secondary(isDarkMode)
-                      )}>
-                        <div className="h-10 bg-gray-100 dark:bg-vynal-purple-secondary/30 rounded w-1/3"></div>
-                        <div className="h-40 bg-gray-100 dark:bg-vynal-purple-secondary/30 rounded"></div>
-                      </div>
-                    }>
-                      <ServiceReviews serviceId={serviceMeta.id} />
-                    </Suspense>
-                  )}
-                </div>
-              )}
-              */}
             </div>
           </div>
         </div>
@@ -1394,7 +1333,7 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
         {!isFreelanceView && serviceMeta.freelance?.id && (
           <div
             ref={relatedRef}
-            className="mt-8 sm:mt-10 lg:mt-12"
+            className="mt-8 sm:mt-10 lg:mt-12 md:mt-8 mb-4 sm:mb-0"
           >
             <div className="mb-4 sm:mb-5">
               <h2 className="text-base sm:text-lg flex flex-wrap items-center text-vynal-title">
@@ -1408,7 +1347,7 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
             </div>
             
             {relatedInView && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5 lg:gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5 lg:gap-6">
                 {loadingRelated ? (
                   // Skeletons pour les services en chargement
                   Array(3).fill(0).map((_, i) => (

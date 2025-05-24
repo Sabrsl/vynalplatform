@@ -106,7 +106,7 @@ async function ServiceDetailContent({ slug }: { slug: string }) {
     return (
       <div className="min-h-screen bg-white dark:bg-vynal-purple-dark animate-in fade-in duration-300">
         <main data-content="loaded">
-          <div className="container mx-auto py-8 px-4">
+          <div className="container mx-auto py-8 px-4 md:px-16 lg:px-24 xl:px-32">
             <div className="mb-6">
               <Link href={PUBLIC_ROUTES.SERVICES} className="inline-flex items-center text-vynal-title hover:text-vynal-accent-primary transition-colors text-[11px]">
                 <ArrowLeft className="h-3 w-3 mr-1" />

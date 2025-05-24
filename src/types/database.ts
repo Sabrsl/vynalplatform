@@ -23,6 +23,8 @@ export interface Database {
           bio: string | null
           role: 'client' | 'freelance' | 'admin'
           email: string | null
+          is_certified: boolean
+          certification_type: 'standard' | 'premium' | 'expert' | null
         }
         Insert: {
           id: string
@@ -34,6 +36,8 @@ export interface Database {
           bio?: string | null
           role?: 'client' | 'freelance' | 'admin'
           email?: string | null
+          is_certified?: boolean
+          certification_type?: 'standard' | 'premium' | 'expert' | null
         }
         Update: {
           id?: string
@@ -45,6 +49,8 @@ export interface Database {
           bio?: string | null
           role?: 'client' | 'freelance' | 'admin'
           email?: string | null
+          is_certified?: boolean
+          certification_type?: 'standard' | 'premium' | 'expert' | null
         }
       }
       services: {

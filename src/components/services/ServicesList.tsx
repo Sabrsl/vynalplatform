@@ -224,6 +224,12 @@ const ServiceListItem = memo<ServiceListItemProps>(({
                   <span className="text-[8px] sm:text-[10px] text-slate-600 dark:text-vynal-text-secondary">
                     {profileName}
                   </span>
+                  {service.profiles?.is_certified && service.profiles?.certification_type && (
+                    <CertificationBadge 
+                      type={service.profiles.certification_type as 'standard' | 'premium' | 'expert'} 
+                      size="xs"
+                    />
+                  )}
                 </div>
                 
                 <div className="flex items-center gap-2">

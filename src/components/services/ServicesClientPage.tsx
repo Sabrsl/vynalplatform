@@ -88,8 +88,8 @@ const adaptServiceForSearch = (service: Service): ServiceWithFreelanceAndCategor
     email: service.profiles?.username || null,
     role: null,
     bio: service.profiles?.bio || null,
-    is_certified: false,
-    certification_type: null
+    is_certified: service.profiles?.is_certified || false,
+    certification_type: service.profiles?.certification_type || null
   },
   categories: service.categories || {
     id: service.category_id || '',

@@ -31,6 +31,8 @@ export type Profile = {
   full_name?: string;
   avatar_url?: string;
   bio?: string;
+  is_certified?: boolean;
+  certification_type?: 'standard' | 'premium' | 'expert' | null;
 };
 
 export type Service = {
@@ -99,7 +101,7 @@ export async function getAllValidatedServices(options?: { noCache?: string }) {
     .from('services')
     .select(`
       *,
-      profiles:profiles(id, username, full_name, avatar_url, bio),
+      profiles:profiles(id, username, full_name, avatar_url, bio, is_certified, certification_type),
       categories:categories(id, name, slug),
       subcategories:subcategories(id, name, slug, category_id)
     `)
