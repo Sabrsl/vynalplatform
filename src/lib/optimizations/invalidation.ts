@@ -19,8 +19,9 @@ export interface CacheDependencyGroup {
 }
 
 /**
- * Clés de cache standardisées
- * Pour compatibilité avec le code existant
+ * Clés de cache pour l'application
+ * SOURCE UNIQUE - Toutes les autres définitions de CACHE_KEYS doivent importer celle-ci
+ * pour éviter les redondances et incohérences
  */
 export const CACHE_KEYS = {
   // Services (explorateur public)

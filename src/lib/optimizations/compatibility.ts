@@ -35,38 +35,17 @@ import {
   setupServiceWorker 
 } from './service-worker';
 
-// Définition des clés de cache cohérentes
-export const CACHE_KEYS = {
-  CATEGORIES: 'categories_',
-  SUBCATEGORIES: 'subcategories_',
-  SERVICES: 'services_',
-  USER_PROFILE: 'user_profile_',
-  USER_SESSION: 'user_session_',
-  WALLET: 'wallet_',
-  DASHBOARD_STATS: 'dashboard_stats_',
-  DASHBOARD_ACTIVITIES: 'dashboard_activities_',
-  MESSAGE_COUNTS: 'message_counts_',
-  CONVERSATIONS: 'conversations_',
-  MESSAGES: 'messages_',
-  // Compatibilité avec l'existant
-  PAYMENTS_DATA: 'payments_data_',
-  WALLET_DATA: 'wallet_data_',
-  PAYMENT_METHODS: 'payment_methods_',
-  DISPUTE_LIST: 'dispute_list_'
-};
+// Imports des constantes centralisées
+import { 
+  CACHE_KEYS, 
+  CACHE_PRIORITIES, 
+  FETCH_CONFIG 
+} from './constants-manager';
 
-// Priorités de cache pour la gestion des ressources
-export const CACHE_PRIORITIES = {
-  HIGH: 'high' as const,
-  MEDIUM: 'medium' as const,
-  LOW: 'low' as const
-};
-
-// Configuration des tentatives de récupération
-export const FETCH_CONFIG = {
-  MAX_RETRIES: 3,
-  RETRY_DELAY: 1000,
-  TIMEOUT: 8000
+export { 
+  CACHE_KEYS, 
+  CACHE_PRIORITIES, 
+  FETCH_CONFIG 
 };
 
 // Réexporter toutes les fonctions et constantes
