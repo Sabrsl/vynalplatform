@@ -139,10 +139,14 @@ export default function RootLayout({
         {/* Gestion des safe-area-inset pour les appareils mobiles */}
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         
-        {/* Configuration supplémentaire pour Apple */}
+        {/* Configuration supplémentaire pour Apple et autres navigateurs */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="msapplication-navbutton-color" content="#100422" />
+        
+        {/* Meta tags pour forcer les couleurs fixes */}
+        <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+        <meta name="theme-color" content="#100422" media="(prefers-color-scheme: dark)" />
         
         {/* Préchargement des ressources critiques */}
         <link rel="preload" href="/js/lcp-optimizer.js" as="script" />
