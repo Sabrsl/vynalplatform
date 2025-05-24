@@ -142,9 +142,8 @@ const MessagingDialog = ({
         }
       }
       
-      // Succès
-      setShowModal(false);
-      setMessage('');
+      // Succès - Fermer le modal avant toute autre opération
+      handleClose();
       
       toast({
         title: "Message envoyé",
@@ -154,14 +153,19 @@ const MessagingDialog = ({
       // Déterminer la route de redirection en fonction du rôle de l'utilisateur
       const messagesRoute = isFreelance ? FREELANCE_ROUTES.MESSAGES : CLIENT_ROUTES.MESSAGES;
       
-      // Redirection
+      // Redirection avec un délai suffisant pour permettre la fermeture du modal
       setTimeout(() => {
         router.push(`${messagesRoute}?conversation=${conversationId}`);
-      }, 500);
+      }, 300);
       
     } catch (err: any) {
       setError(err?.message || "Une erreur s'est produite");
     }
+  };
+  
+  // Empêcher la propagation des clics sur le contenu du modal
+  const stopPropagation = (e: React.MouseEvent) => {
+    e.stopPropagation();
   };
   
   return (
@@ -186,14 +190,18 @@ const MessagingDialog = ({
           <div 
             className="fixed inset-0 bg-black/70 dark:bg-black/80 backdrop-blur-sm transition-opacity" 
             onClick={handleClose}
+            aria-hidden="true"
           />
           
           {/* Modal content */}
-          <div className="relative bg-white dark:bg-vynal-purple-dark/90 border border-gray-200 dark:border-vynal-purple-secondary/30 rounded-xl shadow-lg p-6 w-full max-w-[425px] z-50 transition-all transform scale-100">
-            {/* Close button */}
+          <div 
+            className="relative bg-white dark:bg-vynal-purple-dark/90 border border-gray-200 dark:border-vynal-purple-secondary/30 rounded-xl shadow-lg p-6 w-full max-w-[425px] z-50 transition-all transform scale-100" 
+            onClick={stopPropagation}
+          >
+            {/* Close button - Plus visible et plus grand pour une meilleure UX */}
             <button 
               onClick={handleClose}
-              className="absolute right-4 top-4 text-gray-500 hover:text-gray-700 dark:text-vynal-text-secondary dark:hover:text-vynal-text-primary transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-vynal-purple-light rounded-full"
+              className="absolute right-5 top-5 text-gray-500 hover:text-gray-700 dark:text-vynal-text-secondary dark:hover:text-vynal-text-primary transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-vynal-purple-light rounded-full p-2 bg-white/30 dark:bg-black/10 hover:bg-white/50 dark:hover:bg-black/20"
               aria-label="Fermer"
             >
               <X className="h-5 w-5" />
@@ -201,7 +209,7 @@ const MessagingDialog = ({
             </button>
             
             {/* Header */}
-            <div className="mb-4">
+            <div className="mb-4 pr-12">
               <h2 className="text-lg font-semibold text-slate-800 dark:text-vynal-text-primary">
                 Envoyer un message à {freelanceName}
               </h2>

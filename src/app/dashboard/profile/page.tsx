@@ -247,9 +247,9 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="px-0 py-4">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 px-4">
-    <div>
+    <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 lg:px-12">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6">
+        <div>
           <h1 className="text-base sm:text-lg md:text-xl font-bold tracking-tight mb-2 text-vynal-purple-light dark:text-vynal-text-primary">
             Mon profil
           </h1>
@@ -267,20 +267,20 @@ export default function ProfilePage() {
       </div>
 
       {updateMessage && (
-        <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 rounded-lg flex items-center gap-2 mx-4">
+        <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 rounded-lg flex items-center gap-2">
           <Check className="h-5 w-5 flex-shrink-0" />
           {updateMessage}
         </div>
       )}
 
       {updateError && (
-        <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-lg flex items-center gap-2 mx-4">
+        <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-lg flex items-center gap-2">
           <AlertCircle className="h-5 w-5 flex-shrink-0" />
           {updateError}
         </div>
       )}
 
-      <div className="grid md:grid-cols-12 gap-6 md:gap-6 px-4">
+      <div className="grid md:grid-cols-12 gap-6 md:gap-6">
         <Card className="md:col-span-4 p-0 overflow-hidden border-vynal-border dark:border-vynal-purple-secondary/40 shadow-sm bg-white dark:bg-vynal-purple-dark/20">
           <div className="bg-gradient-to-r from-vynal-accent-primary/30 via-vynal-accent-secondary/20 to-transparent h-32 relative">
             {/* Bouton upload avatar */}

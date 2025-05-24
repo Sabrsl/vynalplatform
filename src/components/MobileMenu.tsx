@@ -297,18 +297,6 @@ const AuthenticatedMenuContent = memo(({
           icon: FileText,
           label: "Mes services",
           callback: "services"
-        },
-        {
-          href: FREELANCE_ROUTES.STATS,
-          icon: BarChart2,
-          label: "Statistiques",
-          callback: "stats"
-        },
-        {
-          href: FREELANCE_ROUTES.CERTIFICATIONS,
-          icon: Award,
-          label: "Certifications",
-          callback: "certifications"
         }
       ] : [],
       // Actions - uniquement pour les clients
@@ -736,16 +724,6 @@ export default function MobileMenu({ isOpen, onClose, user, activePath, setActiv
         setActivePath(FREELANCE_ROUTES.SERVICES); 
         onClose(); 
         router.push(FREELANCE_ROUTES.SERVICES); 
-      };
-      callbacks.stats = () => { 
-        setActivePath(FREELANCE_ROUTES.STATS); 
-        onClose(); 
-        router.push(FREELANCE_ROUTES.STATS); 
-      };
-      callbacks.certifications = () => { 
-        setActivePath(FREELANCE_ROUTES.CERTIFICATIONS); 
-        onClose(); 
-        router.push(FREELANCE_ROUTES.CERTIFICATIONS); 
       };
     }
     

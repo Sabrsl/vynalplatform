@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, memo, useMemo, useEffect } from "react";
+import React, { useState, useCallback, memo, useMemo, useEffect, Suspense } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -533,7 +533,7 @@ export default function OrdersPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6">
+    <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 lg:px-12">
       {/* En-tête de la page */}
       <PageHeader 
         isFreelance={isFreelance}

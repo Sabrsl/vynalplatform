@@ -478,18 +478,18 @@ ${newFields.exclusions}`;
         <Button 
           variant="ghost" 
           onClick={() => router.push("/dashboard/services")} 
-          className="mr-4 text-vynal-purple-dark hover:text-vynal-purple-dark/80 dark:text-vynal-text-primary"
+          className="mr-4 text-slate-700 hover:text-slate-800 dark:text-vynal-text-primary dark:hover:text-vynal-text-primary/80"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
           Retour
         </Button>
-        <h1 className="text-xs sm:text-sm md:text-base font-semibold text-vynal-purple-dark dark:text-vynal-text-primary">Modifier le service</h1>
+        <h1 className="text-xs sm:text-sm md:text-base font-semibold text-slate-800 dark:text-vynal-text-primary">Modifier le service</h1>
       </div>
       
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-900 p-4 rounded-lg mb-6 flex gap-2 items-start">
-          <AlertCircle className="h-3 w-3 text-red-600 mt-0.5 flex-shrink-0" />
-          <p className="text-[10px] sm:text-xs text-red-900">{error}</p>
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/30 text-red-900 dark:text-red-400 p-4 rounded-lg mb-6 flex gap-2 items-start">
+          <AlertCircle className="h-3 w-3 text-red-600 dark:text-red-500 mt-0.5 flex-shrink-0" />
+          <p className="text-[10px] sm:text-xs">{error}</p>
         </div>
       )}
 

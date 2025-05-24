@@ -15,7 +15,28 @@ interface FreelanceStats {
   notifications: number;
   activeServicesCount: number;
   completedServicesCount: number;
-  activeServices: ActiveService[];
+  activeServices: Array<{
+    id: string;
+    title: string;
+    description: string;
+    price: number;
+    freelance_id: string;
+    category_id: string;
+    created_at: string;
+    updated_at: string;
+    status: string;
+    images: string[];
+    delivery_time: number;
+    slug: string;
+    active: boolean;
+    admin_notes: string | null;
+    validated_at: string | null;
+    validated_by: string | null;
+    subcategory_id: string | null;
+    currency_code: string | null;
+    bookings_count: number;
+    last_booked_at: string | null;
+  }>;
   isLoading: boolean;
   error: Error | null;
   servicesCount: number;
@@ -106,28 +127,7 @@ export function useFreelanceStats(freelanceId: string | undefined): UseFreelance
         // Active services
         supabase
           .from('services')
-          .select(`
-            id,
-            title,
-            description,
-            price,
-            freelance_id,
-            category_id,
-            created_at,
-            updated_at,
-            status,
-            rating,
-            image_url,
-            moderation_comment,
-            subcategory_id,
-            images,
-            delivery_time,
-            slug,
-            active,
-            admin_notes,
-            validated_at,
-            validated_by
-          `)
+          .select('id, created_at, updated_at, title, slug, description, price, delivery_time, category_id, subcategory_id, freelance_id, active, images, status, admin_notes, validated_at, validated_by, currency_code')
           .eq('freelance_id', freelanceId)
           .throwOnError(),
         
@@ -181,17 +181,15 @@ export function useFreelanceStats(freelanceId: string | undefined): UseFreelance
         created_at: service.created_at,
         updated_at: service.updated_at,
         status: service.status,
-        rating: service.rating || 0,
-        image_url: service.image_url || null,
-        moderation_comment: service.moderation_comment || null,
-        subcategory_id: service.subcategory_id || null,
         images: service.images || [],
-        delivery_time: service.delivery_time || 0,
-        slug: service.slug || '',
-        active: service.active || false,
-        admin_notes: service.admin_notes || null,
-        validated_at: service.validated_at || null,
-        validated_by: service.validated_by || null,
+        delivery_time: service.delivery_time,
+        slug: service.slug,
+        active: service.active,
+        admin_notes: service.admin_notes,
+        validated_at: service.validated_at,
+        validated_by: service.validated_by,
+        subcategory_id: service.subcategory_id,
+        currency_code: service.currency_code,
         bookings_count: 0,
         last_booked_at: null
       })) || [];

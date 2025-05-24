@@ -45,6 +45,8 @@ import {
 } from "@/components/ui/alert";
 import ServiceNotificationAlert from "@/components/notifications/ServiceNotificationAlert";
 import { Database } from "@/types/database";
+import ConfirmationCard from "@/components/ui/confirmation-card";
+import DeleteServiceConfirmation from '@/components/services/DeleteServiceConfirmation';
 
 // Type de notification basé directement sur le type de la base de données
 type Notification = Database['public']['Tables']['notifications']['Row'];
@@ -83,6 +85,9 @@ interface ServicePageState {
   readonly totalServices: number;
   readonly isRefreshing: boolean;
   readonly lastRefresh: Date | null;
+  readonly showDeleteConfirmation: boolean;
+  readonly serviceToDelete: string | null;
+  readonly serviceToDeleteName: string;
 }
 
 // Loading fallbacks pour les composants chargés dynamiquement
@@ -278,7 +283,10 @@ export default function ServicesPage() {
     currentPage: 1,
     totalServices: 0,
     isRefreshing: false,
-    lastRefresh: null
+    lastRefresh: null,
+    showDeleteConfirmation: false,
+    serviceToDelete: null,
+    serviceToDeleteName: '',
   });
   
   // Destructurer l'état pour plus de lisibilité
@@ -292,7 +300,10 @@ export default function ServicesPage() {
     currentPage,
     totalServices,
     isRefreshing,
-    lastRefresh
+    lastRefresh,
+    showDeleteConfirmation,
+    serviceToDelete,
+    serviceToDeleteName,
   } = state;
   
   // Utilisation du hook personnalisé pour les statistiques
@@ -534,69 +545,93 @@ export default function ServicesPage() {
   const handleDeleteService = useCallback(async (serviceId: string) => {
     if (!mountedRef.current) return;
     
-    if (confirm("Êtes-vous sûr de vouloir supprimer ce service ? Cette action est irréversible.")) {
-      safeSetState(prev => ({ 
+    // Trouver le service pour obtenir son nom
+    const serviceToDelete = state.services.find(s => s.id === serviceId);
+    
+    safeSetState(prev => ({ 
+      ...prev,
+      showDeleteConfirmation: true,
+      serviceToDelete: serviceId,
+      serviceToDeleteName: serviceToDelete?.title || 'ce service',
+      deleteError: null
+    }));
+  }, [state.services, safeSetState]);
+
+  // Fonction pour confirmer la suppression
+  const confirmDeleteService = useCallback(async () => {
+    if (!serviceToDelete || !mountedRef.current) return;
+    
+    safeSetState(prev => ({ 
+      ...prev,
+      isDeleting: prev.serviceToDelete,
+      showDeleteConfirmation: false
+    }));
+    
+    try {
+      const result = await deleteService(serviceToDelete);
+      
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+      
+      if (!mountedRef.current) return;
+      
+      // Mise à jour optimiste de l'UI sans rechargement complet
+      safeSetState(prev => ({
         ...prev,
-        isDeleting: serviceId,
-        deleteError: null
+        services: prev.services.filter(service => service.id !== prev.serviceToDelete)
       }));
       
-      try {
-        const result = await deleteService(serviceId);
+      // Invalider le cache pour la page actuelle uniquement
+      if (profile?.id) {
+        // Clé de cache simplifiée sans différenciation par onglet
+        const cacheKey = `services_freelance_${profile.id}_page_${currentPage}`;
         
-        if (!result.success) {
-          throw new Error(result.error);
-        }
-        
-        if (!mountedRef.current) return;
-        
-        // Mise à jour optimiste de l'UI sans rechargement complet
+        invalidateCacheLocal(cacheKey);
+      }
+      
+      // Rafraîchir les statistiques en arrière-plan
+      refreshStats(true);
+    } catch (err: any) {
+      console.error("Erreur lors de la suppression du service:", err);
+      
+      if (!mountedRef.current) return;
+      
+      // Fournir un message d'erreur plus précis
+      let errorMessage = "Une erreur est survenue lors de la suppression du service";
+      
+      // Vérifier les types d'erreur spécifiques
+      if (err.message && err.message.includes("JSON object requested")) {
+        errorMessage = "Impossible d'identifier le service de manière unique. Veuillez réessayer ou contacter le support.";
+      } else if (err.message && err.message.includes("foreign key constraint")) {
+        errorMessage = "Ce service ne peut pas être supprimé car il est référencé par des commandes existantes.";
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      safeSetState(prev => ({
+        ...prev,
+        deleteError: errorMessage
+      }));
+    } finally {
+      if (mountedRef.current) {
         safeSetState(prev => ({
           ...prev,
-          services: prev.services.filter(service => service.id !== serviceId)
+          isDeleting: null,
+          serviceToDelete: null
         }));
-        
-        // Invalider le cache pour la page actuelle uniquement
-        if (profile?.id) {
-          // Clé de cache simplifiée sans différenciation par onglet
-          const cacheKey = `services_freelance_${profile.id}_page_${currentPage}`;
-          
-          invalidateCacheLocal(cacheKey);
-        }
-        
-        // Rafraîchir les statistiques en arrière-plan
-        refreshStats(true);
-      } catch (err: any) {
-        console.error("Erreur lors de la suppression du service:", err);
-        
-        if (!mountedRef.current) return;
-        
-        // Fournir un message d'erreur plus précis
-        let errorMessage = "Une erreur est survenue lors de la suppression du service";
-        
-        // Vérifier les types d'erreur spécifiques
-        if (err.message && err.message.includes("JSON object requested")) {
-          errorMessage = "Impossible d'identifier le service de manière unique. Veuillez réessayer ou contacter le support.";
-        } else if (err.message && err.message.includes("foreign key constraint")) {
-          errorMessage = "Ce service ne peut pas être supprimé car il est référencé par des commandes existantes.";
-        } else if (err.message) {
-          errorMessage = err.message;
-        }
-        
-        safeSetState(prev => ({
-          ...prev,
-          deleteError: errorMessage
-        }));
-      } finally {
-        if (mountedRef.current) {
-          safeSetState(prev => ({
-            ...prev,
-            isDeleting: null
-          }));
-        }
       }
     }
-  }, [deleteService, profile?.id, refreshStats, totalServices, itemsPerPage, safeSetState]);
+  }, [serviceToDelete, currentPage, profile?.id, refreshStats, deleteService, safeSetState]);
+
+  // Fonction pour annuler la suppression
+  const cancelDeleteService = useCallback(() => {
+    safeSetState(prev => ({ 
+      ...prev,
+      showDeleteConfirmation: false,
+      serviceToDelete: null
+    }));
+  }, [safeSetState]);
 
   // Fonction optimisée pour changer de page
   const handlePageChange = useCallback((page: number) => {
@@ -1087,7 +1122,7 @@ export default function ServicesPage() {
 
   // Rendu principal avec composants mémoïsés
   return (
-    <div>
+    <div className="lg:px-12">
       {/* Tableau de bord du services avec statistiques */}
       <div className="mb-4 sm:mb-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-4 mb-3 sm:mb-5">
@@ -1166,24 +1201,24 @@ export default function ServicesPage() {
             <h3 className="text-sm font-medium text-slate-700 dark:text-slate-300">
               Vos services ({totalServices})
             </h3>
+            <Button 
+              onClick={refreshData}
+              disabled={isRefreshing || loading}
+              variant="outline"
+              size="sm"
+              className={`bg-white dark:bg-transparent h-8 w-8 p-0 transition-colors duration-200 ${Date.now() - lastRefreshTimeRef.current < MIN_REFRESH_INTERVAL ? 'opacity-50' : 'opacity-100'}`}
+              title={Date.now() - lastRefreshTimeRef.current < MIN_REFRESH_INTERVAL ? 
+                `Rafraîchissement disponible dans ${Math.ceil((MIN_REFRESH_INTERVAL - (Date.now() - lastRefreshTimeRef.current)) / 1000)} secondes` : 
+                'Rafraîchir les données'
+              }
+            >
+              {isRefreshing ? (
+                <div className="animate-spin h-3.5 w-3.5 border-2 border-indigo-600 dark:border-indigo-400 rounded-full border-t-transparent"></div>
+              ) : (
+                <RefreshCw className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+              )}
+            </Button>
           </div>
-          <Button 
-            onClick={refreshData}
-            disabled={isRefreshing || loading}
-            variant="outline"
-            size="sm"
-            className={`bg-white dark:bg-transparent h-8 w-8 p-0 transition-colors duration-200 ${Date.now() - lastRefreshTimeRef.current < MIN_REFRESH_INTERVAL ? 'opacity-50' : 'opacity-100'}`}
-            title={Date.now() - lastRefreshTimeRef.current < MIN_REFRESH_INTERVAL ? 
-              `Rafraîchissement disponible dans ${Math.ceil((MIN_REFRESH_INTERVAL - (Date.now() - lastRefreshTimeRef.current)) / 1000)} secondes` : 
-              'Rafraîchir les données'
-            }
-          >
-            {isRefreshing ? (
-              <div className="animate-spin h-3.5 w-3.5 border-2 border-indigo-600 dark:border-indigo-400 rounded-full border-t-transparent"></div>
-            ) : (
-              <RefreshCw className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
-            )}
-          </Button>
         </div>
       )}
 
@@ -1393,6 +1428,19 @@ export default function ServicesPage() {
         onClose={() => setIsRulesModalOpen(false)}
         onAccept={handleAcceptRules}
       />
+
+      {/* Modal de confirmation de suppression */}
+      {showDeleteConfirmation && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="w-full max-w-xl px-4">
+            <DeleteServiceConfirmation 
+              serviceName={serviceToDeleteName}
+              onConfirm={confirmDeleteService}
+              onCancel={cancelDeleteService}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 } 

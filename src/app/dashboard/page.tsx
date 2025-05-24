@@ -46,6 +46,7 @@ import { FREELANCE_ROUTES } from "@/config/routes";
 import { FreelanceGuard } from "@/lib/guards/roleGuards";
 import { CurrencyDisplay } from "@/components/ui/CurrencyDisplay";
 import React from "react";
+import { Suspense } from "react";
 
 // Type pour les statistiques d'un freelance
 interface FreelanceStats {
@@ -575,7 +576,7 @@ export default function DashboardPage() {
   
   return (
     <FreelanceGuard>
-      <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6" data-content="loaded">
+      <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 lg:px-12" data-content="loaded">
         {/* En-tête du Dashboard */}
         <div className="flex justify-between items-center">
           <h1 className="text-base sm:text-lg md:text-xl font-bold text-vynal-purple-light dark:text-vynal-text-primary">

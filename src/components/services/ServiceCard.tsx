@@ -286,26 +286,6 @@ const ActionButtons = memo(({
   
   return (
     <div className="flex gap-1">
-      <Button
-        size="sm"
-        variant="ghost"
-        onClick={onView}
-        className="h-6 w-6 p-0 rounded-full bg-slate-100 dark:bg-vynal-purple-secondary/10 border border-slate-200 dark:border-vynal-purple-secondary/20 hover:bg-slate-200 dark:hover:bg-vynal-purple-secondary/30 hover:text-vynal-accent-primary text-slate-800 dark:text-vynal-body"
-        title="Voir les détails"
-      >
-        <Eye className="h-3 w-3" />
-      </Button>
-      
-      <Button
-        size="sm"
-        variant="ghost"
-        onClick={onEdit}
-        className="h-6 w-6 p-0 rounded-full bg-slate-100 dark:bg-vynal-purple-secondary/10 border border-slate-200 dark:border-vynal-purple-secondary/20 hover:bg-slate-200 dark:hover:bg-vynal-purple-secondary/30 hover:text-vynal-accent-primary text-slate-800 dark:text-vynal-body"
-        title="Modifier"
-      >
-        <PenSquare className="h-3 w-3" />
-      </Button>
-      
       {isDeletable && (
         <Button
           size="sm"
@@ -324,6 +304,26 @@ const ActionButtons = memo(({
           )}
         </Button>
       )}
+
+      <Button
+        size="sm"
+        variant="ghost"
+        onClick={onView}
+        className="h-6 w-6 p-0 rounded-full bg-slate-100 dark:bg-vynal-purple-secondary/10 border border-slate-200 dark:border-vynal-purple-secondary/20 hover:bg-slate-200 dark:hover:bg-vynal-purple-secondary/30 hover:text-vynal-accent-primary text-slate-800 dark:text-vynal-body"
+        title="Voir les détails"
+      >
+        <Eye className="h-3 w-3" />
+      </Button>
+
+      <Button
+        size="sm"
+        variant="ghost"
+        onClick={onEdit}
+        className="h-6 w-6 p-0 rounded-full bg-slate-100 dark:bg-vynal-purple-secondary/10 border border-slate-200 dark:border-vynal-purple-secondary/20 hover:bg-slate-200 dark:hover:bg-vynal-purple-secondary/30 hover:text-vynal-accent-primary text-slate-800 dark:text-vynal-body"
+        title="Modifier"
+      >
+        <PenSquare className="h-3 w-3" />
+      </Button>
     </div>
   );
 });
@@ -513,6 +513,10 @@ const ServiceCard = memo<ServiceCardProps>(
       // Empêcher la navigation si on est en mode admin
       if (isManageable) {
         e.preventDefault();
+        // Si onView existe, appeler onView pour le service
+        if (onView && service.id) {
+          onView(service.id);
+        }
         return;
       }
       
@@ -522,7 +526,7 @@ const ServiceCard = memo<ServiceCardProps>(
         onClick(service.id);
       }
       // Dans tous les autres cas, laisser le comportement par défaut du lien (navigation native)
-    }, [isManageable, onClick, service.id]);
+    }, [isManageable, onClick, onView, service.id]);
     
     const handleView = useCallback((e: React.MouseEvent) => { 
       e.stopPropagation();
@@ -636,7 +640,9 @@ const ServiceCard = memo<ServiceCardProps>(
     // Simplified JSX structure - grouped by logical sections
     return (
       <Link
-        href={service.slug ? `/services/${service.slug}` : `/services/details/${service.id}`}
+        href={isManageable 
+          ? "#" // Utiliser # pour les cards du dashboard car on utilise les callbacks onView/onEdit
+          : (service.slug ? `/services/${service.slug}` : `/services/details/${service.id}`)}
         onClick={handleCardClick}
         className={cn(
           "group flex flex-col overflow-hidden rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-vynal-accent-primary/50 h-full",
@@ -655,20 +661,6 @@ const ServiceCard = memo<ServiceCardProps>(
             >
               {showStatusBadge && <StatusBadges active={service.active} status={service.status} />}
             </ServiceImage>
-            
-            {/* Options d'administration si nécessaire */}
-            {isManageable && (
-              <div className="absolute top-2 right-2 z-20 flex space-x-1">
-                <ActionButtons 
-                  isManageable={isManageable}
-                  isDeletable={isDeletable}
-                  isDeleting={isDeleting}
-                  onView={handleView}
-                  onEdit={handleEdit}
-                  onDelete={handleDelete}
-                />
-              </div>
-            )}
           </div>
           
           <div className="p-3 flex flex-col flex-grow justify-between space-y-1">
@@ -720,6 +712,18 @@ const ServiceCard = memo<ServiceCardProps>(
                     <PriceDisplay price={service.price || 0} showFixedIndicator={false} />
                   </span>
                 </div>
+
+                {/* Boutons d'action déplacés ici, en face du prix */}
+                {isManageable && (
+                  <ActionButtons 
+                    isManageable={isManageable}
+                    isDeletable={isDeletable}
+                    isDeleting={isDeleting}
+                    onView={handleView}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                  />
+                )}
               </div>
             )}
           </div>

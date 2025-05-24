@@ -38,8 +38,9 @@ export const freelanceDashboardConfig: DashboardConfig = {
     services: '/dashboard/services',
     profile: '/dashboard/profile',
     settings: '/dashboard/settings',
-    certifications: '/dashboard/certifications',
-    stats: '/dashboard/stats',
+    // Temporairement désactivé
+    // certifications: '/dashboard/certifications',
+    // stats: '/dashboard/stats',
   },
   
   // Catégories de navigation
@@ -54,8 +55,9 @@ export const freelanceDashboardConfig: DashboardConfig = {
     services: [
       { label: 'Mes services', path: '/dashboard/services', icon: 'FileText' },
       { label: 'Livrer un travail', path: '/dashboard/orders/delivery', icon: 'PackageOpen' },
-      { label: 'Statistiques', path: '/dashboard/stats', icon: 'BarChart2' },
-      { label: 'Certifications', path: '/dashboard/certifications', icon: 'Award' },
+      // Temporairement désactivé
+      // { label: 'Statistiques', path: '/dashboard/stats', icon: 'BarChart2' },
+      // { label: 'Certifications', path: '/dashboard/certifications', icon: 'Award' },
     ],
     settings: [
       { label: 'Mon profil', path: '/dashboard/profile', icon: 'User' },

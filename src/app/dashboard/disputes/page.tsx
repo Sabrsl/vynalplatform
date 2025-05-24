@@ -11,15 +11,19 @@ export const metadata = {
 export default function DisputesPage() {
   return (
     <div className="w-full h-full overflow-x-hidden overflow-y-auto scrollbar-hide">
-      <div className="p-4 space-y-6 max-w-7xl mx-auto">
-        <PageHeader 
-          title="Mes litiges" 
-          description="Consultez et gérez les litiges concernant vos commandes"
-        />
+      <div className="space-y-6 max-w-7xl mx-auto">
+        <div className="lg:px-12">
+          <PageHeader 
+            title="Mes litiges" 
+            description="Consultez et gérez les litiges concernant vos commandes"
+          />
+        </div>
         
-        <Suspense fallback={<DisputesPageSkeleton />}>
-          <DisputesContent />
-        </Suspense>
+        <div className="lg:px-12">
+          <Suspense fallback={<DisputesPageSkeleton />}>
+            <DisputesContent />
+          </Suspense>
+        </div>
       </div>
     </div>
   );

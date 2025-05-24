@@ -11,6 +11,7 @@ import { ArrowLeftIcon, PencilIcon, TrashIcon, LockIcon, AlertCircle, RefreshCw,
 import { Button } from '@/components/ui/button'
 import { useToast } from "@/components/ui/use-toast";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import DeleteServiceConfirmation from '@/components/services/DeleteServiceConfirmation';
 
 // Extension du type pour inclure les propriétés d'images
 interface ExtendedService extends ServiceWithFreelanceAndCategories {
@@ -224,7 +225,7 @@ export default function ServiceDetailsPage({
   const handleView = () => {
     const idToUse = serviceId || (service && service.id);
     if (idToUse) {
-      router.push(`/services/${idToUse}`);
+      router.push(`/dashboard/services/${idToUse}`);
     }
   };
   
@@ -396,63 +397,43 @@ export default function ServiceDetailsPage({
       
       {isDeleteDialogOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-slate-900 rounded-lg p-4 sm:p-6 max-w-[425px] w-full mx-4">
-            <div className="space-y-4">
-              <h3 className="text-xs sm:text-sm md:text-base font-semibold text-vynal-purple-dark dark:text-slate-100">
-                Confirmation de suppression
-              </h3>
-              <p className="text-[10px] sm:text-xs text-vynal-purple-dark/80 dark:text-slate-400">
-                Voulez-vous vraiment supprimer ce service ? Cette action est irréversible.
-              </p>
-              <div className="flex justify-end gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setIsDeleteDialogOpen(false)}
-                  className="text-[10px] sm:text-xs text-vynal-purple-dark hover:text-vynal-purple-dark/80 dark:text-slate-400 dark:hover:text-slate-100"
-                >
-                  Annuler
-                </Button>
-                <Button
-                  variant="destructive"
-                  onClick={async () => {
-                    if (!serviceId) return;
-                    
-                    try {
-                      setIsDeleting(true);
-                      setIsDeleteDialogOpen(false);
-                      
-                      const result = await deleteService(serviceId);
-                      
-                      if (!result.success) {
-                        throw new Error(result.error || "Erreur lors de la suppression du service");
-                      }
-                      
-                      toast({
-                        title: "Succès",
-                        description: "Service supprimé avec succès"
-                      });
-                      
-                      setTimeout(() => {
-                        router.push('/dashboard/services');
-                      }, 500);
-                    } catch (err: any) {
-                      console.error("Erreur lors de la suppression:", err);
-                      toast({
-                        title: "Erreur",
-                        description: err.message || "Une erreur est survenue lors de la suppression",
-                        variant: "destructive"
-                      });
-                    } finally {
-                      setIsDeleting(false);
-                    }
-                  }}
-                  className="text-[10px] sm:text-xs text-white hover:text-white"
-                  disabled={isDeleting}
-                >
-                  {isDeleting ? "Suppression..." : "Confirmer"}
-                </Button>
-              </div>
-            </div>
+          <div className="w-full max-w-xl px-4">
+            <DeleteServiceConfirmation 
+              serviceName={service?.title || ""}
+              onConfirm={async () => {
+                if (!serviceId) return;
+                
+                try {
+                  setIsDeleting(true);
+                  setIsDeleteDialogOpen(false);
+                  
+                  const result = await deleteService(serviceId);
+                  
+                  if (!result.success) {
+                    throw new Error(result.error || "Erreur lors de la suppression du service");
+                  }
+                  
+                  toast({
+                    title: "Succès",
+                    description: "Service supprimé avec succès"
+                  });
+                  
+                  setTimeout(() => {
+                    router.push('/dashboard/services');
+                  }, 500);
+                } catch (err: any) {
+                  console.error("Erreur lors de la suppression:", err);
+                  toast({
+                    title: "Erreur",
+                    description: err.message || "Une erreur est survenue lors de la suppression",
+                    variant: "destructive"
+                  });
+                } finally {
+                  setIsDeleting(false);
+                }
+              }}
+              onCancel={() => setIsDeleteDialogOpen(false)}
+            />
           </div>
         </div>
       )}

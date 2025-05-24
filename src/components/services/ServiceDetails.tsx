@@ -187,7 +187,7 @@ const ServiceDetails: React.FC<ServiceDetailsProps> = ({
           )}>Détails</h1>
         </div>
         
-        <div className="flex gap-2 mt-2 sm:mt-0">
+        <div className="flex gap-2 mt-2 sm:mt-0 ml-auto">
           {onView && (
             <Button 
               variant="outline"
@@ -208,8 +208,8 @@ const ServiceDetails: React.FC<ServiceDetailsProps> = ({
               className={cn(
                 "text-xs py-1 px-2.5 h-8 transition-all duration-200",
                 isDarkMode 
-                  ? "bg-vynal-accent-primary/10 hover:bg-vynal-accent-primary/20 text-vynal-text-primary border-vynal-accent-primary/20" 
-                  : "bg-vynal-accent-primary/10 hover:bg-vynal-accent-primary/15 text-slate-700 border-vynal-accent-primary/20"
+                  ? "bg-vynal-accent-primary/80 hover:bg-vynal-accent-primary text-white border-vynal-accent-primary/90 hover:border-vynal-accent-primary" 
+                  : "bg-vynal-accent-primary/80 hover:bg-vynal-accent-primary text-white border-vynal-accent-primary/90 hover:border-vynal-accent-primary"
               )}
             >
               Modifier

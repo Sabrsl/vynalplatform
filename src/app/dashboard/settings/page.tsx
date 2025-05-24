@@ -1174,7 +1174,7 @@ export default function SettingsPage() {
 
   return (
     <div className="w-full h-full overflow-x-hidden overflow-y-auto scrollbar-hide bg-gray-50/50 dark:bg-transparent">
-      <div className="p-2 sm:p-4 space-y-6 sm:space-y-8 pb-12 max-w-[1600px] mx-auto">
+      <div className="space-y-6 sm:space-y-8 pb-12 max-w-[1600px] mx-auto lg:px-12">
         <div className="flex flex-col space-y-1">
           <div className="flex items-center space-x-2 mb-1.5">
             <div className="p-1 rounded-full bg-gradient-to-tr from-vynal-accent-primary/40 to-vynal-accent-primary/20 shadow-sm dark:from-vynal-purple-secondary/30 dark:to-vynal-purple-secondary/20 flex-shrink-0">

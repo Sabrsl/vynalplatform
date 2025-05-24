@@ -126,8 +126,10 @@ const MainNavigation = memo(({ totalUnreadCount, handleNavClick, signOut }: {
     {/* Section pour Freelance uniquement */}
     <NavGroup title="Services">
       <NavItem href={FREELANCE_ROUTES.SERVICES} icon={NAV_ICONS[FREELANCE_ROUTES.SERVICES]} label="Mes services" onClick={handleNavClick} />
+      {/* Temporairement désactivé
       <NavItem href={FREELANCE_ROUTES.STATS} icon={NAV_ICONS[FREELANCE_ROUTES.STATS]} label="Statistiques" onClick={handleNavClick} />
       <NavItem href={FREELANCE_ROUTES.CERTIFICATIONS} icon={NAV_ICONS[FREELANCE_ROUTES.CERTIFICATIONS]} label="Certifications" onClick={handleNavClick} />
+      */}
     </NavGroup>
     
     {/* Section profil et configuration */}
@@ -192,26 +194,31 @@ const UserProfile = memo(({ user, signOut }: {
 UserProfile.displayName = 'UserProfile';
 
 // Logo mémorisé
-const Logo = memo(() => (
-  <div className="h-16 flex items-center px-4 border-b border-slate-100 dark:border-vynal-purple-secondary/20">
-    <div className="flex items-center space-x-2">
-      <div className="bg-gradient-to-br from-purple-600 to-violet-700 h-5 w-5 rounded-lg flex items-center justify-center shadow-md shadow-purple-200/40 dark:from-vynal-accent-primary dark:to-vynal-accent-secondary dark:shadow-vynal-accent-primary/20">
-        <Image 
-          src="/assets/logo/logo_vynal_platform_simple.svg" 
-          alt="Vynal Platform Logo" 
-          className="h-4 w-auto dark:brightness-110 transition-all duration-300" 
-          width={16}
-          height={16}
-          priority
-        />
-      </div>
-      <div className="transition-opacity duration-200 overflow-hidden">
-        <h1 className="text-[10px] sm:text-xs font-bold bg-gradient-to-r from-purple-600 to-violet-700 bg-clip-text text-transparent dark:from-vynal-accent-primary dark:to-vynal-accent-secondary">VY</h1>
-        <p className="text-[6px] sm:text-[7px] text-slate-500 dark:text-vynal-text-secondary font-medium">Espace Freelance</p>
+const Logo = memo(() => {
+  const { isFreelance } = useUser();
+  
+  return (
+    <div className="h-16 flex items-center px-4 border-b border-slate-100 dark:border-vynal-purple-secondary/20">
+      <div className="flex items-center space-x-2">
+        <div className="bg-gradient-to-br from-vynal-accent-primary to-vynal-accent-secondary h-5 w-5 rounded-lg flex items-center justify-center shadow-md shadow-vynal-accent-primary/20">
+          <Image 
+            src="/assets/logo/logo_vynal_platform_simple.svg" 
+            alt="Vynal Platform Logo" 
+            className="h-4 w-auto brightness-110 transition-all duration-300" 
+            width={16}
+            height={16}
+            priority
+          />
+        </div>
+        <div className="transition-opacity duration-200 overflow-hidden">
+          <p className="text-[6px] sm:text-[7px] text-slate-500 dark:text-vynal-text-secondary font-medium">
+            {isFreelance ? "Espace Freelance" : "Espace Client"}
+          </p>
+        </div>
       </div>
     </div>
-  </div>
-));
+  );
+});
 
 Logo.displayName = 'Logo';
 

@@ -17,8 +17,10 @@ export const revalidate = 0;
 
 export default function WalletPage() {
   return (
-    <Suspense fallback={<WalletPageSkeleton />}>
-      <WalletContent />
-    </Suspense>
+    <div className="lg:px-12">
+      <Suspense fallback={<WalletPageSkeleton />}>
+        <WalletContent />
+      </Suspense>
+    </div>
   );
 } 
