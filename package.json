@@ -22,7 +22,8 @@
     "db:migrate:permissions": "npx supabase db push --db-url $NEXT_PUBLIC_SUPABASE_URL --auth-token $SUPABASE_SERVICE_ROLE_KEY --migration-file ./migrations/fix_conversation_permissions.sql",
     "validate:services": "node scripts/validate-services.js",
     "update-version": "node scripts/update-version.js",
-    "prebuild": "npm run validate:services && npm run update-version"
+    "copy:templates": "node scripts/copy-email-templates.js",
+    "prebuild": "npm run validate:services && npm run update-version && npm run copy:templates"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",

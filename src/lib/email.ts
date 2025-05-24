@@ -48,8 +48,34 @@ Handlebars.registerHelper('formatDate', function(dateString) {
 Handlebars.registerHelper('safeHtml', function(text) {
   if (!text) return '';
   
-  // Supprimer les balises HTML courantes utilisées dans les descriptions
-  return new Handlebars.SafeString(text);
+  try {
+    // Utiliser sanitize-html pour nettoyer le contenu tout en autorisant certaines balises
+    const sanitizedHtml = sanitizeHtml(text, {
+      allowedTags: [
+        'p', 'br', 'b', 'i', 'em', 'strong', 'u', 'ul', 'ol', 'li', 
+        'span', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'
+      ],
+      allowedAttributes: {
+        '*': ['class', 'style']
+      },
+      allowedStyles: {
+        '*': {
+          'color': [/^#(0-9a-f){3,6}$/i, /^rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)$/i, /^rgba\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*\d+\.?\d*\s*\)$/i],
+          'text-align': [/^left$/, /^right$/, /^center$/, /^justify$/],
+          'font-weight': [/^\d+$/, /^bold$/, /^normal$/],
+          'font-style': [/^italic$/, /^normal$/],
+          'text-decoration': [/^underline$/, /^none$/]
+        }
+      }
+    });
+    
+    // Retourner le HTML sécurisé en tant que SafeString pour que Handlebars ne l'échappe pas
+    return new Handlebars.SafeString(sanitizedHtml);
+  } catch (error) {
+    console.error('Erreur lors du traitement du HTML sécurisé:', error);
+    // En cas d'erreur, retourner le texte échappé
+    return new Handlebars.SafeString(Handlebars.escapeExpression(text));
+  }
 });
 
 // Types
@@ -213,40 +239,84 @@ const readEmailTemplate = (templatePath: string): string => {
   try {
     console.log('Tentative de lecture du template:', templatePath);
     
-    // Essayer le chemin relatif d'abord
-    try {
-      const templateContent = fs.readFileSync(templatePath, 'utf8');
-      console.log('Template lu avec succès (chemin relatif)');
-      return templateContent;
-    } catch (error: any) {
-      console.log('Erreur avec le chemin relatif:', error.message);
+    // Liste de tous les chemins possibles à essayer dans l'ordre
+    const pathsToTry = [
+      // 1. Chemin relatif standard
+      templatePath,
       
-      // Si échec, essayer le chemin absolu basé sur process.cwd()
-      const absolutePath = path.join(process.cwd(), templatePath);
-      console.log('Tentative avec le chemin absolu:', absolutePath);
+      // 2. Chemin absolu basé sur process.cwd()
+      path.join(process.cwd(), templatePath),
       
+      // 3. Chemin depuis la racine du projet sans le préfixe 'src'
+      path.join(process.cwd(), templatePath.replace(/^src\//, '')),
+      
+      // 4. Chemins spécifiques pour l'environnement de production
+      path.join(process.cwd(), 'public', templatePath),
+      path.join(process.cwd(), '.next', 'server', templatePath),
+      
+      // 5. Essayer avec templates à la racine
+      path.join(process.cwd(), 'templates', path.basename(templatePath)),
+      
+      // 6. Essayer le dossier templates/email spécifique
+      path.join(process.cwd(), 'templates', 'email', path.basename(templatePath)),
+      
+      // 7. Essayer en extrayant juste le dernier niveau du dossier + fichier
+      path.join(process.cwd(), path.basename(path.dirname(templatePath)), path.basename(templatePath))
+    ];
+    
+    // Essayer chaque chemin potentiel
+    for (const tryPath of pathsToTry) {
       try {
-        const templateContent = fs.readFileSync(absolutePath, 'utf8');
-        console.log('Template lu avec succès (chemin absolu)');
+        console.log('Essai du chemin:', tryPath);
+        const templateContent = fs.readFileSync(tryPath, 'utf8');
+        console.log('✅ Template lu avec succès depuis:', tryPath);
         return templateContent;
       } catch (error: any) {
-        console.log('Erreur avec le chemin absolu:', error.message);
-        throw new Error(`Impossible de lire le template d'email: ${templatePath}`);
+        // Continuer à la prochaine tentative
+        console.log(`❌ Échec avec le chemin: ${tryPath} - ${error.message}`);
       }
     }
+    
+    // Si on arrive ici, aucun chemin n'a fonctionné
+    console.error('Tous les chemins ont échoué pour le template:', templatePath);
+    throw new Error(`Impossible de trouver le template d'email: ${templatePath}`);
   } catch (error) {
     console.error('Erreur lors de la lecture du template:', error);
-    // En cas d'erreur, retourner un template par défaut simple
+    
+    // Obtenir le nom du template à partir du chemin pour personnaliser le message d'erreur
+    const templateName = path.basename(templatePath, '.html').replace(/_/g, ' ');
+    const templateType = templatePath.includes('service_approved') ? 'approbation de service' :
+                         templatePath.includes('service_rejected') ? 'rejet de service' :
+                         templatePath.includes('service_unpublished') ? 'dépublication de service' : 'notification';
+    
+    // En cas d'erreur, retourner un template par défaut plus informatif
     return `
       <!DOCTYPE html>
       <html>
       <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Message de ${APP_CONFIG.siteName}</title>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background-color: #7c3aed; color: white; padding: 20px; text-align: center; }
+          .content { padding: 20px; background: white; border-radius: 0 0 5px 5px; }
+          .footer { margin-top: 20px; text-align: center; font-size: 12px; color: #666; }
+        </style>
       </head>
       <body>
-        <h1>Message de ${APP_CONFIG.siteName}</h1>
-        <p>Une erreur est survenue lors du chargement du template.</p>
-        <p>Veuillez contacter l'administrateur.</p>
+        <div class="header">
+          <h1 style="margin: 0; font-size: 20px;">${APP_CONFIG.siteName}</h1>
+        </div>
+        <div class="content">
+          <h2>Notification de ${templateType}</h2>
+          <p>Votre service a été traité par notre équipe.</p>
+          <p>Pour plus de détails, veuillez vous connecter à votre compte et consulter votre tableau de bord.</p>
+          <p>Si vous avez des questions, n'hésitez pas à contacter notre équipe de support à l'adresse <a href="mailto:${APP_CONFIG.contactEmail}">${APP_CONFIG.contactEmail}</a>.</p>
+        </div>
+        <div class="footer">
+          <p>&copy; ${new Date().getFullYear()} ${APP_CONFIG.siteName}. Tous droits réservés.</p>
+        </div>
       </body>
       </html>
     `;
@@ -435,11 +505,33 @@ export const sendTemplateEmail = async (
   options: Partial<EmailOptions> = {}
 ): Promise<boolean> => {
   try {
+    console.log(`[EMAIL] Début sendTemplateEmail: ${templatePath} pour ${to}`);
+    
     // Lire le template
+    console.log(`[EMAIL] Lecture du template: ${templatePath}`);
     const template = readEmailTemplate(templatePath);
+    console.log(`[EMAIL] Template lu avec succès (longueur: ${template.length} caractères)`);
+    
+    // Vérifier les variables essentielles
+    const missingVars: string[] = [];
+    ['freelanceName', 'serviceTitle', 'servicePrice'].forEach(key => {
+      if (!variables[key]) missingVars.push(key);
+    });
+    
+    if (missingVars.length > 0) {
+      console.warn(`[EMAIL] Variables manquantes: ${missingVars.join(', ')}`);
+      // Ajouter des valeurs par défaut pour les variables manquantes
+      missingVars.forEach(key => {
+        variables[key] = key === 'freelanceName' ? 'Utilisateur' : 
+                         key === 'serviceTitle' ? 'Service' : 
+                         key === 'servicePrice' ? '0' : 'Non spécifié';
+      });
+    }
     
     // Compiler et rendre le template avec Handlebars
+    console.log(`[EMAIL] Rendu du template avec ${Object.keys(variables).length} variables`);
     const html = renderHandlebarsTemplate(template, variables);
+    console.log(`[EMAIL] Template rendu avec succès (longueur: ${html.length} caractères)`);
     
     // Convertir le HTML en texte brut de manière sécurisée
     const text = (() => {
@@ -479,15 +571,27 @@ export const sendTemplateEmail = async (
       return plainText;
     })();
     
+    console.log(`[EMAIL] Version texte générée (longueur: ${text.length} caractères)`);
+    
     // Envoyer l'email
-    return await sendEmail({
+    console.log(`[EMAIL] Envoi de l'email à ${to}`);
+    const result = await sendEmail({
       to,
       subject,
       html,
       text,
       ...options
     });
+    
+    if (result) {
+      console.log(`[EMAIL] ✅ Email envoyé avec succès à ${to}`);
+    } else {
+      console.error(`[EMAIL] ❌ Échec de l'envoi d'email à ${to}`);
+    }
+    
+    return result;
   } catch (error) {
+    console.error(`[EMAIL] Erreur critique lors de l'envoi d'email template à ${to}:`, error);
     return false;
   }
 };

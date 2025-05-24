@@ -165,7 +165,7 @@ function SignupForm() {
       // Record this attempt timestamp
       localStorage.setItem(LAST_SIGNUP_ATTEMPT_KEY, now.toString());
       
-      const { success, error } = await signUp(
+      const { success, error, message } = await signUp(
         data.email, 
         data.password, 
         data.role
@@ -186,14 +186,24 @@ function SignupForm() {
             errorMessage.includes("user_repeated_signup") ||
             errorMessage.toLowerCase().includes("already registered")) {
           debouncedSetError("Cet email est déjà utilisé. Veuillez vous connecter ou réinitialiser votre mot de passe.");
+        } else if (errorMessage.toLowerCase().includes("unable to validate email")) {
+          debouncedSetError("Impossible de valider cette adresse email. Veuillez vérifier qu'elle est correcte et réessayer.");
+        } else if (errorMessage.toLowerCase().includes("invalid email")) {
+          debouncedSetError("L'adresse email semble invalide. Veuillez la vérifier et réessayer.");
+        } else if (errorMessage.toLowerCase().includes("email provider") || 
+                  errorMessage.toLowerCase().includes("smtp") || 
+                  errorMessage.toLowerCase().includes("sending email") ||
+                  errorMessage.toLowerCase().includes("email sending failed") ||
+                  errorMessage.toLowerCase().includes("confirmation email")) {
+          // Problème avec l'envoi d'email - redirection directe vers la vérification
+          reset();
+          router.push("/auth/verify-email?email=" + encodeURIComponent(data.email));
         } else {
           debouncedSetError(errorMessage);
         }
-        console.error(error);
       }
     } catch (err) {
       debouncedSetError("Une erreur est survenue. Veuillez réessayer.");
-      console.error("Signup error:", err);
     } finally {
       setIsLoading(false);
     }

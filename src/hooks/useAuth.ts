@@ -50,7 +50,18 @@ export function useAuth() {
       // Pour la réinitialisation de mot de passe, nous retournons l'URL complète
       return `${APP_URLS.productionUrl}${path}`;
     } else {
-      return `${APP_URLS.productionUrl}${path}`;
+      // Pour les autres cas, utiliser l'URL de production
+      // Vérifier si nous sommes déjà sur une URL absolue
+      if (path.startsWith('http://') || path.startsWith('https://')) {
+        return path;
+      }
+      // S'assurer que l'URL est correctement formée
+      const baseUrl = APP_URLS.productionUrl.endsWith('/') 
+        ? APP_URLS.productionUrl.slice(0, -1) 
+        : APP_URLS.productionUrl;
+      
+      const pathWithLeadingSlash = path.startsWith('/') ? path : `/${path}`;
+      return `${baseUrl}${pathWithLeadingSlash}`;
     }
   }, []);
 
@@ -375,15 +386,29 @@ export function useAuth() {
     
     try {
       setLoading(true);
-      const { error } = await supabase.auth.signUp({
+      
+      // Construire l'URL de redirection
+      const siteUrl = APP_URLS.productionUrl.endsWith('/') 
+        ? APP_URLS.productionUrl.slice(0, -1) 
+        : APP_URLS.productionUrl;
+      
+      const callbackPath = APP_URLS.authCallbackUrl.startsWith('/') 
+        ? APP_URLS.authCallbackUrl 
+        : `/${APP_URLS.authCallbackUrl}`;
+      
+      const redirectUrl = `${siteUrl}${callbackPath}`;
+      
+      const userOptions = {
+        emailRedirectTo: redirectUrl,
+        data: {
+          role,
+        }
+      };
+      
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: {
-          emailRedirectTo: getRedirectUrl(APP_URLS.authCallbackUrl),
-          data: {
-            role,
-          },
-        },
+        options: userOptions,
       });
       
       if (error) throw error;
@@ -406,7 +431,7 @@ export function useAuth() {
         setLoading(false);
       }
     }
-  }, [getRedirectUrl]);
+  }, []);
 
   // Déconnexion
   const signOut = useCallback(async (): Promise<AuthResult> => {

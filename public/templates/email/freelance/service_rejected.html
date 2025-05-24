@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Votre service a été rejeté - Vynal Platform</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Inter', sans-serif;
+    }
+
+    body {
+      background-color: #f5f5f5;
+      color: #333;
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      background-color: #ffffff;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .header {
+      background-color: #7c3aed;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .logo {
+      height: 40px;
+      margin-bottom: 10px;
+    }
+
+    .content {
+      padding: 30px 20px;
+    }
+
+    h2 {
+      color: #4a4a4a;
+      margin-bottom: 20px;
+      font-size: 24px;
+      font-weight: 600;
+    }
+
+    p {
+      margin-bottom: 16px;
+      color: #555;
+      font-size: 15px;
+    }
+
+    .notification-badge {
+      background-color: #ef4444;
+      color: white;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 500;
+      display: inline-block;
+      margin-bottom: 20px;
+    }
+
+    .warning-box {
+      background-color: #fef2f2;
+      border-left: 4px solid #ef4444;
+      padding: 15px;
+      margin: 20px 0;
+      color: #7f1d1d;
+      border-radius: 4px;
+    }
+
+    .info-box {
+      background-color: #f0f9ff;
+      border-left: 4px solid #0ea5e9;
+      padding: 15px;
+      margin: 20px 0;
+      color: #0c4a6e;
+      border-radius: 4px;
+    }
+
+    .service-details {
+      background-color: #f8fafc;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 20px 0;
+      border: 1px solid #e2e8f0;
+    }
+
+    .service-details h3 {
+      font-size: 18px;
+      margin-bottom: 15px;
+      color: #4b5563;
+      font-weight: 600;
+    }
+
+    .service-details p {
+      margin-bottom: 10px;
+      font-size: 14px;
+    }
+
+    .button {
+      display: inline-block;
+      background-color: #7c3aed;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 6px;
+      text-decoration: none;
+      font-weight: 500;
+      font-size: 15px;
+      transition: background-color 0.2s;
+    }
+
+    .button:hover {
+      background-color: #6d28d9;
+    }
+
+    .footer {
+      text-align: center;
+      padding: 20px;
+      background-color: #f8fafc;
+      border-top: 1px solid #e2e8f0;
+      font-size: 12px;
+      color: #64748b;
+    }
+
+    .footer a {
+      color: #7c3aed;
+      text-decoration: none;
+    }
+
+    @media only screen and (max-width: 600px) {
+      .container {
+        width: 100%;
+        border-radius: 0;
+      }
+      
+      .content {
+        padding: 20px 15px;
+      }
+      
+      h2 {
+        font-size: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1 style="color: white; font-size: 18px; margin: 0;">Vynal Platform</h1>
+    </div>
+    
+    <div class="content">
+      <div style="text-align: center;">
+        <span class="notification-badge">Service non approuvé</span>
+      </div>
+      
+      <h2>Votre service n'a pas été approuvé</h2>
+      
+      <p>Bonjour {{freelanceName}},</p>
+      
+      <p>Nous vous informons que votre service <strong>{{serviceTitle}}</strong> n'a pas été approuvé par notre équipe de modération.</p>
+      
+      <div class="warning-box">
+        <p><strong>Information :</strong> Votre service n'est pas visible par les utilisateurs et ne peut pas recevoir de commandes.</p>
+      </div>
+      
+      <div class="service-details">
+        <h3>Détails du service</h3>
+        <p><strong>Titre :</strong> {{serviceTitle}}</p>
+        <p><strong>Description :</strong> {{{safeHtml serviceDescription}}}</p>
+        <p><strong>Prix :</strong> {{servicePrice}} {{currency}}</p>
+        <p><strong>Catégorie :</strong> {{serviceCategory}}</p>
+        <p><strong>Date de création :</strong> {{formatDate creationDate}}</p>
+        <p><strong>Date d'évaluation :</strong> {{formatDate rejectionDate}}</p>
+      </div>
+      
+      {{#if adminNotes}}
+      <p><strong>Commentaire de l'équipe de modération :</strong></p>
+      <div style="font-style: italic; margin-bottom: 20px; padding: 10px; background-color: #f8f9fa; border-radius: 6px;">
+        "{{adminNotes}}"
+      </div>
+      {{/if}}
+      
+      <div class="info-box">
+        <p><strong>Que faire maintenant ?</strong></p>
+        <p>Vous pouvez modifier votre service en tenant compte des commentaires de notre équipe de modération, puis le soumettre à nouveau pour approbation.</p>
+      </div>
+      
+      <p>Pour toute question concernant cette décision ou pour obtenir plus d'informations sur les modifications à apporter, n'hésitez pas à contacter notre équipe de support.</p>
+      
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="https://vynalplatform.com/dashboard/services/{{serviceId}}" class="button">Modifier mon service</a>
+      </div>
+      
+      <p>Si vous avez des questions, n'hésitez pas à contacter notre équipe de support à l'adresse <a href="mailto:{{contactEmail}}">{{contactEmail}}</a>.</p>
+    </div>
+    
+    <div class="footer">
+      <p>&copy; {{currentYear}} Vynal Platform. Tous droits réservés.</p>
+      <p>
+        <a href="https://vynalplatform.com/terms-of-service">Conditions d'utilisation</a> | 
+        <a href="https://vynalplatform.com/privacy-policy">Politique de confidentialité</a>
+      </p>
+    </div>
+  </div>
+</body>
+</html> 

@@ -1,13 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { AlertCircle, CheckCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle, Info } from 'lucide-react';
 import { 
   DescriptionSection, 
   DescriptionFields,
   validateSectionLength, 
   sanitizeContent,
-  SECTION_LIMITS
+  SECTION_LIMITS,
+  findMatchPositions,
+  MatchPosition
 } from '@/lib/validators/serviceDescription';
 
 interface ServiceDescriptionProps {
@@ -39,6 +41,9 @@ const ServiceDescriptionValidator: React.FC<ServiceDescriptionProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [touched, setTouched] = useState(false);
   const [isValid, setIsValid] = useState(true);
+  const [highlightedMatches, setHighlightedMatches] = useState<string[]>([]);
+  const [matchPositions, setMatchPositions] = useState<MatchPosition[]>([]);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   
   // Déterminer les limites de caractères pour ce champ
   const { min, max } = SECTION_LIMITS[field];
@@ -50,6 +55,15 @@ const ServiceDescriptionValidator: React.FC<ServiceDescriptionProps> = ({
       const validationResult = validateSectionLength(field, value);
       setIsValid(validationResult.isValid);
       setError(validationResult.isValid ? null : validationResult.error || null);
+      setHighlightedMatches(validationResult.highlightedMatches || []);
+      
+      // Trouver les positions des mots problématiques dans le texte
+      if (validationResult.highlightedMatches && validationResult.highlightedMatches.length > 0) {
+        const positions = findMatchPositions(value, validationResult.highlightedMatches);
+        setMatchPositions(positions);
+      } else {
+        setMatchPositions([]);
+      }
     }
   }, [value, field, touched]);
   
@@ -70,6 +84,7 @@ const ServiceDescriptionValidator: React.FC<ServiceDescriptionProps> = ({
     const validationResult = validateSectionLength(field, value);
     setIsValid(validationResult.isValid);
     setError(validationResult.isValid ? null : validationResult.error || null);
+    setHighlightedMatches(validationResult.highlightedMatches || []);
   };
   
   // Calculer le style du compteur de caractères
@@ -114,6 +129,54 @@ const ServiceDescriptionValidator: React.FC<ServiceDescriptionProps> = ({
     return `${value.length}/${max} caractères${min > 0 ? ` (min: ${min})` : ''}`;
   };
 
+  // Fonction pour mettre en évidence visuellement un mot problématique dans le texte
+  const highlightWordInTextarea = (position: number, length: number) => {
+    if (textareaRef.current) {
+      // Mettre le focus sur la textarea
+      textareaRef.current.focus();
+      
+      // Sélectionner le mot problématique
+      textareaRef.current.setSelectionRange(position, position + length);
+      
+      // Faire défiler la textarea pour que le mot soit visible
+      const textareaLines = value.substr(0, position).split('\n');
+      const lineNumber = textareaLines.length - 1;
+      const lineHeight = 20; // Hauteur approximative d'une ligne en pixels
+      textareaRef.current.scrollTop = lineNumber * lineHeight;
+    }
+  };
+
+  // Fonction pour mettre en évidence les mots problématiques
+  const highlightProblematicWords = () => {
+    if (!highlightedMatches || highlightedMatches.length === 0) {
+      return null;
+    }
+
+    return (
+      <div className="mt-2 p-2 border border-amber-300 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-700 rounded-md">
+        <p className="text-[10px] sm:text-xs text-amber-800 dark:text-amber-300 font-medium mb-1">
+          <Info className="h-3 w-3 inline-block mr-1" /> 
+          Mots potentiellement inappropriés détectés:
+        </p>
+        <div className="flex flex-wrap gap-1.5">
+          {matchPositions.map((posInfo, index) => (
+            <button 
+              key={index}
+              type="button"
+              onClick={() => highlightWordInTextarea(posInfo.positions[0], posInfo.match.length)}
+              className="px-1.5 py-0.5 bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 rounded text-[8px] sm:text-[10px] font-medium hover:bg-red-200 dark:hover:bg-red-800/40 transition-colors"
+            >
+              {posInfo.match} {posInfo.positions.length > 1 ? `(${posInfo.positions.length})` : ''}
+            </button>
+          ))}
+        </div>
+        <p className="text-[8px] sm:text-[10px] text-amber-700 dark:text-amber-400 mt-1">
+          Cliquez sur un mot pour le localiser dans le texte. Veuillez modifier le contenu si nécessaire.
+        </p>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-2">
       <Textarea
@@ -128,7 +191,11 @@ const ServiceDescriptionValidator: React.FC<ServiceDescriptionProps> = ({
         className={getTextAreaClasses()}
         aria-invalid={!isValid}
         aria-describedby={`${id}-feedback`}
+        ref={textareaRef}
       />
+      
+      {/* Afficher les mots problématiques s'il y en a */}
+      {!isValid && highlightedMatches.length > 0 && highlightProblematicWords()}
       
       {error && touched ? (
         <div className="flex items-start gap-1.5 mt-1" id={`${id}-feedback`}>

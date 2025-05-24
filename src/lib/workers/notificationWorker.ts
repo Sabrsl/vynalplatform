@@ -337,14 +337,48 @@ export async function processNotification(notification: Notification) {
                 ? fullAdminNotes.substring(0, 200) + '...'
                 : fullAdminNotes);
             
+          // S'assurer que toutes les variables requises par les templates sont définies
           context.currency = 'EUR';
           context.creationDate = contentObj.creationDate || new Date().toISOString();
           context.approvalDate = contentObj.approvalDate || new Date().toISOString();
+          context.rejectionDate = contentObj.rejectionDate || new Date().toISOString();
           context.unpublishedDate = contentObj.unpublishedDate || new Date().toISOString();
           context.serviceCategory = contentObj.serviceCategory || 'Non spécifiée';
           context.serviceId = contentObj.serviceId || '';
           
-          console.log(`[NotificationWorker] Variables spécifiques ajoutées pour le service "${context.serviceTitle}". adminNotes: ${context.adminNotes ? 'présent' : 'non défini'}`);
+          // S'assurer que freelanceName est défini (requis par tous les templates de service)
+          if (!context.freelanceName) {
+            context.freelanceName = 'Freelance';
+            
+            // Essayer de récupérer le nom du freelance à partir de l'ID utilisateur
+            if (notification.user_id) {
+              try {
+                const { data: userData } = await supabase
+                  .from('profiles')
+                  .select('full_name')
+                  .eq('id', notification.user_id)
+                  .single();
+                  
+                if (userData && userData.full_name) {
+                  context.freelanceName = userData.full_name;
+                }
+              } catch (error) {
+                console.error('[NotificationWorker] Erreur lors de la récupération du nom du freelance:', error);
+              }
+            }
+          }
+          
+          console.log(`[NotificationWorker] Variables pour le service "${context.serviceTitle}":`, {
+            serviceId: context.serviceId,
+            serviceTitle: context.serviceTitle,
+            servicePrice: context.servicePrice,
+            freelanceName: context.freelanceName,
+            adminNotes: context.adminNotes ? 'présent' : 'non défini',
+            creationDate: context.creationDate,
+            approvalDate: context.approvalDate,
+            rejectionDate: context.rejectionDate,
+            unpublishedDate: context.unpublishedDate
+          });
         }
       } catch (parseError) {
         console.error('[NotificationWorker] Erreur lors du traitement du contenu de la notification:', parseError);

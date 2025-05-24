@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Projet validé</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            background-color: #f9f9f9;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 4px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .header {
+            background-color: white;
+            text-align: center;
+            padding: 20px;
+        }
+        .logo {
+            max-width: 150px;
+            margin-bottom: 15px;
+        }
+        .content {
+            padding: 20px;
+        }
+        .notification-badge {
+            display: inline-block;
+            background-color: #22c55e;
+            color: white;
+            font-weight: bold;
+            padding: 5px 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+        .success-box {
+            background-color: #ecfdf5;
+            border-left: 4px solid #22c55e;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+        .order-details {
+            background-color: #f3f4f6;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .order-details table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .order-details th {
+            text-align: left;
+            padding: 8px 5px;
+            border-bottom: 1px solid #ddd;
+        }
+        .order-details td {
+            padding: 8px 5px;
+            border-bottom: 1px solid #ddd;
+        }
+        .button {
+            display: inline-block;
+            background-color: #111827;
+            color: white;
+            text-decoration: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            font-weight: bold;
+            margin-top: 15px;
+        }
+        .footer {
+            background-color: #f3f4f6;
+            padding: 20px;
+            text-align: center;
+            font-size: 14px;
+            color: #6b7280;
+        }
+        .social-links {
+            margin: 15px 0;
+        }
+        .social-link {
+            display: inline-block;
+            margin: 0 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+      <h1 style="color: #6554AF; font-size: 18px; margin: 0;">Vynal Platform</h1>
+    </div>
+        
+        <div class="content">
+            <div class="notification-badge">Projet validé</div>
+            
+            <p>Bonjour {{client_name}},</p>
+            
+            <div class="success-box">
+                <h3>Félicitations !</h3>
+                <p>Votre projet a été validé avec succès. Nous sommes ravis de vous accueillir sur Vynal Platform.</p>
+            </div>
+            
+            <p>Voici les détails de votre projet :</p>
+            
+            <div class="order-details">
+                <table>
+                    <tr>
+                        <th>Projet</th>
+                        <td>{{project_title}}</td>
+                    </tr>
+                    <tr>
+                        <th>Catégorie</th>
+                        <td>{{project_category}}</td>
+                    </tr>
+                    <tr>
+                        <th>Budget</th>
+                        <td>{{project_budget}} {{currency}}</td>
+                    </tr>
+                    <tr>
+                        <th>Date de publication</th>
+                        <td>{{publication_date}}</td>
+                    </tr>
+                </table>
+            </div>
+            
+            <p>Votre projet est maintenant visible pour les freelances sur la plateforme. Vous allez bientôt recevoir des propositions de freelances intéressés.</p>
+            
+            <p>Voici quelques conseils pour maximiser les chances de trouver le freelance idéal :</p>
+            <ul>
+                <li>Consultez régulièrement votre espace projet pour voir les nouvelles propositions</li>
+                <li>Prenez le temps d'échanger avec les freelances avant de faire votre choix</li>
+                <li>Comparez les profils, les portfolios et les avis des autres clients</li>
+                <li>Posez des questions précises pour évaluer leur compréhension de votre projet</li>
+            </ul>
+            
+            <p>Vous pouvez accéder à votre projet et consulter les propositions en cliquant sur le bouton ci-dessous :</p>
+            
+            <div style="text-align: center;">
+                <a href="{{project_url}}" class="button">Voir mon projet</a>
+            </div>
+            
+            <p style="margin-top: 25px;">Si vous avez des questions ou besoin d'assistance, n'hésitez pas à contacter notre équipe support.</p>
+            
+            <p>Nous vous souhaitons une excellente expérience sur Vynal Platform !</p>
+            
+            <p>Cordialement,<br>L'équipe Vynal</p>
+        </div>
+        
+        <div class="footer">
+            <p>© {{current_year}} Vynal Platform. Tous droits réservés.</p>
+            <div class="social-links">
+                <a href="https://twitter.com/vynalplatform" class="social-link">Twitter</a>
+                <a href="https://www.instagram.com/vynalplatform" class="social-link">Instagram</a>
+                <a href="https://www.linkedin.com/company/vynal" class="social-link">LinkedIn</a>
+            </div>
+            <p>Vous recevez cet email car vous êtes inscrit sur la plateforme Vynal.</p>
+        </div>
+    </div>
+</body>
+</html> 

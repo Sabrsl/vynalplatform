@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Réponse à votre litige - Vynal Platform</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Poppins', sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { 
+      background-color: white;
+      text-align: center; 
+      padding: 20px;
+    }
+    .logo { 
+      max-width: 120px; 
+      height: auto; 
+    }
+    .content { background-color: #f9f9f9; padding: 20px; border-radius: 5px; }
+    .button { display: inline-block; background-color: #6554AF; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: 500; }
+    .footer { margin-top: 30px; font-size: 12px; color: #777; text-align: center; }
+    .order-details { background-color: #fff; border: 1px solid #ddd; padding: 15px; border-radius: 5px; margin: 20px 0; }
+    .notification-badge { background-color: #ff9800; color: white; padding: 5px 10px; border-radius: 20px; font-size: 14px; display: inline-block; margin-bottom: 15px; font-weight: 500; }
+    .message-preview { background-color: #fff; border: 1px solid #ddd; padding: 15px; border-radius: 5px; margin: 20px 0; font-style: italic; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1 style="color: #6554AF; font-size: 18px; margin: 0;">Vynal Platform</h1>
+    </div>
+    
+    <div class="content">
+      <div style="text-align: center;">
+        <span class="notification-badge">Réponse à votre litige</span>
+      </div>
+      
+      <h2>Vous avez reçu une réponse à votre litige</h2>
+      
+      <p>Bonjour {{clientName}},</p>
+      
+      <p><strong>{{freelanceName}}</strong> a répondu au litige concernant votre commande pour <strong>{{serviceTitle}}</strong>.</p>
+      
+      <div class="order-details">
+        <h3 style="margin-top: 0;">Détails de la commande</h3>
+        <p><strong>Numéro de commande :</strong> #{{orderId}}</p>
+        <p><strong>Service :</strong> {{serviceTitle}}</p>
+        <p><strong>Freelance :</strong> {{freelanceName}}</p>
+        <p><strong>Date d'ouverture du litige :</strong> {{disputeDate}}</p>
+      </div>
+      
+      <p><strong>Réponse du freelance :</strong></p>
+      <div class="message-preview">
+        "{{responseMessage}}"
+      </div>
+      
+      <p>Nous vous encourageons à consulter cette réponse et à poursuivre la communication pour résoudre ce litige.</p>
+      
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="https://vynalplatform.com/dashboard/orders/{{orderId}}?dispute=true" class="button">Voir le détail du litige</a>
+      </div>
+      
+      <p>Si vous avez des questions, n'hésitez pas à contacter notre équipe de support à l'adresse <a href="mailto:{{contactEmail}}">{{contactEmail}}</a>.</p>
+    </div>
+    
+    <div class="footer">
+      <p>&copy; {{currentYear}} Vynal Platform. Tous droits réservés.</p>
+      <p>
+        <a href="https://vynalplatform.com/terms-of-service">Conditions d'utilisation</a> | 
+        <a href="https://vynalplatform.com/privacy-policy">Politique de confidentialité</a>
+      </p>
+    </div>
+  </div>
+</body>
+</html> 
