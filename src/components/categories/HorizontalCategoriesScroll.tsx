@@ -148,29 +148,34 @@ const HorizontalCategoriesScroll: React.FC<HorizontalCategoriesScrollProps> = ({
   const getItemClassName = useCallback((isSelected: boolean) => {
     const baseClasses = `
       group relative flex flex-col items-center justify-center 
-      rounded-xl transition-all duration-300 ease-out
+      rounded-lg transition-all duration-200 ease-out
       py-0.5 px-1.5 sm:py-1 sm:px-2 md:py-1.5 md:px-2.5
       min-w-[65px] sm:min-w-[75px] md:min-w-[85px] lg:min-w-[95px]
       max-w-[75px] sm:max-w-[85px] md:max-w-[95px] lg:max-w-[105px]
+      min-h-[70px] sm:min-h-[65px] md:min-h-[70px] lg:min-h-[75px]
       flex-shrink-0 cursor-pointer select-none
-      border backdrop-blur-sm
+      border backdrop-blur-sm shadow-sm
       focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50
       active:scale-95 transform-gpu
     `;
 
     if (isSelected) {
       return `${baseClasses}
-        bg-gradient-to-br from-rose-500/20 via-rose-500/15 to-rose-500/10
-        border-rose-400/30 shadow-lg shadow-rose-500/10
-        ring-1 ring-rose-400/20
+        bg-vynal-accent-primary/20 dark:bg-vynal-accent-primary/10
+        border-vynal-accent-primary/40 dark:border-vynal-accent-primary/20
+        text-vynal-accent-primary dark:text-vynal-accent-primary
+        hover:bg-vynal-accent-primary/25 dark:hover:bg-vynal-accent-primary/20
+        hover:border-vynal-accent-primary/50 dark:hover:border-vynal-accent-primary/40
       `;
     }
 
     return `${baseClasses}
-      bg-white/8 hover:bg-white/12 
-      border-white/10 hover:border-white/20
-      hover:shadow-lg hover:shadow-black/5
-      hover:scale-105 hover:-translate-y-0.5
+      bg-white/95 dark:bg-slate-900/30
+      border-slate-300 dark:border-slate-700/30
+      text-slate-700 dark:text-vynal-text-primary
+      hover:bg-white dark:hover:bg-slate-900/40
+      hover:border-slate-400 dark:hover:border-slate-700/40
+      shadow-md hover:shadow-lg
     `;
   }, []);
 
@@ -229,13 +234,13 @@ const HorizontalCategoriesScroll: React.FC<HorizontalCategoriesScrollProps> = ({
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -10 }}
-              className="absolute left-0 top-1/2 -translate-y-1/2 z-20"
+              className="absolute -left-3 sm:left-0 top-1/2 -translate-y-1/2 z-20"
             >
               <Button 
                 variant="ghost" 
                 size="sm"
-                className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-md
-                  shadow-lg border border-white/20 dark:border-gray-700/30
+                className="bg-white dark:bg-gray-900/90 backdrop-blur-md
+                  shadow-lg border border-slate-300 dark:border-gray-700/30
                   rounded-full h-6 w-6 sm:h-8 sm:w-8 p-0 hover:scale-110 active:scale-95
                   transition-all duration-200"
                 onClick={() => smoothScroll('left')}
@@ -253,13 +258,13 @@ const HorizontalCategoriesScroll: React.FC<HorizontalCategoriesScrollProps> = ({
               initial={{ opacity: 0, x: 10 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 10 }}
-              className="absolute right-0 top-1/2 -translate-y-1/2 z-20"
+              className="absolute -right-3 sm:right-0 top-1/2 -translate-y-1/2 z-20"
             >
               <Button 
                 variant="ghost" 
                 size="sm"
-                className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-md
-                  shadow-lg border border-white/20 dark:border-gray-700/30
+                className="bg-white dark:bg-gray-900/90 backdrop-blur-md
+                  shadow-lg border border-slate-300 dark:border-gray-700/30
                   rounded-full h-6 w-6 sm:h-8 sm:w-8 p-0 hover:scale-110 active:scale-95
                   transition-all duration-200"
                 onClick={() => smoothScroll('right')}
@@ -348,10 +353,10 @@ const HorizontalCategoriesScroll: React.FC<HorizontalCategoriesScrollProps> = ({
                   aria-label={`Catégorie: ${category.name}`}
                 >
                   <div className={getItemClassName(isSelected)}>
-                    <div className="flex items-center justify-center w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5 mb-0.5">
-                      <IconComponent className="h-2 w-2 sm:h-2.5 sm:w-2.5 md:h-3 md:w-3 text-vynal-accent-primary group-hover:text-vynal-accent-primary/80 transition-colors" />
+                    <div className="flex items-center justify-center w-4 h-4 sm:w-4 sm:h-4 md:w-5 md:h-5 mb-0.5">
+                      <IconComponent className="h-2.5 w-2.5 sm:h-2.5 sm:w-2.5 md:h-3 md:w-3 text-vynal-accent-primary group-hover:text-vynal-accent-primary/80 transition-colors" />
                     </div>
-                    <span className="text-[8px] sm:text-[9px] md:text-[10px] font-medium
+                    <span className="text-[9px] sm:text-[9px] md:text-[10px] font-medium
                       text-white/50 group-hover:text-white/70 transition-colors
                       text-center leading-tight tracking-wide w-full px-1
                       line-clamp-2 min-h-[1.6em]">

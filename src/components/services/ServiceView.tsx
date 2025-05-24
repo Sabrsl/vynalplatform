@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CertificationBadge } from "@/components/ui/certification-badge";
 import EnhancedAvatar from "@/components/ui/enhanced-avatar";
+import { QuickTooltip } from "@/components/ui/tooltip";
 
 // Composants métier
 import ServiceCard from "@/components/services/ServiceCard";
@@ -444,6 +445,7 @@ const ServiceInfo = React.memo(({
                 : "text-gray-500 hover:text-[#FF66B2] hover:bg-gray-100/80"
             )}
             aria-label="Partager ce service"
+            title="Partager ce service"
           >
             <Share2 className="h-3.5 w-3.5" />
           </button>
@@ -691,10 +693,23 @@ const FreelanceInfoBadge = React.memo(({
               {freelance.full_name || freelance.username || 'Vendeur'}
             </h3>
             {freelance.is_certified && freelance.certification_type && (
-              <CertificationBadge 
-                type={freelance.certification_type as 'standard' | 'premium' | 'expert'} 
-                size="sm"
-              />
+              <QuickTooltip 
+                content={`Certification ${freelance.certification_type}`}
+                side="bottom"
+                variant="default"
+                className="bg-slate-100/90 dark:bg-slate-800/90
+                  border border-slate-200 dark:border-slate-700/30
+                  text-slate-700 dark:text-vynal-text-primary
+                  shadow-sm backdrop-blur-sm
+                  rounded-lg"
+              >
+                <div>
+                  <CertificationBadge 
+                    type={freelance.certification_type as 'standard' | 'premium' | 'expert'} 
+                    size="sm"
+                  />
+                </div>
+              </QuickTooltip>
             )}
           </div>
           <div className="flex items-center mt-0.5">

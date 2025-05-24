@@ -46,6 +46,7 @@ import { FixedSizeGrid } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
 import InfiniteLoader from 'react-window-infinite-loader';
 import { useInView } from 'react-intersection-observer';
+import { QuickTooltip } from '@/components/ui/tooltip';
 
 // Utilisons les fonctions d'adaptation des catégories depuis les hooks
 
@@ -126,24 +127,39 @@ const NavigationBar = React.memo(({
     <section className="bg-gray-50 dark:bg-vynal-purple-dark/90 border-t border-gray-200 dark:border-vynal-purple-secondary/30 sticky top-0 z-10">
       <div className="container mx-auto px-4 sm:px-6 lg:px-16 py-3">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-          {/* Breadcrumbs */}
           <BreadcrumbTrail 
             activeCategory={activeCategory} 
             activeSubcategory={activeSubcategory}
           />
           
-          {/* Actions */}
-          <div className="flex items-center justify-end space-x-2">
-            <SearchBarSimple 
-              onSearch={handleSearch}
-            />
-            
-            <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2">
+            <div className="hidden md:block">
+              <SearchBarSimple 
+                onSearch={handleSearch}
+              />
+            </div>
+            <QuickTooltip 
+              content={viewMode === 'grid' ? 'Passer en vue liste' : 'Passer en vue grille'}
+              side="bottom"
+              variant="default"
+              className="bg-slate-100/90 dark:bg-slate-800/90
+                border border-slate-200 dark:border-slate-700/30
+                text-slate-700 dark:text-vynal-text-primary
+                shadow-sm backdrop-blur-sm
+                rounded-lg"
+            >
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8"
                 onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
+                className="h-8 w-8 hidden md:block
+                  bg-white/30 dark:bg-slate-900/30
+                  border border-slate-200 dark:border-slate-700/30
+                  text-slate-700 dark:text-vynal-text-primary
+                  hover:bg-white/40 dark:hover:bg-slate-900/40
+                  hover:border-slate-300 dark:hover:border-slate-700/40
+                  rounded-lg shadow-sm backdrop-blur-sm
+                  transition-all duration-200"
               >
                 {viewMode === 'grid' ? (
                   <List className="h-5 w-5" />
@@ -151,7 +167,7 @@ const NavigationBar = React.memo(({
                   <LayoutGrid className="h-5 w-5" />
                 )}
               </Button>
-            </div>
+            </QuickTooltip>
           </div>
         </div>
       </div>
@@ -166,27 +182,48 @@ const ResultsHeader = React.memo(({
   activeCategory, 
   totalCount, 
   currentPage, 
-  totalPages 
+  totalPages,
+  viewMode,
+  setViewMode
 }: { 
   searchQuery: string, 
   activeSubcategory: UISubcategoryType | undefined, 
   activeCategory: UICategoryType | undefined, 
   totalCount: number, 
   currentPage: number, 
-  totalPages: number 
+  totalPages: number,
+  viewMode: 'grid' | 'list' | 'map',
+  setViewMode: (mode: 'grid' | 'list' | 'map') => void
 }) => (
   <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-2">
     <div>
-      <h2 className="text-lg text-slate-800 dark:text-vynal-text-primary">
-        {searchQuery 
-          ? `Résultats pour "${searchQuery}"`
-          : activeSubcategory 
-            ? `Services de ${activeSubcategory.name}`
-            : activeCategory 
-              ? `Services de ${activeCategory.name}` 
-              : "Tous les services"
-        }
-      </h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg text-slate-800 dark:text-vynal-text-primary">
+          {searchQuery 
+            ? `Résultats pour "${searchQuery}"`
+            : activeSubcategory 
+              ? `Services de ${activeSubcategory.name}`
+              : activeCategory 
+                ? `Services de ${activeCategory.name}` 
+                : "Tous les services"
+          }
+        </h2>
+        {/* Bouton de changement de vue - visible uniquement sur mobile */}
+        <div className="md:hidden">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
+          >
+            {viewMode === 'grid' ? (
+              <List className="h-5 w-5" />
+            ) : (
+              <LayoutGrid className="h-5 w-5" />
+            )}
+          </Button>
+        </div>
+      </div>
       <p className="text-sm text-slate-600 dark:text-vynal-text-secondary mt-0.5">
         {totalCount} services disponibles
         {currentPage > 1 ? ` • Page ${currentPage} sur ${totalPages}` : ''}
@@ -579,7 +616,7 @@ export default function ServicesClientPage({ initialData }: ServicesClientPagePr
             className="mb-6"
           />
         )}
-        
+
         {/* En-tête des résultats */}
         <ResultsHeader 
           searchQuery={searchQuery}
@@ -588,16 +625,18 @@ export default function ServicesClientPage({ initialData }: ServicesClientPagePr
           totalCount={totalServices}
           currentPage={currentPage}
           totalPages={totalPages}
+          viewMode={viewMode}
+          setViewMode={setViewMode}
         />
         
         {/* Affichage des services */}
         {totalServices === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <AlertCircle className="h-12 w-12 text-amber-500 mb-4" />
-            <h3 className="text-lg font-semibold text-vynal-title mb-2">
+          <div className="flex flex-col items-center justify-center py-16 text-center bg-white/30 dark:bg-slate-900/30 rounded-lg border border-slate-200 dark:border-slate-700/30 backdrop-blur-sm">
+            <AlertCircle className="h-12 w-12 text-vynal-accent-primary mb-4" />
+            <h3 className="text-sm font-semibold text-slate-800 dark:text-vynal-text-primary mb-2">
               Aucun service trouvé
             </h3>
-            <p className="text-vynal-body max-w-md mb-6">
+            <p className="text-xs text-slate-600 dark:text-vynal-text-secondary max-w-md mb-6">
               {searchQuery 
                 ? `Nous n'avons trouvé aucun service correspondant à "${searchQuery}"`
                 : selectedSubcategory
@@ -610,6 +649,7 @@ export default function ServicesClientPage({ initialData }: ServicesClientPagePr
             <Button 
               variant="outline" 
               onClick={handleResetFilters}
+              className="text-xs text-slate-700 dark:text-vynal-text-primary hover:bg-slate-100 dark:hover:bg-slate-800/40 transition-all duration-200"
             >
               Afficher tous les services
             </Button>

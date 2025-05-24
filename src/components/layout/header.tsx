@@ -42,6 +42,7 @@ import { useUnreadMessages } from "@/hooks/useUnreadMessages";
 import useCurrency from "@/hooks/useCurrency";
 import { triggerCurrencyChangeEvent } from "@/lib/utils/currency-updater";
 import { toast } from "react-hot-toast";
+import { QuickTooltip } from "@/components/ui/tooltip";
 
 // Données de navigation mémorisées en dehors du composant
 const BASE_NAVIGATION = [
@@ -984,8 +985,8 @@ function Header() {
             ? "bg-vynal-purple-dark/90 backdrop-blur-md shadow-lg" 
             : "bg-white/90 backdrop-blur-md shadow-lg"
           : isDark 
-            ? "bg-gradient-vynal border-b border-vynal-purple-secondary/20" 
-            : "bg-gradient-to-b from-vynal-purple-100 to-white/90 border-b border-vynal-purple-200/30"
+            ? "bg-gradient-vynal" 
+            : "bg-gradient-to-b from-vynal-purple-100 to-white/90"
       }`}
     >
       {/* Éléments décoratifs */}
@@ -1042,19 +1043,31 @@ function Header() {
                 // Options pour utilisateur non connecté
                 <div className="flex items-center space-x-2">
                  {/* Bouton de thème */}
-                 <motion.button 
-                   onClick={toggleTheme}
-                   className="w-8 h-8 flex items-center justify-center rounded-full bg-transparent hover:bg-gray-200/20 dark:hover:bg-vynal-purple-secondary/40 transition-all focus:outline-none"
-                   aria-label="Changer de thème"
-                   whileHover={{ scale: 1.1 }}
-                   whileTap={{ scale: 0.9 }}
+                 <QuickTooltip 
+                   content={theme === "dark" ? "Passer en mode clair" : "Passer en mode sombre"}
+                   side="bottom"
+                   variant="default"
+                   delayDuration={100}
+                   className="bg-slate-100/90 dark:bg-slate-800/90
+                     border border-slate-200 dark:border-slate-700/30
+                     text-slate-700 dark:text-vynal-text-primary
+                     shadow-sm backdrop-blur-sm
+                     rounded-lg"
                  >
-                   {theme === "dark" ? (
-                     <Sun size={18} className="text-vynal-accent-primary" />
-                   ) : (
-                     <Moon size={18} className="text-vynal-purple-dark" />
-                   )}
-                 </motion.button>
+                   <motion.button 
+                     onClick={toggleTheme}
+                     className="w-8 h-8 flex items-center justify-center rounded-full bg-transparent hover:bg-gray-200/20 dark:hover:bg-vynal-purple-secondary/40 transition-all focus:outline-none !ring-0 !ring-offset-0"
+                     aria-label="Changer de thème"
+                     whileHover={{ scale: 1.1 }}
+                     whileTap={{ scale: 0.9 }}
+                   >
+                     {theme === "dark" ? (
+                       <Sun size={18} className="text-vynal-accent-primary" />
+                     ) : (
+                       <Moon size={18} className="text-vynal-purple-dark" />
+                     )}
+                   </motion.button>
+                 </QuickTooltip>
                  <UnauthenticatedMenu router={router} />
                 </div>
               ) : userStatus.authLoading || (userStatus.profileLoading && profileLoadAttempts <= 1) ? (
@@ -1066,19 +1079,31 @@ function Header() {
                   className="flex items-center space-x-2"
                 >
                   {/* Bouton de thème */}
-                  <motion.button 
-                   onClick={toggleTheme}
-                   className="w-8 h-8 flex items-center justify-center rounded-full bg-transparent hover:bg-gray-200/20 dark:hover:bg-vynal-purple-secondary/40 transition-all focus:outline-none"
-                   aria-label="Changer de thème"
-                   whileHover={{ scale: 1.1 }}
-                   whileTap={{ scale: 0.9 }}
-                 >
-                   {theme === "dark" ? (
-                     <Sun size={18} className="text-vynal-accent-primary" />
-                   ) : (
-                     <Moon size={18} className="text-vynal-purple-dark" />
-                   )}
-                 </motion.button>
+                  <QuickTooltip 
+                    content={theme === "dark" ? "Passer en mode clair" : "Passer en mode sombre"}
+                    side="bottom"
+                    variant="default"
+                    delayDuration={100}
+                    className="bg-slate-100/90 dark:bg-slate-800/90
+                      border border-slate-200 dark:border-slate-700/30
+                      text-slate-700 dark:text-vynal-text-primary
+                      shadow-sm backdrop-blur-sm
+                      rounded-lg"
+                  >
+                    <motion.button 
+                      onClick={toggleTheme}
+                      className="w-8 h-8 flex items-center justify-center rounded-full bg-transparent hover:bg-gray-200/20 dark:hover:bg-vynal-purple-secondary/40 transition-all focus:outline-none !ring-0 !ring-offset-0"
+                      aria-label="Changer de thème"
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                    >
+                      {theme === "dark" ? (
+                        <Sun size={18} className="text-vynal-accent-primary" />
+                      ) : (
+                        <Moon size={18} className="text-vynal-purple-dark" />
+                      )}
+                    </motion.button>
+                  </QuickTooltip>
                   <Button variant="ghost" size="icon" className="opacity-50 cursor-wait">
                     <Loader className="h-5 w-5 animate-spin text-vynal-purple-secondary dark:text-vynal-text-secondary" strokeWidth={2.5} />
                   </Button>
@@ -1093,27 +1118,65 @@ function Header() {
                   transition={{ duration: 0.2 }}
                 >
                   {/* Bouton de thème */}
-                  <motion.button 
-                   onClick={toggleTheme}
-                   className="w-8 h-8 flex items-center justify-center rounded-full bg-transparent hover:bg-gray-200/20 dark:hover:bg-vynal-purple-secondary/40 transition-all focus:outline-none"
-                   aria-label="Changer de thème"
-                   whileHover={{ scale: 1.1 }}
-                   whileTap={{ scale: 0.9 }}
+                  <QuickTooltip 
+                    content={theme === "dark" ? "Passer en mode clair" : "Passer en mode sombre"}
+                    side="bottom"
+                    variant="default"
+                    delayDuration={100}
+                    className="bg-slate-100/90 dark:bg-slate-800/90
+                      border border-slate-200 dark:border-slate-700/30
+                      text-slate-700 dark:text-vynal-text-primary
+                      shadow-sm backdrop-blur-sm
+                      rounded-lg"
                   >
-                   {theme === "dark" ? (
-                     <Sun size={18} className="text-vynal-accent-primary" />
-                   ) : (
-                     <Moon size={18} className="text-vynal-purple-dark" />
-                   )}
-                  </motion.button>
+                    <motion.button 
+                      onClick={toggleTheme}
+                      className="w-8 h-8 flex items-center justify-center rounded-full bg-transparent hover:bg-gray-200/20 dark:hover:bg-vynal-purple-secondary/40 transition-all focus:outline-none !ring-0 !ring-offset-0"
+                      aria-label="Changer de thème"
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                    >
+                      {theme === "dark" ? (
+                        <Sun size={18} className="text-vynal-accent-primary" />
+                      ) : (
+                        <Moon size={18} className="text-vynal-purple-dark" />
+                      )}
+                    </motion.button>
+                  </QuickTooltip>
                   
                   {/* Notifications uniquement pour les freelances */}
                   {userStatus.isFreelance && (
-                    <OrderNotificationIndicator />
+                    <QuickTooltip 
+                      content="Notifications de commandes"
+                      side="bottom"
+                      variant="default"
+                      className="bg-slate-100/90 dark:bg-slate-800/90
+                        border border-slate-200 dark:border-slate-700/30
+                        text-slate-700 dark:text-vynal-text-primary
+                        shadow-sm backdrop-blur-sm
+                        rounded-lg"
+                    >
+                      <div>
+                        <OrderNotificationIndicator />
+                      </div>
+                    </QuickTooltip>
                   )}
                   
                   {/* Notifications de messages - pour tous les utilisateurs */}
-                  <MessageNotificationIndicator />
+                  <QuickTooltip 
+                    content="Messages non lus"
+                    side="bottom"
+                    variant="default"
+                    className="bg-slate-100/90 dark:bg-slate-800/90
+                      border border-slate-200 dark:border-slate-700/30
+                      text-slate-700 dark:text-vynal-text-primary
+                      shadow-sm backdrop-blur-sm
+                      rounded-lg"
+                  >
+                    <div>
+                      <MessageNotificationIndicator />
+                    </div>
+                  </QuickTooltip>
                   
                   {/* Bouton du tableau de bord */}
                   <DashboardButton 

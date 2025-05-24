@@ -51,8 +51,8 @@ const BreadcrumbTrail: React.FC<BreadcrumbTrailProps> = ({
   return (
     <motion.nav 
       className={`flex items-center flex-wrap text-[10px] xs:text-xs backdrop-blur-sm
-        px-2 py-1 rounded-full bg-white/5 dark:bg-white/5
-        border border-gray-200 dark:border-gray-100/10 shadow-sm
+        px-2 py-1 rounded-lg bg-white/30 dark:bg-slate-900/30
+        border border-slate-200 dark:border-slate-700/30 shadow-sm
         ${className}`}
       variants={containerVariants}
       initial="hidden"
@@ -63,21 +63,21 @@ const BreadcrumbTrail: React.FC<BreadcrumbTrailProps> = ({
       <motion.div variants={itemVariants}>
         <Link 
           href="/" 
-          className="text-vynal-body hover:text-vynal-accent-primary 
+          className="text-slate-700 hover:text-vynal-accent-primary 
             transition-all duration-200 flex items-center
             hover:scale-105"
           aria-label="Page d'accueil"
         >
-          <span className="p-0.5 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 dark:from-vynal-purple-dark dark:to-vynal-purple-darkest flex items-center justify-center">
-            <Home className="h-2.5 w-2.5 xs:h-3 xs:w-3 text-vynal-title dark:text-vynal-accent-primary" aria-hidden="true" 
+          <span className="p-0.5 rounded-full bg-slate-100/30 dark:bg-slate-800/30 flex items-center justify-center">
+            <Home className="h-2.5 w-2.5 xs:h-3 xs:w-3 text-slate-800 dark:text-vynal-text-primary" aria-hidden="true" 
               strokeWidth={2.5} />
           </span>
-          <span className="ml-1 hidden xxs:inline font-medium">Accueil</span>
+          <span className="ml-1 hidden xxs:inline font-normal">Accueil</span>
         </Link>
       </motion.div>
       
       <ChevronRight className="h-2 w-2 xs:h-2.5 xs:w-2.5 mx-1 xxs:mx-1.5 
-        text-vynal-body dark:text-vynal-text-secondary flex-shrink-0" 
+        text-slate-600 dark:text-vynal-text-secondary flex-shrink-0" 
         aria-hidden="true" strokeWidth={2.5} />
       
       <motion.div variants={itemVariants}>
@@ -87,23 +87,23 @@ const BreadcrumbTrail: React.FC<BreadcrumbTrailProps> = ({
             transition-all duration-200 flex items-center
             hover:scale-105
             ${!activeCategory 
-              ? 'text-vynal-accent-primary font-semibold' 
-              : 'text-vynal-body'}`}
+              ? 'text-vynal-accent-primary font-normal' 
+              : 'text-slate-700'}`}
           aria-label="Liste des services"
           aria-current={!activeCategory ? 'page' : undefined}
         >
-          <span className="p-0.5 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 dark:from-vynal-purple-dark dark:to-vynal-purple-darkest flex items-center justify-center">
-            <Tag className="h-2.5 w-2.5 xs:h-3 xs:w-3 text-vynal-title dark:text-vynal-accent-primary" aria-hidden="true" 
+          <span className="p-0.5 rounded-full bg-slate-100/30 dark:bg-slate-800/30 flex items-center justify-center">
+            <Tag className="h-2.5 w-2.5 xs:h-3 xs:w-3 text-slate-800 dark:text-vynal-text-primary" aria-hidden="true" 
               strokeWidth={2.5} />
           </span>
-          <span className="ml-1 font-medium">Services</span>
+          <span className="ml-1 font-normal">Services</span>
         </Link>
       </motion.div>
       
       {activeCategory && (
         <>
           <ChevronRight className="h-2 w-2 xs:h-2.5 xs:w-2.5 mx-1 xxs:mx-1.5 
-            text-vynal-body dark:text-vynal-text-secondary flex-shrink-0" 
+            text-slate-600 dark:text-vynal-text-secondary flex-shrink-0" 
             aria-hidden="true" strokeWidth={2.5} />
           <motion.div variants={itemVariants}>
             <Link 
@@ -111,12 +111,12 @@ const BreadcrumbTrail: React.FC<BreadcrumbTrailProps> = ({
               className={`transition-all duration-200
                 hover:scale-105
                 ${!activeSubcategory 
-                  ? 'text-vynal-accent-primary font-semibold' 
-                  : 'text-vynal-body hover:text-vynal-accent-primary'}`}
+                  ? 'text-vynal-accent-primary font-normal' 
+                  : 'text-slate-700 hover:text-vynal-accent-primary'}`}
               aria-label={`Catégorie: ${activeCategory.name}`}
               aria-current={!activeSubcategory ? 'page' : undefined}
             >
-              <span className="font-medium">
+              <span className="font-normal">
                 {activeCategory.name}
               </span>
             </Link>
@@ -125,11 +125,11 @@ const BreadcrumbTrail: React.FC<BreadcrumbTrailProps> = ({
           {activeSubcategory && (
             <>
               <ChevronRight className="h-2 w-2 xs:h-2.5 xs:w-2.5 mx-1 xxs:mx-1.5 
-                text-vynal-body dark:text-vynal-text-secondary flex-shrink-0" 
+                text-slate-600 dark:text-vynal-text-secondary flex-shrink-0" 
                 aria-hidden="true" strokeWidth={2.5} />
               <motion.div variants={itemVariants}>
                 <span 
-                  className="text-vynal-accent-primary font-semibold"
+                  className="text-vynal-accent-primary font-normal"
                   aria-current="page"
                 >
                   {activeSubcategory.name}

@@ -80,10 +80,10 @@ const SubcategoriesGrid: React.FC<SubcategoriesGridProps> = ({
 
   // Fonction mémorisée pour générer les classes d'élément
   const getItemClassName = useCallback((isSelected: boolean) => {
-    return `flex items-center justify-center rounded-full transition-colors duration-200
+    return `flex items-center justify-center rounded-lg transition-all duration-200
       px-3 py-1.5 h-full border ${isSelected
-        ? 'bg-indigo-500/10 dark:bg-indigo-900/30 border-indigo-400/50 dark:border-indigo-600/40' 
-        : 'bg-white hover:bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/5 hover:border-indigo-300/40 dark:hover:border-indigo-700/30'
+        ? 'bg-[#FF66B2]/30 border-[#FF66B2]/50 text-[#FF66B2] dark:bg-[#FF66B2]/10 dark:border-[#FF66B2]/30 dark:text-[#FF66B2]/90 shadow-sm' 
+        : 'bg-white/30 dark:bg-slate-900/30 border-slate-200 dark:border-slate-700/30 hover:bg-white/40 dark:hover:bg-slate-900/40 hover:border-slate-300 dark:hover:border-slate-700/40 text-slate-700 dark:text-vynal-text-primary'
       }`;
   }, []);
 
@@ -162,9 +162,8 @@ const SubcategoriesGrid: React.FC<SubcategoriesGridProps> = ({
                     className="block"
                   >
                     <div className={getItemClassName(isSelected)}>
-                      <span className="text-[9px] xs:text-[10px] sm:text-[11px] font-medium truncate max-w-full
-                        text-gray-700 dark:text-gray-300
-                        transition-colors duration-200">
+                      <span className={`text-[9px] xs:text-[10px] sm:text-[11px] truncate max-w-full
+                        transition-colors duration-200 ${isSelected ? 'font-medium' : 'font-normal'}`}>
                         {subcategory.name}
                       </span>
                     </div>

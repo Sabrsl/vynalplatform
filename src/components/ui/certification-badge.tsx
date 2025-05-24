@@ -77,7 +77,6 @@ export function CertificationBadge({
         type === 'expert' && 'border-2 border-white dark:border-vynal-purple-dark shadow-sm',
         className
       )}
-      title={`Certification ${config.label}`}
     >
       <IconComponent className={cn(
         sizeStyles.icon,
