@@ -133,6 +133,27 @@ export default function RootLayout({
         {/* Gestion des safe-area-inset pour les appareils mobiles */}
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         
+        {/* Script pour forcer la couleur de la barre d'état selon le thème */}
+        <Script id="dynamic-theme-color" strategy="afterInteractive">
+          {`
+            function setThemeColor() {
+              const isDark = document.documentElement.classList.contains('dark');
+              const color = isDark ? '#100422' : '#ffffff';
+              let meta = document.querySelector('meta[name="theme-color"]');
+              if (!meta) {
+                meta = document.createElement('meta');
+                meta.name = 'theme-color';
+                document.head.appendChild(meta);
+              }
+              meta.setAttribute('content', color);
+            }
+            setThemeColor();
+            // Pour les changements de thème dynamiques
+            const observer = new MutationObserver(setThemeColor);
+            observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+          `}
+        </Script>
+        
         {/* Préchargement des ressources critiques */}
         <link rel="preload" href="/js/lcp-optimizer.js" as="script" />
         <link rel="preload" href="/css/performance-optimizations.css" as="style" />
