@@ -69,6 +69,12 @@ export const metadata: Metadata = {
       { url: '/favicon/ms-icon-310x310.png', sizes: '310x310', type: 'image/png' }
     ]
   },
+  // PWA et Apple Web App configuration
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'Vynal'
+  },
   // Amélioration pour les partages sociaux
   openGraph: {
     type: 'website',
@@ -133,55 +139,10 @@ export default function RootLayout({
         {/* Gestion des safe-area-inset pour les appareils mobiles */}
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         
-        {/* Script pour forcer la couleur de la barre d'état selon le thème */}
-        <Script id="dynamic-theme-color" strategy="beforeInteractive">
-          {`
-            (function() {
-              // Créer la meta une seule fois au chargement
-              function createMeta() {
-                let meta = document.querySelector('meta[name="theme-color"]');
-                if (!meta) {
-                  meta = document.createElement('meta');
-                  meta.name = 'theme-color';
-                  document.head.appendChild(meta);
-                }
-                return meta;
-              }
-              
-              // Fonction simplifiée qui met à jour uniquement lors des changements de thème
-              function updateThemeColor() {
-                const isDark = document.documentElement.classList.contains('dark');
-                const meta = createMeta();
-                meta.content = isDark ? '#100422' : '#ffffff';
-              }
-              
-              // Exécution immédiate pour définir la couleur initiale
-              if (typeof window !== 'undefined') {
-                // Mise à jour immédiate
-                updateThemeColor();
-                
-                // Écouter uniquement les changements de thème
-                const observer = new MutationObserver(function(mutations) {
-                  for (let mutation of mutations) {
-                    if (mutation.attributeName === 'class' && 
-                        (document.documentElement.classList.contains('dark') || 
-                         !document.documentElement.classList.contains('dark'))) {
-                      updateThemeColor();
-                      break;
-                    }
-                  }
-                });
-                
-                // Observer uniquement les changements de classe sur <html>
-                observer.observe(document.documentElement, { 
-                  attributes: true, 
-                  attributeFilter: ['class'],
-                  subtree: false
-                });
-              }
-            })();
-          `}
-        </Script>
+        {/* Configuration supplémentaire pour Apple */}
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="msapplication-navbutton-color" content="#100422" />
         
         {/* Préchargement des ressources critiques */}
         <link rel="preload" href="/js/lcp-optimizer.js" as="script" />
@@ -238,7 +199,7 @@ export default function RootLayout({
           `}
         </Script>
       </head>
-      <body className={`${poppins.variable} font-poppins transition-colors duration-300 status-bar-adaptor`}>
+      <body className={`${poppins.variable} font-poppins transition-colors duration-300`}>
         <Providers>
           <ScrollRestoration />
           <Suspense fallback={<Loading />}>
