@@ -31,7 +31,10 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: '#100422', // Couleur fixe, pas de conditions
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
+    { media: '(prefers-color-scheme: dark)', color: '#100422' }
+  ], // Retour à l'adaptation automatique
 };
 
 export const metadata: Metadata = {
@@ -144,23 +147,24 @@ export default function RootLayout({
         <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
         <link rel="icon" type="image/png" sizes="192x192" href="/favicon/favicon-192x192.png" />
         
-        {/* Forcer les couleurs sans laisser le système décider */}
+        {/* Configuration adaptative selon le mode */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="msapplication-navbutton-color" content="#100422" />
         
-        {/* Suppression des media queries pour éviter l'interférence système */}
-        <meta name="theme-color" content="#100422" />
-        <meta name="color-scheme" content="dark" />
+        {/* Pas de color-scheme fixe */}
+        <meta name="theme-color" content="#ffffff" />
         
-        {/* Script optimisé pour les performances */}
+        {/* Script adaptatif optimisé */}
         <script dangerouslySetInnerHTML={{
           __html: `
             (function() {
               let lastColor = '';
               
-              const forceVioletStatusBar = () => {
-                const targetColor = '#100422';
+              const updateStatusBarColor = () => {
+                // Détecte le mode actuel
+                const isDark = document.documentElement.classList.contains('dark');
+                const targetColor = isDark ? '#100422' : '#ffffff';
                 
                 // Skip si déjà la bonne couleur
                 if (lastColor === targetColor) return;
@@ -178,36 +182,42 @@ export default function RootLayout({
               };
               
               // Exécution immédiate
-              forceVioletStatusBar();
+              updateStatusBarColor();
               
-              // Timer optimisé - seulement si nécessaire
-              let intervalId = setInterval(() => {
+              // Observer les changements de classe dark
+              if (typeof MutationObserver !== 'undefined') {
+                const observer = new MutationObserver(updateStatusBarColor);
+                observer.observe(document.documentElement, { 
+                  attributes: true, 
+                  attributeFilter: ['class'] 
+                });
+              }
+              
+              // Timer de sécurité seulement si nécessaire
+              let checkInterval = setInterval(() => {
                 const currentMeta = document.querySelector('meta[name="theme-color"]:not([media])');
-                if (!currentMeta || currentMeta.content !== '#100422') {
-                  forceVioletStatusBar();
+                const isDark = document.documentElement.classList.contains('dark');
+                const expectedColor = isDark ? '#100422' : '#ffffff';
+                
+                if (!currentMeta || currentMeta.content !== expectedColor) {
+                  updateStatusBarColor();
                 } else {
-                  // Si stable pendant 5s, arrête le timer
-                  clearInterval(intervalId);
-                  intervalId = null;
-                }
-              }, 1000);
-              
-              // Re-démarre le timer seulement si changements détectés
-              const restartTimer = () => {
-                if (!intervalId) {
-                  intervalId = setInterval(() => {
-                    const currentMeta = document.querySelector('meta[name="theme-color"]:not([media])');
-                    if (!currentMeta || currentMeta.content !== '#100422') {
-                      forceVioletStatusBar();
+                  // Si stable, réduit la fréquence
+                  clearInterval(checkInterval);
+                  checkInterval = setInterval(() => {
+                    const meta = document.querySelector('meta[name="theme-color"]:not([media])');
+                    const dark = document.documentElement.classList.contains('dark');
+                    const expected = dark ? '#100422' : '#ffffff';
+                    if (!meta || meta.content !== expected) {
+                      updateStatusBarColor();
                     }
-                  }, 1000);
+                  }, 2000); // Vérifie moins souvent
                 }
-                forceVioletStatusBar();
-              };
+              }, 500);
               
-              // Events légers
-              window.addEventListener('focus', restartTimer, { passive: true });
-              window.addEventListener('pageshow', restartTimer, { passive: true });
+              // Events pour changements d'app
+              window.addEventListener('focus', updateStatusBarColor, { passive: true });
+              window.addEventListener('pageshow', updateStatusBarColor, { passive: true });
             })();
           `
         }} />
