@@ -47,10 +47,16 @@ export function sanitizeContent(content: string): string {
   if (!content) return '';
   
   // Supprimer les balises HTML potentiellement dangereuses et tous les scripts inclus
-  let sanitized = content.replace(/<(script|iframe|object|embed|form|style)[^>]*>[\s\S]*?<\/\1>/gi, '');
+  let sanitized = content;
+  let previousContent;
+  
+  // Appliquer plusieurs passes pour éliminer les balises HTML dangereuses
+  do {
+    previousContent = sanitized;
+    sanitized = sanitized.replace(/<(script|iframe|object|embed|form|style)[^>]*>[\s\S]*?<\/\1>/gi, '');
+  } while (sanitized !== previousContent);
   
   // Appliquer plusieurs passes pour éliminer les balises HTML imbriquées
-  let previousContent;
   do {
     previousContent = sanitized;
     // Supprimer toutes les balises HTML
@@ -706,9 +712,9 @@ export function detectInappropriateContent(content: string): InappropriateConten
             }
           }
           
-          categoryMatches.push(keyword);
-          if (!result.matches.includes(keyword)) {
-            result.matches.push(keyword);
+        categoryMatches.push(keyword);
+        if (!result.matches.includes(keyword)) {
+          result.matches.push(keyword);
           }
         }
       }
