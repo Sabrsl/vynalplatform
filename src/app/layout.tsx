@@ -144,15 +144,23 @@ export default function RootLayout({
         <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
         <link rel="icon" type="image/png" sizes="192x192" href="/favicon/favicon-192x192.png" />
         
-        {/* Configuration simple avec couleur rose fixe */}
+        {/* Configuration simple avec couleur rose fixe et fallbacks complets */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="msapplication-navbutton-color" content="#FF66B2" />
         
-        {/* Couleur rose fixe avec fallbacks */}
+        {/* Fallbacks pour tous les navigateurs et appareils */}
         <meta name="theme-color" content="#FF66B2" />
         <meta name="theme-color" content="#FF66B2" media="(prefers-color-scheme: light)" />
         <meta name="theme-color" content="#FF66B2" media="(prefers-color-scheme: dark)" />
+        <meta name="msapplication-navbutton-color" content="#FF66B2" />
+        <meta name="msapplication-TileColor" content="#FF66B2" />
+        
+        {/* Fallbacks Apple spécifiques */}
+        <meta name="apple-mobile-web-app-title" content="Vynal" />
+        <link rel="mask-icon" href="/favicon/safari-pinned-tab.svg" color="#FF66B2" />
+        
+        {/* Fallback Android */}
+        <meta name="mobile-web-app-capable" content="yes" />
         
 
         
