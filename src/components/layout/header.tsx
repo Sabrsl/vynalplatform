@@ -376,7 +376,7 @@ const MobileMenuButton = memo(({
     let timeoutId: NodeJS.Timeout | null = null;
     
     // Si l'utilisateur est authentifié et le profil est toujours en chargement après un certain temps,
-    // on incrémente le compteur de tentatives et on considère que c'est un chargement bloqué
+    // on incrémente le compteur de tentatives
     if (isAuthenticated && profileLoading) {
       timeoutId = setTimeout(() => {
         setLoadAttempts(prev => prev + 1);
@@ -656,6 +656,8 @@ function Header() {
   const [isMounted, setIsMounted] = useState<boolean>(false);
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [profileLoadAttempts, setProfileLoadAttempts] = useState<number>(0);
+  const [lastScrollY, setLastScrollY] = useState<number>(0);
+  const [isVisible, setIsVisible] = useState<boolean>(true);
   
   // Références
   const searchBarRef = useRef<HTMLDivElement>(null);
@@ -688,39 +690,6 @@ function Header() {
       }
     }
   }, [pathname]);
-  
-  // Effet pour gérer les tentatives de chargement répétées du profil
-  useEffect(() => {
-    let timeoutId: NodeJS.Timeout | null = null;
-    
-    // Si l'utilisateur est authentifié et le profil est toujours en chargement après un certain temps,
-    // on incrémente le compteur de tentatives
-    if (auth.isAuthenticated && userProfile.loading) {
-      timeoutId = setTimeout(() => {
-        setProfileLoadAttempts(prev => prev + 1);
-      }, 3000); // 3 secondes d'attente
-    }
-    
-    return () => {
-      if (timeoutId) clearTimeout(timeoutId);
-    };
-  }, [auth.isAuthenticated, userProfile.loading]);
-  
-  // Après plusieurs tentatives de chargement, on force l'affichage même si le profil est en chargement
-  const shouldShowUserMenu = auth.isAuthenticated && (!userProfile.loading || profileLoadAttempts > 1);
-  
-  // Fonction pour changer le thème
-  const toggleTheme = useCallback(() => {
-    setTheme(theme === "dark" ? "light" : "dark");
-  }, [theme, setTheme]);
-  
-  // Effet d'initialisation
-  useEffect(() => {
-    setIsMounted(true);
-    if (pathname) {
-      setActivePath(pathname);
-    }
-  }, [pathname]);
 
   // Effet combiné pour tous les écouteurs d'événements
   useEffect(() => {
@@ -728,7 +697,22 @@ function Header() {
     
     // Gestionnaire de défilement
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 10);
+      const currentScrollY = window.scrollY;
+      
+      // Gérer l'état "scrolled" pour les styles
+      setIsScrolled(currentScrollY > 10);
+      
+      // Simple détection de direction: si on monte, header visible; si on descend, header caché
+      if (currentScrollY < lastScrollY) {
+        // Scroll vers le haut - montrer le header
+        setIsVisible(true);
+      } else if (currentScrollY > lastScrollY) {
+        // Scroll vers le bas - cacher le header
+        setIsVisible(false);
+      }
+      
+      // Mettre à jour la position pour la prochaine comparaison
+      setLastScrollY(currentScrollY);
     };
     
     // Gestionnaire d'état de navigation
@@ -783,7 +767,32 @@ function Header() {
       document.removeEventListener('mousedown', handleClickOutside);
       window.removeEventListener('keydown', handleKeyPress);
     };
-  }, [isMounted, searchBarVisible, pathname]);
+  }, [isMounted, searchBarVisible, pathname, lastScrollY]);
+  
+  // Effet pour gérer les tentatives de chargement répétées du profil
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout | null = null;
+    
+    // Si l'utilisateur est authentifié et le profil est toujours en chargement après un certain temps,
+    // on incrémente le compteur de tentatives
+    if (auth.isAuthenticated && userProfile.loading) {
+      timeoutId = setTimeout(() => {
+        setProfileLoadAttempts(prev => prev + 1);
+      }, 3000); // 3 secondes d'attente
+    }
+    
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [auth.isAuthenticated, userProfile.loading]);
+  
+  // Après plusieurs tentatives de chargement, on force l'affichage même si le profil est en chargement
+  const shouldShowUserMenu = auth.isAuthenticated && (!userProfile.loading || profileLoadAttempts > 1);
+  
+  // Fonction pour changer le thème
+  const toggleTheme = useCallback(() => {
+    setTheme(theme === "dark" ? "light" : "dark");
+  }, [theme, setTheme]);
   
   // Gestionnaires optimisés
   const handleSearch = useCallback((e: React.FormEvent) => {
@@ -905,18 +914,6 @@ function Header() {
     userProfile.profile?.role
   ]);
   
-  // Effet de défilement mémorisé
-  useEffect(() => {
-    if (!isMounted) return;
-    
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 10);
-    };
-    
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [isMounted]);
-  
   // Fonction pour basculer le menu
   const toggleMenu = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -979,14 +976,18 @@ function Header() {
   return (
     <header 
       ref={headerRef}
-      className={`sticky top-0 z-50 transition-all duration-300 ${
-        isScrolled 
-          ? isDark 
-            ? "bg-vynal-purple-dark/90 backdrop-blur-md shadow-lg" 
-            : "bg-white/90 backdrop-blur-md shadow-lg"
-          : isDark 
-            ? "bg-gradient-vynal" 
-            : "bg-gradient-to-b from-vynal-purple-100 to-white/90"
+      className={`sticky transition-all duration-300 z-50 ${
+        isScrolled
+          ? isDark
+            ? "bg-vynal-purple-dark/90 backdrop-blur-md shadow-lg"
+            : "bg-white shadow-lg"
+          : isDark
+            ? "bg-gradient-vynal"
+            : "bg-white"
+      } ${
+        isVisible
+          ? "top-0 transform duration-300"
+          : "-top-16 transform duration-300"
       }`}
     >
       {/* Éléments décoratifs */}

@@ -125,11 +125,23 @@ export function usePublicServices({
         }
       }
       
-      // Tri et pagination
-      const orderColumn = sortBy === 'popular' ? 'created_at' : sortBy;
-      query = query
-        .order(orderColumn, { ascending: sortOrder === 'asc' })
-        .range(start, end);
+      // Tri et pagination plus intelligent
+      if (sortBy === 'popular') {
+        // Pour la popularité, nous utilisons un ordre personnalisé basé sur l'activité
+        query = query
+          .order('created_at', { ascending: false })  // D'abord les plus récents
+          .range(start, end);
+      } else if (sortBy === 'price') {
+        // Pour le prix, utiliser le tri direct
+        query = query
+          .order('price', { ascending: sortOrder === 'asc' })
+          .range(start, end);
+      } else {
+        // Pour la date de création (par défaut), simple tri chronologique
+        query = query
+          .order('created_at', { ascending: sortOrder === 'asc' })
+          .range(start, end);
+      }
       
       // Exécuter la requête
       const { data, count, error } = await query;
@@ -158,8 +170,42 @@ export function usePublicServices({
         subcategories: service.subcategories || null
       }));
       
+      // Tri intelligent pour les résultats
+      let sortedServices = formattedServices;
+      
+      // Post-traitement pour créer un ordre plus pertinent si sortBy est "created_at" (défaut)
+      if (sortBy === 'created_at' && sortOrder === 'desc') {
+        // Calculer un score pour chaque service en fonction de divers facteurs
+        const servicesWithScores = formattedServices.map(service => {
+          // Base: date de création (convertie en timestamp pour faciliter les calculs)
+          const creationTime = new Date(service.created_at).getTime();
+          const now = Date.now();
+          const ageInDays = (now - creationTime) / (1000 * 60 * 60 * 24);
+          
+          // Facteur de fraîcheur: privilégie les services récents
+          // Décroissance exponentielle avec le temps (0.9^ageInDays)
+          const freshnessScore = Math.pow(0.9, Math.min(ageInDays, 30));
+          
+          // Facteur de qualité: les services de freelances certifiés ont un boost
+          const certificationBoost = service.profiles?.is_certified ? 
+            (service.profiles.certification_type === 'expert' ? 0.3 : 
+             service.profiles.certification_type === 'premium' ? 0.2 : 0.1) : 0;
+          
+          // Score final combiné (principalement basé sur la fraîcheur)
+          const score = freshnessScore + certificationBoost;
+          
+          return { service, score };
+        });
+        
+        // Trier par score décroissant
+        servicesWithScores.sort((a, b) => b.score - a.score);
+        
+        // Extraire uniquement les services triés
+        sortedServices = servicesWithScores.map(item => item.service);
+      }
+      
       return {
-        services: formattedServices,
+        services: sortedServices,
         totalCount: count || 0,
         totalPages: Math.max(1, Math.ceil((count || 0) / pageSize)),
         currentPage: page

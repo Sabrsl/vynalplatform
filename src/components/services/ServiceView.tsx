@@ -1388,6 +1388,18 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                         ? `/services/${relatedService.slug}`
                         : `/services/${relatedService.id}`;
                       
+                      // Détection si l'utilisateur est sur PC (non-mobile)
+                      const isPC = typeof window !== 'undefined' && 
+                        !/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                      
+                      const handleServiceClick = () => {
+                        if (isPC) {
+                          window.open(linkPath, '_blank', 'noopener,noreferrer');
+                        } else {
+                          router.push(linkPath);
+                        }
+                      };
+                      
                       return (
                         <div 
                           key={relatedService.id}
@@ -1397,7 +1409,7 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
                             service={relatedService} 
                             className="h-full"
                             useDemo={false}
-                            onClick={() => router.push(linkPath)}
+                            onClick={() => handleServiceClick()}
                           />
                         </div>
                       );

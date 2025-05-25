@@ -184,7 +184,9 @@ const ResultsHeader = React.memo(({
   currentPage, 
   totalPages,
   viewMode,
-  setViewMode
+  setViewMode,
+  sortMethod,
+  onSortChange
 }: { 
   searchQuery: string, 
   activeSubcategory: UISubcategoryType | undefined, 
@@ -193,12 +195,14 @@ const ResultsHeader = React.memo(({
   currentPage: number, 
   totalPages: number,
   viewMode: 'grid' | 'list' | 'map',
-  setViewMode: (mode: 'grid' | 'list' | 'map') => void
+  setViewMode: (mode: 'grid' | 'list' | 'map') => void,
+  sortMethod: string,
+  onSortChange: (method: string) => void
 }) => (
-  <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-2">
+  <div className="flex flex-col justify-between mb-4 sm:mb-6 gap-1 sm:gap-2">
     <div>
       <div className="flex items-center justify-between">
-        <h2 className="text-lg text-slate-800 dark:text-vynal-text-primary">
+        <h2 className="text-base sm:text-lg text-slate-800 dark:text-vynal-text-primary font-medium">
           {searchQuery 
             ? `Résultats pour "${searchQuery}"`
             : activeSubcategory 
@@ -213,21 +217,80 @@ const ResultsHeader = React.memo(({
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8"
+            className="h-7 w-7"
             onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
           >
             {viewMode === 'grid' ? (
-              <List className="h-5 w-5" />
+              <List className="h-4 w-4" />
             ) : (
-              <LayoutGrid className="h-5 w-5" />
+              <LayoutGrid className="h-4 w-4" />
             )}
           </Button>
         </div>
       </div>
-      <p className="text-sm text-slate-600 dark:text-vynal-text-secondary mt-0.5">
+      <p className="text-[10px] sm:text-sm text-slate-600 dark:text-vynal-text-secondary mt-0.5">
         {totalCount} services disponibles
         {currentPage > 1 ? ` • Page ${currentPage} sur ${totalPages}` : ''}
       </p>
+      
+      {/* Options de tri */}
+      <div className="flex items-center gap-2 mt-3">
+        <span className="text-[10px] sm:text-xs text-slate-600 dark:text-vynal-text-secondary">Trier par:</span>
+        <div className="flex flex-wrap gap-1">
+          <Button
+            variant={sortMethod === 'smart' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => onSortChange('smart')}
+            className={`h-6 text-[10px] sm:text-xs px-1.5 sm:px-2 font-normal
+              ${sortMethod === 'smart' 
+                ? 'bg-[#FF66B2]/30 text-[#FF66B2] border-[#FF66B2]/50 hover:bg-[#FF66B2]/35 hover:border-[#FF66B2]/60 dark:bg-[#FF66B2]/10 dark:text-[#FF66B2]/90 dark:border-[#FF66B2]/30 dark:hover:bg-[#FF66B2]/20 dark:hover:border-[#FF66B2]/40'
+                : 'bg-white/30 text-slate-700 border-slate-200 hover:bg-white/40 hover:border-slate-300 dark:bg-slate-900/30 dark:text-vynal-text-primary dark:border-slate-700/30 dark:hover:bg-slate-900/40 dark:hover:border-slate-700/40'
+              }
+              transition-all duration-200 backdrop-blur-sm rounded-lg shadow-sm`}
+          >
+            Pertinence
+          </Button>
+          <Button
+            variant={sortMethod === 'recent' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => onSortChange('recent')}
+            className={`h-6 text-[10px] sm:text-xs px-1.5 sm:px-2 font-normal
+              ${sortMethod === 'recent'
+                ? 'bg-[#FF66B2]/30 text-[#FF66B2] border-[#FF66B2]/50 hover:bg-[#FF66B2]/35 hover:border-[#FF66B2]/60 dark:bg-[#FF66B2]/10 dark:text-[#FF66B2]/90 dark:border-[#FF66B2]/30 dark:hover:bg-[#FF66B2]/20 dark:hover:border-[#FF66B2]/40'
+                : 'bg-white/30 text-slate-700 border-slate-200 hover:bg-white/40 hover:border-slate-300 dark:bg-slate-900/30 dark:text-vynal-text-primary dark:border-slate-700/30 dark:hover:bg-slate-900/40 dark:hover:border-slate-700/40'
+              }
+              transition-all duration-200 backdrop-blur-sm rounded-lg shadow-sm`}
+          >
+            Récents
+          </Button>
+          <Button
+            variant={sortMethod === 'price_asc' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => onSortChange('price_asc')}
+            className={`h-6 text-[10px] sm:text-xs px-1.5 sm:px-2 font-normal
+              ${sortMethod === 'price_asc'
+                ? 'bg-[#FF66B2]/30 text-[#FF66B2] border-[#FF66B2]/50 hover:bg-[#FF66B2]/35 hover:border-[#FF66B2]/60 dark:bg-[#FF66B2]/10 dark:text-[#FF66B2]/90 dark:border-[#FF66B2]/30 dark:hover:bg-[#FF66B2]/20 dark:hover:border-[#FF66B2]/40'
+                : 'bg-white/30 text-slate-700 border-slate-200 hover:bg-white/40 hover:border-slate-300 dark:bg-slate-900/30 dark:text-vynal-text-primary dark:border-slate-700/30 dark:hover:bg-slate-900/40 dark:hover:border-slate-700/40'
+              }
+              transition-all duration-200 backdrop-blur-sm rounded-lg shadow-sm`}
+          >
+            Prix croissant
+          </Button>
+          <Button
+            variant={sortMethod === 'price_desc' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => onSortChange('price_desc')}
+            className={`h-6 text-[10px] sm:text-xs px-1.5 sm:px-2 font-normal
+              ${sortMethod === 'price_desc'
+                ? 'bg-[#FF66B2]/30 text-[#FF66B2] border-[#FF66B2]/50 hover:bg-[#FF66B2]/35 hover:border-[#FF66B2]/60 dark:bg-[#FF66B2]/10 dark:text-[#FF66B2]/90 dark:border-[#FF66B2]/30 dark:hover:bg-[#FF66B2]/20 dark:hover:border-[#FF66B2]/40'
+                : 'bg-white/30 text-slate-700 border-slate-200 hover:bg-white/40 hover:border-slate-300 dark:bg-slate-900/30 dark:text-vynal-text-primary dark:border-slate-700/30 dark:hover:bg-slate-900/40 dark:hover:border-slate-700/40'
+              }
+              transition-all duration-200 backdrop-blur-sm rounded-lg shadow-sm`}
+          >
+            Prix décroissant
+          </Button>
+        </div>
+      </div>
     </div>
   </div>
 ));
@@ -279,14 +342,15 @@ const VirtualizedGrid = memo(({
     <div className="w-full">
       <div className={`grid grid-cols-1 ${viewMode === 'grid' ? 'sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' : ''} gap-6`}>
         {services.map((service, index) => (
-          <ServiceCard
-            key={service.id}
-            service={service}
-            showStatusBadge={false}
-            useDemo={false}
-            className="h-full shadow-none"
-            isPriority={index < 8} // Optimisation: priorité seulement pour les premières cartes
-          />
+          <div key={service.id} data-service-id={service.id}>
+            <ServiceCard
+              service={service}
+              showStatusBadge={false}
+              useDemo={false}
+              className="h-full shadow-none"
+              isPriority={index < 8} // Optimisation: priorité seulement pour les premières cartes
+            />
+          </div>
         ))}
       </div>
 
@@ -442,15 +506,73 @@ export default function ServicesClientPage({ initialData }: ServicesClientPagePr
     return results;
   }, [allServices, selectedCategory, selectedSubcategory, searchQuery]);
 
-  // Pagination mémorisée
+  // Modifier l'initialisation de l'état de tri pour utiliser localStorage
+  const [sortMethod, setSortMethod] = useState<string>(() => {
+    // Récupérer la méthode de tri depuis localStorage ou utiliser 'smart' par défaut
+    if (typeof window !== 'undefined') {
+      const savedSortMethod = localStorage.getItem('services_sort_method');
+      return savedSortMethod || 'smart';
+    }
+    return 'smart';
+  });
+
+  // Ajouter un effet pour sauvegarder la méthode de tri
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('services_sort_method', sortMethod);
+    }
+  }, [sortMethod]);
+
+  // Modifier la fonction handleSortChange pour gérer les paramètres d'URL
+  const handleSortChange = useCallback((method: string) => {
+    setSortMethod(method);
+    
+    // Mise à jour de l'URL
+    const params = new URLSearchParams(searchParams?.toString() || '');
+    params.set('sort', method);
+    
+    // Mettre à jour l'URL sans déclencher de navigation
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    
+    // Forcer une mise à jour visuelle (effet de rafraîchissement)
+    setIsLoadingMore(true);
+    setTimeout(() => setIsLoadingMore(false), 300);
+  }, [searchParams, router, pathname]);
+
+  // Tri intelligent des services (appliqué après les filtres)
+  const sortedServices = useMemo(() => {
+    // Copier les services filtrés pour ne pas les modifier directement
+    let sorted = [...filteredServices];
+    
+    // Appliquer différentes méthodes de tri
+    if (sortMethod === 'recent') {
+      // Tri par date de création (plus récent d'abord)
+      sorted.sort((a, b) => 
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+    } 
+    else if (sortMethod === 'price_asc') {
+      // Tri par prix croissant
+      sorted.sort((a, b) => a.price - b.price);
+    } 
+    else if (sortMethod === 'price_desc') {
+      // Tri par prix décroissant
+      sorted.sort((a, b) => b.price - a.price);
+    }
+    // Pour 'smart', on garde l'ordre fourni par le serveur qui est déjà optimisé
+    
+    return sorted;
+  }, [filteredServices, sortMethod]);
+  
+  // Utiliser sortedServices au lieu de filteredServices pour la pagination
   const paginatedServices = useMemo(() => {
     const startIndex = 0;
     const endIndex = currentPage * ITEMS_PER_PAGE;
-    return filteredServices.slice(startIndex, endIndex);
-  }, [filteredServices, currentPage]);
+    return sortedServices.slice(startIndex, endIndex);
+  }, [sortedServices, currentPage]);
   
   // Calcul du total et des pages
-  const totalServices = useMemo(() => filteredServices.length, [filteredServices]);
+  const totalServices = useMemo(() => sortedServices.length, [sortedServices]);
   const totalPages = useMemo(() => Math.ceil(totalServices / ITEMS_PER_PAGE), [totalServices]);
 
   // Calcul de s'il y a plus de pages à charger
@@ -503,7 +625,13 @@ export default function ServicesClientPage({ initialData }: ServicesClientPagePr
     setSelectedSubcategory(subcategorySlug);
     setSearchQuery(urlSearchQuery);
     setCurrentPage(page);
-  }, [categorySlug, subcategorySlug, urlSearchQuery, page]);
+    
+    // Synchroniser la méthode de tri si présente dans l'URL
+    const urlSortMethod = searchParams?.get('sort');
+    if (urlSortMethod && ['smart', 'recent', 'price_asc', 'price_desc'].includes(urlSortMethod)) {
+      setSortMethod(urlSortMethod);
+    }
+  }, [categorySlug, subcategorySlug, urlSearchQuery, page, searchParams]);
   
   // Après l'initialisation des états et avant les effets, ajouter une fonction pour récupérer les données des services
   const fetchServicesData = useCallback(async () => {
@@ -627,6 +755,8 @@ export default function ServicesClientPage({ initialData }: ServicesClientPagePr
           totalPages={totalPages}
           viewMode={viewMode}
           setViewMode={setViewMode}
+          sortMethod={sortMethod}
+          onSortChange={handleSortChange}
         />
         
         {/* Affichage des services */}

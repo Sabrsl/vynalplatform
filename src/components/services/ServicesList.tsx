@@ -149,12 +149,23 @@ const ServiceListItem = memo<ServiceListItemProps>(({
     return desc.replace(/^introduction\s*:?\s*/i, '').trim();
   }, [service.short_description, service.description]);
 
+  // Détection si l'utilisateur est sur PC (non-mobile)
+  const isPC = useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    
+    // Vérifier si c'est un appareil mobile en utilisant le user agent
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    return !isMobile;
+  }, []);
+
   return (
     <Card className="w-full bg-white/30 dark:bg-slate-900/30 shadow-sm hover:shadow-md transition-all duration-200 border border-slate-200 dark:border-slate-700/30 overflow-hidden">
       <Link 
         href={serviceUrl} 
         className="focus:outline-none focus:ring-2 focus:ring-vynal-accent-primary/50 group"
         prefetch={isPriority}
+        target={isPC ? "_blank" : undefined}
+        rel={isPC ? "noopener noreferrer" : undefined}
       >
         <CardContent className="p-0">
           <div className="flex w-full h-20 sm:h-28">

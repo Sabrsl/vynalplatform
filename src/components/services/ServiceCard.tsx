@@ -637,6 +637,15 @@ const ServiceCard = memo<ServiceCardProps>(
     const { resolvedTheme } = useTheme();
     const isDarkMode = isClient ? resolvedTheme === 'dark' : false;
   
+    // Détection si l'utilisateur est sur PC (non-mobile)
+    const isPC = useMemo(() => {
+      if (typeof window === 'undefined') return false;
+      
+      // Vérifier si c'est un appareil mobile en utilisant le user agent
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      return !isMobile;
+    }, []);
+  
     // Simplified JSX structure - grouped by logical sections
     return (
       <Link
@@ -644,6 +653,8 @@ const ServiceCard = memo<ServiceCardProps>(
           ? "#" // Utiliser # pour les cards du dashboard car on utilise les callbacks onView/onEdit
           : (service.slug ? `/services/${service.slug}` : `/services/details/${service.id}`)}
         onClick={handleCardClick}
+        target={!isManageable && isPC ? "_blank" : undefined}
+        rel={!isManageable && isPC ? "noopener noreferrer" : undefined}
         className={cn(
           "group flex flex-col overflow-hidden rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-vynal-accent-primary/50 h-full",
           isManageable ? "cursor-default" : "cursor-pointer hover:shadow-sm",
