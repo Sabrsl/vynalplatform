@@ -43,9 +43,17 @@ function setImageSrcSafely(image: HTMLImageElement, url: string): void {
   
   // Vérifier que l'URL est un blob URL sécurisé
   if (isSecureBlobUrl(url)) {
-    // Utiliser la propriété src directement au lieu de setAttribute
-    // pour éviter l'interprétation des caractères HTML
-    image.src = url;
+    // Utiliser l'API URL pour créer et valider l'URL avant de l'attribuer
+    try {
+      // Création d'un nouvel objet URL pour valider la syntaxe
+      const safeUrl = new URL(url).href;
+      // Attribuer l'URL validée directement à la propriété src
+      image.src = safeUrl;
+    } catch (e) {
+      // Si l'URL est invalide, la révoquer et lever une erreur
+      URL.revokeObjectURL(url);
+      throw new Error("URL d'image invalide");
+    }
   } else {
     // Si l'URL n'est pas sécurisée, révoquer et lever une erreur
     URL.revokeObjectURL(url);
