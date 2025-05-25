@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Lock } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { PaymentCurrencyNotice } from "@/components/payments/PaymentCurrencyNotice";
+import { convertToEur, normalizeAmount } from "@/lib/utils/currency-updater";
 
 interface StripeCardFormProps {
   amount: number;
@@ -111,6 +112,15 @@ function StripeCardFormContent({
   const [cardError, setCardError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   
+  // Logging pour débogage
+  console.log(`StripeCardForm - Montant reçu: ${amount} ${currency.toUpperCase()}`);
+  
+  // Calculer le montant en EUR pour le débogage
+  const amountInEur = currency.toUpperCase() !== 'EUR' 
+    ? convertToEur(amount, currency, false)
+    : amount;
+  console.log(`StripeCardForm - Montant converti: ${amount} ${currency.toUpperCase()} → ${amountInEur} EUR`);
+  
   // Options de style pour le formulaire de carte
   const cardElementOptions = {
     style: {
@@ -206,7 +216,11 @@ function StripeCardFormContent({
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       {/* Notification sur la devise utilisée pour le paiement */}
-      <PaymentCurrencyNotice amount={amount} compact />
+      <PaymentCurrencyNotice 
+        amount={amount} 
+        compact 
+        useFixedAmount={false} 
+      />
       
       <div className="p-3 border rounded-md bg-slate-50 dark:bg-vynal-purple-dark/20">
         <CardElement 
@@ -223,7 +237,7 @@ function StripeCardFormContent({
       
       <div>
         <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-          Votre paiement est sécurisé. Vos informations de carte bancaire ne sont jamais stockées sur nos serveurs.
+          Paiement sécurisé - Données bancaires non stockées
         </p>
       </div>
       
@@ -242,7 +256,22 @@ function StripeCardFormContent({
           ) : (
             <>
               <Lock className="h-4 w-4 mr-2" />
-              {buttonText} {amount.toFixed(2)} {currency.toUpperCase()}
+              {currency.toUpperCase() === 'EUR' ? (
+                // Affichage pour EUR
+                `${buttonText} ${amount.toFixed(2)} EUR`
+              ) : (
+                // Affichage pour les autres devises avec conversion
+                <>
+                  {buttonText} {(convertToEur(normalizeAmount(amount, currency), currency, false) as number).toFixed(2)} EUR
+                  <span className="ml-1 text-xs text-gray-500">
+                    ({new Intl.NumberFormat('fr-FR', {
+                      style: 'currency',
+                      currency: currency.toUpperCase(),
+                      minimumFractionDigits: currency.toUpperCase() === 'XOF' ? 0 : 2
+                    }).format(normalizeAmount(amount, currency))})
+                  </span>
+                </>
+              )}
             </>
           )}
         </Button>

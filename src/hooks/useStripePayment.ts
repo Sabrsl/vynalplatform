@@ -55,21 +55,26 @@ export function useStripePayment() {
       console.log(`Montant en centimes: ${amountInCents}, serviceId: ${serviceId}`);
       
       // Journalisation de la tentative de paiement pour l'audit
-      await logSecurityEvent({
-        type: 'payment_attempt',
-        userId: user.id,
-        severity: 'medium',
-        details: {
-          amount: amountInCents,
-          serviceId
-        }
-      });
+      try {
+        await logSecurityEvent({
+          type: 'payment_attempt',
+          userId: user.id,
+          severity: 'medium',
+          details: {
+            amount: amountInCents,
+            serviceId
+          }
+        });
+      } catch (logError) {
+        console.warn("Erreur de journalisation, on continue", logError);
+        // On continue même si la journalisation échoue
+      }
       
       // Vérifier d'abord si le freelance_id existe pour ce service
       let actualFreelanceId = freelanceId;
       
       if (!actualFreelanceId) {
-        const { data: serviceData } = await supabase
+        const { data: serviceData, error: serviceError } = await supabase
           .from('services')
           .select('freelance_id')
           .eq('id', serviceId)
@@ -77,6 +82,8 @@ export function useStripePayment() {
           
         if (serviceData) {
           actualFreelanceId = serviceData.freelance_id;
+        } else if (serviceError) {
+          console.error("Erreur lors de la récupération des données du service:", serviceError);
         }
       }
       
@@ -85,30 +92,74 @@ export function useStripePayment() {
       }
       
       // Appel à l'API pour créer un PaymentIntent et une commande si nécessaire
-      const response = await fetch('/api/stripe/payment-intent', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          amount: amountInCents,
-          serviceId,
-          freelanceId: actualFreelanceId,
-          metadata: {
-            ...metadata,
-            clientId: user.id,
-            userId: user.id,
-            deliveryTime: metadata.deliveryTime || '7',
-            requirements: metadata.requirements || 'Test de paiement automatisé'
-          }
-        }),
-        credentials: 'include'
-      });
+      // Note: L'API convertira automatiquement le montant en euros pour le traitement par Stripe
+      let retryCount = 0;
+      const maxRetries = 2;
+      let response;
+      let lastError;
       
-      // Gestion des erreurs HTTP
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Erreur lors de la création du paiement");
+      // Boucle de tentatives avec backoff exponentiel
+      while (retryCount <= maxRetries) {
+        try {
+          response = await fetch('/api/stripe/payment-intent', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              amount: amountInCents,
+              serviceId,
+              freelanceId: actualFreelanceId,
+              metadata: {
+                ...metadata,
+                clientId: user.id,
+                userId: user.id,
+                deliveryTime: metadata.deliveryTime || '7',
+                requirements: metadata.requirements || 'Test de paiement automatisé'
+              }
+            }),
+            credentials: 'include'
+          });
+          
+          // Si la requête a réussi, sortir de la boucle
+          if (response.ok) {
+            break;
+          } else {
+            // En cas d'erreur, enregistrer l'erreur et réessayer
+            const errorText = await response.text();
+            let errorData;
+            try {
+              errorData = JSON.parse(errorText);
+            } catch (e) {
+              errorData = { error: errorText || "Erreur de serveur inconnue" };
+            }
+            
+            lastError = new Error(errorData.error || `Erreur serveur: ${response.status}`);
+            console.warn(`Tentative ${retryCount + 1}/${maxRetries + 1} échouée:`, lastError);
+            
+            // Attendre avant de réessayer (backoff exponentiel)
+            if (retryCount < maxRetries) {
+              const waitTime = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s, etc.
+              await new Promise(resolve => setTimeout(resolve, waitTime));
+            }
+          }
+        } catch (fetchError: any) {
+          // Erreur réseau, enregistrer et réessayer
+          lastError = fetchError;
+          console.warn(`Tentative ${retryCount + 1}/${maxRetries + 1} échouée (erreur réseau):`, fetchError);
+          
+          if (retryCount < maxRetries) {
+            const waitTime = Math.pow(2, retryCount) * 1000;
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+          }
+        }
+        
+        retryCount++;
+      }
+      
+      // Vérifier si toutes les tentatives ont échoué
+      if (!response || !response.ok) {
+        throw lastError || new Error("Échec de la création du paiement après plusieurs tentatives");
       }
       
       // Traitement de la réponse
@@ -116,17 +167,22 @@ export function useStripePayment() {
       setPaymentData(data);
       
       // Journaliser la création réussie du PaymentIntent
-      await logSecurityEvent({
-        type: 'payment_intent_created',
-        userId: user.id,
-        severity: 'info',
-        details: {
-          paymentIntentId: data.paymentIntentId,
-          serviceId,
-          orderId: data.orderId,
-          amount: amountInCents
-        }
-      });
+      try {
+        await logSecurityEvent({
+          type: 'payment_intent_created',
+          userId: user.id,
+          severity: 'info',
+          details: {
+            paymentIntentId: data.paymentIntentId,
+            serviceId,
+            orderId: data.orderId,
+            amount: amountInCents
+          }
+        });
+      } catch (logError) {
+        console.warn("Erreur lors de la journalisation du succès", logError);
+        // On continue même si la journalisation échoue
+      }
       
       return data;
     } catch (err: any) {
@@ -134,16 +190,20 @@ export function useStripePayment() {
       setError(err.message || "Une erreur est survenue lors de la préparation du paiement");
       
       // Journalisation de l'erreur pour l'audit
-      await logSecurityEvent({
-        type: 'payment_intent_error',
-        userId: user.id,
-        severity: 'high',
-        details: {
-          error: err.message,
-          amount,
-          serviceId
-        }
-      });
+      try {
+        await logSecurityEvent({
+          type: 'payment_intent_error',
+          userId: user.id,
+          severity: 'high',
+          details: {
+            error: err.message,
+            amount,
+            serviceId
+          }
+        });
+      } catch (logError) {
+        console.warn("Erreur de journalisation de l'échec", logError);
+      }
       
       return null;
     } finally {

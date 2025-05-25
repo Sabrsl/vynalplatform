@@ -3,7 +3,7 @@ import { createPaymentIntent } from '@/lib/stripe/server';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { logSecurityEvent } from '@/lib/security/audit';
 import { cookies } from 'next/headers';
-import { validatePaymentCurrency, detectCurrency } from '@/lib/utils/currency-updater';
+import { validatePaymentCurrency, detectCurrency, convertToEur, normalizeAmount } from '@/lib/utils/currency-updater';
 
 /**
  * API pour créer un PaymentIntent Stripe avec authentification RLS
@@ -93,6 +93,7 @@ export async function POST(req: NextRequest) {
           throw new Error('Service non trouvé ou inaccessible');
         }
       } catch (error) {
+        console.error('Erreur lors de la récupération du freelanceId:', error);
         return NextResponse.json(
           { error: 'Service invalide ou inaccessible' },
           { status: 400 }
@@ -126,8 +127,16 @@ export async function POST(req: NextRequest) {
       // Si pas de commande, on en crée une
       let orderId;
       
+      // Générer un numéro de commande unique
+      const generateOrderNumber = () => {
+        const prefix = 'VNL';
+        const timestamp = Date.now().toString().slice(-6);
+        const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+        return `${prefix}-${timestamp}-${random}`;
+      };
+      
       // Vérifier si une commande existe déjà pour ce service et ce client
-      const { data: existingOrder } = await supabase
+      const { data: existingOrder, error: existingOrderError } = await supabase
         .from('orders')
         .select('id')
         .eq('service_id', serviceId)
@@ -135,10 +144,16 @@ export async function POST(req: NextRequest) {
         .eq('status', 'pending')
         .single();
       
+      if (existingOrderError && existingOrderError.code !== 'PGRST116') {
+        console.error('Erreur lors de la vérification des commandes existantes:', existingOrderError);
+        throw new Error('Erreur lors de la vérification des commandes existantes');
+      }
+      
       if (existingOrder) {
         orderId = existingOrder.id;
       } else {
         // Créer une commande si nécessaire
+        const orderNumber = generateOrderNumber();
         const { data: newOrder, error: orderError } = await supabase
           .from('orders')
           .insert({
@@ -147,13 +162,20 @@ export async function POST(req: NextRequest) {
             service_id: serviceId,
             status: 'pending',
             requirements: metadata.requirements || '',
-            delivery_time: metadata.deliveryTime || 7
+            delivery_time: metadata.deliveryTime || 7,
+            order_number: orderNumber,
+            price: parseFloat(amount) / 100 // Convertir les centimes en unités pour le stockage
           })
           .select('id')
           .single();
         
         if (orderError) {
-          console.error('Erreur lors de la création de la commande:', orderError);
+          console.error('Erreur détaillée lors de la création de la commande:', {
+            error: orderError,
+            code: orderError.code,
+            details: orderError.details,
+            message: orderError.message
+          });
           throw new Error('Erreur lors de la création de la commande');
         }
         
@@ -174,49 +196,93 @@ export async function POST(req: NextRequest) {
         .single();
       
       if (userProfileData) {
-        const userCountry = userProfileData.country || 'SN';
-        
-        // Gérer la préférence de devise
+        // Utiliser directement la préférence de devise de l'utilisateur, sans validation basée sur la géolocalisation
         if (userProfileData.currency_preference) {
-          const validation = validatePaymentCurrency(userProfileData.currency_preference, userCountry);
-          userCurrency = validation.isValid ? 
-            userProfileData.currency_preference.toLowerCase() : 
-            validation.recommendedCurrency.toLowerCase();
+          userCurrency = userProfileData.currency_preference.toLowerCase();
         } else {
+          // Si pas de préférence définie, utiliser la devise détectée par pays comme suggestion
+          const userCountry = userProfileData.country || 'SN';
           userCurrency = detectCurrency(userCountry).toLowerCase();
         }
       }
       
-      // Création du PaymentIntent via l'API Stripe
+      // Normaliser le montant pour éviter les valeurs anormalement élevées (comme 250000 au lieu de 250)
+      const normalizedAmount = normalizeAmount(parseFloat(amount) / 100, userCurrency);
+      console.log(`Montant normalisé: ${parseFloat(amount) / 100} ${userCurrency} → ${normalizedAmount} ${userCurrency}`);
+      
+      // Reconvertir en centimes pour les calculs suivants
+      const normalizedCents = Math.round(normalizedAmount * 100);
+      
+      // Conversion du montant en euros si nécessaire
+      let amountInEuros = normalizedCents;
+      
+      if (userCurrency !== 'eur') {
+        try {
+          // Convertir le montant en euros en utilisant la fonction correcte
+          const convertedAmount = convertToEur(normalizedAmount, userCurrency, false);
+          // Reconvertir en centimes pour Stripe
+          amountInEuros = Math.round(parseFloat(convertedAmount.toString()) * 100);
+          
+          console.log(`Conversion pour paiement: ${normalizedAmount} ${userCurrency} → ${parseFloat(convertedAmount.toString())} EUR (${amountInEuros} centimes)`);
+        } catch (conversionError) {
+          console.error("Erreur lors de la conversion du montant:", conversionError);
+          // En cas d'erreur de conversion, utiliser le montant normalisé (moins risqué)
+          amountInEuros = normalizedCents;
+        }
+      }
+      
+      // Création du PaymentIntent via l'API Stripe - toujours en euros
       const paymentIntent = await createPaymentIntent({
-        amount: Math.round(parseFloat(amount.toString())),
-        currency: userCurrency,
+        amount: amountInEuros,
+        currency: 'eur', // Forcer l'euro pour tous les paiements
         metadata: {
           clientId: userId,
           freelanceId: freelanceIdentifier,
           serviceId,
           orderId,
           userEmail,
+          originalCurrency: userCurrency,
+          originalAmount: normalizedAmount.toString(), // Stocker le montant normalisé
+          rawAmount: amount.toString(), // Stocker le montant brut original
           ...metadata
         }
       });
       
-      // Insérer l'entrée dans la table payments (protégée par RLS)
-      const { error: dbError } = await supabase
+      // Vérifier si un paiement existe déjà pour cette commande
+      const { data: existingPayment, error: existingPaymentError } = await supabase
         .from('payments')
-        .insert({
-          order_id: orderId,
-          client_id: userId,
-          freelance_id: freelanceIdentifier,
-          amount: parseFloat(amount) / 100,  // Convertir les centimes en unités pour le stockage
-          status: 'pending',
-          payment_method: 'stripe',
-          payment_intent_id: paymentIntent.id
-        });
+        .select('id')
+        .eq('order_id', orderId)
+        .eq('payment_intent_id', paymentIntent.id)
+        .single();
       
-      if (dbError) {
-        console.error('Erreur lors de l\'enregistrement du paiement:', dbError);
-        throw new Error('Erreur lors de l\'enregistrement du paiement');
+      if (existingPaymentError && existingPaymentError.code !== 'PGRST116') {
+        console.error('Erreur lors de la vérification des paiements existants:', existingPaymentError);
+      }
+      
+      // Insérer l'entrée dans la table payments seulement si elle n'existe pas déjà
+      if (!existingPayment) {
+        const { error: dbError } = await supabase
+          .from('payments')
+          .insert({
+            order_id: orderId,
+            client_id: userId,
+            freelance_id: freelanceIdentifier,
+            amount: parseFloat(amount) / 100,  // Convertir les centimes en unités pour le stockage
+            status: 'pending',
+            payment_method: 'stripe',
+            payment_intent_id: paymentIntent.id
+          });
+        
+        if (dbError) {
+          console.error('Erreur détaillée lors de l\'enregistrement du paiement:', {
+            error: dbError,
+            code: dbError.code,
+            details: dbError.details,
+            message: dbError.message
+          });
+          throw new Error('Erreur lors de l\'enregistrement du paiement');
+        }
       }
       
       // Retourner les informations du PaymentIntent

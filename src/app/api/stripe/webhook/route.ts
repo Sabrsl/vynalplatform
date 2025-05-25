@@ -1,259 +1,348 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createPaymentIntent } from '@/lib/stripe/server';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { stripe, retrievePaymentIntent } from '@/lib/stripe/server';
+import { createClient } from '@supabase/supabase-js';
 import { logSecurityEvent } from '@/lib/security/audit';
-import { cookies } from 'next/headers';
-import { validatePaymentCurrency, detectCurrency } from '@/lib/utils/currency-updater';
+
+// Création d'une instance Supabase pour les opérations serveur
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+
+// Vérification de la présence des variables d'environnement requises
+if (!supabaseUrl || !supabaseServiceKey) {
+  console.error('ERREUR CRITIQUE: Variables d\'environnement Supabase manquantes');
+}
+
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+// Génère un numéro de commande unique
+function generateOrderNumber(): string {
+  const prefix = 'VNL';
+  const timestamp = Date.now().toString().slice(-6);
+  const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+  return `${prefix}-${timestamp}-${random}`;
+}
 
 /**
- * API pour créer un PaymentIntent Stripe avec authentification RLS
+ * Webhook Stripe pour traiter les événements de paiement
  * 
- * Route: POST /api/stripe/payment-intent
+ * Route: POST /api/stripe/webhook
  */
 export async function POST(req: NextRequest) {
-  // Récupérer les informations sur le client
-  const clientIp = req.headers.get('x-forwarded-for') || req.ip || 'unknown';
-  const userAgent = req.headers.get('user-agent') || 'unknown';
+  // Récupérer le corps brut de la requête pour vérification de signature
+  const payload = await req.text();
+  const signature = req.headers.get('stripe-signature') as string;
+
+  // Récupération de la clé secrète webhook
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  
+  if (!webhookSecret) {
+    console.error('ERREUR CRITIQUE: Secret du webhook Stripe manquant');
+    return NextResponse.json({ error: 'Configuration incorrecte' }, { status: 500 });
+  }
+  
+  let event;
   
   try {
-    // Récupération et validation du corps de la requête
-    const body = await req.json();
+    // Vérifier la signature du webhook
+    event = stripe.webhooks.constructEvent(payload, signature, webhookSecret);
+  } catch (err: any) {
+    console.error(`Erreur de signature du webhook: ${err.message}`);
+    return NextResponse.json({ error: 'Signature invalide' }, { status: 400 });
+  }
+  
+  // Traitement des différents types d'événements
+  try {
+    const eventType = event.type;
+    console.log(`Traitement de l'événement Stripe: ${eventType}`);
     
-    console.log('API payment-intent - Corps de la requête:', JSON.stringify(body));
-    
-    // Validation des données requises
-    if (!body.amount || !body.serviceId) {
-      return NextResponse.json(
-        { error: 'Données incomplètes. Montant et ID du service requis.' },
-        { status: 400 }
-      );
+    switch (eventType) {
+      case 'payment_intent.succeeded':
+        await handlePaymentIntentSucceeded(event.data.object);
+        break;
+        
+      case 'payment_intent.payment_failed':
+        await handlePaymentIntentFailed(event.data.object);
+        break;
+        
+      case 'checkout.session.completed':
+        await handleCheckoutSessionCompleted(event.data.object);
+        break;
+        
+      default:
+        console.log(`Événement non géré: ${eventType}`);
     }
     
-    // Configuration de l'environnement
-    const isDev = process.env.NODE_ENV === 'development';
+    return NextResponse.json({ received: true });
+  } catch (error: any) {
+    console.error(`Erreur lors du traitement du webhook: ${error.message}`);
+    return NextResponse.json(
+      { error: 'Erreur lors du traitement de l\'événement' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * Gère un paiement réussi
+ */
+async function handlePaymentIntentSucceeded(paymentIntent: any) {
+  console.log(`PaymentIntent réussi: ${paymentIntent.id}`);
+  
+  // Extraire les métadonnées utiles
+  const { 
+    clientId, 
+    freelanceId, 
+    serviceId, 
+    orderId: existingOrderId,
+    originalCurrency,
+    originalAmount
+  } = paymentIntent.metadata || {};
+  
+  if (!clientId || !freelanceId || !serviceId) {
+    console.error('Métadonnées incomplètes dans le PaymentIntent', paymentIntent.id);
+    return;
+  }
+  
+  try {
+    // Récupérer le montant original en euros ou utiliser le montant du PaymentIntent
+    const amount = originalAmount 
+      ? parseFloat(originalAmount) / 100 
+      : paymentIntent.amount / 100;
     
-    // Utilisation de createRouteHandlerClient pour accéder à Supabase
-    const supabase = createRouteHandlerClient({ cookies });
+    // Vérifier si le paiement existe déjà dans la base de données
+    const { data: existingPayment } = await supabase
+      .from('payments')
+      .select('id, status, order_id')
+      .eq('payment_intent_id', paymentIntent.id)
+      .single();
     
-    // Vérification de la session utilisateur (la sécurité est gérée par RLS)
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    // Variables pour l'utilisateur
-    let userId: string = session?.user?.id || '';
-    let userEmail: string = session?.user?.email || '';
-    
-    // Si aucune session valide n'est trouvée, retourner une erreur 401
-    if (!session?.user) {
-      try {
-        // Enregistrer l'événement de sécurité
-        await logSecurityEvent({
-          type: 'security_violation',
-          ipAddress: clientIp as string,
-          userAgent: userAgent as string,
-          severity: 'high',
-          details: { 
-            error: 'Tentative de création de paiement sans authentification',
-            endpoint: '/api/stripe/payment-intent'
-          }
-        });
-      } catch (securityError) {
-        console.warn('Erreur lors de la journalisation de sécurité:', securityError);
-      }
+    // Si le paiement existe, mettre à jour son statut et la commande associée
+    if (existingPayment) {
+      const orderId = existingPayment.order_id || existingOrderId;
       
-      return NextResponse.json(
-        { error: 'Non autorisé. Authentification requise.' },
-        { status: 401 }
-      );
-    }
-    
-    // Extraction des informations nécessaires
-    const { amount, serviceId, freelanceId, metadata = {} } = body;
-    
-    // Vérification du montant (doit être un nombre positif)
-    if (isNaN(amount) || amount <= 0) {
-      return NextResponse.json(
-        { error: 'Le montant doit être un nombre positif' },
-        { status: 400 }
-      );
-    }
-    
-    // Rechercher le freelanceId si non fourni, en utilisant RLS
-    let freelanceIdentifier = freelanceId;
-    if (!freelanceIdentifier) {
-      try {
-        // Récupérer le freelance ID à partir du service via RLS
-        const { data: serviceData, error: serviceError } = await supabase
-          .from('services')
-          .select('freelance_id')
-          .eq('id', serviceId)
+      if (existingPayment.status !== 'paid') {
+        // Mettre à jour le statut du paiement
+        await supabase
+          .from('payments')
+          .update({ status: 'paid' })
+          .eq('id', existingPayment.id);
+        
+        // Mettre à jour le statut de la commande si elle existe
+        if (orderId) {
+          await supabase
+            .from('orders')
+            .update({ status: 'paid' })
+            .eq('id', orderId);
+        }
+      }
+    } else {
+      // Le paiement n'existe pas encore, vérifier si la commande existe
+      let orderId = existingOrderId;
+      
+      if (!orderId) {
+        // Rechercher une commande existante pour ce client et ce service
+        const { data: existingOrder } = await supabase
+          .from('orders')
+          .select('id')
+          .eq('client_id', clientId)
+          .eq('service_id', serviceId)
+          .eq('freelance_id', freelanceId)
+          .order('created_at', { ascending: false })
+          .limit(1)
           .single();
         
-        if (!serviceError && serviceData) {
-          freelanceIdentifier = serviceData.freelance_id;
-        } else if (isDev) {
-          // En développement uniquement, utiliser un ID par défaut
-          freelanceIdentifier = '2fde948c-91d8-4ae7-9a04-77c363680106';
+        if (existingOrder) {
+          orderId = existingOrder.id;
         } else {
-          throw new Error('Service non trouvé ou inaccessible');
+          // Créer une nouvelle commande si nécessaire
+          const orderNumber = generateOrderNumber();
+          const { data: newOrder, error: orderError } = await supabase
+            .from('orders')
+            .insert({
+              client_id: clientId,
+              freelance_id: freelanceId,
+              service_id: serviceId,
+              status: 'paid',
+              price: amount,
+              order_number: orderNumber
+            })
+            .select('id')
+            .single();
+            
+          if (orderError) {
+            console.error('Erreur lors de la création de la commande:', orderError);
+            throw new Error('Erreur lors de la création de la commande');
+          }
+          
+          orderId = newOrder?.id;
         }
-      } catch (error) {
-        return NextResponse.json(
-          { error: 'Service invalide ou inaccessible' },
-          { status: 400 }
-        );
+      }
+      
+      // Créer un enregistrement de paiement
+      if (orderId) {
+        await supabase
+          .from('payments')
+          .insert({
+            client_id: clientId,
+            freelance_id: freelanceId,
+            order_id: orderId,
+            amount: amount,
+            payment_intent_id: paymentIntent.id,
+            status: 'paid',
+            payment_method: 'stripe'
+          });
+        
+        // Mettre à jour le statut de la commande
+        await supabase
+          .from('orders')
+          .update({ status: 'paid' })
+          .eq('id', orderId);
+          
+        // Créer une transaction dans le wallet du freelance
+        await createTransaction(freelanceId, clientId, serviceId, orderId, amount);
       }
     }
     
-    if (!freelanceIdentifier) {
-      return NextResponse.json(
-        { error: 'ID du freelance requis pour le paiement' },
-        { status: 400 }
-      );
-    }
+    // Journaliser l'événement de paiement réussi
+    await logSecurityEvent({
+      type: 'payment_success',
+      userId: clientId,
+      severity: 'info',
+      details: {
+        paymentIntentId: paymentIntent.id,
+        serviceId
+      }
+    });
+  } catch (error) {
+    console.error('Erreur lors du traitement du paiement réussi:', error);
+  }
+}
+
+/**
+ * Gère un paiement échoué
+ */
+async function handlePaymentIntentFailed(paymentIntent: any) {
+  console.log(`PaymentIntent échoué: ${paymentIntent.id}`);
+  
+  // Extraire les métadonnées
+  const { clientId, serviceId } = paymentIntent.metadata || {};
+  
+  try {
+    // Mettre à jour le statut du paiement s'il existe
+    await supabase
+      .from('payments')
+      .update({ status: 'failed' })
+      .eq('payment_intent_id', paymentIntent.id);
     
-    // Journaliser la tentative de création de PaymentIntent (gérer l'erreur silencieusement)
-    try {
+    // Journaliser l'événement d'échec
+    if (clientId && serviceId) {
       await logSecurityEvent({
-        type: 'payment_attempt',
-        userId,
-        ipAddress: clientIp as string,
-        userAgent: userAgent as string,
+        type: 'payment_failure',
+        userId: clientId,
         severity: 'medium',
         details: {
+          paymentIntentId: paymentIntent.id,
           serviceId,
-          freelanceId: freelanceIdentifier,
-          amount
+          error: paymentIntent.last_payment_error?.message || 'Paiement refusé'
         }
       });
-    } catch (securityLogError) {
-      console.warn('Erreur lors de la journalisation de sécurité:', securityLogError);
     }
+  } catch (error) {
+    console.error('Erreur lors du traitement du paiement échoué:', error);
+  }
+}
+
+/**
+ * Gère une session checkout complétée
+ */
+async function handleCheckoutSessionCompleted(session: any) {
+  console.log(`Session checkout complétée: ${session.id}`);
+  
+  // Récupérer le PaymentIntent associé à la session
+  if (session.payment_intent) {
+    const paymentIntent = await retrievePaymentIntent(session.payment_intent);
+    await handlePaymentIntentSucceeded(paymentIntent);
+  }
+}
+
+/**
+ * Crée une transaction dans le wallet du freelance
+ */
+async function createTransaction(freelanceId: string, clientId: string, serviceId: string, orderId: string, amount: number) {
+  try {
+    // Récupérer le wallet du freelance
+    const { data: walletData, error: walletError } = await supabase
+      .from('wallets')
+      .select('id, balance, pending_balance, total_earnings')
+      .eq('user_id', freelanceId)
+      .single();
     
-    try {
-      // Obtenir l'ID de commande en utilisant le serviceId
-      // Si pas de commande, on en crée une
-      let orderId;
-      
-      // Vérifier si une commande existe déjà pour ce service et ce client
-      const { data: existingOrder } = await supabase
-        .from('orders')
-        .select('id')
-        .eq('service_id', serviceId)
-        .eq('client_id', userId)
-        .eq('status', 'pending')
-        .single();
-      
-      if (existingOrder) {
-        orderId = existingOrder.id;
-      } else {
-        // Créer une commande si nécessaire
-        const { data: newOrder, error: orderError } = await supabase
-          .from('orders')
+    if (walletError) {
+      // Si le wallet n'existe pas, le créer
+      if (walletError.code === 'PGRST116') {
+        const { data: newWallet, error: createWalletError } = await supabase
+          .from('wallets')
           .insert({
-            client_id: userId,
-            freelance_id: freelanceIdentifier,
-            service_id: serviceId,
-            status: 'pending',
-            requirements: metadata.requirements || '',
-            delivery_time: metadata.deliveryTime || 7
+            user_id: freelanceId,
+            balance: 0,
+            pending_balance: amount,
+            total_earnings: amount
           })
           .select('id')
           .single();
-        
-        if (orderError) {
-          console.error('Erreur lors de la création de la commande:', orderError);
-          throw new Error('Erreur lors de la création de la commande');
+          
+        if (createWalletError) {
+          throw createWalletError;
         }
         
-        orderId = newOrder?.id;
+        // Créer la transaction
+        await supabase
+          .from('transactions')
+          .insert({
+            wallet_id: newWallet?.id,
+            amount,
+            type: 'payment',
+            status: 'pending',
+            description: `Paiement pour la commande liée au service ${serviceId}`,
+            metadata: {
+              serviceId,
+              clientId,
+              orderId
+            }
+          });
+      } else {
+        throw walletError;
       }
+    } else if (walletData) {
+      // Mettre à jour le wallet existant
+      const newPendingBalance = (walletData.pending_balance || 0) + amount;
+      const newTotalEarnings = (walletData.total_earnings || 0) + amount;
       
-      if (!orderId) {
-        throw new Error('Impossible de créer ou récupérer la commande');
-      }
+      await supabase
+        .from('wallets')
+        .update({
+          pending_balance: newPendingBalance,
+          total_earnings: newTotalEarnings
+        })
+        .eq('id', walletData.id);
       
-      // Récupérer les informations de l'utilisateur pour la devise
-      let userCurrency = 'usd'; // Devise par défaut modifiée à USD pour compatibilité Stripe
-      
-      const { data: userProfileData } = await supabase
-        .from('profiles')
-        .select('country, currency_preference')
-        .eq('id', userId)
-        .single();
-      
-      if (userProfileData) {
-        const userCountry = userProfileData.country || 'SN';
-        
-        // Gérer la préférence de devise
-        if (userProfileData.currency_preference) {
-          const validation = validatePaymentCurrency(userProfileData.currency_preference, userCountry);
-          userCurrency = validation.isValid ? 
-            userProfileData.currency_preference.toLowerCase() : 
-            validation.recommendedCurrency.toLowerCase();
-        } else {
-          userCurrency = detectCurrency(userCountry).toLowerCase();
-        }
-        
-        // S'assurer que la devise est supportée par Stripe
-        if (userCurrency === 'xof') {
-          userCurrency = 'usd'; // Utiliser USD si XOF est détecté (non supporté par Stripe)
-        }
-      }
-      
-      // Création du PaymentIntent via l'API Stripe
-      const paymentIntent = await createPaymentIntent({
-        amount: Math.round(parseFloat(amount.toString())),
-        currency: userCurrency,
-        metadata: {
-          clientId: userId,
-          freelanceId: freelanceIdentifier,
-          serviceId,
-          orderId,
-          userEmail,
-          ...metadata
-        }
-      });
-      
-      // Insérer l'entrée dans la table payments (protégée par RLS)
-      const { error: dbError } = await supabase
-        .from('payments')
+      // Créer la transaction
+      await supabase
+        .from('transactions')
         .insert({
-          order_id: orderId,
-          client_id: userId,
-          freelance_id: freelanceIdentifier,
-          amount: parseFloat(amount) / 100,  // Convertir les centimes en unités pour le stockage
+          wallet_id: walletData.id,
+          amount,
+          type: 'payment',
           status: 'pending',
-          payment_method: 'stripe',
-          payment_intent_id: paymentIntent.id,
-          // Note: Pas de colonne currency dans la table payments
+          description: `Paiement pour la commande liée au service ${serviceId}`,
+          metadata: {
+            serviceId,
+            clientId,
+            orderId
+          }
         });
-      
-      if (dbError) {
-        console.error('Erreur lors de l\'enregistrement du paiement:', dbError);
-        // Continuons malgré l'erreur, car le PaymentIntent a été créé avec succès
-        console.warn('Continuation malgré l\'erreur d\'enregistrement du paiement');
-      }
-      
-      // Retourner les informations du PaymentIntent
-      return NextResponse.json({
-        clientSecret: paymentIntent.client_secret,
-        paymentIntentId: paymentIntent.id,
-        orderId
-      });
-    } catch (error: any) {
-      console.error('Erreur lors de la création du PaymentIntent:', error);
-      
-      return NextResponse.json(
-        { error: error.message || 'Erreur lors de la création du paiement' },
-        { status: 500 }
-      );
     }
-  } catch (error: any) {
-    console.error('Exception non gérée:', error);
-    
-    return NextResponse.json(
-      { error: 'Une erreur inattendue est survenue' },
-      { status: 500 }
-    );
+  } catch (error) {
+    console.error('Erreur lors de la création de la transaction:', error);
   }
 }

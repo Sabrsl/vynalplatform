@@ -1,6 +1,6 @@
 {
   "name": "vynal-platform",
-  "version": "0.1.161",
+  "version": "0.1.134",
   "private": true,
   "scripts": {
     "dev": "cross-env NODE_OPTIONS='--max-old-space-size=4096' NODE_ENV=development next dev",
@@ -22,8 +22,7 @@
     "db:migrate:permissions": "npx supabase db push --db-url $NEXT_PUBLIC_SUPABASE_URL --auth-token $SUPABASE_SERVICE_ROLE_KEY --migration-file ./migrations/fix_conversation_permissions.sql",
     "validate:services": "node scripts/validate-services.js",
     "update-version": "node scripts/update-version.js",
-    "copy:templates": "node scripts/copy-email-templates.js",
-    "prebuild": "npm run validate:services && npm run update-version && npm run copy:templates"
+    "prebuild": "npm run validate:services && npm run update-version"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",

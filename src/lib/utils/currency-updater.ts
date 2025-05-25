@@ -75,9 +75,18 @@ export function detectCurrency(countryCode: string | null, userPreference?: stri
 
 /**
  * Vérifie si la devise est adaptée au paiement selon le pays
+ * Cette fonction a été modifiée pour ne plus forcer la devise locale sur la page de checkout
  * @returns Un objet avec une indication si la devise est adaptée au paiement et la devise recommandée
  */
 export function validatePaymentCurrency(userCurrency: string, countryCode: string | null): { isValid: boolean; recommendedCurrency: string; message?: string } {
+  // Désactivation de la validation basée sur la géolocalisation
+  // Accepter toujours la devise choisie par l'utilisateur
+  return { 
+    isValid: true, 
+    recommendedCurrency: userCurrency 
+  };
+  
+  /* Ancien code qui imposait la devise locale:
   // Si pas de détection de pays, on accepte la devise de l'utilisateur
   if (!countryCode) {
     return { isValid: true, recommendedCurrency: userCurrency };
@@ -97,6 +106,7 @@ export function validatePaymentCurrency(userCurrency: string, countryCode: strin
     recommendedCurrency: geoCurrency,
     message: `Pour des raisons de conformité bancaire, le paiement sera traité en ${geoCurrency}, la devise locale pour votre région.`
   };
+  */
 }
 
 /**
@@ -134,54 +144,73 @@ export function convertXofToEur(amountXof: number, formatString: boolean = false
  * @returns Le montant converti en EUR ou une chaîne formatée
  */
 export function convertToEur(amount: number, fromCurrency: string, formatString: boolean = false): number | string {
-  // Si c'est déjà en EUR, pas besoin de conversion
-  if (fromCurrency === 'EUR') {
+  try {
+    // Normaliser le montant d'entrée pour éviter les valeurs aberrantes
+    const normalizedAmount = normalizeAmount(amount, fromCurrency);
+    
+    // Normaliser le code de devise en majuscules
+    const normalizedCurrency = fromCurrency.toUpperCase();
+    
+    // Si c'est déjà en EUR, pas besoin de conversion
+    if (normalizedCurrency === 'EUR') {
+      if (formatString) {
+        return new Intl.NumberFormat('fr-FR', {
+          style: 'currency',
+          currency: 'EUR',
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2
+        }).format(normalizedAmount);
+      }
+      return normalizedAmount;
+    }
+    
+    // Importer les taux de conversion depuis le fichier de constants
+    const { CURRENCY } = require('@/lib/constants/currency');
+    
+    // Taux de conversion vers l'euro
+    let euroRate = 0;
+    
+    // Pour XOF, utiliser le taux fixe directement (approche simple)
+    if (normalizedCurrency === 'XOF') {
+      euroRate = CURRENCY.rates.EUR; // Taux fixe: 0.0015
+    } 
+    // Pour les autres devises, calculer le taux par rapport à l'euro
+    else if (CURRENCY.rates[normalizedCurrency] !== undefined) {
+      // Si la devise est définie dans les taux, calculer son taux par rapport à l'euro
+      // Méthode simple: (taux EUR / taux Devise)
+      // Car les taux sont définis comme 1 XOF = X Devise, donc on doit diviser pour obtenir EUR
+      euroRate = CURRENCY.rates.EUR / CURRENCY.rates[normalizedCurrency];
+    } else {
+      // Si la devise n'est pas trouvée, utiliser le taux de l'euro par défaut
+      console.warn(`Aucun taux trouvé pour ${normalizedCurrency}, utilisation du taux EUR par défaut`);
+      euroRate = CURRENCY.rates.EUR;
+    }
+    
+    // Appliquer la conversion directe
+    const amountEur = normalizedAmount * euroRate;
+    
+    // Arrondir à 2 décimales
+    const roundedAmount = Math.round(amountEur * 100) / 100;
+    
+    // Log pour le débogage
+    console.log(`Conversion simple: ${normalizedAmount} ${normalizedCurrency} → ${roundedAmount} EUR (taux: ${euroRate})`);
+    
+    // Retourner soit le nombre soit une chaîne formatée
     if (formatString) {
       return new Intl.NumberFormat('fr-FR', {
         style: 'currency',
         currency: 'EUR',
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
-      }).format(amount);
+      }).format(roundedAmount);
     }
-    return amount;
+    
+    return roundedAmount;
+  } catch (error) {
+    console.error("Erreur lors de la conversion vers EUR:", error);
+    // En cas d'erreur, retourner 0 ou "0,00 €"
+    return formatString ? "0,00 €" : 0;
   }
-  
-  // Taux de conversion pour différentes devises vers EUR
-  // Ces taux devraient idéalement être chargés dynamiquement depuis currencies.json
-  const RATES_TO_EUR: Record<string, number> = {
-    'XOF': 0.0015,  // 1 XOF = 0.0015 EUR (taux fixe)
-    'XAF': 0.0015,  // 1 XAF = 0.0015 EUR (taux fixe)
-    'USD': 0.85,    // Exemple approximatif: 1 USD = 0.85 EUR
-    'GBP': 1.15,    // Exemple approximatif: 1 GBP = 1.15 EUR
-    'MAD': 0.094,   // Exemple approximatif
-    'NGN': 0.00058, // Exemple approximatif
-    // Autres devises...
-  };
-  
-  // Vérifier si nous avons un taux pour cette devise
-  const rate = RATES_TO_EUR[fromCurrency];
-  if (!rate) {
-    console.warn(`Aucun taux de conversion trouvé pour ${fromCurrency} vers EUR. Utilisation de XOF comme fallback.`);
-    // Si la devise n'est pas connue, utiliser le taux XOF comme solution de repli
-    return convertXofToEur(amount, formatString);
-  }
-  
-  // Conversion
-  const amountEur = amount * rate;
-  
-  // Retourner soit le nombre soit une chaîne formatée
-  if (formatString) {
-    return new Intl.NumberFormat('fr-FR', {
-      style: 'currency',
-      currency: 'EUR',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(amountEur);
-  }
-  
-  // Arrondir à 2 décimales pour éviter les problèmes de précision
-  return Number(amountEur.toFixed(2));
 }
 
 /**
@@ -599,4 +628,88 @@ export function validateAndUpdateCurrency(forceRefresh = false): Promise<boolean
       resolve(false);
     }
   });
+}
+
+/**
+ * Normalise un montant pour éviter les valeurs anormalement élevées
+ * Détecte si un montant semble incorrect (comme 55000 au lieu de 55.00)
+ * 
+ * @param amount Le montant à normaliser
+ * @param currency Code de la devise
+ * @param expectedRange Plage de valeurs attendue {min, max} (optionnel)
+ * @returns Le montant normalisé
+ */
+export function normalizeAmount(
+  amount: number, 
+  currency: string,
+  expectedRange?: { min?: number, max?: number }
+): number {
+  try {
+    // Si le montant est déjà dans une plage raisonnable, le retourner tel quel
+    if (amount <= 0) {
+      console.warn(`Montant invalide détecté: ${amount} ${currency}, retourne 0`);
+      return 0;
+    }
+    
+    // Paramètres par défaut pour les plages de valeurs attendues selon la devise
+    const currencyRanges: Record<string, { min: number, max: number, factor: number }> = {
+      // Devises avec des valeurs typiquement élevées
+      'XOF': { min: 500, max: 5000000, factor: 1000 },      // 500 - 5M FCFA
+      'XAF': { min: 500, max: 5000000, factor: 1000 },      // 500 - 5M FCFA
+      
+      // Devises avec des valeurs moyennes
+      'MAD': { min: 10, max: 50000, factor: 100 },          // 10 - 50K MAD
+      'DZD': { min: 100, max: 100000, factor: 1000 },       // 100 - 100K DZD
+      'NGN': { min: 500, max: 10000000, factor: 1000 },     // 500 - 10M NGN
+      'EGP': { min: 100, max: 100000, factor: 1000 },       // 100 - 100K EGP
+      
+      // Devises avec des valeurs typiquement plus faibles
+      'EUR': { min: 1, max: 10000, factor: 100 },           // 1 - 10K EUR
+      'USD': { min: 1, max: 10000, factor: 100 },           // 1 - 10K USD
+      'GBP': { min: 1, max: 10000, factor: 100 },           // 1 - 10K GBP
+      
+      // Devise par défaut (utilisée si la devise n'est pas listée)
+      'DEFAULT': { min: 1, max: 10000, factor: 100 }
+    };
+    
+    // Obtenir les plages pour la devise ou utiliser les plages par défaut
+    const normalizedCurrency = currency.toUpperCase();
+    const range = currencyRanges[normalizedCurrency] || currencyRanges['DEFAULT'];
+    
+    // Utiliser les plages fournies en paramètre si présentes
+    const minValue = expectedRange?.min || range.min;
+    const maxValue = expectedRange?.max || range.max;
+    
+    // Si le montant est déjà dans la plage attendue, le retourner tel quel
+    if (amount >= minValue && amount <= maxValue) {
+      return amount;
+    }
+    
+    // Détecter et corriger les montants anormalement élevés (probablement en centimes)
+    if (amount > maxValue) {
+      // Vérifier si la division par le facteur donnerait un résultat raisonnable
+      const normalized = amount / range.factor;
+      if (normalized >= minValue && normalized <= maxValue) {
+        console.warn(`Montant anormalement élevé corrigé: ${amount} ${currency} -> ${normalized} ${currency} (÷${range.factor})`);
+        return normalized;
+      }
+    }
+    
+    // Détecter et corriger les montants anormalement bas (probablement multipliés par erreur)
+    if (amount < minValue) {
+      // Vérifier si la multiplication par le facteur donnerait un résultat raisonnable
+      const normalized = amount * range.factor;
+      if (normalized >= minValue && normalized <= maxValue) {
+        console.warn(`Montant anormalement bas corrigé: ${amount} ${currency} -> ${normalized} ${currency} (×${range.factor})`);
+        return normalized;
+      }
+    }
+    
+    // Si aucune correction n'a été appliquée mais le montant est hors plage, loguer un avertissement
+    console.warn(`Montant potentiellement anormal détecté: ${amount} ${currency} (hors de la plage ${minValue}-${maxValue})`);
+    return amount;
+  } catch (error) {
+    console.error("Erreur lors de la normalisation du montant:", error);
+    return amount; // En cas d'erreur, retourner le montant d'origine
+  }
 } 

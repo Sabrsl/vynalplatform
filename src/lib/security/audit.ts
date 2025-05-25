@@ -42,6 +42,37 @@ export interface SecurityEvent {
 // Déterminer si nous sommes sur le serveur ou le client
 const isServer = typeof window === 'undefined';
 
+// Variable pour suivre si la table security_events existe
+let securityEventsTableExists: boolean | null = null;
+
+/**
+ * Vérifie si la table security_events existe dans la base de données
+ * Cette fonction met en cache le résultat pour éviter des requêtes répétées
+ */
+async function checkSecurityEventsTableExists(supabase: any): Promise<boolean> {
+  // Si on a déjà vérifié, retourner le résultat mis en cache
+  if (securityEventsTableExists !== null) {
+    return securityEventsTableExists;
+  }
+  
+  try {
+    // Tenter de récupérer une seule ligne pour vérifier si la table existe
+    const { data, error } = await supabase
+      .from('security_events')
+      .select('id')
+      .limit(1);
+    
+    // Si pas d'erreur, la table existe
+    securityEventsTableExists = !error;
+    return securityEventsTableExists;
+  } catch (e) {
+    // En cas d'erreur, supposer que la table n'existe pas
+    console.warn('Impossible de vérifier si la table security_events existe:', e);
+    securityEventsTableExists = false;
+    return false;
+  }
+}
+
 /**
  * Log un événement de sécurité dans la base de données
  * 
@@ -78,21 +109,71 @@ export async function logSecurityEvent(event: Omit<SecurityEvent, 'timestamp'>):
       const supabase = createClientComponentClient();
       
       try {
+        // Vérifier d'abord si la table existe pour éviter des erreurs inutiles
+        const tableExists = await checkSecurityEventsTableExists(supabase);
+        if (!tableExists) {
+          console.log('La table security_events n\'existe pas, l\'événement sera uniquement journalisé en console');
+          return;
+        }
+
+        // Préparer les données selon le schéma exact de la table security_events
+        // Vérifier que le type de l'événement est l'une des valeurs autorisées
+        const sanitizedEvent = {
+          // Champs requis
+          type: String(securityEvent.type), // Convertir en string pour éviter les erreurs
+          severity: String(securityEvent.severity), // Convertir en string pour éviter les erreurs
+          
+          // Champs optionnels (peuvent être null)
+          user_id: securityEvent.userId || null,
+          ip_address: securityEvent.ipAddress || null,
+          user_agent: securityEvent.userAgent || null,
+          
+          // Le timestamp est généré automatiquement par défaut dans la BD si non fourni
+          timestamp: securityEvent.timestamp,
+          
+          // Assurer que details est un objet JSON valide
+          details: typeof securityEvent.details === 'object' 
+            ? securityEvent.details 
+            : { raw_data: String(securityEvent.details || '') }
+        };
+
+        // Essayer d'insérer l'événement dans la base de données
         const { error } = await supabase
           .from('security_events')
-          .insert(securityEvent);
+          .insert(sanitizedEvent);
 
         if (error) {
-          // Erreur silencieuse côté client pour éviter les logs inutiles
-          if (process.env.NODE_ENV === 'development') {
-            console.debug('Erreur de logging côté client:', error);
+          // Si l'insertion échoue, essayer de loguer l'erreur pour faciliter le débogage
+          console.error('Erreur lors de l\'insertion de l\'événement de sécurité:', {
+            error_code: error.code,
+            error_message: error.message,
+            error_details: error.details,
+            attempted_data: sanitizedEvent
+          });
+          
+          // Si le problème est dû à une contrainte, essayer de le corriger
+          if (error.code === '23502') { // violation de not-null constraint
+            console.warn('Tentative de correction de la contrainte not-null...');
+            const fixedEvent = {
+              ...sanitizedEvent,
+              // S'assurer que les champs required ont des valeurs par défaut
+              type: sanitizedEvent.type || 'unknown_event',
+              severity: sanitizedEvent.severity || 'info'
+            };
+            
+            // Deuxième tentative avec les données corrigées
+            const { error: retryError } = await supabase
+              .from('security_events')
+              .insert(fixedEvent);
+              
+            if (retryError) {
+              console.error('Échec de la deuxième tentative:', retryError);
+            }
           }
         }
       } catch (clientError) {
         // En développement uniquement, pour le débogage
-        if (process.env.NODE_ENV === 'development') {
-          console.debug('Erreur client lors du logging:', clientError);
-        }
+        console.error('Erreur non gérée lors du logging:', clientError);
       }
     }
 
@@ -126,18 +207,42 @@ async function sendSecurityAlert(event: SecurityEvent): Promise<void> {
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     
-    // Créer un enregistrement spécial dans security_events avec un type spécifique pour les alertes
+    // Vérifier d'abord si la table existe
+    const tableExists = await checkSecurityEventsTableExists(supabase);
+    if (!tableExists) {
+      console.warn('La table security_events n\'existe pas, impossible d\'enregistrer l\'alerte');
+      // Journaliser dans la console quand même
+      console.error('⚠️ ALERTE DE SÉCURITÉ CRITIQUE ⚠️', {
+        type: event.type,
+        userId: event.userId,
+        severity: event.severity,
+        timestamp: event.timestamp,
+        details: event.details
+      });
+      return;
+    }
+    
+    // Préparer l'alerte selon le schéma exact de la table security_events
+    // Préfixer le type avec "alert_" pour différencier les alertes des événements normaux
     const alertData = {
-      user_id: event.userId,
-      type: `alert_${event.type}`, // Préfixe "alert_" pour identifier les alertes
-      ip_address: event.ipAddress,
-      user_agent: event.userAgent,
+      // Champs requis (NOT NULL dans le schéma)
+      type: `alert_${event.type}`.substring(0, 255), // Limite pour éviter les erreurs
       severity: event.severity,
+      
+      // Champs optionnels (peuvent être null)
+      user_id: event.userId || null,
+      ip_address: event.ipAddress || null,
+      user_agent: event.userAgent || null,
+      timestamp: new Date(), // Utiliser la date actuelle
+      
+      // S'assurer que details est un objet JSON valide et contient toutes les infos nécessaires
       details: {
-        ...event.details,
-        original_event: event,
+        alert_source: "security_monitoring",
         alert_timestamp: new Date().toISOString(),
-        alert_status: 'new' // Pour le suivi des alertes
+        alert_status: "new",
+        original_event_type: event.type,
+        original_event_timestamp: event.timestamp.toISOString(),
+        ...(typeof event.details === 'object' ? event.details : { raw_details: String(event.details) })
       }
     };
     
@@ -147,7 +252,29 @@ async function sendSecurityAlert(event: SecurityEvent): Promise<void> {
       .insert(alertData);
       
     if (error) {
-      console.error('Échec de l\'enregistrement de l\'alerte dans la base de données:', error);
+      console.error('Échec de l\'enregistrement de l\'alerte dans la base de données:', {
+        error_code: error.code,
+        error_message: error.message,
+        error_details: error.details
+      });
+      
+      // Tentative de correction en cas d'erreur spécifique
+      if (error.code === '23502' || error.code === '22P02') { // null value ou invalid input syntax
+        console.warn('Tentative de correction des données d\'alerte...');
+        const fixedAlertData = {
+          ...alertData,
+          type: 'alert_security_event', // Type générique en cas d'erreur
+          details: JSON.stringify({ 
+            error_recovery: true,
+            original_event_summary: `${event.type} (${event.severity})`
+          })
+        };
+        
+        // Deuxième tentative avec les données corrigées
+        await supabase
+          .from('security_events')
+          .insert(fixedAlertData);
+      }
     }
     
     // Journalisation dans la console pour suivi immédiat
