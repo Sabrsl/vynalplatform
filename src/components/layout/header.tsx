@@ -30,7 +30,8 @@ import {
   Sun,
   AlertTriangle,
   Badge,
-  FileText
+  FileText,
+  Users
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useTheme } from "next-themes";
@@ -48,6 +49,7 @@ import { QuickTooltip } from "@/components/ui/tooltip";
 const BASE_NAVIGATION = [
   { name: "Accueil", href: "/", icon: Home },
   { name: "Explorer", href: "/services", icon: Briefcase },
+  { name: "Talents", href: "/talents", icon: Users },
 ];
 
 // Créer des types pour bien définir les données
@@ -1279,7 +1281,11 @@ function Header() {
                             </Link>
                             <Link href="/contact" className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs cursor-pointer ${isDark ? 'hover:bg-vynal-purple-secondary/30 text-vynal-text-primary' : 'hover:bg-vynal-purple-100/60 text-vynal-purple-dark'}`}>
                               <AlertTriangle className="h-3 w-3" />
-                              <span>Aide</span>
+                              <span>Vynal Support</span>
+                            </Link>
+                            <Link href="/status" className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs cursor-pointer ${isDark ? 'hover:bg-vynal-purple-secondary/30 text-vynal-text-primary' : 'hover:bg-vynal-purple-100/60 text-vynal-purple-dark'}`}>
+                              <Badge className="h-3 w-3" />
+                              <span>Vynal Statuts</span>
                             </Link>
                             <div className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs cursor-pointer ${isDark ? 'hover:bg-vynal-purple-secondary/30 text-vynal-text-primary' : 'hover:bg-vynal-purple-100/60 text-vynal-purple-dark'}`}>
                               <span className="flex items-center justify-between w-full">

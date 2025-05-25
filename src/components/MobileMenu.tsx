@@ -44,7 +44,8 @@ import {
   Sun,
   Book,
   Users,
-  LayoutDashboard
+  LayoutDashboard,
+  Badge as BadgeIcon
 } from 'lucide-react';
 
 interface NavItemProps {
@@ -314,10 +315,10 @@ const AuthenticatedMenuContent = memo(({
           callback: "findService"
         },
         {
-          href: `${CLIENT_ROUTES.DASHBOARD}/favorites`,
-          icon: Heart,
-          label: "Favoris",
-          callback: "favorites"
+          href: "/talents",
+          icon: Users,
+          label: "Talents",
+          callback: "talents"
         }
       ] : [],
       // Profil - pour tous les utilisateurs
@@ -337,8 +338,14 @@ const AuthenticatedMenuContent = memo(({
         {
           href: "/contact",
           icon: HelpCircle,
-          label: "Aide",
+          label: "Vynal Support",
           callback: "help"
+        },
+        {
+          href: "/status",
+          icon: BadgeIcon,
+          label: "Vynal Statuts",
+          callback: "status"
         }
       ]
     };
@@ -489,12 +496,12 @@ const UnauthenticatedMenuContent = memo(({
             <Button 
               variant="ghost" 
               className="flex flex-col items-center py-3 px-2 text-xs group hover:bg-vynal-purple-secondary/5 transition-colors rounded-lg h-auto"
-              onClick={() => navigateAndClose(PUBLIC_ROUTES.HOW_IT_WORKS)}
+              onClick={() => navigateAndClose("/talents")}
             >
               <div className="mb-1 h-7 w-7 rounded-full bg-vynal-purple-secondary/10 flex items-center justify-center group-hover:bg-vynal-purple-secondary/20 transition-colors">
-                <HelpCircle className="h-3 w-3 text-vynal-accent-primary" />
+                <Users className="h-3 w-3 text-vynal-accent-primary" />
               </div>
-              <span className="text-[9px]">En savoir plus</span>
+              <span className="text-[9px]">Talents</span>
             </Button>
             
             <Button 
@@ -712,15 +719,20 @@ export default function MobileMenu({ isOpen, onClose, user, activePath, setActiv
         onClose();
         router.push("/services");
       },
-      favorites: () => {
-        setActivePath(`${CLIENT_ROUTES.DASHBOARD}/favorites`);
+      talents: () => {
+        setActivePath("/talents");
         onClose();
-        router.push(`${CLIENT_ROUTES.DASHBOARD}/favorites`);
+        router.push("/talents");
       },
       help: () => {
         setActivePath("/contact");
         onClose();
         router.push("/contact");
+      },
+      status: () => {
+        setActivePath("/status");
+        onClose();
+        router.push("/status");
       }
     };
     

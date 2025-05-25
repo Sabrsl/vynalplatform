@@ -42,6 +42,7 @@ export default function ProfilePage() {
     bio: "",
     avatar_url: "",
     phone: "",
+    specialty: "",
   });
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [updateMessage, setUpdateMessage] = useState<string | null>(null);
@@ -58,6 +59,7 @@ export default function ProfilePage() {
         bio: userProfile.bio || "",
         avatar_url: userProfile.avatar_url || "",
         phone: userProfile.phone || "",
+        specialty: userProfile.specialty || "",
       });
     }
   }, [userProfile]);
@@ -79,6 +81,7 @@ export default function ProfilePage() {
       const cleanFullName = localProfile.full_name?.trim() || "";
       const cleanBio = localProfile.bio?.trim() || "";
       const cleanPhone = localProfile.phone?.trim() || "";
+      const cleanSpecialty = localProfile.specialty?.trim() || "";
       
       // Validation de base
       if (!usernameIsSet && !cleanUsername) {
@@ -100,6 +103,7 @@ export default function ProfilePage() {
         bio: cleanBio,
         avatar_url: localProfile.avatar_url,
         phone: cleanPhone,
+        specialty: cleanSpecialty,
         updated_at: new Date().toISOString(),
       };
       
@@ -499,6 +503,20 @@ export default function ProfilePage() {
                   <p className="text-[8px] sm:text-[10px] text-vynal-purple-secondary dark:text-vynal-text-secondary/70">
                     Votre numéro de téléphone (facultatif)
                   </p>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="specialty" className="text-xs text-vynal-purple-light dark:text-vynal-text-primary">
+                    Spécialité
+                  </Label>
+                  <Input
+                    id="specialty"
+                    name="specialty"
+                    value={localProfile.specialty}
+                    onChange={handleChange}
+                    placeholder="Votre spécialité principale"
+                    className="border-vynal-border dark:border-vynal-purple-secondary/40 dark:bg-vynal-purple-secondary/10 text-[10px] sm:text-xs"
+                  />
                 </div>
 
                 <div className="grid gap-2">

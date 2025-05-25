@@ -5,7 +5,7 @@
       "name": "Authentification",
       "description": "Système de connexion et d'inscription",
       "status": "functional",
-      "last_updated": "2025-05-12T03:57:00.000Z",
+      "last_updated": "2025-05-25T15:00:00.000Z",
       "component_type": "core"
     },
     {
@@ -13,7 +13,7 @@
       "name": "Messagerie",
       "description": "Système de messages entre clients et freelances",
       "status": "functional",
-      "last_updated": "2025-05-12T03:57:00.000Z",
+      "last_updated": "2025-05-25T15:00:00.000Z",
       "component_type": "communication"
     },
     {
@@ -21,7 +21,7 @@
       "name": "Paiements",
       "description": "Traitement des paiements et transactions",
       "status": "degraded",
-      "last_updated": "2025-05-12T03:57:00.000Z",
+      "last_updated": "2025-05-25T15:00:00.000Z",
       "component_type": "financial"
     },
     {
@@ -29,15 +29,15 @@
       "name": "Recherche",
       "description": "Recherche de services et de freelances",
       "status": "functional",
-      "last_updated": "2025-05-12T03:57:00.000Z",
+      "last_updated": "2025-05-25T15:00:00.000Z",
       "component_type": "core"
     },
     {
       "id": "5",
       "name": "Notifications",
       "description": "Système de notifications push et email",
-      "status": "down",
-      "last_updated": "2025-05-12T03:57:00.000Z",
+      "status": "degraded",
+      "last_updated": "2025-05-25T15:00:00.000Z",
       "component_type": "communication"
     },
     {
@@ -45,7 +45,7 @@
       "name": "Upload de fichiers",
       "description": "Téléchargement et stockage de fichiers",
       "status": "functional",
-      "last_updated": "2025-05-12T03:57:00.000Z",
+      "last_updated": "2025-05-25T15:00:00.000Z",
       "component_type": "storage"
     },
     {
@@ -53,7 +53,7 @@
       "name": "API externe",
       "description": "Connexions avec services tiers",
       "status": "functional",
-      "last_updated": "2025-05-12T03:57:00.000Z",
+      "last_updated": "2025-05-25T15:00:00.000Z",
       "component_type": "integration"
     }
   ],
@@ -61,11 +61,11 @@
     {
       "id": "1",
       "feature_id": "3",
-      "title": "Lenteur dans le traitement des paiements",
-      "description": "Les paiements prennent plus de temps que d'habitude à être traités.",
-      "status": "monitoring",
+      "title": "Problème d'authentification des paiements par carte",
+      "description": "Les paiements par carte sont actuellement dégradés en raison d'un problème d'authentification. Les paiements PayPal fonctionnent normalement.",
+      "status": "investigating",
       "severity": "medium",
-      "started_at": "2025-05-12T02:57:00.000Z",
+      "started_at": "2025-05-25T14:00:00.000Z",
       "resolved_at": null,
       "updates": [
         {
@@ -73,32 +73,39 @@
           "incident_id": "1",
           "message": "Nous observons des délais de traitement plus longs que la normale.",
           "status": "investigating",
-          "created_at": "2025-05-12T02:57:00.000Z"
+          "created_at": "2025-05-25T14:00:00.000Z"
         },
         {
           "id": "1-2",
           "incident_id": "1",
           "message": "Nous avons identifié un problème avec notre fournisseur de paiement.",
           "status": "identified",
-          "created_at": "2025-05-12T03:15:00.000Z"
+          "created_at": "2025-05-25T14:15:00.000Z"
         },
         {
           "id": "1-3",
           "incident_id": "1",
           "message": "La situation s'améliore, nous continuons à surveiller.",
           "status": "monitoring",
-          "created_at": "2025-05-12T03:30:00.000Z"
+          "created_at": "2025-05-25T14:30:00.000Z"
+        },
+        {
+          "id": "1-4",
+          "incident_id": "1",
+          "message": "Problème d'authentification identifié pour les paiements par carte. Les paiements PayPal ne sont pas affectés.",
+          "status": "investigating",
+          "created_at": "2025-05-25T15:00:00.000Z"
         }
       ]
     },
     {
       "id": "2",
       "feature_id": "5",
-      "title": "Notifications en panne",
-      "description": "Le système de notifications ne fonctionne pas correctement.",
+      "title": "Notifications de messages par email non fonctionnelles",
+      "description": "Les emails de notification lors de la réception d'un nouveau message ne sont pas envoyés. Les autres types de notifications (push, in-app) et les autres emails fonctionnent normalement.",
       "status": "investigating",
-      "severity": "high",
-      "started_at": "2025-05-12T01:57:00.000Z",
+      "severity": "low",
+      "started_at": "2025-05-25T13:00:00.000Z",
       "resolved_at": null,
       "updates": [
         {
@@ -106,14 +113,21 @@
           "incident_id": "2",
           "message": "Les notifications ne sont pas envoyées aux utilisateurs.",
           "status": "investigating",
-          "created_at": "2025-05-12T01:57:00.000Z"
+          "created_at": "2025-05-25T13:00:00.000Z"
         },
         {
           "id": "2-2",
           "incident_id": "2",
           "message": "Nous avons identifié un problème avec notre service de notification push.",
           "status": "identified",
-          "created_at": "2025-05-12T02:30:00.000Z"
+          "created_at": "2025-05-25T13:30:00.000Z"
+        },
+        {
+          "id": "2-3",
+          "incident_id": "2",
+          "message": "Mise à jour : Seuls les emails de notification de nouveaux messages sont affectés. Les notifications push, in-app et les autres emails fonctionnent normalement.",
+          "status": "investigating",
+          "created_at": "2025-05-25T15:00:00.000Z"
         }
       ]
     },
@@ -124,39 +138,39 @@
       "description": "Certains messages n'étaient pas délivrés correctement.",
       "status": "resolved",
       "severity": "medium",
-      "started_at": "2025-05-11T03:57:00.000Z",
-      "resolved_at": "2025-05-11T15:57:00.000Z",
+      "started_at": "2025-05-24T14:00:00.000Z",
+      "resolved_at": "2025-05-25T02:00:00.000Z",
       "updates": [
         {
           "id": "3-1",
           "incident_id": "3",
           "message": "Certains utilisateurs signalent des messages non délivrés.",
           "status": "investigating",
-          "created_at": "2025-05-11T03:57:00.000Z"
+          "created_at": "2025-05-24T14:00:00.000Z"
         },
         {
           "id": "3-2",
           "incident_id": "3",
           "message": "Nous avons identifié un problème de synchronisation dans la base de données.",
           "status": "identified",
-          "created_at": "2025-05-11T07:57:00.000Z"
+          "created_at": "2025-05-24T18:00:00.000Z"
         },
         {
           "id": "3-3",
           "incident_id": "3",
           "message": "Correctif déployé, surveillance en cours.",
           "status": "monitoring",
-          "created_at": "2025-05-11T11:57:00.000Z"
+          "created_at": "2025-05-24T22:00:00.000Z"
         },
         {
           "id": "3-4",
           "incident_id": "3",
           "message": "Le problème est résolu. Tous les messages sont désormais correctement délivrés.",
           "status": "resolved",
-          "created_at": "2025-05-11T15:57:00.000Z"
+          "created_at": "2025-05-25T02:00:00.000Z"
         }
       ]
     }
   ],
-  "last_updated": "2025-05-12T03:57:00.000Z"
+  "last_updated": "2025-05-25T15:00:00.000Z"
 } 

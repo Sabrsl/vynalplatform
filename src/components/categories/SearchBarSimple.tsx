@@ -44,7 +44,7 @@ export default function SearchBarSimple({
   return (
     <form 
       onSubmit={handleSubmit}
-      className={`relative flex items-center bg-white/90 dark:bg-vynal-purple-dark/40 rounded-md border border-vynal-purple-200/60 dark:border-vynal-accent-primary/30 shadow-sm hover:border-vynal-purple-300/70 dark:hover:border-vynal-accent-primary/50 transition-colors duration-200 focus-within:ring-1 focus-within:ring-vynal-purple-400/70 dark:focus-within:ring-vynal-accent-primary/60 ${className}`}
+      className={`relative flex items-center bg-white/90 dark:bg-vynal-purple-dark/40 rounded-md border border-slate-400/95 dark:border-vynal-accent-primary/30 shadow-sm hover:border-slate-500/95 dark:hover:border-vynal-accent-primary/50 transition-colors duration-200 focus-within:ring-1 focus-within:ring-slate-500/95 dark:focus-within:ring-vynal-accent-primary/60 ${className}`}
     >
       {/* Icône de recherche */}
       <Search className="ml-2 h-3 w-3 text-vynal-purple-400 dark:text-vynal-accent-primary" />

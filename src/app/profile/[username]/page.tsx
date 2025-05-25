@@ -145,7 +145,8 @@ const ProfileInfo = memo(({
   createdAt, 
   bio, 
   isCertified, 
-  certificationType 
+  certificationType,
+  specialty 
 }: { 
   fullName: string, 
   username: string, 
@@ -154,7 +155,8 @@ const ProfileInfo = memo(({
   createdAt: string | null, 
   bio: string,
   isCertified?: boolean,
-  certificationType?: 'standard' | 'premium' | 'expert' | null
+  certificationType?: 'standard' | 'premium' | 'expert' | null,
+  specialty?: string
 }) => {
   // Formater la date pour l'affichage
   const formatDate = (dateString: string | null) => {
@@ -181,6 +183,12 @@ const ProfileInfo = memo(({
           )}
         </p>
         
+        {specialty && (
+          <p className="text-xs text-vynal-accent-primary dark:text-vynal-accent-secondary mt-1">
+            {specialty}
+          </p>
+        )}
+        
         {/* Affichage du badge de certification */}
         {isCertified && certificationType && (
           <div className="mt-2 flex items-center justify-center">
@@ -189,15 +197,15 @@ const ProfileInfo = memo(({
               size="md"
               showLabel
             />
-  </div>
+          </div>
         )}
         
         <div className="mt-2 flex items-center justify-center gap-1 text-[10px] sm:text-xs text-vynal-accent-primary dark:text-vynal-accent-secondary">
           <Share2 className="h-3 w-3" />
           <span>Utilisez le bouton en haut à droite pour partager votre profil</span>
-            </div>
-          </div>
-          
+        </div>
+      </div>
+      
       <div className="space-y-4">
         <div className="space-y-2">
           <h3 className="text-[10px] sm:text-xs font-medium text-vynal-purple-light dark:text-vynal-text-primary flex items-center gap-2">
@@ -218,9 +226,9 @@ const ProfileInfo = memo(({
             <p className="text-[10px] sm:text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary">
               {phone}
             </p>
-            </div>
-          )}
-          
+          </div>
+        )}
+        
         <div className="space-y-2">
           <h3 className="text-[10px] sm:text-xs font-medium text-vynal-purple-light dark:text-vynal-text-primary flex items-center gap-2">
             <Calendar className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-vynal-accent-primary" />
@@ -372,7 +380,7 @@ const ProfileEditForm = memo(({
           <p className="text-[10px] sm:text-xs text-vynal-purple-secondary dark:text-vynal-text-secondary/70">
             Votre numéro de téléphone (facultatif)
           </p>
-            </div>
+        </div>
 
         <div className="grid gap-2">
           <Label htmlFor="bio" className="text-[10px] sm:text-xs text-vynal-purple-light dark:text-vynal-text-primary">
@@ -391,7 +399,7 @@ const ProfileEditForm = memo(({
           <p className="text-[8px] sm:text-[10px] text-vynal-purple-secondary dark:text-vynal-text-secondary/70">
             Une courte description pour vous présenter aux autres utilisateurs (150 caractères max)
           </p>
-            </div>
+        </div>
 
         <div className="pt-2">
           <Button 
@@ -412,7 +420,7 @@ const ProfileEditForm = memo(({
             )}
           </Button>
         </div>
-    </div>
+      </div>
     </form>
   );
 });
@@ -652,8 +660,8 @@ export default function ProfilePage() {
             {userProfile?.role === "freelance" ? "Compte Freelance" : userProfile?.role === "admin" ? "Compte Admin" : "Compte Client"}
           </Badge>
         </div>
-            </div>
-            
+      </div>
+      
       {/* Messages d'alerte */}
       <AlertMessage type="success" message={updateMessage} />
       <AlertMessage type="error" message={updateError} />
@@ -683,9 +691,10 @@ export default function ProfilePage() {
             bio={localProfile.bio}
             isCertified={userProfile?.is_certified ?? undefined}
             certificationType={userProfile?.certification_type as 'standard' | 'premium' | 'expert' | null}
+            specialty={userProfile?.specialty}
           />
-              </Card>
-              
+        </Card>
+        
         {/* Formulaire d'édition */}
         <div className="md:col-span-8">
           <Card className="border-vynal-border dark:border-vynal-purple-secondary/40 shadow-sm bg-white dark:bg-vynal-purple-dark/20 p-6">
@@ -702,8 +711,8 @@ export default function ProfilePage() {
               onSubmit={handleSubmit}
               saving={saving}
             />
-                </Card>
-          </div>
+          </Card>
+        </div>
       </div>
     </div>
   );

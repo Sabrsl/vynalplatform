@@ -26,6 +26,7 @@ type ProfileData = {
   bio: string | null;
   role: string;
   email?: string;
+  specialty?: string;
 };
 
 // Type pour les avis
@@ -209,6 +210,12 @@ export default function VendorProfileByIdPage() {
                 <div className="text-center mb-4 w-full">
                   <h1 className="text-xl font-bold text-slate-800 dark:text-vynal-text-primary">{vendorName}</h1>
                   <p className="text-slate-600 dark:text-vynal-text-secondary">@{vendorUsername}</p>
+                  
+                  {vendor.specialty && (
+                    <p className="text-sm text-vynal-accent-primary dark:text-vynal-accent-secondary mt-1">
+                      {vendor.specialty}
+                    </p>
+                  )}
                   
                   <div className="mt-2 inline-block px-3 py-1 bg-vynal-accent-primary/10 dark:bg-vynal-accent-primary/10 text-vynal-accent-primary border border-vynal-accent-primary/20 dark:border-vynal-accent-primary/20 rounded-full text-xs font-medium hover:bg-vynal-accent-primary/15 dark:hover:bg-vynal-accent-primary/20 hover:border-vynal-accent-primary/30 dark:hover:border-vynal-accent-primary/40 transition-all duration-200">
                     Vendeur certifié

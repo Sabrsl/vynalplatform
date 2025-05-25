@@ -89,23 +89,23 @@ export default function PublicStatusPage() {
     switch (status) {
       case 'functional':
         return (
-          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800 flex items-center gap-1">
-            <CheckCircle className="w-3.5 h-3.5" />
-            <span>Fonctionnelle</span>
+          <Badge className="bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800 text-[10px] sm:text-[11px] py-0.5 px-2">
+            <CheckCircle className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-1" />
+            Fonctionnel
           </Badge>
         );
       case 'degraded':
         return (
-          <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-800 flex items-center gap-1">
-            <AlertTriangle className="w-3.5 h-3.5" />
-            <span>Dégradée</span>
+          <Badge className="bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-800 text-[10px] sm:text-[11px] py-0.5 px-2">
+            <AlertTriangle className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-1" />
+            Dégradé
           </Badge>
         );
       case 'down':
         return (
-          <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800 flex items-center gap-1">
-            <AlertCircle className="w-3.5 h-3.5" />
-            <span>En panne</span>
+          <Badge className="bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800 text-[10px] sm:text-[11px] py-0.5 px-2">
+            <AlertCircle className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-1" />
+            En panne
           </Badge>
         );
       default:
@@ -236,20 +236,20 @@ export default function PublicStatusPage() {
       }`}>
         {getSystemStatus() === 'functional' && (
           <div className="flex items-center justify-center gap-1.5">
-            <CheckCircle className="h-3.5 w-3.5" />
-            <span className="text-xs font-medium">Tous les systèmes sont opérationnels</span>
+            <CheckCircle className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+            <span className="text-[10px] sm:text-xs font-medium">Tous les systèmes sont opérationnels</span>
           </div>
         )}
         {getSystemStatus() === 'degraded' && (
           <div className="flex items-center justify-center gap-1.5">
-            <AlertTriangle className="h-3.5 w-3.5" />
-            <span className="text-xs font-medium">Certains services rencontrent des problèmes</span>
+            <AlertTriangle className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+            <span className="text-[10px] sm:text-xs font-medium">Certains services rencontrent des problèmes</span>
           </div>
         )}
         {getSystemStatus() === 'down' && (
           <div className="flex items-center justify-center gap-1.5">
-            <AlertCircle className="h-3.5 w-3.5" />
-            <span className="text-xs font-medium">Incidents majeurs en cours</span>
+            <AlertCircle className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+            <span className="text-[10px] sm:text-xs font-medium">Incidents majeurs en cours</span>
           </div>
         )}
       </div>
@@ -371,7 +371,7 @@ export default function PublicStatusPage() {
                   <CardTitle className="text-sm flex items-center justify-between text-gray-900 dark:text-white">
                     {feature.name}
                     {getFeatureIncidents(feature.id).some(inc => inc.status !== 'resolved') && (
-                      <Badge variant="outline" className="ml-2 bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800 text-[10px]">
+                      <Badge variant="outline" className="ml-2 bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800 text-[8px] py-0 px-1">
                         Incident actif
                       </Badge>
                     )}
