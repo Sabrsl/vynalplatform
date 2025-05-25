@@ -51,7 +51,7 @@ export function UpdateNotification({
               </p>
               {version && (
                 <span className="inline-block mt-1 text-[10px] bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-300 px-1.5 py-0.5 rounded-full">
-                  v{version}
+                  v{version || '0.1.163'}
                 </span>
               )}
             </div>
