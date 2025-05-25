@@ -22,10 +22,28 @@ export function getSupabaseServer(options?: SupabaseOptions) {
             return cookieStore.get(name)?.value;
           },
           set(name, value, options) {
-            cookieStore.set(name, value);
+            try {
+              cookieStore.set(name, value);
+            } catch (error) {
+              // Ignorer silencieusement l'erreur - cette opération sera tentée
+              // à nouveau dans un contexte approprié si nécessaire
+              if (process.env.NODE_ENV === 'development') {
+                // En développement uniquement, log pour debug
+                console.warn(`Info: Tentative de modification de cookie ${name} en dehors d'un Server Action/Route Handler`);
+              }
+            }
           },
           remove(name, options) {
-            cookieStore.delete(name);
+            try {
+              cookieStore.delete(name);
+            } catch (error) {
+              // Ignorer silencieusement l'erreur - cette opération sera tentée 
+              // à nouveau dans un contexte approprié si nécessaire
+              if (process.env.NODE_ENV === 'development') {
+                // En développement uniquement, log pour debug
+                console.warn(`Info: Tentative de suppression de cookie ${name} en dehors d'un Server Action/Route Handler`);
+              }
+            }
           }
         }
       }

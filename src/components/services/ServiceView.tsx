@@ -876,6 +876,7 @@ const ServiceView: React.FC<ServiceViewProps> = (props) => {
     try {
       // Définir les sections principales avec leurs emojis
       const mainSections = [
+        "Introduction :",
         "📝 Description du service",
         "🎯 Ce que vous obtiendrez",
         "🛠️ Ce dont j'ai besoin de vous",

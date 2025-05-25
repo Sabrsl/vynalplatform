@@ -804,8 +804,8 @@ export function validateSectionLength(section: DescriptionSection, content: stri
   const { min, max } = SECTION_LIMITS[section];
   const length = content.trim().length;
   
-  // Section vide mais qui n'est pas "intro" (intro peut être vide)
-  if (length === 0 && section !== 'intro') {
+  // Section vide
+  if (length === 0) {
     return {
       isValid: false,
       error: `La section ${formatSectionName(section)} est obligatoire`

@@ -191,10 +191,11 @@ export default function RootLayout({
         
         {/* Préchargement des assets critiques */}
         <link 
-          rel="preload" 
+          rel="prefetch" 
           href="/assets/partners/logo_wave_.webp" 
           as="image" 
           type="image/webp"
+          fetchPriority="low"
         />
         
         {/* Style critique pour le LCP chargé inline */}

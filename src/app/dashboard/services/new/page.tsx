@@ -275,6 +275,16 @@ ${newFields.exclusions}`;
         throw new Error("La description est obligatoire");
       }
       
+      // Vérifier que l'introduction est remplie
+      if (!descriptionFields.intro.trim()) {
+        throw new Error("L'introduction est obligatoire");
+      }
+      
+      // Vérifier la longueur minimale de l'introduction
+      if (descriptionFields.intro.trim().length < 50) {
+        throw new Error("L'introduction doit contenir au moins 50 caractères");
+      }
+      
       // Vérifier uniquement la longueur de la description du service
       if (getServiceDescriptionLength() < 300) {
         throw new Error("La description du service doit contenir au moins 300 caractères");

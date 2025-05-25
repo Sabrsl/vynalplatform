@@ -33,7 +33,7 @@ const ServiceDescriptionValidator: React.FC<ServiceDescriptionProps> = ({
   label,
   placeholder = '',
   rows = 3,
-  required = field !== 'intro',
+  required = true,
   className = '',
   smallText,
 }) => {
