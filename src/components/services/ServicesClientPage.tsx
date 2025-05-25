@@ -107,6 +107,16 @@ const adaptServiceForSearch = (service: Service): ServiceWithFreelanceAndCategor
   slug: service.slug || ''
 });
 
+// Fonction d'adaptation locale des catégories
+const adaptCategoryForUILocal = (category: Category): UICategoryType => ({
+  id: category.id,
+  name: category.name,
+  slug: category.slug,
+  created_at: category.created_at || new Date().toISOString(),
+  description: category.description || '',
+  icon: category.icon || undefined
+});
+
 // Sous-composants extraits avec React.memo pour éviter les re-rendus inutiles
 const StatsSection = lazy(() => import('@/components/services/StatsSection'));
 
