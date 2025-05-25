@@ -1,6 +1,6 @@
 {
   "name": "vynal-platform",
-  "version": "0.1.163",
+  "version": "0.1.165",
   "private": true,
   "scripts": {
     "dev": "cross-env NODE_OPTIONS='--max-old-space-size=4096' NODE_ENV=development next dev",
@@ -47,7 +47,6 @@
     "@radix-ui/react-tooltip": "^1.2.4",
     "@stripe/react-stripe-js": "^3.7.0",
     "@stripe/stripe-js": "^7.3.0",
-    "@supabase/auth-helpers-nextjs": "^0.10.0",
     "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.49.4",
     "@tabler/icons-react": "^3.31.0",
@@ -104,7 +103,9 @@
     "zustand": "^5.0.3"
   },
   "devDependencies": {
+    "@eslint/config-array": "^0.20.0",
     "@eslint/js": "^9.25.1",
+    "@eslint/object-schema": "^2.1.6",
     "@types/crypto-js": "^4.2.2",
     "@types/node": "^20.11.19",
     "@types/pdfkit": "^0.13.9",
@@ -121,11 +122,13 @@
     "eslint-config-next": "^14.1.0",
     "eslint-plugin-import": "^2.28.1",
     "eslint-plugin-vue": "^10.0.0",
+    "glob": "^10.3.10",
     "globals": "^16.0.0",
     "husky": "^8.0.0",
     "lint-staged": "^15.0.2",
     "postcss": "^8.4.35",
     "postcss-import": "^16.1.0",
+    "rimraf": "^5.0.5",
     "tailwindcss": "^3.4.1",
     "ts-node": "^10.9.2",
     "ts-prune": "^0.10.3",

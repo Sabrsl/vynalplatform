@@ -608,8 +608,7 @@ export default function ServicesClientPage({ initialData }: ServicesClientPagePr
     // Mettre à jour l'URL sans déclencher de navigation
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     
-    // Scroll au début des résultats
-    document.getElementById('services-results')?.scrollIntoView({ behavior: 'smooth' });
+    // Ne plus défiler vers les résultats pour garder le même comportement sur mobile et desktop
   }, [searchParams, router, pathname]);
 
   // Gestion de la recherche
@@ -631,6 +630,9 @@ export default function ServicesClientPage({ initialData }: ServicesClientPagePr
     if (urlSortMethod && ['smart', 'recent', 'price_asc', 'price_desc'].includes(urlSortMethod)) {
       setSortMethod(urlSortMethod);
     }
+    
+    // Important: ne pas déclencher de défilement automatique lors du chargement initial
+    // ou du changement de catégorie via l'URL
   }, [categorySlug, subcategorySlug, urlSearchQuery, page, searchParams]);
   
   // Après l'initialisation des états et avant les effets, ajouter une fonction pour récupérer les données des services
@@ -697,8 +699,7 @@ export default function ServicesClientPage({ initialData }: ServicesClientPagePr
     // Mettre à jour l'URL sans déclencher de navigation
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     
-    // Scroll au début des résultats
-    document.getElementById('services-results')?.scrollIntoView({ behavior: 'smooth' });
+    // Ne plus défiler vers les résultats pour garder le même comportement sur mobile et desktop
   }, [searchParams, router, pathname]);
 
   // Réinitialisation des filtres

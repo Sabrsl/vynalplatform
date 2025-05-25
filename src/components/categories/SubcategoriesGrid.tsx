@@ -1,6 +1,6 @@
 import React, { useMemo, useCallback, memo } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { Category, Subcategory, UISubcategoryType } from '@/hooks/useCategories';
 import { motion } from 'framer-motion';
 import { Tag } from 'lucide-react';
@@ -26,6 +26,8 @@ const SubcategoriesGrid: React.FC<SubcategoriesGridProps> = ({
   className = '',
 }) => {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   
   // Vérifie s'il y a des sous-catégories disponibles
   const hasSubcategories = subcategories.length > 0;
@@ -72,11 +74,24 @@ const SubcategoriesGrid: React.FC<SubcategoriesGridProps> = ({
       return;
     }
     
-    // Sinon, construire l'URL en gérant le cas où category est undefined
+    // Sinon, construire les nouveaux paramètres d'URL
+    const params = new URLSearchParams(searchParams?.toString() || '');
+    
+    // Définir la catégorie et sous-catégorie
     const categorySlug = category?.slug || '';
-    const subcategorySlug = subcategory.slug || '';
-    router.push(`/services?category=${categorySlug}&subcategory=${subcategorySlug}`);
-  }, [router, category?.slug, onSelectSubcategory]);
+    if (categorySlug) {
+      params.set('category', categorySlug);
+    }
+    
+    // Définir la sous-catégorie
+    params.set('subcategory', subcategory.slug || '');
+    
+    // Réinitialiser la page
+    params.set('page', '1');
+    
+    // Mettre à jour l'URL sans déclencher de défilement
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }, [router, pathname, searchParams, category?.slug, onSelectSubcategory]);
 
   // Fonction mémorisée pour générer les classes d'élément
   const getItemClassName = useCallback((isSelected: boolean) => {

@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, memo, useRef, useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { Category } from '@/hooks/useCategories';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { 
@@ -62,6 +62,8 @@ const HorizontalCategoriesScroll: React.FC<HorizontalCategoriesScrollProps> = ({
   className = '',
 }) => {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
@@ -135,6 +137,36 @@ const HorizontalCategoriesScroll: React.FC<HorizontalCategoriesScrollProps> = ({
     setTimeout(checkScrollState, 500);
   }, [checkScrollState]);
 
+  // Gérer le clic sur une catégorie sans défiler la page
+  const handleCategoryClick = useCallback((e: React.MouseEvent, categorySlug: string | null) => {
+    e.preventDefault(); // Empêcher la navigation par défaut
+    
+    // Construire les nouveaux paramètres d'URL
+    const params = new URLSearchParams(searchParams?.toString() || '');
+    
+    if (categorySlug) {
+      params.set('category', categorySlug);
+      // Supprimer le paramètre subcategory s'il existe
+      if (params.has('subcategory')) {
+        params.delete('subcategory');
+      }
+    } else {
+      // Si on clique sur "Toutes", supprimer les paramètres category et subcategory
+      if (params.has('category')) {
+        params.delete('category');
+      }
+      if (params.has('subcategory')) {
+        params.delete('subcategory');
+      }
+    }
+    
+    // Réinitialiser la page à 1
+    params.set('page', '1');
+    
+    // Mettre à jour l'URL sans naviguer ni défiler
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }, [router, pathname, searchParams]);
+
   return (
     <div className={`relative ${className}`}>
       <motion.div 
@@ -198,6 +230,7 @@ const HorizontalCategoriesScroll: React.FC<HorizontalCategoriesScrollProps> = ({
           {/* Option "Toutes les catégories" */}
           <Link 
             href={baseUrl}
+            onClick={(e) => handleCategoryClick(e, null)}
             className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 rounded-xl"
             role="tab"
             aria-selected={!selectedCategory}
@@ -243,6 +276,7 @@ const HorizontalCategoriesScroll: React.FC<HorizontalCategoriesScrollProps> = ({
               <Link 
                 key={category.id}
                 href={`${baseUrl}?category=${category.slug}`}
+                onClick={(e) => handleCategoryClick(e, category.slug)}
                 className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 rounded-xl"
                 role="tab"
                 aria-selected={isSelected}

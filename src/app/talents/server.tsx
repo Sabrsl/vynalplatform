@@ -124,16 +124,42 @@ export async function getTalentsPageData() {
   }
   
   // Obtenir les évaluations moyennes pour chaque freelance
-  const { data: ratings, error: ratingsError } = await supabase
-    .from('freelance_ratings')
-    .select(`
-      freelance_id,
-      avg_rating,
-      reviews_count
-    `);
-  
-  if (ratingsError) {
-    console.error('Erreur lors de la récupération des évaluations:', ratingsError);
+  let ratings: any[] = [];
+  try {
+    // Calculer directement les évaluations moyennes à partir de la table reviews
+    const { data: reviewsData, error: reviewsError } = await supabase
+      .from('reviews')
+      .select('freelance_id, rating');
+      
+    if (reviewsError) {
+      console.error('Erreur lors de la récupération des avis:', reviewsError);
+    } else if (reviewsData && reviewsData.length > 0) {
+      // Regrouper les avis par freelance_id et calculer la moyenne
+      const ratingsMap: Record<string, { sum: number; count: number }> = {};
+      reviewsData.forEach((review: { freelance_id: string; rating: number }) => {
+        if (!ratingsMap[review.freelance_id]) {
+          ratingsMap[review.freelance_id] = {
+            sum: 0,
+            count: 0
+          };
+        }
+        ratingsMap[review.freelance_id].sum += review.rating;
+        ratingsMap[review.freelance_id].count += 1;
+      });
+      
+      // Convertir en format compatible
+      ratings = Object.entries(ratingsMap).map(([freelance_id, data]) => ({
+        freelance_id,
+        avg_rating: data.sum / data.count,
+        reviews_count: data.count
+      }));
+    } else {
+      console.log('Aucun avis trouvé dans la base de données');
+      ratings = [];
+    }
+  } catch (error) {
+    console.error('Exception lors de la récupération des évaluations:', error);
+    ratings = [];
   }
   
   // Obtenir le nombre de services pour chaque freelance
