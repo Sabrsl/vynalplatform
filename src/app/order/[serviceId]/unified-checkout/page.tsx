@@ -62,6 +62,21 @@ export default function UnifiedCheckoutPage({
   const [showDescriptionModal, setShowDescriptionModal] = useState(false);
   const [tempRequirements, setTempRequirements] = useState("");
 
+  // États pour la détection de disponibilité des moyens de paiement
+  const [paymentAvailability, setPaymentAvailability] = useState({
+    applePay: false,
+    googlePay: false,
+    link: false,
+  });
+  const [checkingAvailability, setCheckingAvailability] = useState(true);
+
+  // États pour les paiements directs
+  const [directPaymentLoading, setDirectPaymentLoading] = useState({
+    applePay: false,
+    googlePay: false,
+    link: false,
+  });
+
   // Stripe payment state
   const {
     loading: stripeLoading,
@@ -97,6 +112,54 @@ export default function UnifiedCheckoutPage({
       setOrderData({ ...orderData, selectedPaymentMethod: undefined });
     }
   }, []);
+
+  // Détecter la disponibilité des moyens de paiement
+  useEffect(() => {
+    const checkPaymentMethodAvailability = async () => {
+      if (!paymentData?.clientSecret) return;
+
+      setCheckingAvailability(true);
+
+      try {
+        const { getStripe } = await import("@/lib/stripe/client");
+        const stripe = await getStripe();
+        if (!stripe) return;
+
+        // Créer un PaymentRequest pour tester la disponibilité
+        const paymentRequest = stripe.paymentRequest({
+          country: "FR",
+          currency: "eur",
+          total: {
+            label: "Test",
+            amount: 100, // Montant de test minimal
+          },
+        });
+
+        // Vérifier la disponibilité des différentes méthodes
+        const canMakePayment = await paymentRequest.canMakePayment();
+
+        setPaymentAvailability({
+          applePay: canMakePayment ? canMakePayment.applePay || false : false,
+          googlePay: canMakePayment ? canMakePayment.googlePay || false : false,
+          link: canMakePayment ? true : false, // Link est généralement disponible si Stripe fonctionne
+        });
+      } catch (error) {
+        console.error(
+          "Erreur lors de la vérification de disponibilité:",
+          error,
+        );
+        setPaymentAvailability({
+          applePay: false,
+          googlePay: false,
+          link: false,
+        });
+      } finally {
+        setCheckingAvailability(false);
+      }
+    };
+
+    checkPaymentMethodAvailability();
+  }, [paymentData?.clientSecret]);
 
   // Initialiser automatiquement Stripe pour les boutons Apple Pay, Google Pay et Link
   useEffect(() => {
@@ -167,8 +230,15 @@ export default function UnifiedCheckoutPage({
 
     setOrderData({ ...orderData, selectedPaymentMethod: method, error: null });
 
-    // Si l'utilisateur sélectionne le paiement par carte, initialiser Stripe
-    if (method === "card" && service?.price && !paymentData?.clientSecret) {
+    // Initialiser Stripe pour les méthodes qui en ont besoin
+    if (
+      (method === "card" ||
+        method === "apple-pay" ||
+        method === "google-pay" ||
+        method === "link") &&
+      service?.price &&
+      !paymentData?.clientSecret
+    ) {
       // Initialiser le paiement Stripe
       (async () => {
         try {
@@ -185,7 +255,7 @@ export default function UnifiedCheckoutPage({
           setOrderData({
             ...orderData,
             selectedPaymentMethod: method,
-            error: "Erreur lors de l'initialisation du paiement par carte",
+            error: `Erreur lors de l'initialisation du paiement ${method === "card" ? "par carte" : method}`,
           });
         }
       })();
@@ -939,6 +1009,209 @@ export default function UnifiedCheckoutPage({
     setShowDescriptionModal(false);
   };
 
+  // Fonctions pour les paiements directs
+  const handleDirectApplePay = async () => {
+    if (!paymentData?.clientSecret || !service?.price) return;
+
+    setDirectPaymentLoading((prev) => ({ ...prev, applePay: true }));
+
+    try {
+      const { getStripe } = await import("@/lib/stripe/client");
+      const stripe = await getStripe();
+      if (!stripe) throw new Error("Stripe non disponible");
+
+      // Convertir le montant pour Stripe
+      const {
+        convertToEur,
+        normalizeAmount,
+      } = require("@/lib/utils/currency-updater");
+      const normalizedXofAmount = normalizeAmount(service.price, "XOF");
+      const amountInEuros = convertToEur(
+        normalizedXofAmount,
+        "XOF",
+        false,
+      ) as number;
+      const amountInEuroCents = Math.round(amountInEuros * 100);
+
+      const paymentRequest = stripe.paymentRequest({
+        country: "FR",
+        currency: "eur",
+        total: {
+          label: "Paiement Vynal",
+          amount: amountInEuroCents,
+        },
+        requestPayerName: true,
+        requestPayerEmail: true,
+      });
+
+      paymentRequest.on("paymentmethod", async (ev: any) => {
+        try {
+          const { error, paymentIntent } = await stripe.confirmCardPayment(
+            paymentData.clientSecret,
+            { payment_method: ev.paymentMethod.id },
+            { handleActions: false },
+          );
+
+          if (error) {
+            ev.complete("fail");
+            handleStripePaymentError(error);
+          } else if (paymentIntent) {
+            ev.complete("success");
+            const enrichedPaymentData = {
+              ...paymentIntent,
+              serviceId,
+              paymentMethod: "apple_pay",
+              provider: "stripe",
+            };
+            await handleStripePaymentSuccess(enrichedPaymentData);
+          }
+        } catch (err) {
+          ev.complete("fail");
+          handleStripePaymentError(err);
+        }
+      });
+
+      paymentRequest.show();
+    } catch (error) {
+      console.error("Erreur Apple Pay:", error);
+      handleStripePaymentError(error);
+    } finally {
+      setDirectPaymentLoading((prev) => ({ ...prev, applePay: false }));
+    }
+  };
+
+  const handleDirectGooglePay = async () => {
+    if (!paymentData?.clientSecret || !service?.price) return;
+
+    setDirectPaymentLoading((prev) => ({ ...prev, googlePay: true }));
+
+    try {
+      const { getStripe } = await import("@/lib/stripe/client");
+      const stripe = await getStripe();
+      if (!stripe) throw new Error("Stripe non disponible");
+
+      // Convertir le montant pour Stripe
+      const {
+        convertToEur,
+        normalizeAmount,
+      } = require("@/lib/utils/currency-updater");
+      const normalizedXofAmount = normalizeAmount(service.price, "XOF");
+      const amountInEuros = convertToEur(
+        normalizedXofAmount,
+        "XOF",
+        false,
+      ) as number;
+      const amountInEuroCents = Math.round(amountInEuros * 100);
+
+      const paymentRequest = stripe.paymentRequest({
+        country: "FR",
+        currency: "eur",
+        total: {
+          label: "Paiement Vynal",
+          amount: amountInEuroCents,
+        },
+        requestPayerName: true,
+        requestPayerEmail: true,
+      });
+
+      paymentRequest.on("paymentmethod", async (ev: any) => {
+        try {
+          const { error, paymentIntent } = await stripe.confirmCardPayment(
+            paymentData.clientSecret,
+            { payment_method: ev.paymentMethod.id },
+            { handleActions: false },
+          );
+
+          if (error) {
+            ev.complete("fail");
+            handleStripePaymentError(error);
+          } else if (paymentIntent) {
+            ev.complete("success");
+            const enrichedPaymentData = {
+              ...paymentIntent,
+              serviceId,
+              paymentMethod: "google_pay",
+              provider: "stripe",
+            };
+            await handleStripePaymentSuccess(enrichedPaymentData);
+          }
+        } catch (err) {
+          ev.complete("fail");
+          handleStripePaymentError(err);
+        }
+      });
+
+      paymentRequest.show();
+    } catch (error) {
+      console.error("Erreur Google Pay:", error);
+      handleStripePaymentError(error);
+    } finally {
+      setDirectPaymentLoading((prev) => ({ ...prev, googlePay: false }));
+    }
+  };
+
+  const handleDirectLink = async () => {
+    if (!paymentData?.clientSecret || !service?.price) return;
+
+    setDirectPaymentLoading((prev) => ({ ...prev, link: true }));
+
+    try {
+      const { getStripe } = await import("@/lib/stripe/client");
+      const stripe = await getStripe();
+      if (!stripe) throw new Error("Stripe non disponible");
+
+      // Convertir le montant pour Stripe
+      const {
+        convertToEur,
+        normalizeAmount,
+      } = require("@/lib/utils/currency-updater");
+      const normalizedXofAmount = normalizeAmount(service.price, "XOF");
+      const amountInEuros = convertToEur(
+        normalizedXofAmount,
+        "XOF",
+        false,
+      ) as number;
+      const amountInEuroCents = Math.round(amountInEuros * 100);
+
+      // Créer les éléments Stripe Link directement
+      const elements = stripe.elements({
+        clientSecret: paymentData.clientSecret,
+      });
+
+      const linkAuthenticationElement = elements.create("linkAuthentication", {
+        defaultValues: {
+          email: user?.email || "",
+        },
+      });
+
+      // Déclencher le processus Link automatiquement
+      const { error, paymentIntent } = await stripe.confirmPayment({
+        clientSecret: paymentData.clientSecret,
+        confirmParams: {
+          return_url: `${window.location.origin}/order/${serviceId}/summary`,
+        },
+        redirect: "if_required",
+      });
+
+      if (error) {
+        handleStripePaymentError(error);
+      } else if (paymentIntent && paymentIntent.status === "succeeded") {
+        const enrichedPaymentData = {
+          ...paymentIntent,
+          serviceId,
+          paymentMethod: "link",
+          provider: "stripe",
+        };
+        await handleStripePaymentSuccess(enrichedPaymentData);
+      }
+    } catch (error) {
+      console.error("Erreur Stripe Link:", error);
+      handleStripePaymentError(error);
+    } finally {
+      setDirectPaymentLoading((prev) => ({ ...prev, link: false }));
+    }
+  };
+
   if (authLoading || loadingService) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50/70 dark:bg-vynal-purple-dark/30">
@@ -1279,161 +1552,134 @@ export default function UnifiedCheckoutPage({
                 <div className="mt-4">
                   <div className="grid grid-cols-3 gap-2 sm:gap-3">
                     {/* Apple Pay Button */}
-                    <div className="relative">
-                      <StripeElementsProvider
-                        clientSecret={paymentData?.clientSecret}
-                        enableApplePay={true}
-                      >
-                        <ApplePayButton
-                          amount={service?.price || 0}
-                          clientSecret={paymentData?.clientSecret || ""}
-                          onSuccess={handleStripePaymentSuccess}
-                          onError={handleStripePaymentError}
-                          loading={stripeLoading}
-                          serviceId={serviceId}
-                        />
-                      </StripeElementsProvider>
-                      {/* Fallback button si Apple Pay n'est pas disponible */}
-                      <button
-                        className="py-2.5 sm:py-3 px-3 sm:px-4 rounded-md flex items-center justify-center transition-all bg-slate-100 hover:bg-slate-200 dark:bg-vynal-purple-secondary/20 dark:hover:bg-vynal-purple-secondary/30 text-slate-700 dark:text-vynal-text-secondary w-full"
-                        style={{ display: "none" }}
-                        id="apple-pay-fallback"
-                      >
-                        <Image
-                          src="/images/payment/applepay.png"
-                          alt="Apple Pay"
-                          width={48}
-                          height={24}
-                          className="h-6 w-6 sm:h-8 sm:w-8 mr-1.5 sm:mr-2"
-                        />
-                        <span className="text-[10px] sm:text-xs font-medium">
-                          Apple Pay
-                        </span>
-                      </button>
-                    </div>
+                    <button
+                      onClick={() => {
+                        if (
+                          paymentAvailability.applePay &&
+                          !checkingAvailability
+                        ) {
+                          handleDirectApplePay();
+                        }
+                      }}
+                      disabled={
+                        !paymentAvailability.applePay ||
+                        checkingAvailability ||
+                        directPaymentLoading.applePay
+                      }
+                      className={`py-2.5 sm:py-3 px-3 sm:px-4 rounded-md flex items-center justify-center transition-all ${
+                        paymentAvailability.applePay && !checkingAvailability
+                          ? "bg-slate-100 hover:bg-slate-200 dark:bg-vynal-purple-secondary/20 dark:hover:bg-vynal-purple-secondary/30 text-slate-700 dark:text-vynal-text-secondary cursor-pointer"
+                          : "bg-slate-50 dark:bg-vynal-purple-secondary/10 text-slate-400 dark:text-vynal-text-secondary/50 cursor-not-allowed opacity-50"
+                      }`}
+                      title={
+                        checkingAvailability
+                          ? "Vérification de la disponibilité..."
+                          : !paymentAvailability.applePay
+                            ? "Apple Pay non disponible sur cet appareil"
+                            : "Payer avec Apple Pay"
+                      }
+                    >
+                      <Image
+                        src="/images/payment/applepay.png"
+                        alt="Apple Pay"
+                        width={40}
+                        height={40}
+                        className={`h-6 w-6 sm:h-8 sm:w-8 mr-1.5 sm:mr-2 ${
+                          !paymentAvailability.applePay || checkingAvailability
+                            ? "opacity-50"
+                            : ""
+                        }`}
+                      />
+                      <span className="text-[10px] sm:text-xs font-medium">
+                        {directPaymentLoading.applePay ? "..." : "Apple Pay"}
+                      </span>
+                    </button>
 
                     {/* Google Pay Button */}
-                    <div className="relative">
-                      <StripeElementsProvider
-                        clientSecret={paymentData?.clientSecret}
-                        enableApplePay={true}
-                      >
-                        <GooglePayButton
-                          amount={service?.price || 0}
-                          clientSecret={paymentData?.clientSecret || ""}
-                          onSuccess={handleStripePaymentSuccess}
-                          onError={handleStripePaymentError}
-                          loading={stripeLoading}
-                          serviceId={serviceId}
-                        />
-                      </StripeElementsProvider>
-                      {/* Fallback button si Google Pay n'est pas disponible */}
-                      <button
-                        className="py-2.5 sm:py-3 px-3 sm:px-4 rounded-md flex items-center justify-center transition-all bg-slate-100 hover:bg-slate-200 dark:bg-vynal-purple-secondary/20 dark:hover:bg-vynal-purple-secondary/30 text-slate-700 dark:text-vynal-text-secondary w-full"
-                        style={{ display: "none" }}
-                        id="google-pay-fallback"
-                      >
-                        <Image
-                          src="/images/payment/googlepaylogo.png"
-                          alt="Google Pay"
-                          width={48}
-                          height={24}
-                          className="h-6 w-6 sm:h-8 sm:w-8 mr-1.5 sm:mr-2"
-                        />
-                        <span className="text-[10px] sm:text-xs font-medium">
-                          Google Pay
-                        </span>
-                      </button>
-                    </div>
+                    <button
+                      onClick={() => {
+                        if (
+                          paymentAvailability.googlePay &&
+                          !checkingAvailability
+                        ) {
+                          handleDirectGooglePay();
+                        }
+                      }}
+                      disabled={
+                        !paymentAvailability.googlePay ||
+                        checkingAvailability ||
+                        directPaymentLoading.googlePay
+                      }
+                      className={`py-2.5 sm:py-3 px-3 sm:px-4 rounded-md flex items-center justify-center transition-all ${
+                        paymentAvailability.googlePay && !checkingAvailability
+                          ? "bg-slate-100 hover:bg-slate-200 dark:bg-vynal-purple-secondary/20 dark:hover:bg-vynal-purple-secondary/30 text-slate-700 dark:text-vynal-text-secondary cursor-pointer"
+                          : "bg-slate-50 dark:bg-vynal-purple-secondary/10 text-slate-400 dark:text-vynal-text-secondary/50 cursor-not-allowed opacity-50"
+                      }`}
+                      title={
+                        checkingAvailability
+                          ? "Vérification de la disponibilité..."
+                          : !paymentAvailability.googlePay
+                            ? "Google Pay non disponible sur cet appareil"
+                            : "Payer avec Google Pay"
+                      }
+                    >
+                      <Image
+                        src="/images/payment/googlepaylogo.png"
+                        alt="Google Pay"
+                        width={40}
+                        height={40}
+                        className={`h-6 w-6 sm:h-8 sm:w-8 mr-1.5 sm:mr-2 ${
+                          !paymentAvailability.googlePay || checkingAvailability
+                            ? "opacity-50"
+                            : ""
+                        }`}
+                      />
+                      <span className="text-[10px] sm:text-xs font-medium">
+                        {directPaymentLoading.googlePay ? "..." : "Google Pay"}
+                      </span>
+                    </button>
 
-                    {/* Stripe Link Button */}
-                    <div className="relative">
-                      <StripeElementsProvider
-                        clientSecret={paymentData?.clientSecret}
-                        enableApplePay={true}
-                      >
-                        <LinkButton
-                          amount={service?.price || 0}
-                          clientSecret={paymentData?.clientSecret || ""}
-                          onSuccess={handleStripePaymentSuccess}
-                          onError={handleStripePaymentError}
-                          loading={stripeLoading}
-                          serviceId={serviceId}
-                        />
-                      </StripeElementsProvider>
-                      {/* Fallback button si Link n'est pas disponible */}
-                      <button
-                        className="py-2.5 sm:py-3 px-3 sm:px-4 rounded-md flex items-center justify-center transition-all bg-slate-100 hover:bg-slate-200 dark:bg-vynal-purple-secondary/20 dark:hover:bg-vynal-purple-secondary/30 text-slate-700 dark:text-vynal-text-secondary w-full"
-                        style={{ display: "none" }}
-                        id="link-fallback"
-                      >
-                        <Image
-                          src="/images/payment/linklogo.png"
-                          alt="Stripe Link"
-                          width={48}
-                          height={24}
-                          className="h-6 w-6 sm:h-8 sm:w-8 mr-1.5 sm:mr-2"
-                        />
-                        <span className="text-[10px] sm:text-xs font-medium">
-                          Link
-                        </span>
-                      </button>
-                    </div>
+                    {/* Link Button */}
+                    <button
+                      onClick={() => {
+                        if (paymentAvailability.link && !checkingAvailability) {
+                          handleDirectLink();
+                        }
+                      }}
+                      disabled={
+                        !paymentAvailability.link ||
+                        checkingAvailability ||
+                        directPaymentLoading.link
+                      }
+                      className={`py-2.5 sm:py-3 px-3 sm:px-4 rounded-md flex items-center justify-center transition-all ${
+                        paymentAvailability.link && !checkingAvailability
+                          ? "bg-slate-100 hover:bg-slate-200 dark:bg-vynal-purple-secondary/20 dark:hover:bg-vynal-purple-secondary/30 text-slate-700 dark:text-vynal-text-secondary cursor-pointer"
+                          : "bg-slate-50 dark:bg-vynal-purple-secondary/10 text-slate-400 dark:text-vynal-text-secondary/50 cursor-not-allowed opacity-50"
+                      }`}
+                      title={
+                        checkingAvailability
+                          ? "Vérification de la disponibilité..."
+                          : !paymentAvailability.link
+                            ? "Stripe Link non disponible"
+                            : "Payer avec Stripe Link"
+                      }
+                    >
+                      <Image
+                        src="/images/payment/linklogo.png"
+                        alt="Stripe Link"
+                        width={40}
+                        height={40}
+                        className={`h-6 w-6 sm:h-8 sm:w-8 mr-1.5 sm:mr-2 ${
+                          !paymentAvailability.link || checkingAvailability
+                            ? "opacity-50"
+                            : ""
+                        }`}
+                      />
+                      <span className="text-[10px] sm:text-xs font-medium">
+                        {directPaymentLoading.link ? "..." : "Link"}
+                      </span>
+                    </button>
                   </div>
-
-                  {/* Script pour styliser les boutons Stripe en style uniforme */}
-                  <script
-                    dangerouslySetInnerHTML={{
-                      __html: `
-                      document.addEventListener('DOMContentLoaded', function() {
-                        // Attendre que les boutons Stripe soient montés
-                        setTimeout(function() {
-                          // Styliser les boutons Apple Pay
-                          const applePayBtns = document.querySelectorAll('button[aria-label*="Apple Pay"], button[data-testid*="apple-pay"]');
-                          applePayBtns.forEach(btn => {
-                            if (btn && btn.style) {
-                              btn.className = 'py-2.5 sm:py-3 px-3 sm:px-4 rounded-md flex items-center justify-center transition-all bg-slate-100 hover:bg-slate-200 dark:bg-vynal-purple-secondary/20 dark:hover:bg-vynal-purple-secondary/30 text-slate-700 dark:text-vynal-text-secondary w-full';
-                              btn.style.background = 'rgb(241 245 249)';
-                              btn.style.border = 'none';
-                              btn.style.borderRadius = '6px';
-                              btn.style.height = 'auto';
-                              btn.style.minHeight = '44px';
-                              btn.style.width = '100%';
-                            }
-                          });
-
-                          // Styliser les boutons Google Pay
-                          const googlePayBtns = document.querySelectorAll('button[aria-label*="Google Pay"], button[data-testid*="google-pay"]');
-                          googlePayBtns.forEach(btn => {
-                            if (btn && btn.style) {
-                              btn.className = 'py-2.5 sm:py-3 px-3 sm:px-4 rounded-md flex items-center justify-center transition-all bg-slate-100 hover:bg-slate-200 dark:bg-vynal-purple-secondary/20 dark:hover:bg-vynal-purple-secondary/30 text-slate-700 dark:text-vynal-text-secondary w-full';
-                              btn.style.background = 'rgb(241 245 249)';
-                              btn.style.border = 'none';
-                              btn.style.borderRadius = '6px';
-                              btn.style.height = 'auto';
-                              btn.style.minHeight = '44px';
-                              btn.style.width = '100%';
-                            }
-                          });
-
-                          // Styliser les boutons Link
-                          const linkBtns = document.querySelectorAll('button[aria-label*="Link"], button[data-testid*="link"]');
-                          linkBtns.forEach(btn => {
-                            if (btn && btn.style) {
-                              btn.className = 'py-2.5 sm:py-3 px-3 sm:px-4 rounded-md flex items-center justify-center transition-all bg-slate-100 hover:bg-slate-200 dark:bg-vynal-purple-secondary/20 dark:hover:bg-vynal-purple-secondary/30 text-slate-700 dark:text-vynal-text-secondary w-full';
-                              btn.style.background = 'rgb(241 245 249)';
-                              btn.style.border = 'none';
-                              btn.style.borderRadius = '6px';
-                              btn.style.height = 'auto';
-                              btn.style.minHeight = '44px';
-                              btn.style.width = '100%';
-                            }
-                          });
-                        }, 500);
-                      });
-                    `,
-                    }}
-                  />
                 </div>
 
                 {/* Or separator */}
@@ -1599,68 +1845,73 @@ export default function UnifiedCheckoutPage({
                   </button>
                 </div>
 
-                {/* Bouton de paiement unifié - Affiché pour toutes les méthodes de paiement */}
-                <button
-                  onClick={(e) => {
-                    // Si c'est le mode carte et pas le mode test, soumettre le formulaire Stripe
-                    if (
-                      orderData.selectedPaymentMethod === "card" &&
-                      !orderData.isTestMode
-                    ) {
-                      e.preventDefault();
-                      const form = document.getElementById(
-                        "stripe-payment-form",
-                      ) as HTMLFormElement;
-                      if (form) {
-                        form.dispatchEvent(
-                          new Event("submit", { cancelable: true }),
-                        );
-                      } else {
-                        console.error("Formulaire Stripe non trouvé");
+                {/* Bouton de paiement unifié - Affiché pour toutes les méthodes de paiement SAUF Apple Pay, Google Pay et Link */}
+                {orderData.selectedPaymentMethod &&
+                  !["apple-pay", "google-pay", "link"].includes(
+                    orderData.selectedPaymentMethod,
+                  ) && (
+                    <button
+                      onClick={(e) => {
+                        // Si c'est le mode carte et pas le mode test, soumettre le formulaire Stripe
+                        if (
+                          orderData.selectedPaymentMethod === "card" &&
+                          !orderData.isTestMode
+                        ) {
+                          e.preventDefault();
+                          const form = document.getElementById(
+                            "stripe-payment-form",
+                          ) as HTMLFormElement;
+                          if (form) {
+                            form.dispatchEvent(
+                              new Event("submit", { cancelable: true }),
+                            );
+                          } else {
+                            console.error("Formulaire Stripe non trouvé");
+                          }
+                        } else {
+                          // Sinon, utiliser le flux standard
+                          handlePlaceOrder();
+                        }
+                      }}
+                      disabled={
+                        isSubmitting ||
+                        !orderData.requirements ||
+                        !orderData.selectedPaymentMethod ||
+                        (orderData.selectedPaymentMethod === "card" &&
+                          !orderData.isTestMode &&
+                          !paymentData?.clientSecret)
                       }
-                    } else {
-                      // Sinon, utiliser le flux standard
-                      handlePlaceOrder();
-                    }
-                  }}
-                  disabled={
-                    isSubmitting ||
-                    !orderData.requirements ||
-                    !orderData.selectedPaymentMethod ||
-                    (orderData.selectedPaymentMethod === "card" &&
-                      !orderData.isTestMode &&
-                      !paymentData?.clientSecret)
-                  }
-                  className="w-full h-11 mt-3 bg-vynal-accent-primary hover:bg-vynal-accent-secondary disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-white dark:text-vynal-text-primary font-medium rounded-md text-base sm:text-lg"
-                >
-                  {isSubmitting ? (
-                    <span className="flex items-center justify-center">
-                      <svg
-                        className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                      >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                        ></circle>
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                        ></path>
-                      </svg>
-                      Traitement en cours...
-                    </span>
-                  ) : (
-                    `Payer ${formatPrice(service?.price || 0)}`
+                      className="w-full h-11 mt-3 bg-vynal-accent-primary hover:bg-vynal-accent-secondary disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-white dark:text-vynal-text-primary font-medium rounded-md text-base sm:text-lg"
+                    >
+                      {isSubmitting ? (
+                        <span className="flex items-center justify-center">
+                          <svg
+                            className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                          >
+                            <circle
+                              className="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                            ></circle>
+                            <path
+                              className="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                            ></path>
+                          </svg>
+                          Traitement en cours...
+                        </span>
+                      ) : (
+                        `Payer ${formatPrice(service?.price || 0)}`
+                      )}
+                    </button>
                   )}
-                </button>
 
                 {/* Stripe logo */}
                 <div className="flex items-center justify-center mt-4 space-x-1">
