@@ -111,13 +111,13 @@ export async function createPaymentIntent(params: {
 
   // Journaliser pour le débogage
   console.log(
-    `Stripe createPaymentIntent - Montant d'origine: ${finalAmount} ${params.currency}`,
+    `Stripe createPaymentIntent - Montant d'origine: ${finalAmount} centimes d'euro (${finalAmount / 100} EUR)`,
   );
 
   // Si c'est en euros, vérifier si le montant semble anormalement élevé (pourrait être en XOF par erreur)
   if (params.currency.toLowerCase() === "eur" && finalAmount > 1000000) {
     console.warn(
-      `Montant EUR anormalement élevé détecté: ${finalAmount}. Vérification nécessaire.`,
+      `Montant EUR anormalement élevé détecté: ${finalAmount} centimes (${finalAmount / 100} EUR). Vérification nécessaire.`,
     );
 
     // On peut normaliser ici, mais pour la sécurité, mieux vaut laisser la requête échouer
@@ -156,7 +156,7 @@ export async function createPaymentIntent(params: {
       finalAmount = Math.round(eurAmount * 100);
 
       console.log(
-        `Conversion automatique pour Stripe: ${params.amount / 100} ${params.currency} → ${finalAmount / 100} EUR`,
+        `Conversion automatique pour Stripe: ${params.amount / 100} ${params.currency} → ${finalAmount / 100} EUR (${finalAmount} centimes)`,
       );
 
       // Forcer la devise en EUR
@@ -171,7 +171,7 @@ export async function createPaymentIntent(params: {
   }
 
   return stripe.paymentIntents.create({
-    amount: finalAmount,
+    amount: finalAmount, // Montant en centimes d'euro
     currency: params.currency.toLowerCase(),
     customer: params.customerId,
     metadata: params.metadata,

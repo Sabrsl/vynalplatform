@@ -260,9 +260,8 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // Conversion du montant en euros si nécessaire (pour Stripe)
-      // CORRECTION: Toujours considérer que le montant est en XOF (la devise de base de la BD)
-      let amountInEuros = 0;
+      // Convertir le montant en euros pour Stripe
+      let amountInEuros: number;
 
       try {
         // Convertir directement le montant en euros sans normalisation supplémentaire
@@ -302,12 +301,16 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      // Reconvertir en centimes pour Stripe (qui attend les montants en centimes)
+      // Convertir en centimes pour Stripe (qui attend les montants en centimes)
+      // CORRECTION: Le montant est déjà en centimes, donc on ne multiplie pas par 100
       const amountInEuroCents = Math.round(amountInEuros * 100);
+      console.log(
+        `Montant final pour Stripe: ${amountInEuroCents} centimes d'euro (${amountInEuros} EUR)`,
+      );
 
       // Création du PaymentIntent via l'API Stripe - toujours en euros
       const paymentIntent = await createPaymentIntent({
-        amount: amountInEuroCents,
+        amount: amountInEuroCents, // Montant en centimes d'euro
         currency: "eur", // Forcer l'euro pour tous les paiements
         metadata: {
           clientId: userId,
@@ -324,6 +327,7 @@ export async function POST(req: NextRequest) {
             originalAmount: originalAmountInUnits,
             convertedAmount: amountInEuros,
             conversionRate: amountInEuros / originalAmountInUnits,
+            amountInEuroCents: amountInEuroCents, // Ajouter le montant en centimes pour le débogage
           }),
           // Note: rawAmount n'est plus nécessaire car on utilise la même valeur
           ...metadata,

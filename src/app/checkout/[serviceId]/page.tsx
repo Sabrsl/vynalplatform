@@ -9,12 +9,33 @@ import { StripeCardForm } from "@/components/payments/StripeCardForm";
 import { ApplePayButton } from "@/components/payments/ApplePayButton";
 import { GooglePayButton } from "@/components/payments/GooglePayButton";
 import { LinkButton } from "@/components/payments/LinkButton";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, AlertCircle, CreditCard, ArrowLeft, Lock, ShieldCheck } from "lucide-react";
+import {
+  CheckCircle,
+  AlertCircle,
+  CreditCard,
+  ArrowLeft,
+  Lock,
+  ShieldCheck,
+} from "lucide-react";
 import Image from "next/image";
 import { logSecurityEvent } from "@/lib/security/audit";
 import { PaymentCurrencyNotice } from "@/components/payments/PaymentCurrencyNotice";
+// Importer les fonctions et hooks nécessaires
+import {
+  convertToEur,
+  normalizeAmount,
+  convertCurrency,
+} from "@/lib/utils/currency-updater";
+import useCurrency from "@/hooks/useCurrency";
 
 // Type pour les données de service
 interface ServiceData {
@@ -27,18 +48,33 @@ interface ServiceData {
 
 /**
  * Page de checkout pour un service
- * 
+ *
  * Cette page permet à l'utilisateur de payer pour un service
  * Elle utilise Stripe pour le traitement du paiement
  */
-export default function CheckoutPage({ params }: { params: { serviceId: string } }) {
+export default function CheckoutPage({
+  params,
+}: {
+  params: { serviceId: string };
+}) {
   const router = useRouter();
   const { user, loading: authLoading, isAuthenticated } = useAuth();
-  const { createPaymentIntent, handlePaymentSuccess, handlePaymentFailure, loading, error, paymentData } = useStripePayment();
+  const {
+    createPaymentIntent,
+    handlePaymentSuccess,
+    handlePaymentFailure,
+    loading,
+    error,
+    paymentData,
+  } = useStripePayment();
   const [service, setService] = useState<ServiceData | null>(null);
-  const [paymentStatus, setPaymentStatus] = useState<"idle" | "processing" | "success" | "error">("idle");
+  const [paymentStatus, setPaymentStatus] = useState<
+    "idle" | "processing" | "success" | "error"
+  >("idle");
   const [paymentError, setPaymentError] = useState<string | null>(null);
-  
+  // Obtenir la devise actuelle de l'utilisateur
+  const { currency: userCurrency } = useCurrency();
+
   const serviceId = params.serviceId;
 
   // Redirection si l'utilisateur n'est pas authentifié
@@ -47,15 +83,16 @@ export default function CheckoutPage({ params }: { params: { serviceId: string }
       // Journaliser la tentative d'accès non autorisé
       if (!authLoading) {
         logSecurityEvent({
-          type: 'security_violation',
-          severity: 'medium',
+          type: "security_violation",
+          severity: "medium",
           details: {
-            message: "Tentative d'accès à la page de paiement sans authentification",
-            serviceId
-          }
+            message:
+              "Tentative d'accès à la page de paiement sans authentification",
+            serviceId,
+          },
         });
       }
-      
+
       router.push(`/auth/sign-in?callbackUrl=/checkout/${serviceId}`);
     }
   }, [user, authLoading, router, serviceId, isAuthenticated]);
@@ -66,36 +103,36 @@ export default function CheckoutPage({ params }: { params: { serviceId: string }
       try {
         // Tenter de récupérer le service depuis l'API
         const response = await fetch(`/api/services/${serviceId}`);
-        
+
         if (!response.ok) {
-          throw new Error('Service non trouvé');
+          throw new Error("Service non trouvé");
         }
-        
+
         const serviceData = await response.json();
         setService(serviceData);
-        
+
         // Journaliser le chargement du service
         if (user) {
           logSecurityEvent({
-            type: 'sensitive_data_access',
+            type: "sensitive_data_access",
             userId: user.id,
-            severity: 'low',
+            severity: "low",
             details: {
               action: "view_service_checkout",
-              serviceId
-            }
+              serviceId,
+            },
           });
         }
       } catch (err) {
         console.error("Erreur lors du chargement du service:", err);
-        
+
         // Fallback pour démo - RETIRER EN PRODUCTION
         setService({
           id: serviceId,
           title: "Service Premium Vynal Platform",
           description: "Accès aux fonctionnalités premium de la plateforme",
           price: 49.99,
-          imageUrl: "/assets/service-image.jpg"
+          imageUrl: "/assets/service-image.jpg",
         });
       }
     };
@@ -108,20 +145,22 @@ export default function CheckoutPage({ params }: { params: { serviceId: string }
   // Initialisation du paiement
   const handleInitPayment = async () => {
     if (!service || !user) return;
-    
+
     setPaymentStatus("processing");
     const response = await createPaymentIntent({
       amount: service.price,
       serviceId: service.id,
       metadata: {
         serviceName: service.title,
-        userEmail: user.email
-      }
+        userEmail: user.email,
+      },
     });
 
     if (!response) {
       setPaymentStatus("error");
-      setPaymentError("Impossible d'initialiser le paiement. Veuillez réessayer.");
+      setPaymentError(
+        "Impossible d'initialiser le paiement. Veuillez réessayer.",
+      );
     }
     // Si le paiement est initialisé avec succès, on reste dans l'état "processing"
   };
@@ -130,19 +169,19 @@ export default function CheckoutPage({ params }: { params: { serviceId: string }
   const handleSuccess = (paymentIntent: any) => {
     setPaymentStatus("success");
     handlePaymentSuccess(paymentIntent.id, serviceId);
-    
+
     // Journaliser le succès du paiement côté client
     logSecurityEvent({
-      type: 'payment_success',
+      type: "payment_success",
       userId: user?.id,
-      severity: 'info',
+      severity: "info",
       details: {
         paymentIntentId: paymentIntent.id,
         serviceId,
-        amount: service?.price
-      }
+        amount: service?.price,
+      },
     });
-    
+
     // Redirection vers la page de confirmation après un court délai
     setTimeout(() => {
       router.push(`/dashboard/orders?success=true&orderId=${paymentIntent.id}`);
@@ -152,24 +191,30 @@ export default function CheckoutPage({ params }: { params: { serviceId: string }
   // Gestion de l'erreur de paiement
   const handleError = (error: any) => {
     setPaymentStatus("error");
-    const errorMessage = error.message || "Une erreur est survenue lors du paiement. Veuillez réessayer.";
+    const errorMessage =
+      error.message ||
+      "Une erreur est survenue lors du paiement. Veuillez réessayer.";
     setPaymentError(errorMessage);
-    
+
     // Journaliser l'erreur de paiement côté client
     logSecurityEvent({
-      type: 'payment_failure',
+      type: "payment_failure",
       userId: user?.id,
-      severity: 'medium',
+      severity: "medium",
       details: {
         error: errorMessage,
         serviceId,
-        paymentIntentId: paymentData?.paymentIntentId
-      }
+        paymentIntentId: paymentData?.paymentIntentId,
+      },
     });
-    
+
     // Si nous avons un ID de paiement, notifier le serveur
     if (paymentData?.paymentIntentId) {
-      handlePaymentFailure(paymentData.paymentIntentId, serviceId, errorMessage);
+      handlePaymentFailure(
+        paymentData.paymentIntentId,
+        serviceId,
+        errorMessage,
+      );
     }
   };
 
@@ -178,8 +223,8 @@ export default function CheckoutPage({ params }: { params: { serviceId: string }
     if (!paymentData?.clientSecret) {
       return (
         <div className="p-4 text-center">
-          <Button 
-            onClick={handleInitPayment} 
+          <Button
+            onClick={handleInitPayment}
             disabled={loading}
             className="mt-4"
           >
@@ -199,32 +244,72 @@ export default function CheckoutPage({ params }: { params: { serviceId: string }
       );
     }
 
+    // Les prix dans la base de données sont en XOF
+    const dbCurrency = "XOF";
+
+    // 1. Normaliser le montant en XOF pour éviter les valeurs aberrantes
+    const normalizedXofAmount = normalizeAmount(
+      service?.price || 0,
+      dbCurrency,
+    );
+
+    // 2. Convertir en devise de l'utilisateur (si différente de XOF)
+    const amountInUserCurrency =
+      userCurrency.code === dbCurrency
+        ? normalizedXofAmount
+        : (convertCurrency(
+            normalizedXofAmount,
+            dbCurrency,
+            userCurrency.code,
+            false,
+          ) as number);
+
+    // 3. Convertir le montant en EUR pour Stripe (depuis la devise de l'utilisateur)
+    const amountInEur =
+      userCurrency.code === "EUR"
+        ? amountInUserCurrency
+        : (convertToEur(
+            amountInUserCurrency,
+            userCurrency.code,
+            false,
+          ) as number);
+
+    console.log(
+      `Checkout - Conversion pour paiement: ${normalizedXofAmount} ${dbCurrency} → ${amountInUserCurrency} ${userCurrency.code} → ${amountInEur} EUR`,
+    );
+
     return (
-      <StripeElementsProvider clientSecret={paymentData.clientSecret} enableApplePay={true}>
+      <StripeElementsProvider
+        clientSecret={paymentData.clientSecret}
+        enableApplePay={true}
+      >
         <div className="space-y-4">
           {/* Apple Pay - sera affiché uniquement sur les appareils compatibles */}
           <ApplePayButton
-            amount={service?.price || 0}
+            amount={amountInEur}
+            currency="eur"
             clientSecret={paymentData.clientSecret}
             onSuccess={handleSuccess}
             onError={handleError}
             loading={paymentStatus === "processing" && !paymentError}
             serviceId={serviceId}
           />
-          
+
           {/* Stripe Link - sera affiché uniquement si disponible */}
           <LinkButton
-            amount={service?.price || 0}
+            amount={amountInEur}
+            currency="eur"
             clientSecret={paymentData.clientSecret}
             onSuccess={handleSuccess}
             onError={handleError}
             loading={paymentStatus === "processing" && !paymentError}
             serviceId={serviceId}
           />
-          
+
           {/* Google Pay - sera affiché uniquement sur les appareils compatibles */}
           <GooglePayButton
-            amount={service?.price || 0}
+            amount={amountInEur}
+            currency="eur"
             clientSecret={paymentData.clientSecret}
             onSuccess={handleSuccess}
             onError={handleError}
@@ -233,14 +318,21 @@ export default function CheckoutPage({ params }: { params: { serviceId: string }
           />
 
           {/* Séparateur entre les méthodes de paiement rapides et le formulaire de carte */}
-          <div id="payment-methods-separator" className="hidden relative flex items-center py-2">
+          <div
+            id="payment-methods-separator"
+            className="hidden relative flex items-center py-2"
+          >
             <div className="flex-grow border-t border-gray-200 dark:border-gray-700"></div>
-            <span className="flex-shrink mx-3 text-xs text-gray-400 dark:text-gray-500">ou</span>
+            <span className="flex-shrink mx-3 text-xs text-gray-400 dark:text-gray-500">
+              ou
+            </span>
             <div className="flex-grow border-t border-gray-200 dark:border-gray-700"></div>
           </div>
 
           {/* Script pour afficher le séparateur uniquement si au moins une méthode de paiement rapide est disponible */}
-          <script dangerouslySetInnerHTML={{ __html: `
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `
             document.addEventListener('DOMContentLoaded', function() {
               // Vérifier si Apple Pay, Google Pay ou Link sont présents et visibles
               const applePayBtn = document.querySelector('button[aria-label="Apple Pay"]');
@@ -252,11 +344,14 @@ export default function CheckoutPage({ params }: { params: { serviceId: string }
                 separator.classList.remove('hidden');
               }
             });
-          `}} />
+          `,
+            }}
+          />
 
           {/* Formulaire de carte classique */}
-          <StripeCardForm 
-            amount={service?.price || 0}
+          <StripeCardForm
+            amount={amountInEur}
+            currency="eur"
             clientSecret={paymentData.clientSecret}
             onSuccess={handleSuccess}
             onError={handleError}
@@ -282,8 +377,8 @@ export default function CheckoutPage({ params }: { params: { serviceId: string }
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-12">
       <div className="max-w-4xl mx-auto px-4">
-        <Button 
-          variant="ghost" 
+        <Button
+          variant="ghost"
           onClick={() => router.push(`/services/${serviceId}`)}
           className="mb-6"
         >
@@ -305,8 +400,8 @@ export default function CheckoutPage({ params }: { params: { serviceId: string }
                 <div className="space-y-4">
                   {service.imageUrl && (
                     <div className="rounded-lg overflow-hidden">
-                      <Image 
-                        src={service.imageUrl} 
+                      <Image
+                        src={service.imageUrl}
                         alt={service.title}
                         width={400}
                         height={200}
@@ -314,20 +409,24 @@ export default function CheckoutPage({ params }: { params: { serviceId: string }
                       />
                     </div>
                   )}
-                  
+
                   <h3 className="text-xl font-bold">{service.title}</h3>
-                  <p className="text-gray-600 dark:text-gray-400">{service.description}</p>
-                  
+                  <p className="text-gray-600 dark:text-gray-400">
+                    {service.description}
+                  </p>
+
                   <div className="pt-4 border-t">
                     <div className="flex justify-between">
                       <span>Prix</span>
-                      <span className="font-bold">{service.price.toFixed(2)} €</span>
+                      <span className="font-bold">
+                        {service.price.toFixed(2)} €
+                      </span>
                     </div>
                   </div>
                 </div>
               </CardContent>
             </Card>
-            
+
             {/* Informations de sécurité */}
             <div className="mt-6 bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
               <div className="flex items-center space-x-2 mb-2">
@@ -335,15 +434,18 @@ export default function CheckoutPage({ params }: { params: { serviceId: string }
                 <h4 className="font-medium">Paiement sécurisé</h4>
               </div>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                Toutes vos données de paiement sont chiffrées et sécurisées par Stripe, leader mondial des solutions de paiement.
+                Toutes vos données de paiement sont chiffrées et sécurisées par
+                Stripe, leader mondial des solutions de paiement.
               </p>
               <div className="flex items-center mt-3 space-x-2">
                 <Lock className="h-4 w-4 text-gray-400" />
-                <span className="text-xs text-gray-500">SSL / TLS encryption</span>
+                <span className="text-xs text-gray-500">
+                  SSL / TLS encryption
+                </span>
               </div>
             </div>
           </div>
-          
+
           {/* Formulaire de paiement */}
           <div>
             <Card>
@@ -357,16 +459,23 @@ export default function CheckoutPage({ params }: { params: { serviceId: string }
                 {paymentStatus === "success" ? (
                   <div className="py-8 text-center">
                     <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
-                    <h3 className="text-xl font-bold mb-2">Paiement réussi !</h3>
+                    <h3 className="text-xl font-bold mb-2">
+                      Paiement réussi !
+                    </h3>
                     <p className="text-gray-600 dark:text-gray-400">
-                      Merci pour votre commande. Vous allez être redirigé vers votre tableau de bord.
+                      Merci pour votre commande. Vous allez être redirigé vers
+                      votre tableau de bord.
                     </p>
                   </div>
                 ) : paymentStatus === "error" ? (
                   <div className="py-6 text-center">
                     <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
-                    <h3 className="text-xl font-bold mb-2">Erreur de paiement</h3>
-                    <p className="text-red-600 mb-4">{paymentError || error || "Une erreur est survenue"}</p>
+                    <h3 className="text-xl font-bold mb-2">
+                      Erreur de paiement
+                    </h3>
+                    <p className="text-red-600 mb-4">
+                      {paymentError || error || "Une erreur est survenue"}
+                    </p>
                     <Button onClick={() => setPaymentStatus("idle")}>
                       Réessayer
                     </Button>
@@ -374,40 +483,43 @@ export default function CheckoutPage({ params }: { params: { serviceId: string }
                 ) : (
                   <>
                     {/* Notification de devise pour le paiement */}
-                    <PaymentCurrencyNotice amount={service.price} className="mb-4" />
-                    
+                    <PaymentCurrencyNotice
+                      amount={service.price}
+                      className="mb-4"
+                    />
+
                     {renderPaymentForm()}
                   </>
                 )}
               </CardContent>
               <CardFooter className="flex justify-between border-t pt-4">
                 <div className="flex items-center space-x-2">
-                  <Image 
-                    src="/assets/partners/logo_stripe.webp" 
-                    alt="Stripe" 
-                    width={60} 
-                    height={25} 
+                  <Image
+                    src="/assets/partners/logo_stripe.webp"
+                    alt="Stripe"
+                    width={60}
+                    height={25}
                     onError={(e) => {
                       // Fallback si l'image n'existe pas
-                      e.currentTarget.style.display = 'none';
+                      e.currentTarget.style.display = "none";
                     }}
                   />
-                  <Image 
-                    src="/images/payment/visa.svg" 
-                    alt="Visa" 
-                    width={32} 
+                  <Image
+                    src="/images/payment/visa.svg"
+                    alt="Visa"
+                    width={32}
                     height={20}
                     onError={(e) => {
-                      e.currentTarget.style.display = 'none';
+                      e.currentTarget.style.display = "none";
                     }}
                   />
-                  <Image 
-                    src="/images/payment/mastercard.svg" 
-                    alt="Mastercard" 
-                    width={32} 
+                  <Image
+                    src="/images/payment/mastercard.svg"
+                    alt="Mastercard"
+                    width={32}
                     height={20}
                     onError={(e) => {
-                      e.currentTarget.style.display = 'none';
+                      e.currentTarget.style.display = "none";
                     }}
                   />
                 </div>
