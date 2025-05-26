@@ -31,13 +31,15 @@ function LinkButtonInternal({
   onError,
   loading = false,
   className,
-  serviceId
+  serviceId,
 }: LinkButtonProps) {
   const stripe = useStripe();
   const elements = useElements();
   const [isLinkAvailable, setIsLinkAvailable] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [paymentRequest, setPaymentRequest] = useState<PaymentRequest | null>(null);
+  const [paymentRequest, setPaymentRequest] = useState<PaymentRequest | null>(
+    null,
+  );
 
   // Vérifier si Link est disponible
   useEffect(() => {
@@ -45,18 +47,18 @@ function LinkButtonInternal({
     if (!stripe || !elements || !clientSecret) return;
 
     const pr = stripe.paymentRequest({
-      country: 'FR',
+      country: "FR",
       currency: currency.toLowerCase(),
       total: {
-        label: 'Paiement Vynal',
-        amount: Math.round(amount * 100), // Convertir en centimes
+        label: "Paiement Vynal",
+        amount: amount, // Le montant est déjà en centimes d'euro
       },
       requestPayerName: true,
       requestPayerEmail: true,
     });
 
     // Vérifier si l'appareil supporte Link
-    pr.canMakePayment().then(result => {
+    pr.canMakePayment().then((result) => {
       // Note: Link n'a pas de propriété spécifique comme applePay ou googlePay
       // On vérifie simplement si le paymentRequest est disponible
       if (result) {
@@ -68,43 +70,52 @@ function LinkButtonInternal({
     });
 
     // Configurer les gestionnaires d'événements
-    pr.on('paymentmethod', async (ev) => {
+    pr.on("paymentmethod", async (ev) => {
       setIsProcessing(true);
-      
+
       try {
         // Confirmer le paiement avec Stripe
         const { error, paymentIntent } = await stripe.confirmCardPayment(
           clientSecret,
           { payment_method: ev.paymentMethod.id },
-          { handleActions: false }
+          { handleActions: false },
         );
 
         if (error) {
           // Informer que le paiement a échoué
-          ev.complete('fail');
+          ev.complete("fail");
           onError(error);
         } else if (paymentIntent) {
           // Informer que le paiement a réussi
-          ev.complete('success');
-          
+          ev.complete("success");
+
           // Enrichir les données de paiement
           const paymentData = {
             ...paymentIntent,
             serviceId,
-            paymentMethod: 'link',
-            provider: 'stripe'
+            paymentMethod: "link",
+            provider: "stripe",
           };
-          
+
           onSuccess(paymentData);
         }
       } catch (err) {
-        ev.complete('fail');
+        ev.complete("fail");
         onError(err);
       } finally {
         setIsProcessing(false);
       }
     });
-  }, [stripe, elements, amount, currency, clientSecret, onSuccess, onError, serviceId]);
+  }, [
+    stripe,
+    elements,
+    amount,
+    currency,
+    clientSecret,
+    onSuccess,
+    onError,
+    serviceId,
+  ]);
 
   // Si Stripe n'est pas disponible ou si Link n'est pas disponible, ne pas afficher le bouton
   if (!stripe || !elements || !isLinkAvailable || !paymentRequest) {
@@ -114,7 +125,7 @@ function LinkButtonInternal({
   // Gérer le clic sur le bouton Link
   const handleLinkClick = async () => {
     if (!paymentRequest || isProcessing) return;
-    
+
     // Déclencher la demande de paiement
     paymentRequest.show();
   };
@@ -133,15 +144,15 @@ function LinkButtonInternal({
         </>
       ) : (
         <>
-          <Image 
-            src="/images/payment/stripe-link-mark.svg" 
-            alt="Stripe Link" 
-            width={40} 
-            height={24} 
+          <Image
+            src="/images/payment/stripe-link-mark.svg"
+            alt="Stripe Link"
+            width={40}
+            height={24}
             className="mr-2 h-6"
             onError={(e) => {
               // Fallback si l'image n'existe pas
-              e.currentTarget.style.display = 'none';
+              e.currentTarget.style.display = "none";
             }}
           />
           Payer avec Link
@@ -157,7 +168,7 @@ function LinkButtonInternal({
  */
 function isValidClientSecret(secret: string | undefined): boolean {
   if (!secret) return false;
-  
+
   // Format typique: pi_xxxxxxx_secret_xxxxxxx
   const secretPattern = /^[a-zA-Z0-9_]+_secret_[a-zA-Z0-9]+$/;
   return secretPattern.test(secret);
@@ -165,7 +176,7 @@ function isValidClientSecret(secret: string | undefined): boolean {
 
 /**
  * Bouton de paiement Stripe Link
- * 
+ *
  * Ce composant n'est affiché que si Link est disponible
  * Il utilise l'API Stripe pour traiter les paiements rapides avec Link
  * S'encapsule automatiquement dans un fournisseur Elements si nécessaire
@@ -174,13 +185,13 @@ export function LinkButton(props: LinkButtonProps) {
   // Initialiser les refs au début du composant
   const inElementsContextRef = useRef<boolean | null>(null);
   const elementsRef = useRef<StripeElements | null>(null);
-  
+
   // Si le clientSecret n'est pas valide, ne rien afficher
   if (!isValidClientSecret(props.clientSecret)) {
     console.log("LinkButton: clientSecret invalide", props.clientSecret);
     return null;
   }
-  
+
   // Lors du premier rendu, essayez de détecter le contexte
   if (inElementsContextRef.current === null) {
     try {
@@ -203,29 +214,40 @@ export function LinkButton(props: LinkButtonProps) {
   );
 }
 
-function ElementsContextProvider({ clientSecret, children }: { clientSecret: string; children: React.ReactNode }) {
+function ElementsContextProvider({
+  clientSecret,
+  children,
+}: {
+  clientSecret: string;
+  children: React.ReactNode;
+}) {
   return (
-    <Elements stripe={getStripe()} options={{
-      clientSecret: clientSecret,
-      appearance: {
-        theme: 'stripe',
-        variables: {
-          colorPrimary: '#6667ab',
-          colorBackground: '#ffffff',
-          colorText: '#30313d',
-          colorDanger: '#df1b41',
-          fontFamily: 'Poppins, system-ui, sans-serif',
-          spacingUnit: '4px',
-          borderRadius: '4px',
-        },
-      },
-      locale: 'fr',
-      // @ts-ignore - La propriété wallets existe mais n'est pas reconnue par TypeScript
-      wallets: {
-        link: 'auto'
-      },
-    } as any}>
+    <Elements
+      stripe={getStripe()}
+      options={
+        {
+          clientSecret: clientSecret,
+          appearance: {
+            theme: "stripe",
+            variables: {
+              colorPrimary: "#6667ab",
+              colorBackground: "#ffffff",
+              colorText: "#30313d",
+              colorDanger: "#df1b41",
+              fontFamily: "Poppins, system-ui, sans-serif",
+              spacingUnit: "4px",
+              borderRadius: "4px",
+            },
+          },
+          locale: "fr",
+          // @ts-ignore - La propriété wallets existe mais n'est pas reconnue par TypeScript
+          wallets: {
+            link: "auto",
+          },
+        } as any
+      }
+    >
       {children}
     </Elements>
   );
-} 
+}
