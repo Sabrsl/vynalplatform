@@ -2,9 +2,66 @@
 
 import { useEffect, useState } from "react";
 import { AlertTriangle, Info } from "lucide-react";
-import { validatePaymentCurrency, convertToEur, normalizeAmount, convertCurrency } from "@/lib/utils/currency-updater";
+import { validatePaymentCurrency, convertToEur, normalizeAmount } from "@/lib/utils/currency-updater";
 import useCurrency from "@/hooks/useCurrency";
 import { cn } from "@/lib/utils";
+
+// Implémentation locale de convertCurrency si elle n'existe pas dans les imports
+const convertCurrency = (
+  amount: number,
+  fromCurrency: string,
+  toCurrency: string,
+  normalize: boolean = true
+): number | string => {
+  // Taux de conversion simplifiés pour les devises courantes (à ajuster selon les besoins réels)
+  const rates: Record<string, Record<string, number>> = {
+    'XOF': {
+      'EUR': 0.00152,
+      'USD': 0.00166,
+      'GBP': 0.00130,
+      'XOF': 1
+    },
+    'EUR': {
+      'XOF': 655.957,
+      'USD': 1.09,
+      'GBP': 0.86,
+      'EUR': 1
+    },
+    'USD': {
+      'XOF': 602.71,
+      'EUR': 0.92,
+      'GBP': 0.79,
+      'USD': 1
+    },
+    'GBP': {
+      'XOF': 769.52,
+      'EUR': 1.16,
+      'USD': 1.27,
+      'GBP': 1
+    }
+  };
+
+  // Si nous n'avons pas le taux pour cette paire de devises
+  if (!rates[fromCurrency] || !rates[fromCurrency][toCurrency]) {
+    console.warn(`Taux de conversion non disponible pour ${fromCurrency} vers ${toCurrency}`);
+    return amount; // Retourner le montant original
+  }
+
+  // Calculer le montant converti
+  const convertedAmount = amount * rates[fromCurrency][toCurrency];
+  
+  // Normaliser le montant si demandé
+  if (normalize) {
+    // Arrondir à 2 décimales pour EUR/USD/GBP, 0 pour XOF/XAF
+    if (toCurrency === 'XOF' || toCurrency === 'XAF') {
+      return Math.round(convertedAmount);
+    } else {
+      return Number(convertedAmount.toFixed(2));
+    }
+  }
+  
+  return convertedAmount;
+};
 
 interface PaymentCurrencyNoticeProps {
   amount: number;

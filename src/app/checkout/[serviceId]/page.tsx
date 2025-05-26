@@ -6,6 +6,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { useStripePayment } from "@/hooks/useStripePayment";
 import { StripeElementsProvider } from "@/components/StripeElementsProvider";
 import { StripeCardForm } from "@/components/payments/StripeCardForm";
+import { ApplePayButton } from "@/components/payments/ApplePayButton";
+import { GooglePayButton } from "@/components/payments/GooglePayButton";
+import { LinkButton } from "@/components/payments/LinkButton";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, AlertCircle, CreditCard, ArrowLeft, Lock, ShieldCheck } from "lucide-react";
@@ -197,14 +200,70 @@ export default function CheckoutPage({ params }: { params: { serviceId: string }
     }
 
     return (
-      <StripeElementsProvider clientSecret={paymentData.clientSecret}>
-        <StripeCardForm 
-          amount={service?.price || 0}
-          clientSecret={paymentData.clientSecret}
-          onSuccess={handleSuccess}
-          onError={handleError}
-          loading={paymentStatus === "processing" && !paymentError}
-        />
+      <StripeElementsProvider clientSecret={paymentData.clientSecret} enableApplePay={true}>
+        <div className="space-y-4">
+          {/* Apple Pay - sera affiché uniquement sur les appareils compatibles */}
+          <ApplePayButton
+            amount={service?.price || 0}
+            clientSecret={paymentData.clientSecret}
+            onSuccess={handleSuccess}
+            onError={handleError}
+            loading={paymentStatus === "processing" && !paymentError}
+            serviceId={serviceId}
+          />
+          
+          {/* Stripe Link - sera affiché uniquement si disponible */}
+          <LinkButton
+            amount={service?.price || 0}
+            clientSecret={paymentData.clientSecret}
+            onSuccess={handleSuccess}
+            onError={handleError}
+            loading={paymentStatus === "processing" && !paymentError}
+            serviceId={serviceId}
+          />
+          
+          {/* Google Pay - sera affiché uniquement sur les appareils compatibles */}
+          <GooglePayButton
+            amount={service?.price || 0}
+            clientSecret={paymentData.clientSecret}
+            onSuccess={handleSuccess}
+            onError={handleError}
+            loading={paymentStatus === "processing" && !paymentError}
+            serviceId={serviceId}
+          />
+
+          {/* Séparateur entre les méthodes de paiement rapides et le formulaire de carte */}
+          <div id="payment-methods-separator" className="hidden relative flex items-center py-2">
+            <div className="flex-grow border-t border-gray-200 dark:border-gray-700"></div>
+            <span className="flex-shrink mx-3 text-xs text-gray-400 dark:text-gray-500">ou</span>
+            <div className="flex-grow border-t border-gray-200 dark:border-gray-700"></div>
+          </div>
+
+          {/* Script pour afficher le séparateur uniquement si au moins une méthode de paiement rapide est disponible */}
+          <script dangerouslySetInnerHTML={{ __html: `
+            document.addEventListener('DOMContentLoaded', function() {
+              // Vérifier si Apple Pay, Google Pay ou Link sont présents et visibles
+              const applePayBtn = document.querySelector('button[aria-label="Apple Pay"]');
+              const googlePayBtn = document.querySelector('button[aria-label="Google Pay"]');
+              const linkBtn = document.querySelector('button[aria-label="Stripe Link"]');
+              const separator = document.getElementById('payment-methods-separator');
+              
+              if ((applePayBtn || googlePayBtn || linkBtn) && separator) {
+                separator.classList.remove('hidden');
+              }
+            });
+          `}} />
+
+          {/* Formulaire de carte classique */}
+          <StripeCardForm 
+            amount={service?.price || 0}
+            clientSecret={paymentData.clientSecret}
+            onSuccess={handleSuccess}
+            onError={handleError}
+            loading={paymentStatus === "processing" && !paymentError}
+            serviceId={serviceId}
+          />
+        </div>
       </StripeElementsProvider>
     );
   };
@@ -315,7 +374,7 @@ export default function CheckoutPage({ params }: { params: { serviceId: string }
                 ) : (
                   <>
                     {/* Notification de devise pour le paiement */}
-                    <PaymentCurrencyNotice className="mb-4" />
+                    <PaymentCurrencyNotice amount={service.price} className="mb-4" />
                     
                     {renderPaymentForm()}
                   </>
