@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
 
 interface PayPalButtonsProps {
   amount: number;
@@ -37,35 +37,37 @@ export function loadPayPalScript(callback: () => void): void {
   }
 
   // Vérifie si le script est déjà en cours de chargement
-  const existingScript = document.getElementById('paypal-sdk');
+  const existingScript = document.getElementById("paypal-sdk");
   if (existingScript) {
     // Ajouter un événement sur le script existant
-    existingScript.addEventListener('load', callback);
+    existingScript.addEventListener("load", callback);
     return;
   }
 
   // Créer et charger le script avec les paramètres pour forcer uniquement "Log in with PayPal"
-  const script = document.createElement('script');
-  script.id = 'paypal-sdk';
+  const script = document.createElement("script");
+  script.id = "paypal-sdk";
   script.src = `https://www.paypal.com/sdk/js?client-id=${PAYPAL_CLIENT_ID}&currency=EUR&intent=capture&commit=true&vault=true&disable-funding=card,credit,venmo,sepa,bancontact,eps,giropay,ideal,mybank,p24,sofort&enable-funding=paypal`;
   script.async = true;
   script.onload = callback;
   script.onerror = () => {
-    console.error('Erreur lors du chargement du SDK PayPal');
+    console.error("Erreur lors du chargement du SDK PayPal");
   };
   document.body.appendChild(script);
-  
-  console.log('SDK PayPal en cours de chargement avec uniquement l\'option "Log in with PayPal"...');
+
+  console.log(
+    'SDK PayPal en cours de chargement avec uniquement l\'option "Log in with PayPal"...',
+  );
 }
 
 /**
  * Hook pour utiliser les boutons PayPal qui permettent la connexion directe avec PayPal
  */
-export function usePayPalButtons({ 
-  amount, 
-  currency = 'EUR', 
-  onSuccess, 
-  onError 
+export function usePayPalButtons({
+  amount,
+  currency = "EUR",
+  onSuccess,
+  onError,
 }: PayPalButtonsProps) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [buttonLoaded, setButtonLoaded] = useState(false);
@@ -76,10 +78,10 @@ export function usePayPalButtons({
     try {
       loadPayPalScript(() => {
         setIsLoaded(true);
-        console.log('SDK PayPal chargé avec succès');
+        console.log("SDK PayPal chargé avec succès");
       });
     } catch (error) {
-      console.error('Erreur lors du chargement du SDK PayPal:', error);
+      console.error("Erreur lors du chargement du SDK PayPal:", error);
       onError(error);
     }
   }, [onError]);
@@ -87,82 +89,133 @@ export function usePayPalButtons({
   // Fonction pour initialiser et rendre les boutons PayPal
   const initializePayPalButtons = (containerId: string) => {
     if (!isLoaded || !window.paypal || buttonLoaded || isInitializing) return;
-    
+
     try {
       setIsInitializing(true);
-      console.log('Initialisation des boutons PayPal avec uniquement "Log in with PayPal"...');
-      
-      const formattedAmount = parseFloat(amount.toString()).toFixed(2);
-      console.log(`Montant formaté pour PayPal: ${formattedAmount} ${currency}`);
-      
+      console.log(
+        'Initialisation des boutons PayPal avec uniquement "Log in with PayPal"...',
+      );
+
+      // Vérifier si nous devons convertir le montant en EUR
+      let paymentAmount = amount;
+
+      // Important: On suppose que le montant est déjà converti en EUR si la devise est EUR
+      // Sinon, on applique la conversion
+      if (currency.toUpperCase() !== "EUR") {
+        // Si la devise n'est pas l'EUR, convertir le montant en EUR avant de l'envoyer à PayPal
+        try {
+          // Cette partie ne devrait plus être nécessaire si le composant envoie déjà le montant en EUR
+          // mais on la garde comme sécurité
+          const { convertToEur } = require("@/lib/utils/currency-updater");
+          paymentAmount = convertToEur(amount, currency, false) as number;
+          console.log(
+            `PayPal: conversion de ${amount} ${currency} en ${paymentAmount} EUR (utilisant les taux définis dans le projet)`,
+          );
+        } catch (error) {
+          console.error(
+            "Erreur lors de la conversion du montant pour PayPal:",
+            error,
+          );
+          // En cas d'erreur, on bloque la transaction plutôt que de risquer un montant incorrect
+          throw new Error(
+            `Impossible de convertir le montant de ${currency} vers EUR pour le paiement PayPal`,
+          );
+        }
+      } else {
+        console.log(
+          `PayPal: utilisation directe du montant ${amount} EUR (déjà en EUR)`,
+        );
+        // Assurer que c'est bien un nombre
+        paymentAmount = Number(amount);
+      }
+
+      // Formater le montant correctement pour PayPal
+      const finalAmount = formatPayPalAmount(paymentAmount);
+      console.log(
+        `PayPal: montant final formaté pour l'API: ${finalAmount} EUR (originalement ${amount} ${currency})`,
+      );
+
+      // Toujours utiliser EUR comme devise pour PayPal
       const buttons = window.paypal.Buttons({
         // Style des boutons pour montrer uniquement l'option de connexion PayPal
         style: {
-          layout: 'vertical',
-          color: 'gold',
-          shape: 'rect',
-          label: 'pay',
+          layout: "vertical",
+          color: "gold",
+          shape: "rect",
+          label: "pay",
           height: 35,
           tagline: false,
-          fundingicons: false
+          fundingicons: false,
         },
-        
+
         // Création de la transaction avec les options pour la connexion PayPal
         createOrder: (_data: any, actions: any) => {
-          console.log('PayPal: création de la commande avec connexion PayPal...');
+          console.log(
+            "PayPal: création de la commande avec connexion PayPal...",
+          );
           return actions.order.create({
-            intent: 'CAPTURE',
+            intent: "CAPTURE",
             application_context: {
-              shipping_preference: 'NO_SHIPPING',
-              user_action: 'PAY_NOW',
-              brand_name: 'Vynal Platform',
-              landing_page: 'LOGIN' // Force l'utilisation de la page de connexion PayPal
+              shipping_preference: "NO_SHIPPING",
+              user_action: "PAY_NOW",
+              brand_name: "Vynal Platform",
+              landing_page: "LOGIN", // Force l'utilisation de la page de connexion PayPal
             },
-            purchase_units: [{
-              amount: {
-                value: formattedAmount,
-                currency_code: currency
-              }
-            }]
+            purchase_units: [
+              {
+                amount: {
+                  value: finalAmount,
+                  currency_code: "EUR", // Toujours utiliser EUR
+                },
+              },
+            ],
           });
         },
-        
+
         // Approbation de la transaction
         onApprove: (data: any, actions: any) => {
-          console.log('PayPal: transaction approuvée via connexion PayPal, capture en cours...');
+          console.log(
+            "PayPal: transaction approuvée via connexion PayPal, capture en cours...",
+          );
           return actions.order.capture().then((details: any) => {
-            console.log('PayPal: capture réussie via connexion PayPal:', details);
+            console.log(
+              "PayPal: capture réussie via connexion PayPal:",
+              details,
+            );
             onSuccess({
               transactionId: details.id,
               status: details.status,
               details,
-              payerInfo: details.payer // Informations de l'utilisateur connecté via PayPal
+              payerInfo: details.payer, // Informations de l'utilisateur connecté via PayPal
             });
           });
         },
-        
+
         // Gestion des erreurs
         onError: (err: any) => {
-          console.error('Erreur PayPal lors de la transaction:', err);
+          console.error("Erreur PayPal lors de la transaction:", err);
           onError(err);
         },
-        
+
         // Annulation
         onCancel: () => {
-          console.log('PayPal: transaction annulée par l\'utilisateur');
-        }
+          console.log("PayPal: transaction annulée par l'utilisateur");
+        },
       });
-      
+
       const container = document.getElementById(containerId);
       if (!container) {
         throw new Error(`Conteneur PayPal non trouvé: #${containerId}`);
       }
-      
+
       buttons.render(`#${containerId}`);
-      console.log('Boutons PayPal avec connexion rendus avec succès');
+      console.log("Boutons PayPal avec connexion rendus avec succès");
       setButtonLoaded(true);
     } catch (error) {
-      console.error('Erreur lors de l\'initialisation des boutons PayPal:', error);
+      console.error(
+        "Erreur lors de l'initialisation des boutons PayPal:",
+        error,
+      );
       onError(error);
     } finally {
       setIsInitializing(false);
@@ -172,15 +225,17 @@ export function usePayPalButtons({
   return {
     isLoaded,
     buttonLoaded,
-    initializePayPalButtons
+    initializePayPalButtons,
   };
 }
 
 /**
  * Formate un montant pour l'afficher au format PayPal
+ * Assure que le montant est bien formaté avec 2 décimales
  */
 export function formatPayPalAmount(amount: number): string {
-  return parseFloat(amount.toString()).toFixed(2);
+  // Arrondir à 2 décimales pour éviter les problèmes de précision
+  return (Math.round(amount * 100) / 100).toFixed(2);
 }
 
 /**
@@ -189,4 +244,4 @@ export function formatPayPalAmount(amount: number): string {
 export function validatePayPalEmail(email: string): boolean {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);
-} 
+}

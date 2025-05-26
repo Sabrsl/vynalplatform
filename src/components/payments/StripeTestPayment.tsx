@@ -6,7 +6,13 @@ import { useAuth } from "@/hooks/useAuth";
 import { useStripePayment } from "@/hooks/useStripePayment";
 import { StripeElementsProvider } from "@/components/StripeElementsProvider";
 import { StripeCardForm } from "@/components/payments/StripeCardForm";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, AlertCircle, CreditCard } from "lucide-react";
 
@@ -18,41 +24,43 @@ interface StripeTestPaymentProps {
 
 /**
  * Composant de test de paiement Stripe
- * 
+ *
  * Permet de tester le paiement Stripe avec une carte de test
  */
 export function StripeTestPayment({
   title,
   description,
-  amount
+  amount,
 }: StripeTestPaymentProps) {
   const router = useRouter();
   const { user } = useAuth();
-  const [paymentStatus, setPaymentStatus] = useState<"idle" | "processing" | "success" | "error">("idle");
+  const [paymentStatus, setPaymentStatus] = useState<
+    "idle" | "processing" | "success" | "error"
+  >("idle");
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [transactionId, setTransactionId] = useState<string | null>(null);
-  
+
   // Utilisation du hook personnalisé pour les paiements Stripe
-  const { 
-    loading, 
-    error, 
-    paymentData, 
-    createPaymentIntent, 
-    handlePaymentSuccess, 
-    handlePaymentFailure 
+  const {
+    loading,
+    error,
+    paymentData,
+    createPaymentIntent,
+    handlePaymentSuccess,
+    handlePaymentFailure,
   } = useStripePayment();
-  
+
   // Initialisation du paiement
   const handleInitPayment = async () => {
     setPaymentStatus("processing");
     setPaymentError(null);
-    
+
     try {
       // Utiliser les IDs spécifiques fournis
       const clientId = "0ed321ec-ef9e-48f0-97dd-6c5b5e097c5a";
       const freelanceId = "2fde948c-91d8-4ae7-9a04-77c363680106";
       const serviceId = "baa01d07-b860-4423-ac58-5392bae6a9c6";
-      
+
       // Création du PaymentIntent avec les IDs spécifiques
       const result = await createPaymentIntent({
         amount,
@@ -61,45 +69,53 @@ export function StripeTestPayment({
         metadata: {
           clientId,
           test: true,
-          description: "Test de paiement"
+          description: "Test de paiement",
         },
-        bypassAuth: true
+        bypassAuth: true,
       });
-      
+
       if (!result) {
         throw new Error("Échec de la création du PaymentIntent");
       }
-      
+
       setPaymentStatus("idle");
     } catch (err: any) {
       console.error("Erreur d'initialisation du paiement:", err);
       setPaymentStatus("error");
-      setPaymentError(err.message || "Une erreur est survenue lors de la préparation du paiement");
+      setPaymentError(
+        err.message ||
+          "Une erreur est survenue lors de la préparation du paiement",
+      );
     }
   };
-  
+
   // Gestion du succès du paiement
   const handleSuccess = async (paymentIntent: any) => {
     setPaymentStatus("success");
     setTransactionId(paymentIntent.id);
-    
+
     // Appel de la fonction de succès du hook
     if (paymentIntent.id) {
-      await handlePaymentSuccess(paymentIntent.id, "baa01d07-b860-4423-ac58-5392bae6a9c6");
+      await handlePaymentSuccess(
+        paymentIntent.id,
+        "baa01d07-b860-4423-ac58-5392bae6a9c6",
+      );
     }
   };
-  
+
   // Gestion de l'erreur de paiement
   const handleError = async (error: any) => {
     setPaymentStatus("error");
-    setPaymentError(error.message || "Une erreur est survenue lors du paiement");
-    
+    setPaymentError(
+      error.message || "Une erreur est survenue lors du paiement",
+    );
+
     // Appel de la fonction d'échec du hook
     if (paymentData?.paymentIntentId) {
       await handlePaymentFailure(
         paymentData.paymentIntentId,
         "baa01d07-b860-4423-ac58-5392bae6a9c6",
-        error.message || "Une erreur est survenue"
+        error.message || "Une erreur est survenue",
       );
     }
   };
@@ -109,7 +125,7 @@ export function StripeTestPayment({
     if (!paymentData?.clientSecret) {
       return (
         <div className="p-4 text-center">
-          <Button 
+          <Button
             onClick={handleInitPayment}
             disabled={loading}
             className="mt-4"
@@ -132,18 +148,19 @@ export function StripeTestPayment({
 
     return (
       <StripeElementsProvider clientSecret={paymentData.clientSecret}>
-        <StripeCardForm 
+        <StripeCardForm
           amount={amount}
           clientSecret={paymentData.clientSecret}
           onSuccess={handleSuccess}
           onError={handleError}
           loading={paymentStatus === "processing" && !paymentError}
           currency="eur"
+          serviceId="baa01d07-b860-4423-ac58-5392bae6a9c6"
         />
       </StripeElementsProvider>
     );
   };
-  
+
   // Affichage des résultats du paiement
   const renderPaymentResult = () => {
     if (paymentStatus === "success") {
@@ -162,7 +179,7 @@ export function StripeTestPayment({
         </div>
       );
     }
-    
+
     if (paymentStatus === "error" && paymentError) {
       return (
         <div className="p-4 text-center">
@@ -179,10 +196,10 @@ export function StripeTestPayment({
         </div>
       );
     }
-    
+
     return null;
   };
-  
+
   return (
     <Card className="w-full max-w-md mx-auto">
       <CardHeader>
@@ -190,15 +207,12 @@ export function StripeTestPayment({
         <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent>
-        {paymentStatus === "success" || paymentStatus === "error" 
+        {paymentStatus === "success" || paymentStatus === "error"
           ? renderPaymentResult()
-          : renderPaymentForm()
-        }
-        
+          : renderPaymentForm()}
+
         {error && (
-          <div className="text-red-500 text-sm mt-4">
-            Erreur: {error}
-          </div>
+          <div className="text-red-500 text-sm mt-4">Erreur: {error}</div>
         )}
       </CardContent>
     </Card>

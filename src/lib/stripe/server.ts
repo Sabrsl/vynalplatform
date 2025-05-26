@@ -2,25 +2,27 @@
  * Configuration du serveur Stripe
  * Ce fichier contient toutes les fonctions pour interagir avec l'API Stripe côté serveur
  */
-import Stripe from 'stripe';
+import Stripe from "stripe";
 
 // Détermination de l'environnement
-const isProduction = process.env.STRIPE_MODE === 'production';
+const isProduction = process.env.STRIPE_MODE === "production";
 
 // Récupération de la clé secrète depuis les variables d'environnement
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 
 // Vérification de la présence de la clé
 if (!stripeSecretKey) {
-  throw new Error('ERREUR CRITIQUE: Clé secrète Stripe manquante dans les variables d\'environnement');
+  throw new Error(
+    "ERREUR CRITIQUE: Clé secrète Stripe manquante dans les variables d'environnement",
+  );
 }
 
 // Initialisation de l'instance Stripe
 export const stripe = new Stripe(stripeSecretKey, {
-  apiVersion: '2025-04-30.basil',
+  apiVersion: "2025-04-30.basil",
   appInfo: {
-    name: 'Vynal Platform',
-    version: '1.0.0',
+    name: "Vynal Platform",
+    version: "1.0.0",
   },
 });
 
@@ -29,17 +31,19 @@ export const stripe = new Stripe(stripeSecretKey, {
  * @param operation Type d'opération ('payments', 'checkout', 'customers')
  * @returns La clé restreinte ou undefined si en mode test
  */
-export function getRestrictedKey(operation: 'payments' | 'checkout' | 'customers'): string | undefined {
+export function getRestrictedKey(
+  operation: "payments" | "checkout" | "customers",
+): string | undefined {
   if (!isProduction) {
     return undefined; // En mode test, on utilise la clé standard
   }
-  
+
   switch (operation) {
-    case 'payments':
+    case "payments":
       return process.env.STRIPE_RESTRICTED_KEY_PAYMENTS;
-    case 'checkout':
+    case "checkout":
       return process.env.STRIPE_RESTRICTED_KEY_CHECKOUT;
-    case 'customers':
+    case "customers":
       return process.env.STRIPE_RESTRICTED_KEY_CUSTOMERS;
     default:
       return undefined;
@@ -69,9 +73,9 @@ export async function createCheckoutSession(params: {
 }) {
   return stripe.checkout.sessions.create({
     customer: params.customerId,
-    payment_method_types: ['card'],
+    payment_method_types: ["card"],
     line_items: params.lineItems,
-    mode: 'payment',
+    mode: "payment",
     success_url: params.successUrl,
     cancel_url: params.cancelUrl,
     metadata: params.metadata,
@@ -102,12 +106,76 @@ export async function createPaymentIntent(params: {
   customerId?: string;
   metadata?: Record<string, string>;
 }) {
+  // Vérifier et potentiellement normaliser le montant
+  let finalAmount = params.amount;
+
+  // Journaliser pour le débogage
+  console.log(
+    `Stripe createPaymentIntent - Montant d'origine: ${finalAmount} ${params.currency}`,
+  );
+
+  // Si c'est en euros, vérifier si le montant semble anormalement élevé (pourrait être en XOF par erreur)
+  if (params.currency.toLowerCase() === "eur" && finalAmount > 1000000) {
+    console.warn(
+      `Montant EUR anormalement élevé détecté: ${finalAmount}. Vérification nécessaire.`,
+    );
+
+    // On peut normaliser ici, mais pour la sécurité, mieux vaut laisser la requête échouer
+    // et forcer une vérification manuelle d'un montant aussi élevé
+    throw new Error(
+      "Montant anormalement élevé détecté. Veuillez vérifier le montant de votre paiement.",
+    );
+  }
+
+  // Si le montant est dans une devise non prise en charge par Stripe, convertir en EUR
+  if (
+    params.currency.toLowerCase() !== "eur" &&
+    params.currency.toLowerCase() !== "usd"
+  ) {
+    try {
+      // Importer les utilitaires de conversion
+      const {
+        convertToEur,
+        normalizeAmount,
+      } = require("@/lib/utils/currency-updater");
+
+      // Normaliser le montant si nécessaire (s'il semble anormal)
+      const normalizedAmount = normalizeAmount(
+        finalAmount / 100,
+        params.currency,
+      );
+
+      // Convertir vers EUR
+      const eurAmount = convertToEur(
+        normalizedAmount,
+        params.currency,
+        false,
+      ) as number;
+
+      // Convertir en centimes pour Stripe
+      finalAmount = Math.round(eurAmount * 100);
+
+      console.log(
+        `Conversion automatique pour Stripe: ${params.amount / 100} ${params.currency} → ${finalAmount / 100} EUR`,
+      );
+
+      // Forcer la devise en EUR
+      params.currency = "eur";
+    } catch (error: any) {
+      console.error(
+        "Erreur lors de la conversion du montant pour Stripe:",
+        error,
+      );
+      // Continuer avec le montant d'origine si la conversion échoue
+    }
+  }
+
   return stripe.paymentIntents.create({
-    amount: params.amount,
-    currency: params.currency,
+    amount: finalAmount,
+    currency: params.currency.toLowerCase(),
     customer: params.customerId,
     metadata: params.metadata,
-    payment_method_types: ['card'],
+    payment_method_types: ["card", "link"],
   });
 }
 
@@ -132,6 +200,6 @@ export async function getCustomer(customerId: string) {
 export async function createEphemeralKey(customerId: string) {
   return stripe.ephemeralKeys.create(
     { customer: customerId },
-    { apiVersion: '2025-04-30.basil' }
+    { apiVersion: "2025-04-30.basil" },
   );
 }
