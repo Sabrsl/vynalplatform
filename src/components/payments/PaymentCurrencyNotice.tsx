@@ -36,18 +36,9 @@ export function PaymentCurrencyNotice({
 
   // Vérifier et normaliser le montant d'entrée
   const normalizedAmount = normalizeAmount(amount, "XOF");
-  console.log(
-    `[DEBUG CONVERSION] PaymentCurrencyNotice - Montant original: ${amount} XOF`,
-  );
-  console.log(
-    `[DEBUG CONVERSION] PaymentCurrencyNotice - Montant normalisé: ${normalizedAmount} XOF`,
-  );
 
   // Convertir en EUR pour le paiement
   const amountInEuros = convertToEur(normalizedAmount, "XOF", false) as number;
-  console.log(
-    `[DEBUG CONVERSION] PaymentCurrencyNotice - Montant en EUR: ${amountInEuros} EUR`,
-  );
 
   // Convertir le montant XOF dans la devise de l'utilisateur pour l'affichage
   const amountInUserCurrency =
@@ -61,15 +52,6 @@ export function PaymentCurrencyNotice({
             currency.code,
             false,
           ) as number);
-
-  // Ajouter des logs pour le débogage
-  console.log("[DEBUG CONVERSION] PaymentCurrencyNotice - Conversion:", {
-    originalAmount: amount,
-    normalizedAmount,
-    userCurrency: currency.code,
-    amountInUserCurrency,
-    amountInEuros,
-  });
 
   // Formater les montants pour l'affichage
   const formattedUserCurrencyAmount = new Intl.NumberFormat("fr-FR", {

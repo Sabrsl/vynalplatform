@@ -253,7 +253,7 @@ export default function CheckoutPage({
       dbCurrency,
     );
 
-    // 2. Convertir en devise de l'utilisateur (si différente de XOF)
+    // 2. Convertir en devise de l'utilisateur (si différente de XOF) - POUR AFFICHAGE UNIQUEMENT
     const amountInUserCurrency =
       userCurrency.code === dbCurrency
         ? normalizedXofAmount
@@ -264,18 +264,12 @@ export default function CheckoutPage({
             false,
           ) as number);
 
-    // 3. Convertir le montant en EUR pour Stripe (depuis la devise de l'utilisateur)
-    const amountInEur =
-      userCurrency.code === "EUR"
-        ? amountInUserCurrency
-        : (convertToEur(
-            amountInUserCurrency,
-            userCurrency.code,
-            false,
-          ) as number);
+    // 3. Les composants de paiement Stripe attendent des montants en XOF et font eux-mêmes la conversion
+    // Donc on passe le montant XOF original, pas la conversion EUR
+    const amountForPayment = normalizedXofAmount; // ← CORRECTION: Passer le montant XOF original
 
     console.log(
-      `[DEBUG CONVERSION] Checkout - Conversion pour paiement: ${normalizedXofAmount} ${dbCurrency} → ${amountInUserCurrency} ${userCurrency.code} → ${amountInEur} EUR`,
+      `[DEBUG CONVERSION] Checkout - Montant pour paiement: ${amountForPayment} XOF (affiché à l'utilisateur: ${amountInUserCurrency} ${userCurrency.code})`,
     );
 
     return (
@@ -286,7 +280,7 @@ export default function CheckoutPage({
         <div className="space-y-4">
           {/* Apple Pay - sera affiché uniquement sur les appareils compatibles */}
           <ApplePayButton
-            amount={amountInEur}
+            amount={amountForPayment}
             currency="eur"
             clientSecret={paymentData.clientSecret}
             onSuccess={handleSuccess}
@@ -297,7 +291,7 @@ export default function CheckoutPage({
 
           {/* Stripe Link - sera affiché uniquement si disponible */}
           <LinkButton
-            amount={amountInEur}
+            amount={amountForPayment}
             currency="eur"
             clientSecret={paymentData.clientSecret}
             onSuccess={handleSuccess}
@@ -308,7 +302,7 @@ export default function CheckoutPage({
 
           {/* Google Pay - sera affiché uniquement sur les appareils compatibles */}
           <GooglePayButton
-            amount={amountInEur}
+            amount={amountForPayment}
             currency="eur"
             clientSecret={paymentData.clientSecret}
             onSuccess={handleSuccess}
@@ -350,7 +344,7 @@ export default function CheckoutPage({
 
           {/* Formulaire de carte classique */}
           <StripeCardForm
-            amount={amountInEur}
+            amount={amountForPayment}
             currency="eur"
             clientSecret={paymentData.clientSecret}
             onSuccess={handleSuccess}

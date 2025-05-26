@@ -1,6 +1,6 @@
 {
   "name": "vynal-platform",
-  "version": "0.1.173",
+  "version": "0.1.177",
   "private": true,
   "scripts": {
     "dev": "cross-env NODE_OPTIONS='--max-old-space-size=4096' NODE_ENV=development next dev",

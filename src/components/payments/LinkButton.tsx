@@ -46,12 +46,32 @@ function LinkButtonInternal({
     // Si Stripe n'est pas disponible, ne rien faire
     if (!stripe || !elements || !clientSecret) return;
 
+    // Convertir le montant XOF en EUR en utilisant le taux de conversion défini dans le projet
+    // Tous les prix sont stockés en XOF dans la base de données
+    const {
+      convertToEur,
+      normalizeAmount,
+    } = require("@/lib/utils/currency-updater");
+
+    // 1. Normaliser le montant XOF (permet de détecter et corriger les montants anormaux)
+    const normalizedXofAmount = normalizeAmount(amount, "XOF");
+
+    // 2. Convertir le montant XOF en EUR
+    const amountInEuros = convertToEur(
+      normalizedXofAmount,
+      "XOF",
+      false,
+    ) as number;
+
+    // 3. Convertir en centimes pour Stripe
+    const amountInEuroCents = Math.round(amountInEuros * 100);
+
     const pr = stripe.paymentRequest({
       country: "FR",
-      currency: currency.toLowerCase(),
+      currency: "eur", // Forcer EUR pour les paiements Stripe
       total: {
         label: "Paiement Vynal",
-        amount: amount, // Le montant est déjà en centimes d'euro
+        amount: amountInEuroCents, // Montant en centimes d'euro
       },
       requestPayerName: true,
       requestPayerEmail: true,
@@ -188,7 +208,6 @@ export function LinkButton(props: LinkButtonProps) {
 
   // Si le clientSecret n'est pas valide, ne rien afficher
   if (!isValidClientSecret(props.clientSecret)) {
-    console.log("LinkButton: clientSecret invalide", props.clientSecret);
     return null;
   }
 

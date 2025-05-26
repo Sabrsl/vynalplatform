@@ -51,13 +51,11 @@ export function useStripePayment() {
       setError(null);
 
       try {
-        // Conversion du montant en centimes pour Stripe (avec conservation de 2 décimales)
+        // Le montant reçu est déjà en XOF (pas de centimes pour XOF)
         // Note: le serveur gèrera la conversion en EUR si nécessaire
         // Tous les prix sont stockés en XOF dans la base de données
-        const amountInCents = Math.round(amount * 100);
-        console.log(
-          `Montant pour paiement: ${amount} XOF (${amountInCents} centimes)`,
-        );
+        const amountInXof = amount; // Le montant est déjà en XOF (pas de centimes)
+        console.log(`Montant pour paiement: ${amount} XOF`);
 
         // Journalisation de la tentative de paiement pour l'audit
         try {
@@ -66,7 +64,7 @@ export function useStripePayment() {
             userId: user.id,
             severity: "medium",
             details: {
-              amount: amountInCents,
+              amount: amountInXof,
               serviceId,
             },
           });
@@ -115,7 +113,7 @@ export function useStripePayment() {
                 "Content-Type": "application/json",
               },
               body: JSON.stringify({
-                amount: amountInCents,
+                amount: amountInXof,
                 serviceId,
                 freelanceId: actualFreelanceId,
                 metadata: {
@@ -200,7 +198,7 @@ export function useStripePayment() {
               paymentIntentId: data.paymentIntentId,
               serviceId,
               orderId: data.orderId,
-              amount: amountInCents,
+              amount: amountInXof,
             },
           });
         } catch (logError) {
@@ -224,7 +222,7 @@ export function useStripePayment() {
             severity: "high",
             details: {
               error: err.message,
-              amount,
+              amount: amount,
               serviceId,
             },
           });

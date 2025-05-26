@@ -121,40 +121,18 @@ function StripeCardFormContent({
   const [cardError, setCardError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
 
-  // Logging pour débogage
-  console.log(
-    `[DEBUG CONVERSION] StripeCardForm - Montant reçu: ${amount} ${currency.toUpperCase()}`,
-  );
-
   // CORRECTION: Considérer que le montant est en XOF (devise de la base de données)
   // et s'assurer que la conversion est correcte pour Stripe
 
-  // 1. S'assurer que nous travaillons avec des unités monétaires, pas des centimes
-  const amountInUnits = amount;
+  // 1. Normaliser le montant XOF (permet de détecter et corriger les montants anormaux)
+  const normalizedAmount = normalizeAmount(amount, "XOF");
+  const wasNormalized = normalizedAmount !== amount;
 
-  // 2. Normaliser le montant XOF si nécessaire
-  const normalizedAmount = normalizeAmount(amountInUnits, "XOF");
-  const wasNormalized = normalizedAmount !== amountInUnits;
-
-  if (wasNormalized) {
-    console.warn(
-      `[DEBUG CONVERSION] StripeCardForm - Montant anormal détecté: ${amountInUnits} XOF, normalisé à ${normalizedAmount} XOF`,
-    );
-  }
-
-  // 3. Convertir le montant XOF en EUR pour Stripe (qui accepte uniquement EUR)
+  // 2. Convertir le montant XOF en EUR pour Stripe (qui accepte uniquement EUR)
   const amountInEur = convertToEur(normalizedAmount, "XOF", false) as number;
-  console.log(
-    `[DEBUG CONVERSION] StripeCardForm - Conversion en EUR: ${normalizedAmount} XOF → ${amountInEur} EUR`,
-  );
 
-  // NOUVEAU: Traçage complet du flux de conversion pour débogage
-  console.log(`[DEBUG CONVERSION] FLUX COMPLET STRIPE CARD FORM:
-  1. Montant original reçu: ${amount} XOF (unités)
-  2. Montant normalisé si nécessaire: ${normalizedAmount} XOF
-  3. Conversion XOF → EUR: ${normalizedAmount} XOF → ${amountInEur} EUR
-  4. MONTANT EUR pour affichage et paiement: ${amountInEur} EUR
-  `);
+  // 3. Calculer le montant en centimes pour Stripe
+  const amountInEuroCents = Math.round(amountInEur * 100);
 
   // Utilisation du hook useCurrency pour obtenir la devise de l'utilisateur
   const { currency: userCurrency } = useCurrency();
@@ -162,15 +140,10 @@ function StripeCardFormContent({
   // Calculer le montant dans la devise de l'utilisateur
   const amountInUserCurrency =
     userCurrency.code === "XOF"
-      ? normalizedAmount
+      ? amount
       : userCurrency.code === "EUR"
         ? amountInEur
-        : (convertCurrency(
-            normalizedAmount,
-            "XOF",
-            userCurrency.code,
-            false,
-          ) as number);
+        : (convertCurrency(amount, "XOF", userCurrency.code, false) as number);
 
   // Formater les montants pour l'affichage
   const formattedUserCurrencyAmount = new Intl.NumberFormat("fr-FR", {
@@ -188,18 +161,6 @@ function StripeCardFormContent({
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(amountInEur);
-
-  console.log(`[DEBUG CONVERSION] StripeCardForm - Montant traité:`, {
-    originalAmount: amount,
-    currency: "XOF", // Tous les prix sont stockés en XOF dans la BD
-    normalizedAmount: normalizedAmount,
-    wasNormalized,
-    amountInEur,
-    userCurrency: userCurrency.code,
-    amountInUserCurrency,
-    conversionRate: amountInEur / normalizedAmount,
-    clientSecret: clientSecret ? "Présent" : "Absent", // Ne pas afficher le secret complet
-  });
 
   // Options de style pour le formulaire de carte
   const cardElementOptions = {
@@ -225,7 +186,6 @@ function StripeCardFormContent({
     event.preventDefault();
 
     if (!stripe || !elements) {
-      console.error("Stripe ou Elements n'est pas encore initialisé.");
       return;
     }
 
@@ -233,8 +193,6 @@ function StripeCardFormContent({
     setIsProcessing(true);
 
     try {
-      console.log("Début du processus de paiement avec Stripe Elements");
-
       // Récupération de l'élément de carte
       const cardElement = elements.getElement(CardElement);
 
@@ -254,17 +212,9 @@ function StripeCardFormContent({
 
       // Gestion des erreurs
       if (error) {
-        console.error("Erreur de paiement Stripe:", error);
         setCardError(error.message || "Erreur lors du traitement du paiement");
         onError(error);
       } else if (paymentIntent) {
-        console.log(
-          "Paiement réussi - PaymentIntent:",
-          paymentIntent.id,
-          "Status:",
-          paymentIntent.status,
-        );
-
         // Ajout du serviceId et des informations de conversion pour cohérence avec PayPal
         const paymentData = {
           ...paymentIntent,
@@ -292,16 +242,7 @@ function StripeCardFormContent({
               }),
             },
           );
-
-          console.log(
-            "Réponse du webhook manuel:",
-            await manualWebhookResponse.json(),
-          );
         } catch (webhookError) {
-          console.warn(
-            "Échec de la notification manuelle du webhook:",
-            webhookError,
-          );
           // On continue malgré l'erreur car le paiement a réussi
         }
 
@@ -309,7 +250,6 @@ function StripeCardFormContent({
         onSuccess(paymentData);
       }
     } catch (err: any) {
-      console.error("Exception lors du paiement:", err);
       setCardError(err.message || "Une erreur inattendue est survenue");
       onError(err);
     } finally {

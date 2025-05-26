@@ -61,22 +61,15 @@ export function detectCurrency(
 
   // 1. Détection automatique par pays
   if (countryCode && currencyMap[countryCode]) {
-    console.log(
-      `Devise détectée par localisation: ${currencyMap[countryCode]} (${countryCode})`,
-    );
     return currencyMap[countryCode];
   }
 
   // 2. Préférence utilisateur si définie
   if (userPreference) {
-    console.log(`Devise définie par l'utilisateur: ${userPreference}`);
     return userPreference;
   }
 
   // 3. Devise par défaut (XOF - Franc CFA)
-  console.log(
-    "Aucune devise détectée, utilisation de la devise par défaut: XOF",
-  );
   return "XOF";
 }
 
@@ -162,22 +155,11 @@ export function convertToEur(
   formatString: boolean = false,
 ): number | string {
   try {
-    // Log détaillé pour le débogage - montrer clairement ce qui entre dans la fonction
-    console.log(
-      `[DEBUG CONVERSION] convertToEur - Entrée: montant=${amount}, devise=${fromCurrency}, formatString=${formatString}`,
-    );
-
-    // IMPORTANT: N'appliquez PAS de normalisation automatique ici, cela crée des doubles conversions
-    // Utiliser le montant tel quel
-
     // Normaliser le code de devise en majuscules
     const normalizedCurrency = fromCurrency.toUpperCase();
 
     // Si c'est déjà en EUR, pas besoin de conversion
     if (normalizedCurrency === "EUR") {
-      console.log(
-        `[DEBUG CONVERSION] convertToEur - Déjà en EUR, aucune conversion nécessaire: ${amount} EUR`,
-      );
       if (formatString) {
         return new Intl.NumberFormat("fr-FR", {
           style: "currency",
@@ -192,7 +174,6 @@ export function convertToEur(
     // Importer les taux de conversion depuis le fichier de constants
     const { CURRENCY } = require("@/lib/constants/currency");
 
-    // APPROCHE CORRIGÉE POUR CALCULER LE TAUX DE CONVERSION VERS EUR
     let amountInEur = 0;
 
     // Selon le type de devise, appliquer la conversion appropriée
@@ -200,9 +181,6 @@ export function convertToEur(
       // Cas simple: XOF vers EUR, utiliser directement le taux défini
       // 1 XOF = 0.0015 EUR (taux fixe)
       amountInEur = amount * CURRENCY.rates.EUR;
-      console.log(
-        `[DEBUG CONVERSION] Conversion directe XOF→EUR: ${amount} XOF = ${amountInEur} EUR (taux: ${CURRENCY.rates.EUR})`,
-      );
     } else if (CURRENCY.rates[normalizedCurrency]) {
       // Pour les autres devises:
       // 1. Convertir d'abord la devise en XOF
@@ -213,20 +191,11 @@ export function convertToEur(
       // montantXOF = montantDeviseSource / taux
       const rateToXof = CURRENCY.rates[normalizedCurrency];
       const amountInXof = amount / rateToXof;
-      console.log(
-        `[DEBUG CONVERSION] Étape 1: ${amount} ${normalizedCurrency} = ${amountInXof} XOF (taux: 1 XOF = ${rateToXof} ${normalizedCurrency})`,
-      );
 
       // Étape 2: Convertir XOF en EUR
       amountInEur = amountInXof * CURRENCY.rates.EUR;
-      console.log(
-        `[DEBUG CONVERSION] Étape 2: ${amountInXof} XOF = ${amountInEur} EUR (taux: 1 XOF = ${CURRENCY.rates.EUR} EUR)`,
-      );
     } else {
       // Si la devise n'est pas définie dans les taux, c'est une erreur
-      console.error(
-        `[DEBUG CONVERSION] Taux de conversion non défini pour ${normalizedCurrency}`,
-      );
       throw new Error(
         `Taux de conversion non défini pour ${normalizedCurrency}`,
       );
@@ -234,11 +203,6 @@ export function convertToEur(
 
     // Arrondir à 2 décimales pour EUR
     const roundedAmount = Math.round(amountInEur * 100) / 100;
-
-    // Log pour le débogage
-    console.log(
-      `[DEBUG CONVERSION] Résultat final: ${amount} ${normalizedCurrency} → ${roundedAmount} EUR`,
-    );
 
     // Retourner soit le nombre soit une chaîne formatée
     if (formatString) {
@@ -252,10 +216,7 @@ export function convertToEur(
 
     return roundedAmount;
   } catch (error) {
-    console.error(
-      "[DEBUG CONVERSION] Erreur lors de la conversion vers EUR:",
-      error,
-    );
+    console.error("Erreur lors de la conversion vers EUR:", error);
     // En cas d'erreur, retourner 0 ou "0,00 €"
     return formatString ? "0,00 €" : 0;
   }
@@ -269,11 +230,6 @@ export function triggerCurrencyChangeEvent(currencyCode: string): void {
   if (typeof window === "undefined") return;
 
   try {
-    console.log(
-      `Déclenchement de l'événement de changement de devise: ${CURRENCY_CHANGE_EVENT}`,
-      currencyCode,
-    );
-
     // Créer un événement personnalisé avec les détails de la devise
     const event = new CustomEvent(CURRENCY_CHANGE_EVENT, {
       detail: {
@@ -295,9 +251,6 @@ export function triggerCurrencyChangeEvent(currencyCode: string): void {
 
     // Rafraîchir tous les composants qui affichent des prix
     refreshPriceComponents();
-
-    // Notification optionnelle
-    console.log(`La devise a été changée pour: ${currencyCode}`);
   } catch (error) {
     console.error(
       "Erreur lors du déclenchement de l'événement de changement de devise:",
@@ -313,7 +266,6 @@ export function clearCurrencyCache() {
   if (typeof window !== "undefined") {
     localStorage.removeItem("vynal_currency_preference");
     localStorage.removeItem("vynal_currency_timestamp");
-    console.log("Cache de devise invalidé");
 
     // Déclencher un événement pour informer les composants du changement
     triggerCurrencyChangeEvent("invalidated");
@@ -329,8 +281,6 @@ export function refreshPriceComponents(): void {
   if (typeof window === "undefined") return;
 
   try {
-    console.log("Rafraîchissement des composants de prix...");
-
     // Identifier tous les composants de devise qui doivent être mis à jour
     const priceComponents = document.querySelectorAll(
       "[data-currency-component]",
@@ -338,10 +288,6 @@ export function refreshPriceComponents(): void {
     const amountDisplays = document.querySelectorAll("[data-price-amount]");
     const currencyDisplays = document.querySelectorAll(".currency-display");
     const formattedPrices = document.querySelectorAll("[data-formatted-price]");
-
-    console.log(
-      `Composants trouvés: ${priceComponents.length} price-components, ${amountDisplays.length} amount-displays, ${currencyDisplays.length} currency-displays, ${formattedPrices.length} formatted-prices`,
-    );
 
     // 1. Pour les composants React avec l'attribut data-currency-component
     // Leur envoi un événement pour déclencher une mise à jour
@@ -437,13 +383,7 @@ export function refreshPriceComponents(): void {
         bubbles: true,
       });
       window.dispatchEvent(dashboardRefreshEvent);
-
-      console.log(
-        "Événements de rafraîchissement forcé des données déclenchés",
-      );
     }
-
-    console.log("Rafraîchissement des composants de prix terminé");
   } catch (error) {
     console.error(
       "Erreur lors du rafraîchissement des composants de prix:",
@@ -537,9 +477,6 @@ export function validateAndUpdateCurrency(
     try {
       // Vérifier si une mise à jour est déjà en cours
       if (typeof window !== "undefined" && window.__currencyUpdateInProgress) {
-        console.log(
-          "Mise à jour des taux de change déjà en cours, pas de requête supplémentaire",
-        );
         resolve(false);
         return;
       }
@@ -558,9 +495,6 @@ export function validateAndUpdateCurrency(
         now - parseInt(lastUpdate) > 24 * 60 * 60 * 1000; // 24 heures
 
       if (!needsUpdate) {
-        console.log(
-          "Les taux de change sont récents, pas de mise à jour nécessaire",
-        );
         resolve(false);
         return;
       }
@@ -569,8 +503,6 @@ export function validateAndUpdateCurrency(
       if (typeof window !== "undefined") {
         window.__currencyUpdateInProgress = true;
       }
-
-      console.log("Mise à jour des taux de change...");
 
       // Récupérer le code de devise actuel
       const currentCurrency =
@@ -599,7 +531,6 @@ export function validateAndUpdateCurrency(
         if (cachedCurrencies && cacheIsValid && !forceRefresh) {
           // Utiliser le cache si valide
           currencies = JSON.parse(cachedCurrencies);
-          console.log("Utilisation du cache des devises (validité 7 jours)");
         } else {
           // Mettre en place un système de vérification pour ne pas faire cette requête plus d'une fois par session
           const sessionCacheKey = "currencies_fetched_this_session";
@@ -607,10 +538,6 @@ export function validateAndUpdateCurrency(
             sessionStorage.getItem(sessionCacheKey);
 
           if (alreadyFetchedThisSession && !forceRefresh) {
-            console.log(
-              "Devises déjà récupérées dans cette session, utilisation du cache existant",
-            );
-
             if (cachedCurrencies) {
               currencies = JSON.parse(cachedCurrencies);
             } else {
@@ -650,9 +577,6 @@ export function validateAndUpdateCurrency(
               now.toString(),
             );
             sessionStorage.setItem(sessionCacheKey, "true");
-            console.log(
-              "Mise à jour du cache des devises (première requête de la session)",
-            );
           }
         }
 
@@ -689,14 +613,7 @@ export function validateAndUpdateCurrency(
               );
 
               if (percentChange > 1) {
-                console.log(
-                  `Taux de change modifié de ${percentChange.toFixed(2)}%, notification aux composants`,
-                );
                 triggerCurrencyChangeEvent(currentCurrency);
-              } else {
-                console.log(
-                  `Variation du taux négligeable (${percentChange.toFixed(2)}%), pas de notification`,
-                );
               }
             } else {
               // Premier chargement, notification
@@ -707,13 +624,7 @@ export function validateAndUpdateCurrency(
               "vynal_currency_previous_rate",
               currencyInfo.rate_to_xof.toString(),
             );
-          } else {
-            console.log(
-              "Le taux n'a pas changé, pas de notification aux composants",
-            );
           }
-
-          console.log("Taux de change mis à jour avec succès:", currencyInfo);
 
           // Marquer que la mise à jour est terminée
           if (typeof window !== "undefined") {
@@ -869,16 +780,8 @@ export function convertCurrency(
   formatString: boolean = false,
 ): number | string {
   try {
-    // Log détaillé pour le débogage
-    console.log(
-      `convertCurrency - Entrée: montant=${amount}, deSource=${fromCurrency}, devCible=${toCurrency}`,
-    );
-
     // Si les devises sont identiques, pas besoin de conversion
     if (fromCurrency.toUpperCase() === toCurrency.toUpperCase()) {
-      console.log(
-        `Pas de conversion nécessaire, devises identiques: ${fromCurrency}`,
-      );
       if (formatString) {
         return new Intl.NumberFormat("fr-FR", {
           style: "currency",
@@ -926,15 +829,11 @@ export function convertCurrency(
     if (sourceCurrency === "XOF") {
       // Si c'est déjà en XOF, aucune conversion nécessaire
       amountInXof = amount;
-      console.log(`Étape 1: Déjà en XOF, montant = ${amountInXof} XOF`);
     } else {
       // Si le taux est défini comme 1 XOF = X DeviseSource, alors:
       // montantXOF = montantDeviseSource / taux
       const rateSourceToXof = CURRENCY.rates[sourceCurrency];
       amountInXof = amount / rateSourceToXof;
-      console.log(
-        `Étape 1: ${amount} ${sourceCurrency} = ${amountInXof} XOF (taux: 1 XOF = ${rateSourceToXof} ${sourceCurrency})`,
-      );
     }
 
     // Étape 2: Convertir le montant XOF en devise cible
@@ -943,26 +842,17 @@ export function convertCurrency(
     if (targetCurrency === "XOF") {
       // Si la cible est XOF, pas besoin de conversion
       result = amountInXof;
-      console.log(`Étape 2: Cible est XOF, résultat = ${result} XOF`);
     } else {
       // Si le taux est défini comme 1 XOF = X DeviseCible, alors:
       // montantCible = montantXOF * taux
       const rateXofToTarget = CURRENCY.rates[targetCurrency];
       result = amountInXof * rateXofToTarget;
-      console.log(
-        `Étape 2: ${amountInXof} XOF = ${result} ${targetCurrency} (taux: 1 XOF = ${rateXofToTarget} ${targetCurrency})`,
-      );
     }
 
     // Arrondir selon la devise
     const decimals =
       targetCurrency === "XOF" || targetCurrency === "XAF" ? 0 : 2;
     const roundedResult = Number(result.toFixed(decimals));
-
-    // Log pour le débogage
-    console.log(
-      `Résultat final: ${amount} ${sourceCurrency} → ${roundedResult} ${targetCurrency}`,
-    );
 
     if (formatString) {
       return new Intl.NumberFormat("fr-FR", {

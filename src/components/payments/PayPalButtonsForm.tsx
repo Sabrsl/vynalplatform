@@ -53,9 +53,6 @@ export function PayPalButtonsForm({
 
     // Si le montant est anormalement élevé pour un service
     if (value > range.max) {
-      console.warn(
-        `Montant anormalement élevé détecté: ${value} ${currencyCode}. Normalisation appliquée.`,
-      );
       // Si c'est en FCFA et que le montant est beaucoup trop grand, diviser par 1000
       if (currencyCode === "XOF" && value > 1000000) {
         return value / 1000;
@@ -74,9 +71,6 @@ export function PayPalButtonsForm({
 
   // Calculer le montant en EUR depuis XOF (supposant que tous les prix sont stockés en XOF)
   const amountInEUR = convertToEur(normalizedAmount, "XOF", false) as number;
-  console.log(
-    `[DEBUG CONVERSION] PayPalButtonsForm - Conversion en EUR: ${normalizedAmount} XOF → ${amountInEUR} EUR`,
-  );
 
   // Si l'utilisateur voit les prix en XOF, c'est sa devise locale
   // Sinon, on convertit le prix original pour l'affichage dans sa devise
@@ -92,16 +86,6 @@ export function PayPalButtonsForm({
             false,
           ) as number);
 
-  // Ajouter de la journalisation pour diagnostiquer le problème
-  console.log("[DEBUG CONVERSION] PayPalButtonsForm - Montants:", {
-    montantOriginalXOF: amount,
-    montantNormaliseXOF: normalizedAmount,
-    deviseUtilisateur: userCurrency.code,
-    montantEnDeviseUtilisateur: amountInUserCurrency,
-    montantEnEuros: amountInEUR,
-    estDejaEnEuros: userCurrency.code === "EUR",
-  });
-
   // Utilisation du hook PayPal avec le montant converti en EUR
   const { isLoaded, initializePayPalButtons } = usePayPalButtons({
     // Important: On transmet le montant déjà converti en EUR à PayPal
@@ -109,7 +93,6 @@ export function PayPalButtonsForm({
     currency: "EUR", // Toujours forcer EUR pour PayPal
     onSuccess: (data) => {
       setError(null);
-      console.log("PayPal transaction réussie:", data);
       onSuccess({
         ...data,
         provider: "paypal",
@@ -123,7 +106,6 @@ export function PayPalButtonsForm({
       });
     },
     onError: (error) => {
-      console.error("Erreur lors du traitement PayPal:", error);
       setError(error.message || "Erreur lors du traitement du paiement");
       onError(error);
     },

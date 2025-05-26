@@ -110,19 +110,8 @@ export async function createPaymentIntent(params: {
   // Nous devons nous assurer qu'il est correctement formaté
   let finalAmount = Math.round(params.amount);
 
-  // Journaliser pour le débogage
-  console.log(
-    `[DEBUG CONVERSION] Stripe createPaymentIntent - Montant reçu: ${finalAmount} centimes d'euro (${finalAmount / 100} EUR)`,
-  );
-
   // Si c'est en euros, vérifier si le montant semble anormalement élevé (pourrait être en XOF par erreur)
   if (params.currency.toLowerCase() === "eur" && finalAmount > 1000000) {
-    console.warn(
-      `[DEBUG CONVERSION] Montant EUR anormalement élevé détecté: ${finalAmount} centimes (${finalAmount / 100} EUR). Vérification nécessaire.`,
-    );
-
-    // On peut normaliser ici, mais pour la sécurité, mieux vaut laisser la requête échouer
-    // et forcer une vérification manuelle d'un montant aussi élevé
     throw new Error(
       "Montant anormalement élevé détecté. Veuillez vérifier le montant de votre paiement.",
     );
@@ -147,9 +136,6 @@ export async function createPaymentIntent(params: {
         finalAmount / 100,
         params.currency,
       );
-      console.log(
-        `[DEBUG CONVERSION] Stripe Server: Montant normalisé: ${finalAmount / 100} ${params.currency} → ${normalizedAmount} ${params.currency} (unités)`,
-      );
 
       // Convertir vers EUR
       const eurAmount = convertToEur(
@@ -157,38 +143,17 @@ export async function createPaymentIntent(params: {
         params.currency,
         false,
       ) as number;
-      console.log(
-        `[DEBUG CONVERSION] Stripe Server: Montant converti en EUR: ${normalizedAmount} ${params.currency} → ${eurAmount} EUR (unités)`,
-      );
 
       // Convertir en centimes pour Stripe
       finalAmount = Math.round(eurAmount * 100);
-      console.log(
-        `[DEBUG CONVERSION] Stripe Server: Montant final pour Stripe: ${eurAmount} EUR → ${finalAmount} centimes d'euro`,
-      );
 
       // Forcer la devise en EUR
       params.currency = "eur";
     } catch (error: any) {
-      console.error(
-        "[DEBUG CONVERSION] Erreur lors de la conversion du montant pour Stripe:",
-        error,
-      );
       // En cas d'erreur, lever une exception plutôt que de continuer avec un montant potentiellement incorrect
       throw new Error(`Erreur de conversion: ${error.message}`);
     }
   }
-
-  console.log(
-    `[DEBUG CONVERSION] Stripe Server: Création du PaymentIntent avec montant final: ${finalAmount} centimes (${finalAmount / 100} EUR)`,
-  );
-
-  // Vérifier que le montant n'est pas modifié par la fonction Stripe
-  console.log(`[DEBUG CONVERSION] VÉRIFICATION FINALE STRIPE:
-  - Montant à envoyer: ${finalAmount} centimes
-  - Devise: ${params.currency.toLowerCase()}
-  - Métadonnées: ${JSON.stringify(params.metadata)}
-  `);
 
   return stripe.paymentIntents.create({
     amount: finalAmount, // Montant en centimes d'euro

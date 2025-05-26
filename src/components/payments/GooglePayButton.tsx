@@ -46,27 +46,36 @@ function GooglePayButtonInternal({
     // Si Stripe n'est pas disponible, ne rien faire
     if (!stripe || !elements || !clientSecret) return;
 
+    // Convertir le montant XOF en EUR en utilisant le taux de conversion défini dans le projet
+    // Tous les prix sont stockés en XOF dans la base de données
+    const {
+      convertToEur,
+      normalizeAmount,
+    } = require("@/lib/utils/currency-updater");
+
+    // 1. Normaliser le montant XOF (permet de détecter et corriger les montants anormaux)
+    const normalizedXofAmount = normalizeAmount(amount, "XOF");
+
+    // 2. Convertir le montant XOF en EUR
+    const amountInEuros = convertToEur(
+      normalizedXofAmount,
+      "XOF",
+      false,
+    ) as number;
+
+    // 3. Convertir en centimes pour Stripe
+    const amountInEuroCents = Math.round(amountInEuros * 100);
+
     const pr = stripe.paymentRequest({
       country: "FR",
-      currency: currency.toLowerCase(),
+      currency: "eur", // Forcer EUR pour les paiements Stripe
       total: {
         label: "Paiement Vynal",
-        amount: amount, // Le montant est déjà en centimes d'euro
+        amount: amountInEuroCents, // Montant en centimes d'euro
       },
       requestPayerName: true,
       requestPayerEmail: true,
     });
-
-    // Ajouter des logs détaillés pour le débogage
-    console.log(
-      `[DEBUG PAYMENT] GooglePay - Montant original: ${amount} centimes d'euro`,
-    );
-    console.log(
-      `[DEBUG PAYMENT] GooglePay - Montant envoyé à l'interface de paiement: ${Math.round(amount)} centimes d'euro`,
-    );
-    console.log(
-      `[DEBUG PAYMENT] GooglePay - Devise utilisée: ${currency.toLowerCase()}`,
-    );
 
     // Vérifier si l'appareil supporte Google Pay
     pr.canMakePayment().then((result) => {
@@ -197,7 +206,6 @@ export function GooglePayButton(props: GooglePayButtonProps) {
 
   // Si le clientSecret n'est pas valide, ne rien afficher
   if (!isValidClientSecret(props.clientSecret)) {
-    console.log("GooglePayButton: clientSecret invalide", props.clientSecret);
     return null;
   }
 
@@ -242,27 +250,36 @@ function InternalGooglePayButton({
     // Si Stripe n'est pas disponible, ne rien faire
     if (!stripe || !elements || !clientSecret) return;
 
+    // Convertir le montant XOF en EUR en utilisant le taux de conversion défini dans le projet
+    // Tous les prix sont stockés en XOF dans la base de données
+    const {
+      convertToEur,
+      normalizeAmount,
+    } = require("@/lib/utils/currency-updater");
+
+    // 1. Normaliser le montant XOF (permet de détecter et corriger les montants anormaux)
+    const normalizedXofAmount = normalizeAmount(props.amount, "XOF");
+
+    // 2. Convertir le montant XOF en EUR
+    const amountInEuros = convertToEur(
+      normalizedXofAmount,
+      "XOF",
+      false,
+    ) as number;
+
+    // 3. Convertir en centimes pour Stripe
+    const amountInEuroCents = Math.round(amountInEuros * 100);
+
     const pr = stripe.paymentRequest({
       country: "FR",
       currency: props.currency?.toLowerCase() || "eur",
       total: {
         label: "Paiement Vynal",
-        amount: props.amount, // Le montant est déjà en centimes d'euro
+        amount: amountInEuroCents, // Montant en centimes d'euro
       },
       requestPayerName: true,
       requestPayerEmail: true,
     });
-
-    // Ajouter des logs détaillés pour le débogage
-    console.log(
-      `[DEBUG PAYMENT] GooglePay - Montant original: ${props.amount} centimes d'euro`,
-    );
-    console.log(
-      `[DEBUG PAYMENT] GooglePay - Montant envoyé à l'interface de paiement: ${Math.round(props.amount)} centimes d'euro`,
-    );
-    console.log(
-      `[DEBUG PAYMENT] GooglePay - Devise utilisée: ${props.currency?.toLowerCase() || "eur"}`,
-    );
 
     // Vérifier si l'appareil supporte Google Pay
     pr.canMakePayment().then((result) => {
@@ -387,25 +404,36 @@ function ElementsContextProvider({
     // Si Stripe n'est pas disponible, ne rien faire
     if (!stripe || !elements || !clientSecret) return;
 
+    // Convertir le montant XOF en EUR en utilisant le taux de conversion défini dans le projet
+    // Tous les prix sont stockés en XOF dans la base de données
+    const {
+      convertToEur,
+      normalizeAmount,
+    } = require("@/lib/utils/currency-updater");
+
+    // 1. Normaliser le montant XOF (permet de détecter et corriger les montants anormaux)
+    const normalizedXofAmount = normalizeAmount(100, "XOF");
+
+    // 2. Convertir le montant XOF en EUR
+    const amountInEuros = convertToEur(
+      normalizedXofAmount,
+      "XOF",
+      false,
+    ) as number;
+
+    // 3. Convertir en centimes pour Stripe
+    const amountInEuroCents = Math.round(amountInEuros * 100);
+
     const pr = stripe.paymentRequest({
       country: "FR",
       currency: "eur",
       total: {
         label: "Paiement Vynal",
-        amount: 100, // On utilise un montant de test minimal pour vérifier la disponibilité
+        amount: amountInEuroCents, // Montant en centimes d'euro
       },
       requestPayerName: true,
       requestPayerEmail: true,
     });
-
-    // Ajouter des logs détaillés pour le débogage
-    console.log(
-      `[DEBUG PAYMENT] GooglePay - Montant original: ${100} centimes d'euro`,
-    );
-    console.log(
-      `[DEBUG PAYMENT] GooglePay - Montant envoyé à l'interface de paiement: ${Math.round(100)} centimes d'euro`,
-    );
-    console.log(`[DEBUG PAYMENT] GooglePay - Devise utilisée: ${"eur"}`);
 
     // Vérifier si l'appareil supporte Google Pay
     pr.canMakePayment().then((result) => {

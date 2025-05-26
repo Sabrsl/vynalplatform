@@ -24,11 +24,6 @@ export async function POST(req: NextRequest) {
     // Récupération et validation du corps de la requête
     const body = await req.json();
 
-    console.log(
-      "API payment-intent - Corps de la requête:",
-      JSON.stringify(body),
-    );
-
     // Validation des données requises
     if (!body.amount || !body.serviceId) {
       return NextResponse.json(
@@ -104,7 +99,6 @@ export async function POST(req: NextRequest) {
           throw new Error("Service non trouvé ou inaccessible");
         }
       } catch (error) {
-        console.error("Erreur lors de la récupération du freelanceId:", error);
         return NextResponse.json(
           { error: "Service invalide ou inaccessible" },
           { status: 400 },
@@ -158,10 +152,6 @@ export async function POST(req: NextRequest) {
         .single();
 
       if (existingOrderError && existingOrderError.code !== "PGRST116") {
-        console.error(
-          "Erreur lors de la vérification des commandes existantes:",
-          existingOrderError,
-        );
         throw new Error(
           "Erreur lors de la vérification des commandes existantes",
         );
@@ -182,21 +172,12 @@ export async function POST(req: NextRequest) {
             requirements: metadata.requirements || "",
             delivery_time: metadata.deliveryTime || 7,
             order_number: orderNumber,
-            price: parseFloat(amount) / 100, // Convertir les centimes en unités pour le stockage
+            price: parseFloat(amount), // Montant directement en XOF (pas de division par 100)
           })
           .select("id")
           .single();
 
         if (orderError) {
-          console.error(
-            "Erreur détaillée lors de la création de la commande:",
-            {
-              error: orderError,
-              code: orderError.code,
-              details: orderError.details,
-              message: orderError.message,
-            },
-          );
           throw new Error("Erreur lors de la création de la commande");
         }
 
@@ -228,19 +209,16 @@ export async function POST(req: NextRequest) {
       }
 
       // CORRECTION: Tous les prix dans la base de données sont en XOF
-      // Le montant original est en centimes (100 = 1€), donc on le convertit en unités monétaires
-      const originalAmountInUnits = parseFloat(amount) / 100;
-      console.log(
-        `[DEBUG CONVERSION] Montant original: ${amount} centimes = ${originalAmountInUnits} XOF (unités)`,
-      );
+      // Le montant reçu est déjà en unités XOF (pas de centimes pour XOF)
+      const originalAmountInUnits = parseFloat(amount); // PAS de division par 100 car XOF n'a pas de centimes
 
-      // CORRECTION CRITIQUE: Le montant reçu est en centimes de XOF, pas en centimes d'EUR
-      // Nous devons d'abord convertir les centimes de XOF en unités XOF, puis convertir en EUR
+      // CORRECTION CRITIQUE: Le montant reçu est directement en XOF
+      // Nous devons convertir directement XOF vers EUR
 
       // Vérifier et normaliser le montant XOF si nécessaire
       const normalizedXofAmount = normalizeAmount(originalAmountInUnits, "XOF");
 
-      // Convertir directement le montant XOF en EUR sans normalisation supplémentaire
+      // Convertir directement le montant XOF en EUR
       // en utilisant les taux définis dans le projet
       let amountInEuros = 0;
       try {
@@ -249,15 +227,9 @@ export async function POST(req: NextRequest) {
           "XOF",
           false,
         ) as number;
-        console.log(
-          `[DEBUG CONVERSION] Conversion pour paiement Stripe: ${normalizedXofAmount} XOF → ${amountInEuros} EUR (utilisant les taux définis)`,
-        );
 
         // Vérification de sécurité supplémentaire sur le montant converti
         if (amountInEuros > 10000) {
-          console.error(
-            `[DEBUG CONVERSION] Montant EUR converti anormalement élevé: ${amountInEuros} EUR`,
-          );
           return NextResponse.json(
             {
               error:
@@ -267,10 +239,6 @@ export async function POST(req: NextRequest) {
           );
         }
       } catch (conversionError: any) {
-        console.error(
-          "[DEBUG CONVERSION] Erreur lors de la conversion du montant:",
-          conversionError,
-        );
         return NextResponse.json(
           {
             error: `Erreur de conversion: ${conversionError.message || "Impossible de convertir le montant en EUR"}`,
@@ -281,17 +249,6 @@ export async function POST(req: NextRequest) {
 
       // Convertir en centimes pour Stripe (qui attend les montants en centimes)
       const amountInEuroCents = Math.round(amountInEuros * 100);
-      console.log(
-        `[DEBUG CONVERSION] Montant final pour Stripe: ${amountInEuros} EUR → ${amountInEuroCents} centimes d'euro`,
-      );
-
-      // Ajouter des logs détaillés pour vérifier le flux complet
-      console.log(`[DEBUG CONVERSION] FLUX COMPLET STRIPE:
-      1. Montant original de la base: ${amount} centimes XOF (${originalAmountInUnits} XOF unités)
-      2. Montant XOF normalisé si nécessaire: ${normalizedXofAmount} XOF
-      3. Conversion XOF → EUR: ${normalizedXofAmount} XOF → ${amountInEuros} EUR 
-      4. Conversion EUR → cents: ${amountInEuros} EUR → ${amountInEuroCents} centimes
-      5. MONTANT FINAL envoyé à Stripe: ${amountInEuroCents} centimes d'euro`);
 
       // Création du PaymentIntent via l'API Stripe - toujours en euros
       const paymentIntent = await createPaymentIntent({
@@ -329,10 +286,7 @@ export async function POST(req: NextRequest) {
           .single();
 
       if (existingPaymentError && existingPaymentError.code !== "PGRST116") {
-        console.error(
-          "Erreur lors de la vérification des paiements existants:",
-          existingPaymentError,
-        );
+        // Ignore l'erreur si aucun paiement n'existe
       }
 
       // Insérer l'entrée dans la table payments seulement si elle n'existe pas déjà
@@ -341,22 +295,13 @@ export async function POST(req: NextRequest) {
           order_id: orderId,
           client_id: userId,
           freelance_id: freelanceIdentifier,
-          amount: parseFloat(amount) / 100, // Convertir les centimes en unités pour le stockage
+          amount: parseFloat(amount), // Montant directement en XOF (pas de division par 100)
           status: "pending",
           payment_method: "stripe",
           payment_intent_id: paymentIntent.id,
         });
 
         if (dbError) {
-          console.error(
-            "Erreur détaillée lors de l'enregistrement du paiement:",
-            {
-              error: dbError,
-              code: dbError.code,
-              details: dbError.details,
-              message: dbError.message,
-            },
-          );
           throw new Error("Erreur lors de l'enregistrement du paiement");
         }
       }
@@ -368,16 +313,12 @@ export async function POST(req: NextRequest) {
         orderId,
       });
     } catch (error: any) {
-      console.error("Erreur lors de la création du PaymentIntent:", error);
-
       return NextResponse.json(
         { error: error.message || "Erreur lors de la création du paiement" },
         { status: 500 },
       );
     }
   } catch (error: any) {
-    console.error("Exception non gérée:", error);
-
     return NextResponse.json(
       { error: "Une erreur inattendue est survenue" },
       { status: 500 },
