@@ -6,6 +6,7 @@ import { AlertTriangle } from "lucide-react";
 
 /**
  * Variables locales pour la détection du bloqueur de publicités
+ * Test du hook pre-commit
  */
 let adBlockerDetected = false;
 
@@ -15,37 +16,40 @@ let adBlockerDetected = false;
  * l'échec du chargement d'un script Stripe qui est souvent bloqué
  */
 const checkForAdBlocker = async (): Promise<boolean> => {
-  if (typeof window === 'undefined') return false;
-  
+  if (typeof window === "undefined") return false;
+
   try {
     // Tente de charger un script Stripe connu pour être bloqué par les bloqueurs de publicités
-    const testScript = document.createElement('script');
-    testScript.src = 'https://m.stripe.network/out-4.5.44.js';
+    const testScript = document.createElement("script");
+    testScript.src = "https://m.stripe.network/out-4.5.44.js";
     testScript.async = true;
-    
+
     const result = await new Promise<boolean>((resolve) => {
       testScript.onerror = () => {
         // Le script a été bloqué
         document.body.removeChild(testScript);
         resolve(true);
       };
-      
+
       testScript.onload = () => {
         // Le script a chargé correctement
         document.body.removeChild(testScript);
         resolve(false);
       };
-      
+
       document.body.appendChild(testScript);
-      
+
       // Si après 2 secondes, rien ne s'est passé, on suppose qu'il y a un bloqueur
       setTimeout(() => resolve(true), 2000);
     });
-    
+
     adBlockerDetected = result;
     return result;
   } catch (error) {
-    console.warn('Erreur lors de la détection du bloqueur de publicités', error);
+    console.warn(
+      "Erreur lors de la détection du bloqueur de publicités",
+      error,
+    );
     return false;
   }
 };
@@ -77,10 +81,13 @@ export function AdBlockerWarning() {
       setAdBlockerDetected(true);
     };
 
-    window.addEventListener('stripeAdBlockerDetected', handleAdBlockerDetected);
+    window.addEventListener("stripeAdBlockerDetected", handleAdBlockerDetected);
 
     return () => {
-      window.removeEventListener('stripeAdBlockerDetected', handleAdBlockerDetected);
+      window.removeEventListener(
+        "stripeAdBlockerDetected",
+        handleAdBlockerDetected,
+      );
     };
   }, []);
 
@@ -95,8 +102,9 @@ export function AdBlockerWarning() {
         Bloqueur de publicités détecté
       </AlertTitle>
       <AlertDescription className="text-xs text-slate-600 dark:text-vynal-text-secondary">
-        Si vous rencontrez des difficultés avec le paiement, cela peut être lié à votre bloqueur de publicités.
-        Désactivez-le temporairement pour cette page si besoin.
+        Si vous rencontrez des difficultés avec le paiement, cela peut être lié
+        à votre bloqueur de publicités. Désactivez-le temporairement pour cette
+        page si besoin.
       </AlertDescription>
     </Alert>
   );
