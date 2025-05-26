@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import { Button } from "@/components/ui/button";
 import { Lock } from "lucide-react";
@@ -47,7 +47,7 @@ export function StripeCardForm({
     if (loading) {
       return (
         <div className="space-y-4">
-          <div className="p-3 border rounded-md bg-slate-50 dark:bg-vynal-purple-dark/20">
+          <div className="p-4 border-2 border-slate-300 dark:border-vynal-purple-secondary/40 rounded-lg bg-white dark:bg-vynal-purple-dark/20 shadow-sm">
             <div className="flex items-center justify-center py-2">
               <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-t-transparent" />
               <span className="text-sm text-slate-600 dark:text-vynal-text-secondary">
@@ -120,6 +120,31 @@ function StripeCardFormContent({
   const elements = useElements();
   const [cardError, setCardError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
+
+  // Détecter le mode dark avec un état React stable
+  useEffect(() => {
+    const checkDarkMode = () => {
+      if (typeof window !== "undefined") {
+        const isDark = document.documentElement.classList.contains("dark");
+        setIsDarkMode(isDark);
+      }
+    };
+
+    // Vérifier initialement (après un court délai pour s'assurer que le DOM est prêt)
+    setTimeout(checkDarkMode, 100);
+
+    // Observer les changements de classe sur le document
+    const observer = new MutationObserver(checkDarkMode);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
 
   // CORRECTION: Considérer que le montant est en XOF (devise de la base de données)
   // et s'assurer que la conversion est correcte pour Stripe
@@ -162,21 +187,22 @@ function StripeCardFormContent({
     maximumFractionDigits: 2,
   }).format(amountInEur);
 
-  // Options de style pour le formulaire de carte
+  // Options de style pour le formulaire de carte - dynamiques selon le thème
   const cardElementOptions = {
     style: {
       base: {
-        color: "#32325d",
+        color: isDarkMode ? "#f1f5f9" : "#1e293b",
         fontFamily: '"Helvetica Neue", Helvetica, sans-serif',
         fontSmoothing: "antialiased",
-        fontSize: "16px",
+        fontSize: "14px",
+        backgroundColor: "transparent",
         "::placeholder": {
-          color: "#aab7c4",
+          color: isDarkMode ? "#94a3b8" : "#64748b",
         },
       },
       invalid: {
-        color: "#fa755a",
-        iconColor: "#fa755a",
+        color: isDarkMode ? "#f87171" : "#dc2626",
+        iconColor: isDarkMode ? "#f87171" : "#dc2626",
       },
     },
   };
@@ -264,12 +290,19 @@ function StripeCardFormContent({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form
+      onSubmit={handleSubmit}
+      className="space-y-5"
+      id="stripe-payment-form"
+    >
       {/* Notification sur la devise utilisée pour le paiement */}
       <PaymentCurrencyNotice amount={amount} compact useFixedAmount={false} />
 
-      <div className="p-3 border rounded-md bg-slate-50 dark:bg-vynal-purple-dark/20">
-        <CardElement options={cardElementOptions} className="py-2" />
+      <div className="p-3 border-2 border-slate-300 dark:border-vynal-purple-secondary/40 rounded-lg bg-white dark:bg-vynal-purple-dark/20 shadow-sm">
+        <h3 className="text-base font-medium mb-2 text-slate-800 dark:text-slate-200">
+          Carte bancaire
+        </h3>
+        <CardElement options={cardElementOptions} className="py-1" />
       </div>
 
       {cardError && (
@@ -277,7 +310,7 @@ function StripeCardFormContent({
       )}
 
       <div>
-        <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+        <p className="text-xs sm:text-sm text-slate-600 dark:text-vynal-text-secondary mb-2 text-center">
           Paiement sécurisé - Données bancaires non stockées
         </p>
       </div>
@@ -304,7 +337,7 @@ function StripeCardFormContent({
                 // Affichage pour les autres devises avec conversion
                 <>
                   {buttonText} {formattedEuroAmount}
-                  <span className="ml-1 text-xs text-gray-500">
+                  <span className="ml-1 text-xs text-slate-500 dark:text-slate-400">
                     ({formattedUserCurrencyAmount})
                   </span>
                 </>

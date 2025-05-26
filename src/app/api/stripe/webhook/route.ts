@@ -167,10 +167,11 @@ async function handlePaymentIntentSucceeded(paymentIntent: any) {
       .eq("payment_intent_id", paymentIntent.id)
       .single();
 
+    let orderId = existingPayment?.order_id || existingOrderId;
+    let orderNumber = "";
+
     // Si le paiement existe, mettre à jour son statut et la commande associée
     if (existingPayment) {
-      const orderId = existingPayment.order_id || existingOrderId;
-
       if (existingPayment.status !== "paid") {
         // Mettre à jour le statut du paiement avec informations supplémentaires
         await supabase
@@ -194,21 +195,25 @@ async function handlePaymentIntentSucceeded(paymentIntent: any) {
 
         // Mettre à jour le statut de la commande si elle existe
         if (orderId) {
-          await supabase
+          const { data: orderData } = await supabase
             .from("orders")
             .update({ status: "paid" })
-            .eq("id", orderId);
+            .eq("id", orderId)
+            .select("order_number")
+            .single();
+
+          if (orderData) {
+            orderNumber = orderData.order_number;
+          }
         }
       }
     } else {
       // Le paiement n'existe pas encore, vérifier si la commande existe
-      let orderId = existingOrderId;
-
       if (!orderId) {
         // Rechercher une commande existante pour ce client et ce service
         const { data: existingOrder } = await supabase
           .from("orders")
-          .select("id")
+          .select("id, order_number")
           .eq("client_id", clientId)
           .eq("service_id", serviceId)
           .eq("freelance_id", freelanceId)
@@ -218,9 +223,10 @@ async function handlePaymentIntentSucceeded(paymentIntent: any) {
 
         if (existingOrder) {
           orderId = existingOrder.id;
+          orderNumber = existingOrder.order_number;
         } else {
           // Créer une nouvelle commande si nécessaire
-          const orderNumber = generateOrderNumber();
+          orderNumber = generateOrderNumber();
           const { data: newOrder, error: orderError } = await supabase
             .from("orders")
             .insert({
@@ -243,6 +249,17 @@ async function handlePaymentIntentSucceeded(paymentIntent: any) {
           }
 
           orderId = newOrder?.id;
+        }
+      } else {
+        // Récupérer le numéro de commande si l'ID de commande existe déjà
+        const { data: orderData } = await supabase
+          .from("orders")
+          .select("order_number")
+          .eq("id", orderId)
+          .single();
+
+        if (orderData) {
+          orderNumber = orderData.order_number;
         }
       }
 
@@ -282,6 +299,16 @@ async function handlePaymentIntentSucceeded(paymentIntent: any) {
           serviceId,
           orderId,
           amount,
+        );
+
+        // Créer également une transaction côté client
+        await createClientTransaction(
+          clientId,
+          freelanceId,
+          serviceId,
+          orderId,
+          amount,
+          orderNumber,
         );
       }
     }
@@ -429,5 +456,101 @@ async function createTransaction(
     }
   } catch (error) {
     console.error("Erreur lors de la création de la transaction:", error);
+  }
+}
+
+/**
+ * Crée une transaction dans le wallet du client pour un paiement
+ */
+async function createClientTransaction(
+  clientId: string,
+  freelanceId: string,
+  serviceId: string,
+  orderId: string,
+  amount: number,
+  orderNumber: string,
+) {
+  try {
+    // Récupérer le wallet du client
+    const { data: walletData, error: walletError } = await supabase
+      .from("wallets")
+      .select("id, balance")
+      .eq("user_id", clientId)
+      .single();
+
+    if (walletError) {
+      // Si le wallet n'existe pas, le créer
+      if (walletError.code === "PGRST116") {
+        const { data: newWallet, error: createWalletError } = await supabase
+          .from("wallets")
+          .insert({
+            user_id: clientId,
+            balance: 0,
+            pending_balance: 0,
+            total_earnings: 0,
+          })
+          .select("id")
+          .single();
+
+        if (createWalletError) {
+          throw createWalletError;
+        }
+
+        // Créer la transaction pour le client (montant négatif pour indiquer un paiement)
+        await supabase.from("transactions").insert({
+          wallet_id: newWallet?.id,
+          amount: -amount, // Montant négatif pour indiquer un paiement
+          type: "payment",
+          status: "completed",
+          description: `Paiement pour la commande ${orderNumber || orderId}`,
+          reference_id: orderId,
+          client_id: clientId,
+          freelance_id: freelanceId,
+          service_id: serviceId,
+          order_id: orderId,
+          currency: "XOF",
+          currency_symbol: "FCFA",
+          completed_at: new Date().toISOString(),
+        });
+      } else {
+        throw walletError;
+      }
+    } else if (walletData) {
+      // Créer la transaction pour le client (montant négatif pour indiquer un paiement)
+      await supabase.from("transactions").insert({
+        wallet_id: walletData.id,
+        amount: -amount, // Montant négatif pour indiquer un paiement
+        type: "payment",
+        status: "completed",
+        description: `Paiement pour la commande ${orderNumber || orderId}`,
+        reference_id: orderId,
+        client_id: clientId,
+        freelance_id: freelanceId,
+        service_id: serviceId,
+        order_id: orderId,
+        currency: "XOF",
+        currency_symbol: "FCFA",
+        completed_at: new Date().toISOString(),
+      });
+
+      // Mettre à jour le solde du wallet du client
+      const newClientBalance = Math.max(
+        0,
+        Number(walletData.balance || 0) - amount,
+      );
+
+      await supabase
+        .from("wallets")
+        .update({
+          balance: newClientBalance,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", walletData.id);
+    }
+  } catch (error) {
+    console.error(
+      "Erreur lors de la création de la transaction client:",
+      error,
+    );
   }
 }

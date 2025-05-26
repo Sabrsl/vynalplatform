@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AlertTriangle, Info } from "lucide-react";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import {
   validatePaymentCurrency,
   convertToEur,
@@ -73,35 +74,40 @@ export function PaymentCurrencyNotice({
   // Si la devise de l'utilisateur est en EUR, pas besoin d'afficher la conversion
   if (currency.code === "EUR") {
     return (
-      <div
+      <Alert
         className={cn(
-          `text-xs text-blue-700 ${compact ? "p-0 bg-transparent border-0" : "p-2 bg-blue-50 border border-blue-200 rounded-md"}`,
+          "mb-4 text-[10px] bg-amber-200 dark:bg-amber-950/20 border-amber-400 dark:border-amber-800/20 backdrop-blur-sm",
           className,
         )}
       >
-        <p className="font-semibold">Paiement en euros</p>
-        <p>Le montant facturé sera de {formattedEuroAmount}.</p>
-      </div>
+        <Info className="h-3 w-3 text-amber-700 dark:text-vynal-text-secondary" />
+        <AlertTitle className="text-[10px] font-medium text-amber-900 dark:text-vynal-text-primary">
+          Paiement en euros
+        </AlertTitle>
+        <AlertDescription className="text-[10px] text-amber-800 dark:text-vynal-text-secondary">
+          Le montant facturé sera de {formattedEuroAmount}.
+        </AlertDescription>
+      </Alert>
     );
   }
 
   // Pour les utilisateurs avec une autre devise, montrer l'information de conversion
   return (
-    <div
+    <Alert
       className={cn(
-        `text-xs text-blue-700 ${compact ? "p-0 bg-transparent border-0" : "p-2 bg-blue-50 border border-blue-200 rounded-md"}`,
+        "mb-4 text-[10px] bg-amber-200 dark:bg-amber-950/20 border-amber-400 dark:border-amber-800/20 backdrop-blur-sm",
         className,
       )}
     >
-      <p className="font-semibold">Information importante</p>
-      <p>
+      <Info className="h-3 w-3 text-amber-700 dark:text-vynal-text-secondary" />
+      <AlertTitle className="text-[10px] font-medium text-amber-900 dark:text-vynal-text-primary">
+        Information importante
+      </AlertTitle>
+      <AlertDescription className="text-[10px] text-amber-800 dark:text-vynal-text-secondary">
         Bien que vous voyiez les prix en {formattedUserCurrencyAmount}, le
-        paiement sera traité en {formattedEuroAmount} (EUR).
-      </p>
-      <p>
-        Cette conversion est nécessaire car nos services de paiement opèrent en
-        euros.
-      </p>
-    </div>
+        paiement sera traité en {formattedEuroAmount} (EUR). Cette conversion
+        est nécessaire car nos services de paiement opèrent en euros.
+      </AlertDescription>
+    </Alert>
   );
 }

@@ -37,6 +37,7 @@ src/app/admin/debug/temp/
 .env*.local
 .env
 .env.development
+.env.development.local
 .env.test
 .env.production
 

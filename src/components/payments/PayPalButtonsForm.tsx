@@ -149,14 +149,14 @@ export function PayPalButtonsForm({
   return (
     <div className="w-full flex flex-col gap-3">
       {/* Info - Note informative sur le paiement */}
-      <div className="mb-2 text-xs leading-relaxed text-slate-700">
+      <div className="mb-1 text-[11px] sm:text-xs leading-relaxed text-slate-800 dark:text-vynal-text-primary">
         Vous serez redirigé vers PayPal pour finaliser votre paiement en toute
         sécurité.
       </div>
 
       {/* Message de conversion de devise */}
       {userCurrency.code !== "EUR" ? (
-        <div className="p-2 bg-blue-50 border border-blue-200 rounded-md text-xs text-blue-700 mb-3">
+        <div className="p-2 bg-blue-50 border border-blue-200 rounded-md text-[11px] sm:text-xs text-blue-700 mb-1">
           <p>
             <strong>Information importante :</strong> Vous voyez le prix en{" "}
             {formattedUserCurrencyAmount}, mais le paiement sera traité en{" "}
@@ -168,7 +168,7 @@ export function PayPalButtonsForm({
           </p>
         </div>
       ) : (
-        <div className="p-2 bg-blue-50 border border-blue-200 rounded-md text-xs text-blue-700 mb-3">
+        <div className="p-2 bg-blue-50 border border-blue-200 rounded-md text-[11px] sm:text-xs text-blue-700 mb-1">
           <p>
             <strong>Information :</strong> Votre paiement sera traité en euros.
           </p>

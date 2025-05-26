@@ -19,19 +19,19 @@ export function PaymentMethodCard({
   description,
   logo,
   selected,
-  onSelect
+  onSelect,
 }: PaymentMethodCardProps) {
   return (
     <div
       onClick={() => onSelect(id)}
-      className={`cursor-pointer rounded-lg border p-3 transition-all ${
+      className={`cursor-pointer rounded-lg border transition-all ${
         selected
-          ? "bg-vynal-purple-600/10 dark:bg-vynal-purple-400/20 border-vynal-purple-600 dark:border-vynal-purple-400"
-          : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-vynal-purple-400 dark:hover:border-vynal-purple-500"
+          ? "bg-vynal-accent-primary/20 dark:bg-vynal-accent-primary/10 border-vynal-accent-primary/40 dark:border-vynal-accent-primary/20 hover:bg-vynal-accent-primary/25 dark:hover:bg-vynal-accent-primary/20 hover:border-vynal-accent-primary/50 dark:hover:border-vynal-accent-primary/40"
+          : "bg-white/70 dark:bg-slate-900/30 border-slate-300 dark:border-slate-700/30 hover:bg-slate-100 dark:hover:bg-slate-800/25"
       }`}
     >
-      <div className="flex items-center gap-3">
-        <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-md bg-white">
+      <div className="flex items-center gap-3 p-3">
+        <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-md bg-white/60 dark:bg-slate-800/40">
           <Image
             src={logo}
             alt={name}
@@ -43,26 +43,30 @@ export function PaymentMethodCard({
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between">
-            <h3 className={`font-medium truncate ${
-              selected 
-                ? "text-vynal-purple-700 dark:text-vynal-purple-300" 
-                : "text-gray-900 dark:text-gray-200"
-            }`}>
+            <h3
+              className={`font-medium truncate ${
+                selected
+                  ? "text-vynal-accent-primary dark:text-vynal-accent-primary"
+                  : "text-slate-800 dark:text-vynal-text-primary"
+              }`}
+            >
               {name}
             </h3>
             {selected && (
-              <CheckCircle2 className="h-5 w-5 text-vynal-purple-600 dark:text-vynal-purple-400" />
+              <CheckCircle2 className="h-5 w-5 text-vynal-accent-primary dark:text-vynal-accent-primary" />
             )}
           </div>
-          <p className={`text-xs line-clamp-2 ${
-            selected 
-              ? "text-vynal-purple-600/80 dark:text-vynal-purple-300/80" 
-              : "text-gray-500 dark:text-gray-400"
-          }`}>
+          <p
+            className={`text-xs line-clamp-2 ${
+              selected
+                ? "text-vynal-accent-primary/90 dark:text-vynal-accent-primary/80"
+                : "text-slate-700 dark:text-vynal-text-secondary"
+            }`}
+          >
             {description}
           </p>
         </div>
       </div>
     </div>
   );
-} 
+}

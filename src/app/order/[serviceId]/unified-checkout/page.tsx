@@ -11,6 +11,7 @@ import {
   CreditCard,
   Lock,
   CheckCircle,
+  FileCheck,
 } from "lucide-react";
 import { useOrderData } from "@/hooks/useOrderData";
 import { useStripePayment } from "@/hooks/useStripePayment";
@@ -57,6 +58,10 @@ export default function UnifiedCheckoutPage({
   const [showPaymentLoader, setShowPaymentLoader] = useState(false);
   const [paymentDuration, setPaymentDuration] = useState(15000); // 15 secondes pour le processus complet
 
+  // États pour la modale de description
+  const [showDescriptionModal, setShowDescriptionModal] = useState(false);
+  const [tempRequirements, setTempRequirements] = useState("");
+
   // Stripe payment state
   const {
     loading: stripeLoading,
@@ -92,6 +97,34 @@ export default function UnifiedCheckoutPage({
       setOrderData({ ...orderData, selectedPaymentMethod: undefined });
     }
   }, []);
+
+  // Initialiser automatiquement Stripe pour les boutons Apple Pay, Google Pay et Link
+  useEffect(() => {
+    if (service?.price && !paymentData?.clientSecret && !stripeLoading) {
+      // Initialiser le paiement Stripe automatiquement
+      (async () => {
+        try {
+          await createPaymentIntent({
+            amount: service.price,
+            serviceId: serviceId,
+            freelanceId: service?.profiles?.id,
+          });
+        } catch (error) {
+          console.error(
+            "Erreur lors de l'initialisation automatique de Stripe:",
+            error,
+          );
+        }
+      })();
+    }
+  }, [
+    service?.price,
+    paymentData?.clientSecret,
+    stripeLoading,
+    createPaymentIntent,
+    serviceId,
+    service?.profiles?.id,
+  ]);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -581,7 +614,7 @@ export default function UnifiedCheckoutPage({
   };
 
   // Ajout des gestionnaires d'événements pour PayPal
-  const handlePayPalPaymentSuccess = (paymentData: any) => {
+  const handlePayPalPaymentSuccess = async (paymentData: any) => {
     console.log("Paiement PayPal réussi:", paymentData);
 
     // Affichage de l'animation de chargement
@@ -689,6 +722,166 @@ export default function UnifiedCheckoutPage({
             // On continue quand même car le paiement a réussi
           }
 
+          // Créer des transactions pour le client et le freelance
+          try {
+            // 1. Récupérer/créer le wallet du client pour la transaction de paiement
+            const { data: clientWallet, error: clientWalletError } =
+              await supabase
+                .from("wallets")
+                .select("id, balance")
+                .eq("user_id", user.id)
+                .single();
+
+            if (clientWalletError && clientWalletError.code === "PGRST116") {
+              // Le wallet n'existe pas, le créer
+              const { data: newClientWallet, error: createClientWalletError } =
+                await supabase
+                  .from("wallets")
+                  .insert({
+                    user_id: user.id,
+                    balance: 0,
+                    pending_balance: 0,
+                    total_earnings: 0,
+                  })
+                  .select("id")
+                  .single();
+
+              if (!createClientWalletError && newClientWallet) {
+                // Créer une transaction de paiement pour le client
+                await supabase.from("transactions").insert({
+                  wallet_id: newClientWallet.id,
+                  amount: -originalAmount, // Montant négatif pour un paiement
+                  type: "payment",
+                  status: "completed",
+                  description: `Paiement PayPal pour service ${service?.title || serviceId}`,
+                  reference_id: order.id,
+                  client_id: user.id,
+                  freelance_id: service?.profiles?.id,
+                  service_id: serviceId,
+                  order_id: order.id,
+                  currency: "XOF",
+                  currency_symbol: "FCFA",
+                  completed_at: new Date().toISOString(),
+                });
+              }
+            } else if (clientWallet) {
+              // Créer une transaction de paiement pour le client
+              await supabase.from("transactions").insert({
+                wallet_id: clientWallet.id,
+                amount: -originalAmount, // Montant négatif pour un paiement
+                type: "payment",
+                status: "completed",
+                description: `Paiement PayPal pour service ${service?.title || serviceId}`,
+                reference_id: order.id,
+                client_id: user.id,
+                freelance_id: service?.profiles?.id,
+                service_id: serviceId,
+                order_id: order.id,
+                currency: "XOF",
+                currency_symbol: "FCFA",
+                completed_at: new Date().toISOString(),
+              });
+
+              // Mettre à jour le solde du client
+              const newClientBalance = Math.max(
+                0,
+                Number(clientWallet.balance || 0) - originalAmount,
+              );
+              await supabase
+                .from("wallets")
+                .update({
+                  balance: newClientBalance,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq("id", clientWallet.id);
+            }
+
+            // 2. Récupérer/créer le wallet du freelance pour la transaction de réception
+            if (service?.profiles?.id) {
+              const { data: freelanceWallet, error: freelanceWalletError } =
+                await supabase
+                  .from("wallets")
+                  .select("id, pending_balance, total_earnings")
+                  .eq("user_id", service.profiles.id)
+                  .single();
+
+              if (
+                freelanceWalletError &&
+                freelanceWalletError.code === "PGRST116"
+              ) {
+                // Le wallet n'existe pas, le créer
+                const {
+                  data: newFreelanceWallet,
+                  error: createFreelanceWalletError,
+                } = await supabase
+                  .from("wallets")
+                  .insert({
+                    user_id: service.profiles.id,
+                    balance: 0,
+                    pending_balance: originalAmount,
+                    total_earnings: originalAmount,
+                  })
+                  .select("id")
+                  .single();
+
+                if (!createFreelanceWalletError && newFreelanceWallet) {
+                  // Créer une transaction de réception pour le freelance
+                  await supabase.from("transactions").insert({
+                    wallet_id: newFreelanceWallet.id,
+                    amount: originalAmount,
+                    type: "earning",
+                    status: "pending",
+                    description: `Paiement PayPal reçu pour service ${service?.title || serviceId}`,
+                    reference_id: order.id,
+                    client_id: user.id,
+                    freelance_id: service.profiles.id,
+                    service_id: serviceId,
+                    order_id: order.id,
+                    currency: "XOF",
+                    currency_symbol: "FCFA",
+                  });
+                }
+              } else if (freelanceWallet) {
+                // Créer une transaction de réception pour le freelance
+                await supabase.from("transactions").insert({
+                  wallet_id: freelanceWallet.id,
+                  amount: originalAmount,
+                  type: "earning",
+                  status: "pending",
+                  description: `Paiement PayPal reçu pour service ${service?.title || serviceId}`,
+                  reference_id: order.id,
+                  client_id: user.id,
+                  freelance_id: service.profiles.id,
+                  service_id: serviceId,
+                  order_id: order.id,
+                  currency: "XOF",
+                  currency_symbol: "FCFA",
+                });
+
+                // Mettre à jour le solde en attente et les gains totaux du freelance
+                const newPendingBalance =
+                  Number(freelanceWallet.pending_balance || 0) + originalAmount;
+                const newTotalEarnings =
+                  Number(freelanceWallet.total_earnings || 0) + originalAmount;
+
+                await supabase
+                  .from("wallets")
+                  .update({
+                    pending_balance: newPendingBalance,
+                    total_earnings: newTotalEarnings,
+                    updated_at: new Date().toISOString(),
+                  })
+                  .eq("id", freelanceWallet.id);
+              }
+            }
+          } catch (transactionError) {
+            console.error(
+              "Erreur lors de la création des transactions:",
+              transactionError,
+            );
+            // On continue quand même car le paiement a réussi et est enregistré
+          }
+
           // Redirection vers la commande créée
           setTimeout(() => {
             router.push(`/dashboard/orders/${order.id}`);
@@ -707,14 +900,11 @@ export default function UnifiedCheckoutPage({
               "Une erreur est survenue lors du traitement du paiement",
           });
           setShowPaymentLoader(false);
-          setIsLoading(false);
-          setIsSubmitting(false);
-          return { success: false, error: error.message };
         }
       };
 
       // Exécuter la fonction de création de commande
-      createOrder();
+      await createOrder();
     } catch (error: any) {
       console.error("Erreur lors du traitement PayPal:", error);
       setOrderData({
@@ -731,6 +921,22 @@ export default function UnifiedCheckoutPage({
       ...orderData,
       error: error.message || "Une erreur est survenue lors du paiement PayPal",
     });
+  };
+
+  // Ouvrir la modale avec le contenu actuel
+  const openDescriptionModal = () => {
+    setTempRequirements(orderData.requirements || "");
+    setShowDescriptionModal(true);
+  };
+
+  // Sauvegarder les modifications et fermer la modale
+  const saveDescription = () => {
+    setOrderData({
+      ...orderData,
+      requirements: tempRequirements,
+      error: null,
+    });
+    setShowDescriptionModal(false);
   };
 
   if (authLoading || loadingService) {
@@ -879,34 +1085,9 @@ export default function UnifiedCheckoutPage({
           {/* Right column - Payment form */}
           <div className="flex-1 w-full">
             <div className="bg-white dark:bg-vynal-purple-dark/20 shadow-sm rounded-xl overflow-hidden border border-slate-100 dark:border-vynal-purple-secondary/40">
-              {/* Description section */}
-              <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-vynal-purple-secondary/40">
-                <div className="space-y-2 sm:space-y-3">
-                  <h2 className="text-xs sm:text-sm font-medium text-slate-800 dark:text-vynal-text-primary">
-                    Description de votre besoin
-                  </h2>
-                  <Textarea
-                    placeholder="Décrivez en détail ce que vous souhaitez obtenir..."
-                    className="h-20 sm:h-24 text-[10px] sm:text-sm bg-transparent border-slate-200 dark:border-vynal-purple-secondary/40 rounded-lg resize-none focus:ring-1 focus:ring-vynal-accent-primary focus:border-vynal-accent-primary"
-                    value={orderData.requirements}
-                    onChange={(e) =>
-                      setOrderData({
-                        ...orderData,
-                        requirements: e.target.value,
-                        error: null,
-                      })
-                    }
-                  />
-                  <p className="text-[7px] sm:text-[9px] text-slate-500 dark:text-vynal-text-secondary">
-                    Une description détaillée nous permettra de mieux comprendre
-                    vos besoins et de vous offrir un service de qualité.
-                  </p>
-                </div>
-              </div>
-
               {/* Payment methods */}
               <div className="p-4 sm:p-5 space-y-4 sm:space-y-5">
-                <h2 className="text-xs sm:text-sm font-medium text-slate-800 dark:text-vynal-text-primary">
+                <h2 className="text-[10px] sm:text-xs font-medium text-slate-800 dark:text-vynal-text-primary">
                   Payer par
                 </h2>
 
@@ -951,10 +1132,10 @@ export default function UnifiedCheckoutPage({
                     }`}
                   >
                     <Image
-                      src="/assets/partners/om_logo_.webp"
+                      src="/images/payment/orangemoney.png"
                       alt="Orange Money"
-                      width={52}
-                      height={92}
+                      width={40}
+                      height={40}
                       className="h-6 w-6 sm:h-8 sm:w-8 mr-1.5 sm:mr-2"
                     />
                     <span className="text-[10px] sm:text-xs font-medium">
@@ -972,7 +1153,7 @@ export default function UnifiedCheckoutPage({
                     }`}
                   >
                     <Image
-                      src="/images/payment/paypal.svg"
+                      src="/images/payment/paypallogo.png"
                       alt="PayPal"
                       width={32}
                       height={32}
@@ -1021,7 +1202,7 @@ export default function UnifiedCheckoutPage({
                         className="h-9 sm:h-10 text-[10px] sm:text-sm bg-white dark:bg-vynal-purple-dark/40 border-slate-200 dark:border-vynal-purple-secondary/40 rounded-md opacity-50 cursor-not-allowed"
                         disabled
                       />
-                      <p className="mt-1.5 sm:mt-2 text-[7px] sm:text-[9px] text-amber-600 dark:text-amber-500">
+                      <p className="mt-1.5 sm:mt-2 text-[11px] sm:text-sm text-amber-600 dark:text-amber-500">
                         Le paiement par Wave sera disponible prochainement.
                       </p>
                     </div>
@@ -1038,11 +1219,11 @@ export default function UnifiedCheckoutPage({
                   >
                     <div className="flex items-center mb-2 sm:mb-3">
                       <Image
-                        src="/assets/partners/om_logo_.webp"
+                        src="/images/payment/orangemoney.png"
                         alt="Orange Money"
                         width={40}
                         height={40}
-                        className="h-8 w-8 sm:h-10 sm:w-10 mr-1.5 sm:mr-2"
+                        className="h-6 w-6 sm:h-8 sm:w-8 mr-1.5 sm:mr-2"
                       />
                       <h3 className="text-[10px] sm:text-xs font-medium text-slate-800 dark:text-vynal-text-primary">
                         Orange Money
@@ -1065,7 +1246,7 @@ export default function UnifiedCheckoutPage({
                         className="h-9 sm:h-10 text-[10px] sm:text-sm bg-white dark:bg-vynal-purple-dark/40 border-slate-200 dark:border-vynal-purple-secondary/40 rounded-md opacity-50 cursor-not-allowed"
                         disabled
                       />
-                      <p className="mt-1.5 sm:mt-2 text-[7px] sm:text-[9px] text-amber-600 dark:text-amber-500">
+                      <p className="mt-1.5 sm:mt-2 text-[11px] sm:text-sm text-amber-600 dark:text-amber-500">
                         Le paiement par Orange Money sera disponible
                         prochainement.
                       </p>
@@ -1093,6 +1274,167 @@ export default function UnifiedCheckoutPage({
                     </div>
                   </motion.div>
                 )}
+
+                {/* Section Apple Pay, Google Pay et Link - affichage automatique */}
+                <div className="mt-4">
+                  <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                    {/* Apple Pay Button */}
+                    <div className="relative">
+                      <StripeElementsProvider
+                        clientSecret={paymentData?.clientSecret}
+                        enableApplePay={true}
+                      >
+                        <ApplePayButton
+                          amount={service?.price || 0}
+                          clientSecret={paymentData?.clientSecret || ""}
+                          onSuccess={handleStripePaymentSuccess}
+                          onError={handleStripePaymentError}
+                          loading={stripeLoading}
+                          serviceId={serviceId}
+                        />
+                      </StripeElementsProvider>
+                      {/* Fallback button si Apple Pay n'est pas disponible */}
+                      <button
+                        className="py-2.5 sm:py-3 px-3 sm:px-4 rounded-md flex items-center justify-center transition-all bg-slate-100 hover:bg-slate-200 dark:bg-vynal-purple-secondary/20 dark:hover:bg-vynal-purple-secondary/30 text-slate-700 dark:text-vynal-text-secondary w-full"
+                        style={{ display: "none" }}
+                        id="apple-pay-fallback"
+                      >
+                        <Image
+                          src="/images/payment/applepay.png"
+                          alt="Apple Pay"
+                          width={48}
+                          height={24}
+                          className="h-6 w-6 sm:h-8 sm:w-8 mr-1.5 sm:mr-2"
+                        />
+                        <span className="text-[10px] sm:text-xs font-medium">
+                          Apple Pay
+                        </span>
+                      </button>
+                    </div>
+
+                    {/* Google Pay Button */}
+                    <div className="relative">
+                      <StripeElementsProvider
+                        clientSecret={paymentData?.clientSecret}
+                        enableApplePay={true}
+                      >
+                        <GooglePayButton
+                          amount={service?.price || 0}
+                          clientSecret={paymentData?.clientSecret || ""}
+                          onSuccess={handleStripePaymentSuccess}
+                          onError={handleStripePaymentError}
+                          loading={stripeLoading}
+                          serviceId={serviceId}
+                        />
+                      </StripeElementsProvider>
+                      {/* Fallback button si Google Pay n'est pas disponible */}
+                      <button
+                        className="py-2.5 sm:py-3 px-3 sm:px-4 rounded-md flex items-center justify-center transition-all bg-slate-100 hover:bg-slate-200 dark:bg-vynal-purple-secondary/20 dark:hover:bg-vynal-purple-secondary/30 text-slate-700 dark:text-vynal-text-secondary w-full"
+                        style={{ display: "none" }}
+                        id="google-pay-fallback"
+                      >
+                        <Image
+                          src="/images/payment/googlepaylogo.png"
+                          alt="Google Pay"
+                          width={48}
+                          height={24}
+                          className="h-6 w-6 sm:h-8 sm:w-8 mr-1.5 sm:mr-2"
+                        />
+                        <span className="text-[10px] sm:text-xs font-medium">
+                          Google Pay
+                        </span>
+                      </button>
+                    </div>
+
+                    {/* Stripe Link Button */}
+                    <div className="relative">
+                      <StripeElementsProvider
+                        clientSecret={paymentData?.clientSecret}
+                        enableApplePay={true}
+                      >
+                        <LinkButton
+                          amount={service?.price || 0}
+                          clientSecret={paymentData?.clientSecret || ""}
+                          onSuccess={handleStripePaymentSuccess}
+                          onError={handleStripePaymentError}
+                          loading={stripeLoading}
+                          serviceId={serviceId}
+                        />
+                      </StripeElementsProvider>
+                      {/* Fallback button si Link n'est pas disponible */}
+                      <button
+                        className="py-2.5 sm:py-3 px-3 sm:px-4 rounded-md flex items-center justify-center transition-all bg-slate-100 hover:bg-slate-200 dark:bg-vynal-purple-secondary/20 dark:hover:bg-vynal-purple-secondary/30 text-slate-700 dark:text-vynal-text-secondary w-full"
+                        style={{ display: "none" }}
+                        id="link-fallback"
+                      >
+                        <Image
+                          src="/images/payment/linklogo.png"
+                          alt="Stripe Link"
+                          width={48}
+                          height={24}
+                          className="h-6 w-6 sm:h-8 sm:w-8 mr-1.5 sm:mr-2"
+                        />
+                        <span className="text-[10px] sm:text-xs font-medium">
+                          Link
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Script pour styliser les boutons Stripe en style uniforme */}
+                  <script
+                    dangerouslySetInnerHTML={{
+                      __html: `
+                      document.addEventListener('DOMContentLoaded', function() {
+                        // Attendre que les boutons Stripe soient montés
+                        setTimeout(function() {
+                          // Styliser les boutons Apple Pay
+                          const applePayBtns = document.querySelectorAll('button[aria-label*="Apple Pay"], button[data-testid*="apple-pay"]');
+                          applePayBtns.forEach(btn => {
+                            if (btn && btn.style) {
+                              btn.className = 'py-2.5 sm:py-3 px-3 sm:px-4 rounded-md flex items-center justify-center transition-all bg-slate-100 hover:bg-slate-200 dark:bg-vynal-purple-secondary/20 dark:hover:bg-vynal-purple-secondary/30 text-slate-700 dark:text-vynal-text-secondary w-full';
+                              btn.style.background = 'rgb(241 245 249)';
+                              btn.style.border = 'none';
+                              btn.style.borderRadius = '6px';
+                              btn.style.height = 'auto';
+                              btn.style.minHeight = '44px';
+                              btn.style.width = '100%';
+                            }
+                          });
+
+                          // Styliser les boutons Google Pay
+                          const googlePayBtns = document.querySelectorAll('button[aria-label*="Google Pay"], button[data-testid*="google-pay"]');
+                          googlePayBtns.forEach(btn => {
+                            if (btn && btn.style) {
+                              btn.className = 'py-2.5 sm:py-3 px-3 sm:px-4 rounded-md flex items-center justify-center transition-all bg-slate-100 hover:bg-slate-200 dark:bg-vynal-purple-secondary/20 dark:hover:bg-vynal-purple-secondary/30 text-slate-700 dark:text-vynal-text-secondary w-full';
+                              btn.style.background = 'rgb(241 245 249)';
+                              btn.style.border = 'none';
+                              btn.style.borderRadius = '6px';
+                              btn.style.height = 'auto';
+                              btn.style.minHeight = '44px';
+                              btn.style.width = '100%';
+                            }
+                          });
+
+                          // Styliser les boutons Link
+                          const linkBtns = document.querySelectorAll('button[aria-label*="Link"], button[data-testid*="link"]');
+                          linkBtns.forEach(btn => {
+                            if (btn && btn.style) {
+                              btn.className = 'py-2.5 sm:py-3 px-3 sm:px-4 rounded-md flex items-center justify-center transition-all bg-slate-100 hover:bg-slate-200 dark:bg-vynal-purple-secondary/20 dark:hover:bg-vynal-purple-secondary/30 text-slate-700 dark:text-vynal-text-secondary w-full';
+                              btn.style.background = 'rgb(241 245 249)';
+                              btn.style.border = 'none';
+                              btn.style.borderRadius = '6px';
+                              btn.style.height = 'auto';
+                              btn.style.minHeight = '44px';
+                              btn.style.width = '100%';
+                            }
+                          });
+                        }, 500);
+                      });
+                    `,
+                    }}
+                  />
+                </div>
 
                 {/* Or separator */}
                 <div className="relative flex items-center py-3 sm:py-4 mt-1 sm:mt-2">
@@ -1130,25 +1472,25 @@ export default function UnifiedCheckoutPage({
                     </div>
                     <div className="flex items-center">
                       <Image
-                        src="/images/payment/visa.svg"
+                        src="/images/payment/visalogo.png"
                         alt="Visa"
-                        width={24}
-                        height={16}
-                        className="h-3 sm:h-4"
+                        width={60}
+                        height={20}
+                        className="h-6 sm:h-7 opacity-80 object-contain"
                       />
                       <Image
-                        src="/images/payment/mastercard.svg"
+                        src="/images/payment/mastercardlogo.png"
                         alt="Mastercard"
-                        width={24}
-                        height={16}
-                        className="h-3 sm:h-4 ml-0.5 sm:ml-1"
+                        width={40}
+                        height={40}
+                        className="h-6 sm:h-7 opacity-80 object-contain ml-2"
                       />
                       <Image
-                        src="/images/payment/amex.svg"
+                        src="/images/payment/americanexpresslogo.png"
                         alt="American Express"
-                        width={24}
-                        height={16}
-                        className="h-3 sm:h-4 ml-0.5 sm:ml-1"
+                        width={54}
+                        height={28}
+                        className="h-5 sm:h-5 opacity-80 object-contain ml-2"
                       />
                     </div>
                   </div>
@@ -1184,70 +1526,9 @@ export default function UnifiedCheckoutPage({
                         {/* Stripe Card Element */}
                         <StripeElementsProvider
                           clientSecret={paymentData?.clientSecret}
-                          enableApplePay={true}
+                          enableApplePay={false}
                         >
                           <div className="space-y-4">
-                            {/* Apple Pay - uniquement sur les appareils compatibles */}
-                            <ApplePayButton
-                              amount={service?.price || 0}
-                              clientSecret={paymentData?.clientSecret || ""}
-                              onSuccess={handleStripePaymentSuccess}
-                              onError={handleStripePaymentError}
-                              loading={stripeLoading}
-                              serviceId={serviceId}
-                            />
-
-                            {/* Stripe Link - uniquement si disponible */}
-                            <LinkButton
-                              amount={service?.price || 0}
-                              clientSecret={paymentData?.clientSecret || ""}
-                              onSuccess={handleStripePaymentSuccess}
-                              onError={handleStripePaymentError}
-                              loading={stripeLoading}
-                              serviceId={serviceId}
-                            />
-
-                            {/* Google Pay - uniquement sur les appareils compatibles */}
-                            <GooglePayButton
-                              amount={service?.price || 0}
-                              clientSecret={paymentData?.clientSecret || ""}
-                              onSuccess={handleStripePaymentSuccess}
-                              onError={handleStripePaymentError}
-                              loading={stripeLoading}
-                              serviceId={serviceId}
-                            />
-
-                            {/* Séparateur entre les méthodes de paiement rapides et le formulaire de carte */}
-                            <div
-                              id="unified-payment-methods-separator"
-                              className="hidden relative flex items-center py-2"
-                            >
-                              <div className="flex-grow border-t border-slate-200 dark:border-vynal-purple-secondary/40"></div>
-                              <span className="flex-shrink mx-3 text-[8px] sm:text-[9px] text-slate-400 dark:text-vynal-text-secondary">
-                                ou
-                              </span>
-                              <div className="flex-grow border-t border-slate-200 dark:border-vynal-purple-secondary/40"></div>
-                            </div>
-
-                            {/* Script pour afficher le séparateur uniquement si au moins une méthode de paiement rapide est disponible */}
-                            <script
-                              dangerouslySetInnerHTML={{
-                                __html: `
-                              document.addEventListener('DOMContentLoaded', function() {
-                                // Vérifier si Apple Pay, Google Pay ou Link sont présents et visibles
-                                const applePayBtn = document.querySelector('button[aria-label="Apple Pay"]');
-                                const googlePayBtn = document.querySelector('button[aria-label="Google Pay"]');
-                                const linkBtn = document.querySelector('button[aria-label="Stripe Link"]');
-                                const separator = document.getElementById('unified-payment-methods-separator');
-                                
-                                if ((applePayBtn || googlePayBtn || linkBtn) && separator) {
-                                  separator.classList.remove('hidden');
-                                }
-                              });
-                            `,
-                              }}
-                            />
-
                             {/* Formulaire de carte Stripe */}
                             <StripeCardForm
                               amount={service?.price || 0}
@@ -1272,26 +1553,50 @@ export default function UnifiedCheckoutPage({
                   )}
                 </div>
 
-                {/* Test mode toggle with minimalist styling */}
-                <div className="flex items-center mt-4 sm:mt-6 py-1.5 sm:py-2">
-                  <input
-                    type="checkbox"
-                    id="test-mode"
-                    checked={orderData.isTestMode}
-                    onChange={() =>
-                      setOrderData({
-                        ...orderData,
-                        isTestMode: !orderData.isTestMode,
-                      })
-                    }
-                    className="h-2.5 w-2.5 sm:h-4 sm:w-4 text-vynal-accent-primary rounded border-slate-300 dark:border-vynal-purple-secondary/40 focus:ring-vynal-accent-primary"
-                  />
-                  <label
-                    htmlFor="test-mode"
-                    className="ml-1.5 sm:ml-2 text-[7px] sm:text-[10px] text-slate-500 dark:text-vynal-text-secondary cursor-pointer"
+                {/* Bouton pour ouvrir la modale de description */}
+                <div className="mt-4 border-t border-slate-200 dark:border-vynal-purple-secondary/30 pt-4">
+                  <button
+                    type="button"
+                    onClick={openDescriptionModal}
+                    className="flex items-center justify-between w-full p-3 bg-white/80 dark:bg-vynal-purple-dark/20 border border-slate-200 dark:border-vynal-purple-secondary/30 rounded-lg text-left hover:bg-slate-50 dark:hover:bg-vynal-purple-dark/30 transition-colors"
                   >
-                    Mode test (pas de paiement réel)
-                  </label>
+                    <div className="flex items-center">
+                      <div className="bg-vynal-accent-primary/15 rounded-full p-1.5 mr-3">
+                        <FileCheck className="h-4 w-4 text-vynal-accent-primary" />
+                      </div>
+                      <div>
+                        <h3 className="text-[10px] sm:text-xs font-medium text-slate-800 dark:text-vynal-text-primary">
+                          Description de votre besoin
+                        </h3>
+                        <p className="text-[9px] text-slate-500 dark:text-vynal-text-secondary mt-0.5 line-clamp-1">
+                          {orderData.requirements
+                            ? orderData.requirements.substring(0, 60) +
+                              (orderData.requirements.length > 60 ? "..." : "")
+                            : "Cliquez pour ajouter une description..."}
+                        </p>
+                      </div>
+                    </div>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-5 w-5 text-slate-400"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                      />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                      />
+                    </svg>
+                  </button>
                 </div>
 
                 {/* Bouton de paiement unifié - Affiché pour toutes les méthodes de paiement */}
@@ -1374,39 +1679,46 @@ export default function UnifiedCheckoutPage({
                 {/* Logos des méthodes de paiement acceptées */}
                 <div className="flex items-center justify-center mt-2 space-x-2">
                   <Image
-                    src="/images/payment/visa.svg"
+                    src="/images/payment/visalogo.png"
                     alt="Visa"
-                    width={24}
-                    height={16}
-                    className="h-4 opacity-60"
+                    width={60}
+                    height={20}
+                    className="h-6 sm:h-7 opacity-80 object-contain"
                   />
                   <Image
-                    src="/images/payment/mastercard.svg"
+                    src="/images/payment/mastercardlogo.png"
                     alt="Mastercard"
-                    width={24}
-                    height={16}
-                    className="h-4 opacity-60"
+                    width={40}
+                    height={40}
+                    className="h-6 sm:h-7 opacity-80 object-contain ml-2"
                   />
                   <Image
-                    src="/images/payment/apple-pay-mark.svg"
+                    src="/images/payment/americanexpresslogo.png"
+                    alt="American Express"
+                    width={54}
+                    height={28}
+                    className="h-5 sm:h-5 opacity-80 object-contain ml-2"
+                  />
+                  <Image
+                    src="/images/payment/applepay.png"
                     alt="Apple Pay"
-                    width={30}
-                    height={16}
-                    className="h-5 opacity-60"
+                    width={48}
+                    height={24}
+                    className="h-7 object-contain opacity-80"
                   />
                   <Image
-                    src="/images/payment/google-pay-mark.svg"
+                    src="/images/payment/googlepaylogo.png"
                     alt="Google Pay"
-                    width={30}
-                    height={16}
-                    className="h-3 opacity-60"
+                    width={48}
+                    height={24}
+                    className="h-7 object-contain opacity-80"
                   />
                   <Image
-                    src="/images/payment/stripe-link-mark.svg"
+                    src="/images/payment/linklogo.png"
                     alt="Stripe Link"
-                    width={30}
-                    height={16}
-                    className="h-3 opacity-60"
+                    width={48}
+                    height={24}
+                    className="h-7 object-contain opacity-80"
                   />
                 </div>
 
@@ -1432,6 +1744,75 @@ export default function UnifiedCheckoutPage({
           </div>
         </div>
       </div>
+
+      {/* Modale pour la description */}
+      {showDescriptionModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 flex items-center justify-center">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white dark:bg-vynal-purple-dark/90 rounded-lg shadow-xl max-w-lg w-full mx-4 overflow-hidden"
+          >
+            <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-vynal-purple-secondary/30">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-slate-800 dark:text-vynal-text-primary">
+                  Description de votre besoin
+                </h3>
+                <button
+                  type="button"
+                  className="text-slate-400 hover:text-slate-500 dark:text-vynal-text-secondary"
+                  onClick={() => setShowDescriptionModal(false)}
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div className="p-4 sm:p-6">
+              <div className="mb-4">
+                <Textarea
+                  placeholder="Décrivez en détail ce que vous souhaitez obtenir..."
+                  className="h-48 text-sm bg-white/80 dark:bg-vynal-purple-dark/30 border-slate-200 dark:border-vynal-purple-secondary/40 rounded-lg resize-none focus:ring-1 focus:ring-vynal-accent-primary focus:border-vynal-accent-primary w-full"
+                  value={tempRequirements}
+                  onChange={(e) => setTempRequirements(e.target.value)}
+                />
+                <p className="text-[9px] text-slate-600 dark:text-vynal-text-secondary mt-2">
+                  Une description détaillée nous permettra de mieux comprendre
+                  vos besoins et de vous offrir un service de qualité.
+                </p>
+              </div>
+              <div className="flex justify-end space-x-3">
+                <button
+                  type="button"
+                  className="px-4 py-2 text-sm font-medium text-slate-700 dark:text-vynal-text-secondary bg-white dark:bg-vynal-purple-dark/50 border border-slate-300 dark:border-vynal-purple-secondary/40 rounded-md hover:bg-slate-50 dark:hover:bg-vynal-purple-dark/70"
+                  onClick={() => setShowDescriptionModal(false)}
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  className="px-4 py-2 text-sm font-medium text-white bg-vynal-accent-primary hover:bg-vynal-accent-secondary rounded-md"
+                  onClick={saveDescription}
+                >
+                  Enregistrer
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }
