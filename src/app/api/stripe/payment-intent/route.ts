@@ -231,7 +231,7 @@ export async function POST(req: NextRequest) {
       // Le montant original est en centimes (100 = 1€), donc on le convertit en unités monétaires
       const originalAmountInUnits = parseFloat(amount) / 100;
       console.log(
-        `Montant original: ${amount} centimes = ${originalAmountInUnits} XOF (tous les prix sont stockés en XOF)`,
+        `[DEBUG CONVERSION] Montant original: ${amount} centimes = ${originalAmountInUnits} XOF (unités)`,
       );
 
       // Détecter si le montant pourrait être anormal (trop grand ou trop petit)
@@ -272,13 +272,13 @@ export async function POST(req: NextRequest) {
           false,
         ) as number;
         console.log(
-          `Conversion pour paiement Stripe: ${originalAmountInUnits} XOF → ${amountInEuros} EUR (utilisant les taux définis dans le projet)`,
+          `[DEBUG CONVERSION] Conversion pour paiement Stripe: ${originalAmountInUnits} XOF → ${amountInEuros} EUR (utilisant les taux définis)`,
         );
 
         // Vérification de sécurité supplémentaire sur le montant converti
         if (amountInEuros > 10000) {
           console.error(
-            `Montant EUR converti anormalement élevé: ${amountInEuros} EUR`,
+            `[DEBUG CONVERSION] Montant EUR converti anormalement élevé: ${amountInEuros} EUR`,
           );
           return NextResponse.json(
             {
@@ -290,7 +290,7 @@ export async function POST(req: NextRequest) {
         }
       } catch (conversionError: any) {
         console.error(
-          "Erreur lors de la conversion du montant:",
+          "[DEBUG CONVERSION] Erreur lors de la conversion du montant:",
           conversionError,
         );
         return NextResponse.json(
@@ -302,10 +302,9 @@ export async function POST(req: NextRequest) {
       }
 
       // Convertir en centimes pour Stripe (qui attend les montants en centimes)
-      // CORRECTION: Le montant est déjà en centimes, donc on ne multiplie pas par 100
       const amountInEuroCents = Math.round(amountInEuros * 100);
       console.log(
-        `Montant final pour Stripe: ${amountInEuroCents} centimes d'euro (${amountInEuros} EUR)`,
+        `[DEBUG CONVERSION] Montant final pour Stripe: ${amountInEuros} EUR → ${amountInEuroCents} centimes d'euro`,
       );
 
       // Création du PaymentIntent via l'API Stripe - toujours en euros

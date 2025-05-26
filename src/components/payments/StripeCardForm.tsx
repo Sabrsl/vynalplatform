@@ -123,7 +123,7 @@ function StripeCardFormContent({
 
   // Logging pour débogage
   console.log(
-    `StripeCardForm - Montant reçu: ${amount} ${currency.toUpperCase()}`,
+    `[DEBUG CONVERSION] StripeCardForm - Montant reçu: ${amount} ${currency.toUpperCase()}`,
   );
 
   // CORRECTION: Considérer que le montant original est toujours en XOF
@@ -136,7 +136,7 @@ function StripeCardFormContent({
   const normalizedAmount = normalizeAmount(amount, "XOF");
   if (normalizedAmount !== amount) {
     console.warn(
-      `StripeCardForm - Montant anormal détecté: ${amount} XOF, normalisé à ${normalizedAmount} XOF`,
+      `[DEBUG CONVERSION] StripeCardForm - Montant anormal détecté: ${amount} XOF, normalisé à ${normalizedAmount} XOF`,
     );
     displayAmount = normalizedAmount;
     wasNormalized = true;
@@ -146,6 +146,9 @@ function StripeCardFormContent({
 
   // Toujours convertir le montant en EUR pour Stripe
   const amountInEur = convertToEur(displayAmount, "XOF", false) as number;
+  console.log(
+    `[DEBUG CONVERSION] StripeCardForm - Conversion en EUR: ${displayAmount} XOF → ${amountInEur} EUR`,
+  );
 
   // Utilisation du hook useCurrency pour obtenir la devise de l'utilisateur
   const { currency: userCurrency } = useCurrency();
@@ -180,7 +183,7 @@ function StripeCardFormContent({
     maximumFractionDigits: 2,
   }).format(amountInEur);
 
-  console.log(`StripeCardForm - Montant traité:`, {
+  console.log(`[DEBUG CONVERSION] StripeCardForm - Montant traité:`, {
     originalAmount: amount,
     currency: "XOF", // Tous les prix sont stockés en XOF dans la BD
     normalizedAmount: displayAmount,
@@ -189,6 +192,7 @@ function StripeCardFormContent({
     userCurrency: userCurrency.code,
     amountInUserCurrency,
     conversionRate: amountInEur / displayAmount,
+    clientSecret: clientSecret ? "Présent" : "Absent", // Ne pas afficher le secret complet
   });
 
   // Options de style pour le formulaire de carte

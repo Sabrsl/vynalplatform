@@ -275,7 +275,7 @@ export default function CheckoutPage({
           ) as number);
 
     console.log(
-      `Checkout - Conversion pour paiement: ${normalizedXofAmount} ${dbCurrency} → ${amountInUserCurrency} ${userCurrency.code} → ${amountInEur} EUR`,
+      `[DEBUG CONVERSION] Checkout - Conversion pour paiement: ${normalizedXofAmount} ${dbCurrency} → ${amountInUserCurrency} ${userCurrency.code} → ${amountInEur} EUR`,
     );
 
     return (

@@ -164,7 +164,7 @@ export function convertToEur(
   try {
     // Log détaillé pour le débogage - montrer clairement ce qui entre dans la fonction
     console.log(
-      `convertToEur - Entrée: montant=${amount}, devise=${fromCurrency}, formatString=${formatString}`,
+      `[DEBUG CONVERSION] convertToEur - Entrée: montant=${amount}, devise=${fromCurrency}, formatString=${formatString}`,
     );
 
     // IMPORTANT: N'appliquez PAS de normalisation automatique ici, cela crée des doubles conversions
@@ -176,7 +176,7 @@ export function convertToEur(
     // Si c'est déjà en EUR, pas besoin de conversion
     if (normalizedCurrency === "EUR") {
       console.log(
-        `convertToEur - Déjà en EUR, aucune conversion nécessaire: ${amount} EUR`,
+        `[DEBUG CONVERSION] convertToEur - Déjà en EUR, aucune conversion nécessaire: ${amount} EUR`,
       );
       if (formatString) {
         return new Intl.NumberFormat("fr-FR", {
@@ -201,7 +201,7 @@ export function convertToEur(
       // 1 XOF = 0.0015 EUR (taux fixe)
       amountInEur = amount * CURRENCY.rates.EUR;
       console.log(
-        `Conversion directe XOF→EUR: ${amount} XOF = ${amountInEur} EUR (taux: ${CURRENCY.rates.EUR})`,
+        `[DEBUG CONVERSION] Conversion directe XOF→EUR: ${amount} XOF = ${amountInEur} EUR (taux: ${CURRENCY.rates.EUR})`,
       );
     } else if (CURRENCY.rates[normalizedCurrency]) {
       // Pour les autres devises:
@@ -214,17 +214,19 @@ export function convertToEur(
       const rateToXof = CURRENCY.rates[normalizedCurrency];
       const amountInXof = amount / rateToXof;
       console.log(
-        `Étape 1: ${amount} ${normalizedCurrency} = ${amountInXof} XOF (taux: 1 XOF = ${rateToXof} ${normalizedCurrency})`,
+        `[DEBUG CONVERSION] Étape 1: ${amount} ${normalizedCurrency} = ${amountInXof} XOF (taux: 1 XOF = ${rateToXof} ${normalizedCurrency})`,
       );
 
       // Étape 2: Convertir XOF en EUR
       amountInEur = amountInXof * CURRENCY.rates.EUR;
       console.log(
-        `Étape 2: ${amountInXof} XOF = ${amountInEur} EUR (taux: 1 XOF = ${CURRENCY.rates.EUR} EUR)`,
+        `[DEBUG CONVERSION] Étape 2: ${amountInXof} XOF = ${amountInEur} EUR (taux: 1 XOF = ${CURRENCY.rates.EUR} EUR)`,
       );
     } else {
       // Si la devise n'est pas définie dans les taux, c'est une erreur
-      console.error(`Taux de conversion non défini pour ${normalizedCurrency}`);
+      console.error(
+        `[DEBUG CONVERSION] Taux de conversion non défini pour ${normalizedCurrency}`,
+      );
       throw new Error(
         `Taux de conversion non défini pour ${normalizedCurrency}`,
       );
@@ -235,7 +237,7 @@ export function convertToEur(
 
     // Log pour le débogage
     console.log(
-      `Résultat final: ${amount} ${normalizedCurrency} → ${roundedAmount} EUR`,
+      `[DEBUG CONVERSION] Résultat final: ${amount} ${normalizedCurrency} → ${roundedAmount} EUR`,
     );
 
     // Retourner soit le nombre soit une chaîne formatée
@@ -250,7 +252,10 @@ export function convertToEur(
 
     return roundedAmount;
   } catch (error) {
-    console.error("Erreur lors de la conversion vers EUR:", error);
+    console.error(
+      "[DEBUG CONVERSION] Erreur lors de la conversion vers EUR:",
+      error,
+    );
     // En cas d'erreur, retourner 0 ou "0,00 €"
     return formatString ? "0,00 €" : 0;
   }

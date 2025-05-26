@@ -74,6 +74,9 @@ export function PayPalButtonsForm({
 
   // Calculer le montant en EUR depuis XOF (supposant que tous les prix sont stockés en XOF)
   const amountInEUR = convertToEur(normalizedAmount, "XOF", false) as number;
+  console.log(
+    `[DEBUG CONVERSION] PayPalButtonsForm - Conversion en EUR: ${normalizedAmount} XOF → ${amountInEUR} EUR`,
+  );
 
   // Si l'utilisateur voit les prix en XOF, c'est sa devise locale
   // Sinon, on convertit le prix original pour l'affichage dans sa devise
@@ -90,7 +93,7 @@ export function PayPalButtonsForm({
           ) as number);
 
   // Ajouter de la journalisation pour diagnostiquer le problème
-  console.log("PayPalButtonsForm - Montants:", {
+  console.log("[DEBUG CONVERSION] PayPalButtonsForm - Montants:", {
     montantOriginalXOF: amount,
     montantNormaliseXOF: normalizedAmount,
     deviseUtilisateur: userCurrency.code,
