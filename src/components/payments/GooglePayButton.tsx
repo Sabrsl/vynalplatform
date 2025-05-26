@@ -6,6 +6,7 @@ import { useStripe, useElements, Elements } from "@stripe/react-stripe-js";
 import { PaymentRequest, Appearance } from "@stripe/stripe-js";
 import Image from "next/image";
 import { getStripe } from "@/lib/stripe/client";
+import { StripeElements } from "@stripe/stripe-js";
 
 interface GooglePayButtonProps {
   amount: number;
@@ -170,6 +171,7 @@ function isValidClientSecret(secret: string | undefined): boolean {
 export function GooglePayButton(props: GooglePayButtonProps) {
   // Initialiser les refs au début du composant
   const inElementsContextRef = useRef<boolean | null>(null);
+  const elementsRef = useRef<StripeElements | null>(null);
   
   // Si le clientSecret n'est pas valide, ne rien afficher
   if (!isValidClientSecret(props.clientSecret)) {
@@ -188,45 +190,234 @@ export function GooglePayButton(props: GooglePayButtonProps) {
       inElementsContextRef.current = false;
     }
   }
-  
-  // Si nous sommes déjà dans un contexte Elements, utiliser directement le composant interne
-  if (inElementsContextRef.current === true) {
-    return <GooglePayButtonInternal {...props} />;
+
+  // Le reste du composant basé sur inElementsContextRef.current
+  return inElementsContextRef.current ? (
+    <GooglePayButtonInternal {...props} />
+  ) : (
+    <ElementsContextProvider clientSecret={props.clientSecret}>
+      <GooglePayButtonInternal {...props} />
+    </ElementsContextProvider>
+  );
+}
+
+function InternalGooglePayButton({ clientSecret, ...props }: GooglePayButtonProps) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isGooglePayAvailable, setIsGooglePayAvailable] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [paymentRequest, setPaymentRequest] = useState<PaymentRequest | null>(null);
+
+  // Vérifier si Google Pay est disponible sur cet appareil
+  useEffect(() => {
+    // Si Stripe n'est pas disponible, ne rien faire
+    if (!stripe || !elements || !clientSecret) return;
+
+    const pr = stripe.paymentRequest({
+      country: 'FR',
+      currency: props.currency?.toLowerCase() || 'eur',
+      total: {
+        label: 'Paiement Vynal',
+        amount: Math.round(props.amount * 100), // Convertir en centimes
+      },
+      requestPayerName: true,
+      requestPayerEmail: true,
+    });
+
+    // Vérifier si l'appareil supporte Google Pay
+    pr.canMakePayment().then(result => {
+      if (result && result.googlePay) {
+        setPaymentRequest(pr);
+        setIsGooglePayAvailable(true);
+      } else {
+        setIsGooglePayAvailable(false);
+      }
+    });
+
+    // Configurer les gestionnaires d'événements
+    pr.on('paymentmethod', async (ev) => {
+      setIsProcessing(true);
+      
+      try {
+        // Confirmer le paiement avec Stripe
+        const { error, paymentIntent } = await stripe.confirmCardPayment(
+          clientSecret,
+          { payment_method: ev.paymentMethod.id },
+          { handleActions: false }
+        );
+
+        if (error) {
+          // Informer Google Pay que le paiement a échoué
+          ev.complete('fail');
+          props.onError(error);
+        } else if (paymentIntent) {
+          // Informer Google Pay que le paiement a réussi
+          ev.complete('success');
+          
+          // Enrichir les données de paiement
+          const paymentData = {
+            ...paymentIntent,
+            serviceId: props.serviceId,
+            paymentMethod: 'google_pay',
+            provider: 'stripe'
+          };
+          
+          props.onSuccess(paymentData);
+        }
+      } catch (err) {
+        ev.complete('fail');
+        props.onError(err);
+      } finally {
+        setIsProcessing(false);
+      }
+    });
+  }, [stripe, elements, props.amount, props.currency, clientSecret, props.onSuccess, props.onError, props.serviceId]);
+
+  // Si Stripe n'est pas disponible ou si Google Pay n'est pas disponible, ne pas afficher le bouton
+  if (!stripe || !elements || !isGooglePayAvailable || !paymentRequest) {
+    return null;
   }
-  
-  // Sinon, créer un contexte Elements
-  const appearance: Appearance = {
-    theme: 'stripe',
-    variables: {
-      colorPrimary: '#6667ab',
-      colorBackground: '#ffffff',
-      colorText: '#30313d',
-      colorDanger: '#df1b41',
-      fontFamily: 'Poppins, system-ui, sans-serif',
-      spacingUnit: '4px',
-      borderRadius: '4px',
-    },
+
+  // Gérer le clic sur le bouton Google Pay
+  const handleGooglePayClick = async () => {
+    if (!paymentRequest || isProcessing) return;
+    
+    // Déclencher la demande de paiement
+    paymentRequest.show();
   };
 
-  // Créer un objet d'options pour Elements
-  // Note: TypeScript ne reconnaît pas correctement les options pour les méthodes de paiement express
-  // comme Google Pay, mais elles sont bien supportées par Stripe
-  const elementsOptions: any = {
-    clientSecret: props.clientSecret,
-    appearance,
-    locale: 'fr',
-  };
-  
-  // Ajouter le support pour Google Pay
-  if (typeof window !== 'undefined') {
-    elementsOptions.wallets = {
-      googlePay: 'auto'
-    };
-  }
-  
   return (
-    <Elements stripe={getStripe()} options={elementsOptions}>
-      <GooglePayButtonInternal {...props} />
+    <Button
+      onClick={handleGooglePayClick}
+      disabled={props.loading || isProcessing}
+      className={`w-full flex items-center justify-center bg-white text-black hover:bg-gray-100 border border-gray-300 ${props.className}`}
+      aria-label="Google Pay"
+    >
+      {isProcessing ? (
+        <>
+          <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-t-transparent border-black" />
+          Traitement en cours...
+        </>
+      ) : (
+        <>
+          <Image 
+            src="/images/payment/google-pay-mark.svg" 
+            alt="Google Pay" 
+            width={40} 
+            height={24} 
+            className="mr-2 h-6"
+            onError={(e) => {
+              // Fallback si l'image n'existe pas
+              e.currentTarget.style.display = 'none';
+            }}
+          />
+          Payer avec Google Pay
+        </>
+      )}
+    </Button>
+  );
+}
+
+function ElementsContextProvider({ clientSecret, children }: { clientSecret: string; children: React.ReactNode }) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [isGooglePayAvailable, setIsGooglePayAvailable] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [paymentRequest, setPaymentRequest] = useState<PaymentRequest | null>(null);
+
+  // Vérifier si Google Pay est disponible sur cet appareil
+  useEffect(() => {
+    // Si Stripe n'est pas disponible, ne rien faire
+    if (!stripe || !elements || !clientSecret) return;
+
+    const pr = stripe.paymentRequest({
+      country: 'FR',
+      currency: 'eur',
+      total: {
+        label: 'Paiement Vynal',
+        amount: Math.round(100), // Convertir en centimes
+      },
+      requestPayerName: true,
+      requestPayerEmail: true,
+    });
+
+    // Vérifier si l'appareil supporte Google Pay
+    pr.canMakePayment().then(result => {
+      if (result && result.googlePay) {
+        setPaymentRequest(pr);
+        setIsGooglePayAvailable(true);
+      } else {
+        setIsGooglePayAvailable(false);
+      }
+    });
+
+    // Configurer les gestionnaires d'événements
+    pr.on('paymentmethod', async (ev) => {
+      setIsProcessing(true);
+      
+      try {
+        // Confirmer le paiement avec Stripe
+        const { error, paymentIntent } = await stripe.confirmCardPayment(
+          clientSecret,
+          { payment_method: ev.paymentMethod.id },
+          { handleActions: false }
+        );
+
+        if (error) {
+          // Informer Google Pay que le paiement a échoué
+          ev.complete('fail');
+          // Handle error
+        } else if (paymentIntent) {
+          // Informer Google Pay que le paiement a réussi
+          ev.complete('success');
+          // Handle success
+        }
+      } catch (err) {
+        ev.complete('fail');
+        // Handle error
+      } finally {
+        setIsProcessing(false);
+      }
+    });
+  }, [stripe, elements, clientSecret]);
+
+  // Si Stripe n'est pas disponible ou si Google Pay n'est pas disponible, ne pas afficher le bouton
+  if (!stripe || !elements || !isGooglePayAvailable || !paymentRequest) {
+    return null;
+  }
+
+  // Gérer le clic sur le bouton Google Pay
+  const handleGooglePayClick = async () => {
+    if (!paymentRequest || isProcessing) return;
+    
+    // Déclencher la demande de paiement
+    paymentRequest.show();
+  };
+
+  return (
+    <Elements stripe={stripe} options={{
+      clientSecret: clientSecret,
+      appearance: {
+        theme: 'stripe',
+        variables: {
+          colorPrimary: '#6667ab',
+          colorBackground: '#ffffff',
+          colorText: '#30313d',
+          colorDanger: '#df1b41',
+          fontFamily: 'Poppins, system-ui, sans-serif',
+          spacingUnit: '4px',
+          borderRadius: '4px',
+        },
+      },
+      locale: 'fr',
+      // @ts-ignore - La propriété wallets existe mais n'est pas reconnue par TypeScript
+      wallets: {
+        googlePay: 'auto'
+      },
+    } as any}>
+      {children}
     </Elements>
   );
 } 

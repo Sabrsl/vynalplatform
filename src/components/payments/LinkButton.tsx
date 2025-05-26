@@ -6,6 +6,7 @@ import { useStripe, useElements, Elements } from "@stripe/react-stripe-js";
 import { PaymentRequest, Appearance } from "@stripe/stripe-js";
 import Image from "next/image";
 import { getStripe } from "@/lib/stripe/client";
+import { StripeElements } from "@stripe/stripe-js";
 
 interface LinkButtonProps {
   amount: number;
@@ -172,6 +173,7 @@ function isValidClientSecret(secret: string | undefined): boolean {
 export function LinkButton(props: LinkButtonProps) {
   // Initialiser les refs au début du composant
   const inElementsContextRef = useRef<boolean | null>(null);
+  const elementsRef = useRef<StripeElements | null>(null);
   
   // Si le clientSecret n'est pas valide, ne rien afficher
   if (!isValidClientSecret(props.clientSecret)) {
@@ -190,45 +192,40 @@ export function LinkButton(props: LinkButtonProps) {
       inElementsContextRef.current = false;
     }
   }
-  
-  // Si nous sommes déjà dans un contexte Elements, utiliser directement le composant interne
-  if (inElementsContextRef.current === true) {
-    return <LinkButtonInternal {...props} />;
-  }
-  
-  // Sinon, créer un contexte Elements
-  const appearance: Appearance = {
-    theme: 'stripe',
-    variables: {
-      colorPrimary: '#6667ab',
-      colorBackground: '#ffffff',
-      colorText: '#30313d',
-      colorDanger: '#df1b41',
-      fontFamily: 'Poppins, system-ui, sans-serif',
-      spacingUnit: '4px',
-      borderRadius: '4px',
-    },
-  };
 
-  // Créer un objet d'options pour Elements
-  // Note: TypeScript ne reconnaît pas correctement les options pour les méthodes de paiement express
-  // comme Link, mais elles sont bien supportées par Stripe
-  const elementsOptions: any = {
-    clientSecret: props.clientSecret,
-    appearance,
-    locale: 'fr',
-  };
-  
-  // Ajouter le support pour Link
-  if (typeof window !== 'undefined') {
-    elementsOptions.wallets = {
-      link: 'auto'
-    };
-  }
-  
-  return (
-    <Elements stripe={getStripe()} options={elementsOptions}>
+  // Le reste du composant basé sur inElementsContextRef.current
+  return inElementsContextRef.current ? (
+    <LinkButtonInternal {...props} />
+  ) : (
+    <ElementsContextProvider clientSecret={props.clientSecret}>
       <LinkButtonInternal {...props} />
+    </ElementsContextProvider>
+  );
+}
+
+function ElementsContextProvider({ clientSecret, children }: { clientSecret: string; children: React.ReactNode }) {
+  return (
+    <Elements stripe={getStripe()} options={{
+      clientSecret: clientSecret,
+      appearance: {
+        theme: 'stripe',
+        variables: {
+          colorPrimary: '#6667ab',
+          colorBackground: '#ffffff',
+          colorText: '#30313d',
+          colorDanger: '#df1b41',
+          fontFamily: 'Poppins, system-ui, sans-serif',
+          spacingUnit: '4px',
+          borderRadius: '4px',
+        },
+      },
+      locale: 'fr',
+      // @ts-ignore - La propriété wallets existe mais n'est pas reconnue par TypeScript
+      wallets: {
+        link: 'auto'
+      },
+    } as any}>
+      {children}
     </Elements>
   );
 } 

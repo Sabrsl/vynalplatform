@@ -234,18 +234,41 @@ export function ApplePayButton(props: ApplePayButtonProps) {
     clientSecret: props.clientSecret,
     appearance,
     locale: 'fr',
-  };
-  
-  // Ajouter le support pour Apple Pay
-  if (typeof window !== 'undefined') {
-    elementsOptions.wallets = {
+    wallets: {
       applePay: 'auto'
-    };
-  }
+    },
+  };
   
   return (
     <Elements stripe={getStripe()} options={elementsOptions}>
       <ApplePayButtonInternal {...props} />
+    </Elements>
+  );
+}
+
+function ElementsContextProvider({ clientSecret, children }: { clientSecret: string; children: React.ReactNode }) {
+  return (
+    <Elements stripe={getStripe()} options={{
+      clientSecret: clientSecret,
+      appearance: {
+        theme: 'stripe',
+        variables: {
+          colorPrimary: '#6667ab',
+          colorBackground: '#ffffff',
+          colorText: '#30313d',
+          colorDanger: '#df1b41',
+          fontFamily: 'Poppins, system-ui, sans-serif',
+          spacingUnit: '4px',
+          borderRadius: '4px',
+        },
+      },
+      locale: 'fr',
+      // @ts-ignore - La propriété wallets existe mais n'est pas reconnue par TypeScript
+      wallets: {
+        applePay: 'auto'
+      },
+    } as any}>
+      {children}
     </Elements>
   );
 } 
