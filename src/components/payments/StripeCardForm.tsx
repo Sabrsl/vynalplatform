@@ -126,29 +126,35 @@ function StripeCardFormContent({
     `[DEBUG CONVERSION] StripeCardForm - Montant reçu: ${amount} ${currency.toUpperCase()}`,
   );
 
-  // CORRECTION: Considérer que le montant original est toujours en XOF
-  // puis le normaliser et le convertir en EUR pour Stripe
-  let displayAmount = amount;
-  let originalCurrency = "XOF";
-  let wasNormalized = false;
+  // CORRECTION: Considérer que le montant est en XOF (devise de la base de données)
+  // et s'assurer que la conversion est correcte pour Stripe
 
-  // Si le montant semble anormal, le normaliser
-  const normalizedAmount = normalizeAmount(amount, "XOF");
-  if (normalizedAmount !== amount) {
+  // 1. S'assurer que nous travaillons avec des unités monétaires, pas des centimes
+  const amountInUnits = amount;
+
+  // 2. Normaliser le montant XOF si nécessaire
+  const normalizedAmount = normalizeAmount(amountInUnits, "XOF");
+  const wasNormalized = normalizedAmount !== amountInUnits;
+
+  if (wasNormalized) {
     console.warn(
-      `[DEBUG CONVERSION] StripeCardForm - Montant anormal détecté: ${amount} XOF, normalisé à ${normalizedAmount} XOF`,
+      `[DEBUG CONVERSION] StripeCardForm - Montant anormal détecté: ${amountInUnits} XOF, normalisé à ${normalizedAmount} XOF`,
     );
-    displayAmount = normalizedAmount;
-    wasNormalized = true;
-  } else {
-    displayAmount = amount;
   }
 
-  // Toujours convertir le montant en EUR pour Stripe
-  const amountInEur = convertToEur(displayAmount, "XOF", false) as number;
+  // 3. Convertir le montant XOF en EUR pour Stripe (qui accepte uniquement EUR)
+  const amountInEur = convertToEur(normalizedAmount, "XOF", false) as number;
   console.log(
-    `[DEBUG CONVERSION] StripeCardForm - Conversion en EUR: ${displayAmount} XOF → ${amountInEur} EUR`,
+    `[DEBUG CONVERSION] StripeCardForm - Conversion en EUR: ${normalizedAmount} XOF → ${amountInEur} EUR`,
   );
+
+  // NOUVEAU: Traçage complet du flux de conversion pour débogage
+  console.log(`[DEBUG CONVERSION] FLUX COMPLET STRIPE CARD FORM:
+  1. Montant original reçu: ${amount} XOF (unités)
+  2. Montant normalisé si nécessaire: ${normalizedAmount} XOF
+  3. Conversion XOF → EUR: ${normalizedAmount} XOF → ${amountInEur} EUR
+  4. MONTANT EUR pour affichage et paiement: ${amountInEur} EUR
+  `);
 
   // Utilisation du hook useCurrency pour obtenir la devise de l'utilisateur
   const { currency: userCurrency } = useCurrency();
@@ -156,11 +162,11 @@ function StripeCardFormContent({
   // Calculer le montant dans la devise de l'utilisateur
   const amountInUserCurrency =
     userCurrency.code === "XOF"
-      ? displayAmount
+      ? normalizedAmount
       : userCurrency.code === "EUR"
         ? amountInEur
         : (convertCurrency(
-            displayAmount,
+            normalizedAmount,
             "XOF",
             userCurrency.code,
             false,
@@ -186,12 +192,12 @@ function StripeCardFormContent({
   console.log(`[DEBUG CONVERSION] StripeCardForm - Montant traité:`, {
     originalAmount: amount,
     currency: "XOF", // Tous les prix sont stockés en XOF dans la BD
-    normalizedAmount: displayAmount,
+    normalizedAmount: normalizedAmount,
     wasNormalized,
     amountInEur,
     userCurrency: userCurrency.code,
     amountInUserCurrency,
-    conversionRate: amountInEur / displayAmount,
+    conversionRate: amountInEur / normalizedAmount,
     clientSecret: clientSecret ? "Présent" : "Absent", // Ne pas afficher le secret complet
   });
 
@@ -265,7 +271,7 @@ function StripeCardFormContent({
           serviceId, // Ajout du serviceId pour lier correctement le paiement au service
           provider: "stripe",
           amount: amountInEur, // Montant en EUR
-          originalAmount: displayAmount, // Montant original en XOF
+          originalAmount: normalizedAmount, // Montant original en XOF
           originalCurrency: "XOF", // Devise originale toujours XOF
           userCurrency: userCurrency.code, // Devise affichée à l'utilisateur
           amountInUserCurrency: amountInUserCurrency, // Montant dans la devise de l'utilisateur

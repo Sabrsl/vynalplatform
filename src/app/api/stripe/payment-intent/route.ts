@@ -234,45 +234,23 @@ export async function POST(req: NextRequest) {
         `[DEBUG CONVERSION] Montant original: ${amount} centimes = ${originalAmountInUnits} XOF (unités)`,
       );
 
-      // Détecter si le montant pourrait être anormal (trop grand ou trop petit)
-      // Note: normalizeAmount ne sera utilisé que pour la détection, pas pour modifier le montant
-      const detectedAbnormalAmount =
-        originalAmountInUnits !== normalizeAmount(originalAmountInUnits, "XOF");
+      // CORRECTION CRITIQUE: Le montant reçu est en centimes de XOF, pas en centimes d'EUR
+      // Nous devons d'abord convertir les centimes de XOF en unités XOF, puis convertir en EUR
 
-      if (detectedAbnormalAmount) {
-        console.warn(
-          `Montant potentiellement anormal détecté: ${originalAmountInUnits} XOF`,
-        );
-        // Vérification additionnelle pour les montants très élevés qui pourraient être une erreur
-        if (originalAmountInUnits > 100000) {
-          console.error(
-            `Montant FCFA extrêmement élevé détecté: ${originalAmountInUnits} XOF`,
-          );
-          // On peut soit bloquer la transaction, soit normaliser de force
-          // Pour la sécurité, on va bloquer
-          return NextResponse.json(
-            {
-              error:
-                "Montant anormalement élevé détecté. Veuillez vérifier le montant de votre paiement.",
-            },
-            { status: 400 },
-          );
-        }
-      }
+      // Vérifier et normaliser le montant XOF si nécessaire
+      const normalizedXofAmount = normalizeAmount(originalAmountInUnits, "XOF");
 
-      // Convertir le montant en euros pour Stripe
-      let amountInEuros: number;
-
+      // Convertir directement le montant XOF en EUR sans normalisation supplémentaire
+      // en utilisant les taux définis dans le projet
+      let amountInEuros = 0;
       try {
-        // Convertir directement le montant en euros sans normalisation supplémentaire
-        // en utilisant les taux définis dans le projet
         amountInEuros = convertToEur(
-          originalAmountInUnits,
+          normalizedXofAmount,
           "XOF",
           false,
         ) as number;
         console.log(
-          `[DEBUG CONVERSION] Conversion pour paiement Stripe: ${originalAmountInUnits} XOF → ${amountInEuros} EUR (utilisant les taux définis)`,
+          `[DEBUG CONVERSION] Conversion pour paiement Stripe: ${normalizedXofAmount} XOF → ${amountInEuros} EUR (utilisant les taux définis)`,
         );
 
         // Vérification de sécurité supplémentaire sur le montant converti
@@ -306,6 +284,14 @@ export async function POST(req: NextRequest) {
       console.log(
         `[DEBUG CONVERSION] Montant final pour Stripe: ${amountInEuros} EUR → ${amountInEuroCents} centimes d'euro`,
       );
+
+      // Ajouter des logs détaillés pour vérifier le flux complet
+      console.log(`[DEBUG CONVERSION] FLUX COMPLET STRIPE:
+      1. Montant original de la base: ${amount} centimes XOF (${originalAmountInUnits} XOF unités)
+      2. Montant XOF normalisé si nécessaire: ${normalizedXofAmount} XOF
+      3. Conversion XOF → EUR: ${normalizedXofAmount} XOF → ${amountInEuros} EUR 
+      4. Conversion EUR → cents: ${amountInEuros} EUR → ${amountInEuroCents} centimes
+      5. MONTANT FINAL envoyé à Stripe: ${amountInEuroCents} centimes d'euro`);
 
       // Création du PaymentIntent via l'API Stripe - toujours en euros
       const paymentIntent = await createPaymentIntent({

@@ -106,8 +106,9 @@ export async function createPaymentIntent(params: {
   customerId?: string;
   metadata?: Record<string, string>;
 }) {
-  // Vérifier et potentiellement normaliser le montant
-  let finalAmount = params.amount;
+  // Le montant fourni devrait déjà être en centimes d'euro
+  // Nous devons nous assurer qu'il est correctement formaté
+  let finalAmount = Math.round(params.amount);
 
   // Journaliser pour le débogage
   console.log(
@@ -128,6 +129,7 @@ export async function createPaymentIntent(params: {
   }
 
   // Si le montant est dans une devise non prise en charge par Stripe, convertir en EUR
+  // Note: cette partie est rarement utilisée puisque la conversion est maintenant gérée en amont
   if (
     params.currency.toLowerCase() !== "eur" &&
     params.currency.toLowerCase() !== "usd"
@@ -180,6 +182,13 @@ export async function createPaymentIntent(params: {
   console.log(
     `[DEBUG CONVERSION] Stripe Server: Création du PaymentIntent avec montant final: ${finalAmount} centimes (${finalAmount / 100} EUR)`,
   );
+
+  // Vérifier que le montant n'est pas modifié par la fonction Stripe
+  console.log(`[DEBUG CONVERSION] VÉRIFICATION FINALE STRIPE:
+  - Montant à envoyer: ${finalAmount} centimes
+  - Devise: ${params.currency.toLowerCase()}
+  - Métadonnées: ${JSON.stringify(params.metadata)}
+  `);
 
   return stripe.paymentIntents.create({
     amount: finalAmount, // Montant en centimes d'euro
