@@ -81,15 +81,18 @@ export function useStripePayment() {
             .from("services")
             .select("freelance_id")
             .eq("id", serviceId)
-            .single();
+            .maybeSingle();
 
-          if (serviceData) {
-            actualFreelanceId = serviceData.freelance_id;
-          } else if (serviceError) {
+          if (serviceError && serviceError.code !== "PGRST116") {
             console.error(
               "Erreur lors de la récupération des données du service:",
               serviceError,
             );
+            throw new Error(
+              `Erreur récupération service: ${serviceError.message}`,
+            );
+          } else if (serviceData) {
+            actualFreelanceId = serviceData.freelance_id;
           }
         }
 
@@ -247,28 +250,64 @@ export function useStripePayment() {
 
       if (user) {
         try {
-          // Mise à jour du statut dans la table payments via RLS
-          await supabase
-            .from("payments")
-            .update({ status: "paid" })
-            .eq("payment_intent_id", paymentIntentId)
-            .eq("client_id", user.id);
+          // Déclencher le webhook manuel pour traiter le paiement
+          const manualWebhookResponse = await fetch(
+            "/api/stripe/manual-webhook",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ paymentIntentId }),
+            },
+          );
 
-          // Chercher l'order_id associé au paiement pour mettre à jour la commande
-          const { data: paymentData } = await supabase
-            .from("payments")
-            .select("order_id")
-            .eq("payment_intent_id", paymentIntentId)
-            .eq("client_id", user.id)
-            .single();
+          const webhookResult = await manualWebhookResponse.json();
 
-          if (paymentData && paymentData.order_id) {
-            // Mettre à jour le statut de la commande
+          if (!manualWebhookResponse.ok) {
+            console.error(
+              "Erreur lors du traitement manuel du webhook:",
+              webhookResult.error,
+            );
+
+            // Tentative de mise à jour directe comme fallback
             await supabase
-              .from("orders")
+              .from("payments")
               .update({ status: "paid" })
-              .eq("id", paymentData.order_id)
+              .eq("payment_intent_id", paymentIntentId)
               .eq("client_id", user.id);
+
+            // Chercher l'order_id associé au paiement pour mettre à jour la commande
+            const { data: paymentData, error: paymentError } = await supabase
+              .from("payments")
+              .select("order_id")
+              .eq("payment_intent_id", paymentIntentId)
+              .eq("client_id", user.id)
+              .maybeSingle();
+
+            if (paymentError && paymentError.code !== "PGRST116") {
+              console.error(
+                "Erreur lors de la récupération du paiement:",
+                paymentError,
+              );
+            } else if (paymentData && paymentData.order_id) {
+              // Mettre à jour le statut de la commande
+              await supabase
+                .from("orders")
+                .update({ status: "paid" })
+                .eq("id", paymentData.order_id)
+                .eq("client_id", user.id);
+            }
+          } else if (webhookResult.alreadyProcessed) {
+            console.log(
+              "Ce paiement a déjà été traité:",
+              webhookResult.paymentId,
+            );
+          } else {
+            console.log(
+              "Paiement traité avec succès via webhook manuel:",
+              webhookResult,
+            );
           }
 
           // Journalisation du succès
@@ -279,7 +318,8 @@ export function useStripePayment() {
             details: {
               paymentIntentId,
               serviceId,
-              orderId: paymentData?.order_id,
+              orderId: webhookResult.orderId,
+              orderNumber: webhookResult.orderNumber,
             },
           });
         } catch (err) {
@@ -313,9 +353,32 @@ export function useStripePayment() {
             .from("payments")
             .update({
               status: "failed",
+              updated_at: new Date().toISOString(),
             })
             .eq("payment_intent_id", paymentIntentId)
             .eq("client_id", user.id);
+
+          // Chercher l'order_id associé au paiement pour mettre à jour la commande
+          const { data: paymentData, error: paymentError } = await supabase
+            .from("payments")
+            .select("order_id")
+            .eq("payment_intent_id", paymentIntentId)
+            .eq("client_id", user.id)
+            .maybeSingle();
+
+          if (paymentError && paymentError.code !== "PGRST116") {
+            console.error(
+              "Erreur lors de la récupération du paiement:",
+              paymentError,
+            );
+          } else if (paymentData && paymentData.order_id) {
+            // Mettre à jour le statut de la commande
+            await supabase
+              .from("orders")
+              .update({ status: "payment_failed" })
+              .eq("id", paymentData.order_id)
+              .eq("client_id", user.id);
+          }
 
           // Journalisation de l'échec
           await logSecurityEvent({
@@ -326,6 +389,7 @@ export function useStripePayment() {
               paymentIntentId,
               serviceId,
               error: errorMessage,
+              orderId: paymentData?.order_id,
             },
           });
         } catch (err) {

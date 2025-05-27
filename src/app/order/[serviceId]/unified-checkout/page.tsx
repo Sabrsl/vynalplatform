@@ -32,6 +32,7 @@ import useCurrency from "@/hooks/useCurrency";
 import { ApplePayButton } from "@/components/payments/ApplePayButton";
 import { GooglePayButton } from "@/components/payments/GooglePayButton";
 import { LinkButton } from "@/components/payments/LinkButton";
+import { QuickTooltip } from "@/components/ui/tooltip";
 
 // États de chargement personnalisés pour le paiement
 const paymentLoadingStates = [
@@ -1251,7 +1252,7 @@ export default function UnifiedCheckoutPage({
       <div className="max-w-4xl mx-auto mb-4">
         <button
           onClick={handleBack}
-          className="inline-flex items-center text-slate-600 dark:text-vynal-text-secondary hover:text-vynal-accent-primary transition-colors text-[10px] sm:text-xs font-poppins"
+          className="inline-flex items-center text-slate-600 dark:text-vynal-text-secondary hover:text-vynal-accent-secondary dark:hover:text-vynal-accent-primary transition-colors text-[10px] sm:text-xs font-poppins"
         >
           <ChevronLeft className="h-3 w-3 mr-1" />
           <span>Retour</span>
@@ -1263,7 +1264,7 @@ export default function UnifiedCheckoutPage({
         <div className="flex flex-col md:flex-row gap-8 items-start">
           {/* Left column - Order summary */}
           <div className="w-full md:w-2/5 lg:w-1/3 md:sticky md:top-8">
-            <div className="bg-white dark:bg-vynal-purple-dark shadow-sm rounded-xl p-5 border border-slate-100 dark:border-vynal-purple-secondary/20">
+            <div className="bg-white/30 dark:bg-slate-900/30 shadow-sm rounded-xl p-5 border border-slate-200 dark:border-slate-700/30">
               {/* TEST MODE badge */}
               {orderData.isTestMode && (
                 <div className="flex items-center mb-4 p-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-700/20">
@@ -1284,7 +1285,7 @@ export default function UnifiedCheckoutPage({
               </div>
 
               {/* Service details */}
-              <div className="space-y-3 pb-4 mb-4 border-b border-slate-100 dark:border-vynal-purple-secondary/20">
+              <div className="space-y-3 pb-4 mb-4 border-b border-slate-200 dark:border-slate-700/20">
                 {service?.images && service.images.length > 0 ? (
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-md overflow-hidden relative flex-shrink-0">
@@ -1301,14 +1302,8 @@ export default function UnifiedCheckoutPage({
                         {service?.title || "Service"}
                       </h3>
                       <div className="flex items-center mt-1">
-                        <span className="text-[7px] sm:text-[9px] text-slate-500 dark:text-vynal-text-secondary">
-                          {formatPrice(service?.price || 0)}
-                        </span>
                         {service?.delivery_time && (
                           <>
-                            <span className="mx-1 text-slate-300 dark:text-vynal-purple-secondary/40">
-                              •
-                            </span>
                             <Clock className="h-2 w-2 text-slate-400 mr-1" />
                             <span className="text-[7px] sm:text-[9px] text-slate-500 dark:text-vynal-text-secondary">
                               {service.delivery_time} jour(s)
@@ -1322,7 +1317,7 @@ export default function UnifiedCheckoutPage({
               </div>
 
               {/* Price breakdown */}
-              <div className="space-y-2 pt-1 pb-4 border-b border-slate-100 dark:border-vynal-purple-secondary/20">
+              <div className="space-y-2 pt-1 pb-4 border-b border-slate-200 dark:border-slate-700/20">
                 <div className="flex justify-between">
                   <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-vynal-text-secondary">
                     Prix du service
@@ -1354,7 +1349,19 @@ export default function UnifiedCheckoutPage({
               {/* Security badge */}
               <div className="mt-6 flex items-center justify-center">
                 <div className="flex items-center space-x-1">
-                  <Lock className="h-3 w-3 text-vynal-accent-primary" />
+                  <QuickTooltip
+                    content="Paiement sécurisé SSL 256-bit"
+                    side="top"
+                    variant="default"
+                    delayDuration={100}
+                    className="bg-slate-100/90 dark:bg-slate-800/90
+                      border border-slate-200 dark:border-slate-700/30
+                      text-slate-700 dark:text-vynal-text-primary
+                      shadow-sm backdrop-blur-sm
+                      rounded-lg"
+                  >
+                    <Lock className="h-3 w-3 text-vynal-accent-secondary dark:text-vynal-accent-primary" />
+                  </QuickTooltip>
                   <span className="text-[7px] sm:text-[8px] text-slate-400 dark:text-vynal-text-secondary">
                     Paiement sécurisé
                   </span>
@@ -1365,7 +1372,7 @@ export default function UnifiedCheckoutPage({
 
           {/* Right column - Payment form */}
           <div className="flex-1 w-full">
-            <div className="bg-white dark:bg-vynal-purple-dark/20 shadow-sm rounded-xl overflow-hidden border border-slate-100 dark:border-vynal-purple-secondary/40">
+            <div className="bg-white/25 dark:bg-slate-900/20 shadow-sm rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700/20">
               {/* Payment methods */}
               <div className="p-4 sm:p-5 space-y-4 sm:space-y-5">
                 <h2 className="text-[10px] sm:text-xs font-medium text-slate-800 dark:text-vynal-text-primary">
@@ -1375,7 +1382,7 @@ export default function UnifiedCheckoutPage({
                 {/* Error alert */}
                 {orderData.error && (
                   <div className="bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 rounded-lg p-2 sm:p-3 text-[9px] sm:text-xs text-red-600 dark:text-red-400 flex items-start">
-                    <AlertCircle className="h-3 w-3 mt-0.5 mr-2 flex-shrink0 text-vynal-accent-primary" />
+                    <AlertCircle className="h-3 w-3 mt-0.5 mr-2 flex-shrink0 text-vynal-accent-secondary dark:text-vynal-accent-primary" />
                     <p>{orderData.error}</p>
                   </div>
                 )}
@@ -1383,67 +1390,103 @@ export default function UnifiedCheckoutPage({
                 {/* Payment method buttons */}
                 <div className="grid grid-cols-3 gap-2 sm:gap-3 mt-3 sm:mt-4">
                   {/* Wave Button */}
-                  <button
-                    onClick={() => handleMethodSelect("wave")}
-                    className={`py-2.5 sm:py-3 px-3 sm:px-4 rounded-md flex items-center justify-center transition-all ${
-                      orderData.selectedPaymentMethod === "wave"
-                        ? "bg-vynal-accent-primary text-white"
-                        : "bg-slate-100 hover:bg-slate-200 dark:bg-vynal-purple-secondary/20 dark:hover:bg-vynal-purple-secondary/30 text-slate-700 dark:text-vynal-text-secondary"
-                    }`}
+                  <QuickTooltip
+                    content="Wave Money : Bientôt disponible sur Vynal"
+                    side="top"
+                    variant="default"
+                    delayDuration={150}
+                    className="bg-slate-100/90 dark:bg-slate-800/90
+                      border border-slate-200 dark:border-slate-700/30
+                      text-slate-700 dark:text-vynal-text-primary
+                      shadow-sm backdrop-blur-sm
+                      rounded-lg"
                   >
-                    <Image
-                      src="/assets/partners/logo_wave_.webp"
-                      alt="Wave"
-                      width={52}
-                      height={52}
-                      className="h-6 w-6 sm:h-8 sm:w-8 mr-1.5 sm:mr-2"
-                    />
-                    <span className="text-[10px] sm:text-xs font-medium">
-                      Wave
-                    </span>
-                  </button>
+                    <button
+                      onClick={() => handleMethodSelect("wave")}
+                      className={`py-2.5 sm:py-3 px-3 sm:px-4 rounded-md flex items-center justify-center transition-all border ${
+                        orderData.selectedPaymentMethod === "wave"
+                          ? "bg-gradient-to-r from-vynal-accent-secondary to-purple-500 dark:from-vynal-accent-primary dark:to-purple-600 text-white border-vynal-accent-secondary dark:border-vynal-accent-primary shadow-lg"
+                          : "bg-slate-200/60 hover:bg-slate-100 dark:bg-slate-800/25 dark:hover:bg-slate-800/40 text-slate-700 dark:text-vynal-text-secondary border-slate-200/50 dark:border-slate-700/30"
+                      }`}
+                    >
+                      <Image
+                        src="/assets/partners/logo_wave_.webp"
+                        alt="Wave"
+                        width={52}
+                        height={52}
+                        className="h-6 w-6 sm:h-8 sm:w-8 mr-1.5 sm:mr-2"
+                      />
+                      <span className="text-[10px] sm:text-xs font-medium">
+                        Wave
+                      </span>
+                    </button>
+                  </QuickTooltip>
 
                   {/* Orange Money Button */}
-                  <button
-                    onClick={() => handleMethodSelect("orange-money")}
-                    className={`py-2.5 sm:py-3 px-3 sm:px-4 rounded-md flex items-center justify-center transition-all ${
-                      orderData.selectedPaymentMethod === "orange-money"
-                        ? "bg-vynal-accent-primary text-white"
-                        : "bg-slate-100 hover:bg-slate-200 dark:bg-vynal-purple-secondary/20 dark:hover:bg-vynal-purple-secondary/30 text-slate-700 dark:text-vynal-text-secondary"
-                    }`}
+                  <QuickTooltip
+                    content="Orange Money : Bientôt disponible sur Vynal"
+                    side="top"
+                    variant="default"
+                    delayDuration={150}
+                    className="bg-slate-100/90 dark:bg-slate-800/90
+                      border border-slate-200 dark:border-slate-700/30
+                      text-slate-700 dark:text-vynal-text-primary
+                      shadow-sm backdrop-blur-sm
+                      rounded-lg"
                   >
-                    <Image
-                      src="/images/payment/orangemoney.png"
-                      alt="Orange Money"
-                      width={40}
-                      height={40}
-                      className="h-6 w-6 sm:h-8 sm:w-8 mr-1.5 sm:mr-2"
-                    />
-                    <span className="text-[10px] sm:text-xs font-medium">
-                      Orange
-                    </span>
-                  </button>
+                    <button
+                      onClick={() => handleMethodSelect("orange-money")}
+                      className={`py-2.5 sm:py-3 px-3 sm:px-4 rounded-md flex items-center justify-center transition-all border ${
+                        orderData.selectedPaymentMethod === "orange-money"
+                          ? "bg-gradient-to-r from-orange-400 to-vynal-accent-secondary dark:from-orange-500 dark:to-vynal-accent-primary text-white border-orange-400 dark:border-orange-500 shadow-lg"
+                          : "bg-slate-200/60 hover:bg-slate-100 dark:bg-slate-800/25 dark:hover:bg-slate-800/40 text-slate-700 dark:text-vynal-text-secondary border-slate-200/50 dark:border-slate-700/30"
+                      }`}
+                    >
+                      <Image
+                        src="/images/payment/orangemoney.png"
+                        alt="Orange Money"
+                        width={40}
+                        height={40}
+                        className="h-6 w-6 sm:h-8 sm:w-8 mr-1.5 sm:mr-2"
+                      />
+                      <span className="text-[10px] sm:text-xs font-medium">
+                        Orange
+                      </span>
+                    </button>
+                  </QuickTooltip>
 
                   {/* PayPal Button */}
-                  <button
-                    onClick={() => handleMethodSelect("paypal")}
-                    className={`py-2.5 sm:py-3 px-3 sm:px-4 rounded-md flex items-center justify-center transition-all ${
-                      orderData.selectedPaymentMethod === "paypal"
-                        ? "bg-vynal-accent-primary text-white"
-                        : "bg-slate-100 hover:bg-slate-200 dark:bg-vynal-purple-secondary/20 dark:hover:bg-vynal-purple-secondary/30 text-slate-700 dark:text-vynal-text-secondary"
-                    }`}
+                  <QuickTooltip
+                    content="Paiement sécurisé PayPal avec conversion automatique"
+                    side="top"
+                    variant="default"
+                    delayDuration={150}
+                    className="bg-slate-100/90 dark:bg-slate-800/90
+                      border border-slate-200 dark:border-slate-700/30
+                      text-slate-700 dark:text-vynal-text-primary
+                      shadow-sm backdrop-blur-sm
+                      rounded-lg"
                   >
-                    <Image
-                      src="/images/payment/paypallogo.png"
-                      alt="PayPal"
-                      width={32}
-                      height={32}
-                      className="h-6 w-6 sm:h-8 sm:w-8 mr-1.5 sm:mr-2"
-                    />
-                    <span className="text-[10px] sm:text-xs font-medium">
-                      PayPal
-                    </span>
-                  </button>
+                    <button
+                      onClick={() => handleMethodSelect("paypal")}
+                      className={`py-2.5 sm:py-3 px-3 sm:px-4 rounded-md flex items-center justify-center transition-all border ${
+                        orderData.selectedPaymentMethod === "paypal"
+                          ? "bg-gradient-to-r from-blue-500 to-vynal-accent-secondary dark:from-blue-600 dark:to-vynal-accent-primary text-white border-blue-500 dark:border-blue-600 shadow-lg"
+                          : "bg-slate-200/60 hover:bg-slate-100 dark:bg-slate-800/25 dark:hover:bg-slate-800/40 text-slate-700 dark:text-vynal-text-secondary border-slate-200/50 dark:border-slate-700/30"
+                      }`}
+                    >
+                      <Image
+                        src="/images/payment/paypallogo.png"
+                        alt="PayPal"
+                        width={32}
+                        height={32}
+                        className="h-6 w-6 sm:h-8 sm:w-8 mr-1.5 sm:mr-2"
+                      />
+                      <span className="text-[10px] sm:text-xs font-medium">
+                        PayPal
+                      </span>
+                    </button>
+                  </QuickTooltip>
                 </div>
 
                 {/* Wave form */}
@@ -1452,7 +1495,7 @@ export default function UnifiedCheckoutPage({
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.2 }}
-                    className="mt-3 sm:mt-4 p-3 sm:p-4 bg-slate-50 dark:bg-vynal-purple-dark/20 rounded-md border border-slate-200 dark:border-vynal-purple-secondary/40"
+                    className="mt-3 sm:mt-4 p-3 sm:p-4 bg-white/20 dark:bg-slate-800/25 rounded-md border border-slate-200 dark:border-slate-700/15"
                   >
                     <div className="flex items-center mb-2 sm:mb-3">
                       <Image
@@ -1480,7 +1523,7 @@ export default function UnifiedCheckoutPage({
                         placeholder="77 123 45 67"
                         value={mobileNumber}
                         onChange={(e) => setMobileNumber(e.target.value)}
-                        className="h-9 sm:h-10 text-[10px] sm:text-sm bg-white dark:bg-vynal-purple-dark/40 border-slate-200 dark:border-vynal-purple-secondary/40 rounded-md opacity-50 cursor-not-allowed"
+                        className="h-9 sm:h-10 text-[10px] sm:text-sm bg-white/40 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700/15 rounded-md opacity-50 cursor-not-allowed"
                         disabled
                       />
                       <p className="mt-1.5 sm:mt-2 text-[11px] sm:text-sm text-amber-600 dark:text-amber-500">
@@ -1496,7 +1539,7 @@ export default function UnifiedCheckoutPage({
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.2 }}
-                    className="mt-3 sm:mt-4 p-3 sm:p-4 bg-slate-50 dark:bg-vynal-purple-dark/20 rounded-md border border-slate-200 dark:border-vynal-purple-secondary/40"
+                    className="mt-3 sm:mt-4 p-3 sm:p-4 bg-white/20 dark:bg-slate-800/25 rounded-md border border-slate-200 dark:border-slate-700/15"
                   >
                     <div className="flex items-center mb-2 sm:mb-3">
                       <Image
@@ -1524,7 +1567,7 @@ export default function UnifiedCheckoutPage({
                         placeholder="77 123 45 67"
                         value={mobileNumber}
                         onChange={(e) => setMobileNumber(e.target.value)}
-                        className="h-9 sm:h-10 text-[10px] sm:text-sm bg-white dark:bg-vynal-purple-dark/40 border-slate-200 dark:border-vynal-purple-secondary/40 rounded-md opacity-50 cursor-not-allowed"
+                        className="h-9 sm:h-10 text-[10px] sm:text-sm bg-white/40 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700/15 rounded-md opacity-50 cursor-not-allowed"
                         disabled
                       />
                       <p className="mt-1.5 sm:mt-2 text-[11px] sm:text-sm text-amber-600 dark:text-amber-500">
@@ -1560,143 +1603,210 @@ export default function UnifiedCheckoutPage({
                 <div className="mt-4">
                   <div className="grid grid-cols-3 gap-2 sm:gap-3">
                     {/* Apple Pay Button */}
-                    <button
-                      onClick={() => {
-                        if (
-                          paymentAvailability.applePay &&
-                          !checkingAvailability
-                        ) {
-                          handleDirectApplePay();
-                        }
-                      }}
-                      disabled={
-                        !paymentAvailability.applePay ||
-                        checkingAvailability ||
-                        directPaymentLoading.applePay
-                      }
-                      className={`py-2.5 sm:py-3 px-3 sm:px-4 rounded-md flex items-center justify-center transition-all ${
-                        paymentAvailability.applePay && !checkingAvailability
-                          ? "bg-slate-100 hover:bg-slate-200 dark:bg-vynal-purple-secondary/20 dark:hover:bg-vynal-purple-secondary/30 text-slate-700 dark:text-vynal-text-secondary cursor-pointer"
-                          : "bg-slate-50 dark:bg-vynal-purple-secondary/10 text-slate-400 dark:text-vynal-text-secondary/50 cursor-not-allowed opacity-50"
-                      }`}
-                      title={
+                    <QuickTooltip
+                      content={
                         checkingAvailability
-                          ? "Vérification de la disponibilité..."
+                          ? "Vérification de la disponibilité d'Apple Pay..."
                           : !paymentAvailability.applePay
                             ? "Apple Pay non disponible sur cet appareil"
-                            : "Payer avec Apple Pay"
+                            : directPaymentLoading.applePay
+                              ? "Traitement Apple Pay en cours..."
+                              : "Payer en un clic avec Apple Pay"
                       }
+                      side="top"
+                      variant="default"
+                      delayDuration={100}
+                      className="bg-slate-100/90 dark:bg-slate-800/90
+                        border border-slate-200 dark:border-slate-700/30
+                        text-slate-700 dark:text-vynal-text-primary
+                        shadow-sm backdrop-blur-sm
+                        rounded-lg"
                     >
-                      <Image
-                        src="/images/payment/applepay.png"
-                        alt="Apple Pay"
-                        width={40}
-                        height={40}
-                        className={`h-6 w-6 sm:h-8 sm:w-8 mr-1.5 sm:mr-2 ${
-                          !paymentAvailability.applePay || checkingAvailability
-                            ? "opacity-50"
-                            : ""
+                      <button
+                        onClick={() => {
+                          if (
+                            paymentAvailability.applePay &&
+                            !checkingAvailability
+                          ) {
+                            handleDirectApplePay();
+                          }
+                        }}
+                        disabled={
+                          !paymentAvailability.applePay ||
+                          checkingAvailability ||
+                          directPaymentLoading.applePay
+                        }
+                        className={`py-2.5 sm:py-3 px-3 sm:px-4 rounded-md flex items-center justify-center transition-all ${
+                          paymentAvailability.applePay && !checkingAvailability
+                            ? "bg-pink-200/80 hover:bg-pink-200/80 dark:bg-pink-900/25 dark:hover:bg-pink-800/40 text-pink-700 dark:text-pink-300 cursor-pointer border border-pink-200/50 dark:border-pink-700/30"
+                            : "bg-slate-100/30 dark:bg-slate-800/30 text-slate-400 dark:text-vynal-text-secondary/50 cursor-not-allowed opacity-50"
                         }`}
-                      />
-                      <span className="text-[10px] sm:text-xs font-medium">
-                        {directPaymentLoading.applePay ? "..." : "Apple Pay"}
-                      </span>
-                    </button>
+                        title={
+                          checkingAvailability
+                            ? "Vérification de la disponibilité..."
+                            : !paymentAvailability.applePay
+                              ? "Apple Pay non disponible sur cet appareil"
+                              : "Payer avec Apple Pay"
+                        }
+                      >
+                        <Image
+                          src="/images/payment/applepay.png"
+                          alt="Apple Pay"
+                          width={40}
+                          height={40}
+                          className={`h-6 w-6 sm:h-8 sm:w-8 mr-1.5 sm:mr-2 ${
+                            !paymentAvailability.applePay ||
+                            checkingAvailability
+                              ? "opacity-50"
+                              : ""
+                          }`}
+                        />
+                        <span className="text-[10px] sm:text-xs font-medium">
+                          {directPaymentLoading.applePay ? "..." : "Apple Pay"}
+                        </span>
+                      </button>
+                    </QuickTooltip>
 
                     {/* Google Pay Button */}
-                    <button
-                      onClick={() => {
-                        if (
-                          paymentAvailability.googlePay &&
-                          !checkingAvailability
-                        ) {
-                          handleDirectGooglePay();
-                        }
-                      }}
-                      disabled={
-                        !paymentAvailability.googlePay ||
-                        checkingAvailability ||
-                        directPaymentLoading.googlePay
-                      }
-                      className={`py-2.5 sm:py-3 px-3 sm:px-4 rounded-md flex items-center justify-center transition-all ${
-                        paymentAvailability.googlePay && !checkingAvailability
-                          ? "bg-slate-100 hover:bg-slate-200 dark:bg-vynal-purple-secondary/20 dark:hover:bg-vynal-purple-secondary/30 text-slate-700 dark:text-vynal-text-secondary cursor-pointer"
-                          : "bg-slate-50 dark:bg-vynal-purple-secondary/10 text-slate-400 dark:text-vynal-text-secondary/50 cursor-not-allowed opacity-50"
-                      }`}
-                      title={
+                    <QuickTooltip
+                      content={
                         checkingAvailability
-                          ? "Vérification de la disponibilité..."
+                          ? "Vérification de la disponibilité de Google Pay..."
                           : !paymentAvailability.googlePay
                             ? "Google Pay non disponible sur cet appareil"
-                            : "Payer avec Google Pay"
+                            : directPaymentLoading.googlePay
+                              ? "Traitement Google Pay en cours..."
+                              : "Payer en un clic avec Google Pay"
                       }
+                      side="top"
+                      variant="default"
+                      delayDuration={100}
+                      className="bg-slate-100/90 dark:bg-slate-800/90
+                        border border-slate-200 dark:border-slate-700/30
+                        text-slate-700 dark:text-vynal-text-primary
+                        shadow-sm backdrop-blur-sm
+                        rounded-lg"
                     >
-                      <Image
-                        src="/images/payment/googlepaylogo.png"
-                        alt="Google Pay"
-                        width={40}
-                        height={40}
-                        className={`h-6 w-6 sm:h-8 sm:w-8 mr-1.5 sm:mr-2 ${
-                          !paymentAvailability.googlePay || checkingAvailability
-                            ? "opacity-50"
-                            : ""
+                      <button
+                        onClick={() => {
+                          if (
+                            paymentAvailability.googlePay &&
+                            !checkingAvailability
+                          ) {
+                            handleDirectGooglePay();
+                          }
+                        }}
+                        disabled={
+                          !paymentAvailability.googlePay ||
+                          checkingAvailability ||
+                          directPaymentLoading.googlePay
+                        }
+                        className={`py-2.5 sm:py-3 px-3 sm:px-4 rounded-md flex items-center justify-center transition-all ${
+                          paymentAvailability.googlePay && !checkingAvailability
+                            ? "bg-pink-200/80 hover:bg-pink-200/80 dark:bg-pink-900/25 dark:hover:bg-pink-800/40 text-pink-700 dark:text-pink-300 cursor-pointer border border-pink-200/50 dark:border-pink-700/30"
+                            : "bg-slate-100/30 dark:bg-slate-800/30 text-slate-400 dark:text-vynal-text-secondary/50 cursor-not-allowed opacity-50"
                         }`}
-                      />
-                      <span className="text-[10px] sm:text-xs font-medium">
-                        {directPaymentLoading.googlePay ? "..." : "Google Pay"}
-                      </span>
-                    </button>
+                        title={
+                          checkingAvailability
+                            ? "Vérification de la disponibilité..."
+                            : !paymentAvailability.googlePay
+                              ? "Google Pay non disponible sur cet appareil"
+                              : "Payer avec Google Pay"
+                        }
+                      >
+                        <Image
+                          src="/images/payment/googlepaylogo.png"
+                          alt="Google Pay"
+                          width={40}
+                          height={40}
+                          className={`h-6 w-6 sm:h-8 sm:w-8 mr-1.5 sm:mr-2 ${
+                            !paymentAvailability.googlePay ||
+                            checkingAvailability
+                              ? "opacity-50"
+                              : ""
+                          }`}
+                        />
+                        <span className="text-[10px] sm:text-xs font-medium">
+                          {directPaymentLoading.googlePay
+                            ? "..."
+                            : "Google Pay"}
+                        </span>
+                      </button>
+                    </QuickTooltip>
 
                     {/* Link Button */}
-                    <button
-                      onClick={() => {
-                        if (paymentAvailability.link && !checkingAvailability) {
-                          handleDirectLink();
-                        }
-                      }}
-                      disabled={
-                        !paymentAvailability.link ||
-                        checkingAvailability ||
-                        directPaymentLoading.link
-                      }
-                      className={`py-2.5 sm:py-3 px-3 sm:px-4 rounded-md flex items-center justify-center transition-all ${
-                        paymentAvailability.link && !checkingAvailability
-                          ? "bg-slate-100 hover:bg-slate-200 dark:bg-vynal-purple-secondary/20 dark:hover:bg-vynal-purple-secondary/30 text-slate-700 dark:text-vynal-text-secondary cursor-pointer"
-                          : "bg-slate-50 dark:bg-vynal-purple-secondary/10 text-slate-400 dark:text-vynal-text-secondary/50 cursor-not-allowed opacity-50"
-                      }`}
-                      title={
+                    <QuickTooltip
+                      content={
                         checkingAvailability
-                          ? "Vérification de la disponibilité..."
+                          ? "Vérification de la disponibilité de Stripe Link..."
                           : !paymentAvailability.link
                             ? "Stripe Link non disponible"
-                            : "Payer avec Stripe Link"
+                            : directPaymentLoading.link
+                              ? "Traitement Stripe Link en cours..."
+                              : "Payer rapidement avec Stripe Link"
                       }
+                      side="top"
+                      variant="default"
+                      delayDuration={100}
+                      className="bg-slate-100/90 dark:bg-slate-800/90
+                        border border-slate-200 dark:border-slate-700/30
+                        text-slate-700 dark:text-vynal-text-primary
+                        shadow-sm backdrop-blur-sm
+                        rounded-lg"
                     >
-                      <Image
-                        src="/images/payment/linklogo.png"
-                        alt="Stripe Link"
-                        width={40}
-                        height={40}
-                        className={`h-6 w-6 sm:h-8 sm:w-8 mr-1.5 sm:mr-2 ${
-                          !paymentAvailability.link || checkingAvailability
-                            ? "opacity-50"
-                            : ""
+                      <button
+                        onClick={() => {
+                          if (
+                            paymentAvailability.link &&
+                            !checkingAvailability
+                          ) {
+                            handleDirectLink();
+                          }
+                        }}
+                        disabled={
+                          !paymentAvailability.link ||
+                          checkingAvailability ||
+                          directPaymentLoading.link
+                        }
+                        className={`py-2.5 sm:py-3 px-3 sm:px-4 rounded-md flex items-center justify-center transition-all ${
+                          paymentAvailability.link && !checkingAvailability
+                            ? "bg-pink-200/80 hover:bg-pink-200/80 dark:bg-pink-900/25 dark:hover:bg-pink-800/40 text-pink-700 dark:text-pink-300 cursor-pointer border border-pink-200/50 dark:border-pink-700/30"
+                            : "bg-slate-100/30 dark:bg-slate-800/30 text-slate-400 dark:text-vynal-text-secondary/50 cursor-not-allowed opacity-50"
                         }`}
-                      />
-                      <span className="text-[10px] sm:text-xs font-medium">
-                        {directPaymentLoading.link ? "..." : "Link"}
-                      </span>
-                    </button>
+                        title={
+                          checkingAvailability
+                            ? "Vérification de la disponibilité..."
+                            : !paymentAvailability.link
+                              ? "Stripe Link non disponible"
+                              : "Payer avec Stripe Link"
+                        }
+                      >
+                        <Image
+                          src="/images/payment/linklogo.png"
+                          alt="Stripe Link"
+                          width={40}
+                          height={40}
+                          className={`h-6 w-6 sm:h-8 sm:w-8 mr-1.5 sm:mr-2 ${
+                            !paymentAvailability.link || checkingAvailability
+                              ? "opacity-50"
+                              : ""
+                          }`}
+                        />
+                        <span className="text-[10px] sm:text-xs font-medium">
+                          {directPaymentLoading.link ? "..." : "Link"}
+                        </span>
+                      </button>
+                    </QuickTooltip>
                   </div>
                 </div>
 
                 {/* Or separator */}
                 <div className="relative flex items-center py-3 sm:py-4 mt-1 sm:mt-2">
-                  <div className="flex-grow border-t border-slate-200 dark:border-vynal-purple-secondary/40"></div>
+                  <div className="flex-grow border-t border-slate-200 dark:border-slate-700/20"></div>
                   <span className="flex-shrink mx-2 sm:mx-3 text-[8px] sm:text-[9px] text-slate-400 dark:text-vynal-text-secondary">
                     Ou payer par carte
                   </span>
-                  <div className="flex-grow border-t border-slate-200 dark:border-vynal-purple-secondary/40"></div>
+                  <div className="flex-grow border-t border-slate-200 dark:border-slate-700/20"></div>
                 </div>
 
                 {/* Card payment section - collapsible */}
@@ -1709,43 +1819,83 @@ export default function UnifiedCheckoutPage({
                       handleMethodSelect("card");
                     }
                   }}
-                  className="border border-slate-200 dark:border-vynal-purple-secondary/40 rounded-md overflow-hidden cursor-pointer"
+                  className={`border rounded-md overflow-hidden cursor-pointer transition-all hover:border-vynal-accent-secondary/50 dark:hover:border-vynal-accent-primary/50 hover:shadow-md ${
+                    orderData.selectedPaymentMethod === "card"
+                      ? "border-vynal-accent-secondary dark:border-vynal-accent-primary shadow-lg ring-2 ring-vynal-accent-secondary/20 dark:ring-vynal-accent-primary/20"
+                      : "border-slate-200 dark:border-slate-700/20"
+                  }`}
                 >
                   <div
                     className={`p-2.5 sm:p-3 flex items-center justify-between ${
                       orderData.selectedPaymentMethod === "card"
-                        ? "bg-vynal-accent-primary/5 dark:bg-vynal-purple-secondary/20 border-vynal-accent-primary"
-                        : "bg-slate-50 dark:bg-vynal-purple-dark/40"
+                        ? "bg-gradient-to-r from-vynal-accent-secondary/15 to-purple-500/10 dark:from-vynal-accent-primary/15 dark:to-purple-600/10 border-vynal-accent-secondary/30 dark:border-vynal-accent-primary/30"
+                        : "bg-slate-200/60 dark:bg-slate-800/25"
                     }`}
                   >
                     <div className="flex items-center">
-                      <CreditCard className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2 text-vynal-accent-primary" />
+                      <CreditCard className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2 text-vynal-accent-secondary dark:text-vynal-accent-primary" />
                       <span className="text-[10px] sm:text-xs font-medium text-slate-800 dark:text-vynal-text-primary">
                         Carte bancaire
                       </span>
                     </div>
                     <div className="flex items-center">
-                      <Image
-                        src="/images/payment/visalogo.png"
-                        alt="Visa"
-                        width={60}
-                        height={20}
-                        className="h-6 sm:h-7 opacity-80 object-contain"
-                      />
-                      <Image
-                        src="/images/payment/mastercardlogo.png"
-                        alt="Mastercard"
-                        width={40}
-                        height={40}
-                        className="h-6 sm:h-7 opacity-80 object-contain ml-2"
-                      />
-                      <Image
-                        src="/images/payment/americanexpresslogo.png"
-                        alt="American Express"
-                        width={54}
-                        height={28}
-                        className="h-5 sm:h-5 opacity-80 object-contain ml-2"
-                      />
+                      <QuickTooltip
+                        content="Paiement par carte Visa accepté"
+                        side="top"
+                        variant="default"
+                        delayDuration={200}
+                        className="bg-slate-100/90 dark:bg-slate-800/90
+                          border border-slate-200 dark:border-slate-700/30
+                          text-slate-700 dark:text-vynal-text-primary
+                          shadow-sm backdrop-blur-sm
+                          rounded-lg"
+                      >
+                        <Image
+                          src="/images/payment/visalogo.png"
+                          alt="Visa"
+                          width={60}
+                          height={20}
+                          className="h-6 sm:h-7 opacity-80 object-contain"
+                        />
+                      </QuickTooltip>
+                      <QuickTooltip
+                        content="Paiement par carte Mastercard accepté"
+                        side="top"
+                        variant="default"
+                        delayDuration={200}
+                        className="bg-slate-100/90 dark:bg-slate-800/90
+                          border border-slate-200 dark:border-slate-700/30
+                          text-slate-700 dark:text-vynal-text-primary
+                          shadow-sm backdrop-blur-sm
+                          rounded-lg"
+                      >
+                        <Image
+                          src="/images/payment/mastercardlogo.png"
+                          alt="Mastercard"
+                          width={40}
+                          height={40}
+                          className="h-6 sm:h-7 opacity-80 object-contain ml-2"
+                        />
+                      </QuickTooltip>
+                      <QuickTooltip
+                        content="Paiement par carte American Express accepté"
+                        side="top"
+                        variant="default"
+                        delayDuration={200}
+                        className="bg-slate-100/90 dark:bg-slate-800/90
+                          border border-slate-200 dark:border-slate-700/30
+                          text-slate-700 dark:text-vynal-text-primary
+                          shadow-sm backdrop-blur-sm
+                          rounded-lg"
+                      >
+                        <Image
+                          src="/images/payment/americanexpresslogo.png"
+                          alt="American Express"
+                          width={54}
+                          height={28}
+                          className="h-5 sm:h-5 opacity-80 object-contain ml-2"
+                        />
+                      </QuickTooltip>
                     </div>
                   </div>
 
@@ -1755,7 +1905,7 @@ export default function UnifiedCheckoutPage({
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: "auto" }}
                       transition={{ duration: 0.3 }}
-                      className="border-t border-slate-200 dark:border-vynal-purple-secondary/40 p-4"
+                      className="border-t border-slate-200 dark:border-slate-700/20 p-4"
                       onClick={(e) => e.stopPropagation()} // Empêche la propagation du clic aux éléments parents
                     >
                       <div className="space-y-4">
@@ -1771,7 +1921,7 @@ export default function UnifiedCheckoutPage({
                             id="email"
                             type="email"
                             placeholder="email@exemple.com"
-                            className="h-10 text-xs sm:text-sm bg-transparent border-slate-200 dark:border-vynal-purple-secondary/40 rounded-md"
+                            className="h-10 text-xs sm:text-sm bg-white/40 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700/15 rounded-md"
                             value={user?.email || ""}
                             disabled
                           />
@@ -1808,49 +1958,63 @@ export default function UnifiedCheckoutPage({
                 </div>
 
                 {/* Bouton pour ouvrir la modale de description */}
-                <div className="mt-4 border-t border-slate-200 dark:border-vynal-purple-secondary/30 pt-4">
-                  <button
-                    type="button"
-                    onClick={openDescriptionModal}
-                    className="flex items-center justify-between w-full p-3 bg-white/80 dark:bg-vynal-purple-dark/20 border border-slate-200 dark:border-vynal-purple-secondary/30 rounded-lg text-left hover:bg-slate-50 dark:hover:bg-vynal-purple-dark/30 transition-colors"
+                <div className="mt-4 border-t border-slate-200 dark:border-slate-700/20 pt-4">
+                  <QuickTooltip
+                    content="Décrivez précisément votre besoin pour un meilleur résultat"
+                    side="top"
+                    variant="default"
+                    delayDuration={200}
+                    className="bg-slate-100/90 dark:bg-slate-800/90
+                      border border-slate-200 dark:border-slate-700/30
+                      text-slate-700 dark:text-vynal-text-primary
+                      shadow-sm backdrop-blur-sm
+                      rounded-lg"
                   >
-                    <div className="flex items-center">
-                      <div className="bg-vynal-accent-primary/15 rounded-full p-1.5 mr-3">
-                        <FileCheck className="h-4 w-4 text-vynal-accent-primary" />
-                      </div>
-                      <div>
-                        <h3 className="text-[10px] sm:text-xs font-medium text-slate-800 dark:text-vynal-text-primary">
-                          Description de votre besoin
-                        </h3>
-                        <p className="text-[9px] text-slate-500 dark:text-vynal-text-secondary mt-0.5 line-clamp-1">
-                          {orderData.requirements
-                            ? orderData.requirements.substring(0, 60) +
-                              (orderData.requirements.length > 60 ? "..." : "")
-                            : "Cliquez pour ajouter une description..."}
-                        </p>
-                      </div>
-                    </div>
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-5 w-5 text-slate-400"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
+                    <button
+                      type="button"
+                      onClick={openDescriptionModal}
+                      className="flex items-center justify-between w-full p-2.5 sm:p-3 bg-slate-200/60 dark:bg-slate-800/25 border border-slate-200 dark:border-slate-700/15 rounded-lg text-left hover:bg-slate-100 dark:hover:bg-slate-800/40 transition-all duration-200 hover:border-vynal-accent-secondary/50 dark:hover:border-vynal-accent-primary/50 hover:shadow-md"
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                      />
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                      />
-                    </svg>
-                  </button>
+                      <div className="flex items-center">
+                        <div className="flex items-center">
+                          <FileCheck className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2 text-vynal-accent-secondary dark:text-vynal-accent-primary" />
+                          <div>
+                            <h3 className="text-[10px] sm:text-xs text-slate-800 dark:text-vynal-text-primary line-clamp-2">
+                              Description de votre besoin
+                            </h3>
+                            <p className="text-[9px] text-slate-500 dark:text-vynal-text-secondary mt-0.5 line-clamp-1">
+                              {orderData.requirements
+                                ? orderData.requirements.substring(0, 60) +
+                                  (orderData.requirements.length > 60
+                                    ? "..."
+                                    : "")
+                                : "Cliquez pour ajouter une description..."}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-5 w-5 text-slate-400 dark:text-vynal-text-secondary"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                        />
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                        />
+                      </svg>
+                    </button>
+                  </QuickTooltip>
                 </div>
 
                 {/* Bouton de paiement unifié - Affiché pour toutes les méthodes de paiement SAUF Apple Pay, Google Pay et Link */}
@@ -1889,7 +2053,7 @@ export default function UnifiedCheckoutPage({
                           !orderData.isTestMode &&
                           !paymentData?.clientSecret)
                       }
-                      className="w-full h-11 mt-3 bg-vynal-accent-primary hover:bg-vynal-accent-secondary disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-white dark:text-vynal-text-primary font-medium rounded-md text-base sm:text-lg"
+                      className="w-full h-11 mt-3 bg-vynal-accent-secondary hover:bg-vynal-accent-primary dark:bg-vynal-accent-primary dark:hover:bg-vynal-accent-secondary disabled:opacity-50 disabled:cursor-not-allowed transition-all text-white dark:text-vynal-text-primary font-medium rounded-md text-base sm:text-lg border border-transparent hover:border-vynal-accent-primary/50 dark:hover:border-vynal-accent-secondary/50 hover:shadow-md"
                     >
                       {isSubmitting ? (
                         <span className="flex items-center justify-center">
@@ -1986,14 +2150,14 @@ export default function UnifiedCheckoutPage({
                   En finalisant votre commande, vous acceptez nos{" "}
                   <Link
                     href="/terms-of-service"
-                    className="text-vynal-accent-primary hover:underline"
+                    className="text-vynal-accent-secondary dark:text-vynal-accent-primary hover:underline"
                   >
                     conditions générales
                   </Link>{" "}
                   et notre{" "}
                   <Link
                     href="/privacy-policy"
-                    className="text-vynal-accent-primary hover:underline"
+                    className="text-vynal-accent-secondary dark:text-vynal-accent-primary hover:underline"
                   >
                     politique de confidentialité
                   </Link>
@@ -2010,16 +2174,16 @@ export default function UnifiedCheckoutPage({
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white dark:bg-vynal-purple-dark/90 rounded-lg shadow-xl max-w-lg w-full mx-4 overflow-hidden"
+            className="bg-white/30 dark:bg-slate-900/30 rounded-lg shadow-xl max-w-lg w-full mx-4 overflow-hidden backdrop-blur-sm"
           >
-            <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-vynal-purple-secondary/30">
+            <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-slate-700/20">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-slate-800 dark:text-vynal-text-primary">
                   Description de votre besoin
                 </h3>
                 <button
                   type="button"
-                  className="text-slate-400 hover:text-slate-500 dark:text-vynal-text-secondary"
+                  className="text-slate-400 hover:text-slate-500 dark:text-vynal-text-secondary dark:hover:text-vynal-text-primary"
                   onClick={() => setShowDescriptionModal(false)}
                 >
                   <svg
@@ -2043,7 +2207,7 @@ export default function UnifiedCheckoutPage({
               <div className="mb-4">
                 <Textarea
                   placeholder="Décrivez en détail ce que vous souhaitez obtenir..."
-                  className="h-48 text-sm bg-white/80 dark:bg-vynal-purple-dark/30 border-slate-200 dark:border-vynal-purple-secondary/40 rounded-lg resize-none focus:ring-1 focus:ring-vynal-accent-primary focus:border-vynal-accent-primary w-full"
+                  className="h-48 text-sm bg-white/40 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700/15 rounded-lg resize-none focus:ring-1 focus:ring-vynal-accent-primary focus:border-vynal-accent-primary w-full"
                   value={tempRequirements}
                   onChange={(e) => setTempRequirements(e.target.value)}
                 />
@@ -2055,14 +2219,14 @@ export default function UnifiedCheckoutPage({
               <div className="flex justify-end space-x-3">
                 <button
                   type="button"
-                  className="px-4 py-2 text-sm font-medium text-slate-700 dark:text-vynal-text-secondary bg-white dark:bg-vynal-purple-dark/50 border border-slate-300 dark:border-vynal-purple-secondary/40 rounded-md hover:bg-slate-50 dark:hover:bg-vynal-purple-dark/70"
+                  className="px-4 py-2 text-sm font-medium text-slate-700 dark:text-vynal-text-secondary bg-white/25 dark:bg-slate-800/25 border border-slate-300 dark:border-slate-700/15 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800/40 transition-all duration-200"
                   onClick={() => setShowDescriptionModal(false)}
                 >
                   Annuler
                 </button>
                 <button
                   type="button"
-                  className="px-4 py-2 text-sm font-medium text-white bg-vynal-accent-primary hover:bg-vynal-accent-secondary rounded-md"
+                  className="px-4 py-2 text-sm font-medium text-white bg-vynal-accent-secondary hover:bg-vynal-accent-primary dark:bg-vynal-accent-primary dark:hover:bg-vynal-accent-secondary rounded-md transition-all duration-200"
                   onClick={saveDescription}
                 >
                   Enregistrer

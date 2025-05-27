@@ -128,10 +128,6 @@ export async function POST(req: NextRequest) {
     });
 
     try {
-      // Obtenir l'ID de commande en utilisant le serviceId
-      // Si pas de commande, on en crée une
-      let orderId;
-
       // Générer un numéro de commande unique
       const generateOrderNumber = () => {
         const prefix = "VNL";
@@ -157,10 +153,17 @@ export async function POST(req: NextRequest) {
         );
       }
 
+      let orderId;
+
       if (existingOrder) {
+        // Utiliser la commande existante
         orderId = existingOrder.id;
+        console.log(
+          `Utilisation d'une commande existante en attente: ${orderId}`,
+        );
       } else {
-        // Créer une commande si nécessaire
+        // Créer une commande temporaire uniquement si nécessaire pour le paiement
+        // Le statut "pre_payment" indique que la commande n'est pas encore finalisée
         const orderNumber = generateOrderNumber();
         const { data: newOrder, error: orderError } = await supabase
           .from("orders")
@@ -168,7 +171,7 @@ export async function POST(req: NextRequest) {
             client_id: userId,
             freelance_id: freelanceIdentifier,
             service_id: serviceId,
-            status: "pending",
+            status: "pre_payment", // Statut spécial pour indiquer que le paiement n'est pas encore confirmé
             requirements: metadata.requirements || "",
             delivery_time: metadata.deliveryTime || 7,
             order_number: orderNumber,
@@ -178,10 +181,15 @@ export async function POST(req: NextRequest) {
           .single();
 
         if (orderError) {
-          throw new Error("Erreur lors de la création de la commande");
+          throw new Error(
+            "Erreur lors de la création de la commande temporaire",
+          );
         }
 
         orderId = newOrder?.id;
+        console.log(
+          `Création d'une commande temporaire pour le paiement: ${orderId}`,
+        );
       }
 
       if (!orderId) {

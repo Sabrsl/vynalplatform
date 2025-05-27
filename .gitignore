@@ -40,6 +40,22 @@ src/app/admin/debug/temp/
 .env.development.local
 .env.test
 .env.production
+env-production-transition-secure.env
+*.env
+.env.*
+.env-*
+.env_*
+.env[.-]*
+!.env.example
+
+# Fichiers sensibles
+*secure*
+*secret*
+*key*
+*password*
+*credential*
+*config*
+*confidential*
 
 # vercel
 .vercel

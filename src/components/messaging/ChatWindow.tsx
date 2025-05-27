@@ -1,31 +1,68 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Paperclip, Send, ArrowLeft, MoreVertical, Image, FileText, X, Smile, Check, Circle, Trash, Upload, RefreshCw, ChevronUp, MessageSquare, Loader2, AlertTriangle, Info, ChevronDown } from 'lucide-react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
+import React, { useState, useRef, useEffect, useCallback } from "react";
+import {
+  Paperclip,
+  Send,
+  ArrowLeft,
+  MoreVertical,
+  Image,
+  FileText,
+  X,
+  Smile,
+  Check,
+  Circle,
+  Trash,
+  Upload,
+  RefreshCw,
+  ChevronUp,
+  MessageSquare,
+  Loader2,
+  AlertTriangle,
+  Info,
+  ChevronDown,
+} from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { useMessagingStore } from '@/lib/stores/useMessagingStore';
-import { Message } from '@/types/messages';
-import { formatDistanceToNow } from 'date-fns';
-import { fr } from 'date-fns/locale';
-import { formatDate, formatFileSize } from '@/lib/utils';
-import { useAuth } from '@/hooks/useAuth';
-import MessageBubble from './MessageBubble';
-import { supabase } from '@/lib/supabase/client';
-import UserStatusIndicator from './UserStatusIndicator';
-import usePreventScrollReset from '@/hooks/usePreventScrollReset';
-import { validateMessage } from '@/lib/message-validation';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { FileIcon } from '@/components/ui/icons/FileIcon';
-import { SendHorizontal } from 'lucide-react';
-import { UserProfile } from '@/hooks/useUser';
-import { Conversation as BaseConversation } from '@/components/messaging/messaging-types';
-import EnhancedAvatar from '@/components/ui/enhanced-avatar';
-import { useUnreadMessages } from '@/hooks/useUnreadMessages';
-import { UnreadBadge } from '@/components/ui/UnreadBadge';
+import { useMessagingStore } from "@/lib/stores/useMessagingStore";
+import { Message } from "@/types/messages";
+import { formatDistanceToNow } from "date-fns";
+import { fr } from "date-fns/locale";
+import { formatDate, formatFileSize } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
+import MessageBubble from "./MessageBubble";
+import { supabase } from "@/lib/supabase/client";
+import UserStatusIndicator from "./UserStatusIndicator";
+import usePreventScrollReset from "@/hooks/usePreventScrollReset";
+import { validateMessage } from "@/lib/message-validation";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { FileIcon } from "@/components/ui/icons/FileIcon";
+import { SendHorizontal } from "lucide-react";
+import { UserProfile } from "@/hooks/useUser";
+import { Conversation as BaseConversation } from "@/components/messaging/messaging-types";
+import EnhancedAvatar from "@/components/ui/enhanced-avatar";
+import { useUnreadMessages } from "@/hooks/useUnreadMessages";
+import { UnreadBadge } from "@/components/ui/UnreadBadge";
 import { motion, AnimatePresence } from "framer-motion";
+import { smartCache } from "@/lib/cache/smart-cache";
+import requestCoordinator from "@/lib/optimizations/requestCoordinator";
 
 // Extension du type Conversation pour inclure other_user et order_id
 interface Conversation extends BaseConversation {
@@ -49,57 +86,77 @@ interface ChatWindowProps {
 // Fonction utilitaire pour obtenir les initiales d'un nom
 const getInitials = (name: string): string => {
   return name
-    .split(' ')
-    .map(part => part[0])
-    .join('')
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
     .toUpperCase()
     .substring(0, 2);
 };
 
 // Fonction pour normaliser les données de l'expéditeur dans le format attendu
-const normalizeSender = (sender: any): UserProfile | { id: string, username: string, full_name?: string, avatar_url?: string } => {
-  if (!sender) return { id: 'unknown', username: 'Utilisateur' };
-  
-  if ('role' in sender && 'created_at' in sender) {
+const normalizeSender = (
+  sender: any,
+):
+  | UserProfile
+  | {
+      id: string;
+      username: string;
+      full_name?: string;
+      avatar_url?: string;
+    } => {
+  if (!sender) return { id: "unknown", username: "Utilisateur" };
+
+  if ("role" in sender && "created_at" in sender) {
     // C'est déjà un UserProfile
     return sender as UserProfile;
   }
-  
+
   // Créer un objet conforme au format attendu
   return {
     id: sender.id,
-    username: sender.username || 'Utilisateur',
+    username: sender.username || "Utilisateur",
     full_name: sender.full_name || undefined,
-    avatar_url: sender.avatar_url || undefined
+    avatar_url: sender.avatar_url || undefined,
   };
 };
 
-const ChatWindow: React.FC<ChatWindowProps> = ({ 
-  conversation, 
+const ChatWindow: React.FC<ChatWindowProps> = ({
+  conversation,
   onBack,
-  isFreelance = false
+  isFreelance = false,
 }) => {
   const { user } = useAuth();
-  const { unreadCounts, markAsRead: markConversationAsRead } = useUnreadMessages(user?.id);
-  const [messageText, setMessageText] = useState('');
+  const { unreadCounts, markAsRead: markConversationAsRead } =
+    useUnreadMessages(user?.id);
+  const [messageText, setMessageText] = useState("");
   const [isUploading, setIsUploading] = useState(false);
-  const [attachments, setAttachments] = useState<{url: string, type: string, name: string}[]>([]);
+  const [attachments, setAttachments] = useState<
+    { url: string; type: string; name: string }[]
+  >([]);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
   const [page, setPage] = useState(1);
   const [headerAvatarError, setHeaderAvatarError] = useState(false);
   const [typingAvatarError, setTypingAvatarError] = useState(false);
-  const [notification, setNotification] = useState<{message: string, type: 'warning' | 'error' | 'info' | 'success', id: number} | null>(null);
+  const [notification, setNotification] = useState<{
+    message: string;
+    type: "warning" | "error" | "info" | "success";
+    id: number;
+  } | null>(null);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [messageError, setMessageError] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
-  const [notificationPermissionDialog, setNotificationPermissionDialog] = useState(false);
+  const [notificationPermissionDialog, setNotificationPermissionDialog] =
+    useState(false);
   const [showNotificationDialog, setShowNotificationDialog] = useState(false);
   const [loadMoreVisible, setLoadMoreVisible] = useState(false);
-  const [attachment, setAttachment] = useState<{name: string, size: number} | null>(null);
+  const [attachment, setAttachment] = useState<{
+    name: string;
+    size: number;
+  } | null>(null);
   const [conversationTitle, setConversationTitle] = useState<string>("");
   const MESSAGES_PER_PAGE = 20;
-  
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -115,8 +172,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const visitedConversationsRef = useRef<Set<string>>(new Set());
   const lastUpdateRef = useRef<number>(Date.now());
   const pendingUpdateRef = useRef<boolean>(false);
-  
-  const { 
+
+  const {
     messages,
     isTyping,
     sendMessage,
@@ -125,7 +182,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     setIsTyping: updateTypingStatus,
     setMessages,
     fetchMessages,
-    updateConversationParticipant
+    updateConversationParticipant,
   } = useMessagingStore();
 
   // Variables pour le suivi du statut "last_seen"
@@ -133,21 +190,24 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const lastSeenThrottleInterval = useRef<number>(30 * 1000); // 30 secondes entre les mises à jour
   const pendingLastSeenUpdateRef = useRef<boolean>(false);
   const userWasActiveRef = useRef<boolean>(false);
-  
+
   // Charger les messages au montage du composant
   useEffect(() => {
     if (conversation?.id) {
       setIsLoadingMessages(true);
       setPage(1); // Réinitialiser la pagination lors du changement de conversation
-      
+
       fetchMessages(conversation.id)
         .then(() => {
           setIsLoadingMessages(false);
         })
-        .catch(error => {
+        .catch((error) => {
           // Ignorer les erreurs d'annulation de requête
-          if (error?.message?.includes('aborted') || error?.name === 'AbortError') {
-            console.log('Chargement des messages annulé');
+          if (
+            error?.message?.includes("aborted") ||
+            error?.name === "AbortError"
+          ) {
+            console.log("Chargement des messages annulé");
           } else {
             console.error("Erreur lors du chargement des messages:", error);
           }
@@ -169,12 +229,14 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
   // Trouver l'autre participant (dans une conversation à 2 personnes)
   const otherParticipant = conversation.participants.find(
-    p => p.id !== user?.id
+    (p) => p.id !== user?.id,
   );
-  
+
   // Si l'autre participant est en train d'écrire
-  const isOtherParticipantTyping = otherParticipant?.id ? isTyping[otherParticipant.id] : false;
-  
+  const isOtherParticipantTyping = otherParticipant?.id
+    ? isTyping[otherParticipant.id]
+    : false;
+
   // Obtenir le nombre de messages non lus dans cette conversation
   const unreadCount = otherParticipant?.unread_count || 0;
 
@@ -183,98 +245,128 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     if (!conversation?.participants || conversation.participants.length === 0) {
       return null;
     }
-    
+
     // Trouver l'autre participant (celui qui n'est pas l'utilisateur actuel)
-    const participant = conversation.participants.find(p => p.id !== user?.id);
-    
-    // Si l'autre participant n'a pas toutes ses informations, essayer de les obtenir
+    const participant = conversation.participants.find(
+      (p) => p.id !== user?.id,
+    );
+
+    // Si l'autre participant n'a pas toutes ses informations, essayer de les obtenir avec cache
     if (participant && (!participant.avatar_url || !participant.full_name)) {
-      console.log("Informations manquantes pour l'autre participant, tentative de récupération...");
-      
-      // Essayer de récupérer plus d'informations à partir de la base de données
-      (async () => {
-        try {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('id, username, full_name, avatar_url')
-            .eq('id', participant.id)
-            .single();
-            
+      console.log(
+        "Informations manquantes pour l'autre participant, tentative de récupération...",
+      );
+
+      // Utiliser smartCache et requestCoordinator pour éviter les requêtes répétitives
+      requestCoordinator
+        .scheduleRequest(
+          `profile_details_${participant.id}`,
+          async () => {
+            return smartCache.get(
+              `profile_${participant.id}`,
+              "profiles",
+              async () => {
+                const { data: profile } = await supabase
+                  .from("profiles")
+                  .select("id, username, full_name, avatar_url")
+                  .eq("id", participant.id)
+                  .single();
+
+                return profile;
+              },
+              false, // Utiliser le cache
+            );
+          },
+          "low", // Priorité basse car pas critique
+        )
+        .then((profile) => {
           if (profile) {
             // Mettre à jour le participant localement
             Object.assign(participant, {
               username: profile.username || participant.username,
               full_name: profile.full_name || participant.full_name,
-              avatar_url: profile.avatar_url || participant.avatar_url
+              avatar_url: profile.avatar_url || participant.avatar_url,
             });
-            
-            // Forcer une mise à jour du composant
-            setConversationTitle(profile.full_name || profile.username || "Discussion");
+
+            // Mettre à jour le titre immédiatement pour une mise à jour visuelle rapide
+            setConversationTitle(
+              profile.full_name || profile.username || "Discussion",
+            );
           }
-        } catch (error) {
+        })
+        .catch((error) => {
           console.error("Erreur lors de la récupération du profil:", error);
-        }
-      })();
+        });
     }
-    
+
     return participant;
   }, [conversation?.participants, user?.id]);
 
   // Obtenir et utiliser les informations détaillées de l'autre participant
   const participantDetails = getParticipantDetails();
-  
+
   // Définir le titre de la conversation basé sur l'autre participant
   useEffect(() => {
     if (otherParticipant) {
-      setConversationTitle(otherParticipant.full_name || otherParticipant.username || "Discussion");
+      setConversationTitle(
+        otherParticipant.full_name || otherParticipant.username || "Discussion",
+      );
     }
   }, [otherParticipant]);
 
   // Fonction pour vérifier quels messages sont actuellement visibles à l'écran
   const checkVisibleMessages = useCallback(() => {
     if (!user) return;
-    
+
     // Accumuler les IDs pour n'effectuer qu'une seule mise à jour
     const unreadVisibleMessageIds = messages
       .filter((msg: Message) => !msg.read && msg.sender_id !== user.id)
       .map((msg: Message) => msg.id);
-    
+
     // Mettre à jour la référence des messages visibles
-    visibleMessageIdsRef.current = new Set(messages.map((msg: Message) => msg.id));
-    
+    visibleMessageIdsRef.current = new Set(
+      messages.map((msg: Message) => msg.id),
+    );
+
     // Marquer les messages visibles non lus comme lus après un court délai
     if (markAsReadTimeoutRef.current) {
       clearTimeout(markAsReadTimeoutRef.current);
       markAsReadTimeoutRef.current = null;
     }
-    
+
     if (unreadVisibleMessageIds.length > 0 && user.id) {
       // Regrouper les opérations de marquage pour éviter les reflows multiples
       markAsReadTimeoutRef.current = setTimeout(() => {
         // Utiliser la fonction qui met à jour complètement les indicateurs
         markMessagesAsRead(conversation.id, user.id);
-        
+
         // Aussi mettre à jour les compteurs globaux
         markConversationAsRead(conversation.id);
       }, 1000);
     }
-  }, [conversation.id, user, messages, markMessagesAsRead, markConversationAsRead]);
+  }, [
+    conversation.id,
+    user,
+    messages,
+    markMessagesAsRead,
+    markConversationAsRead,
+  ]);
 
   // Fonction pour charger plus de messages (scroll vers le haut)
   const loadMoreMessages = useCallback(() => {
     if (!hasMoreMessages || isLoadingMore) return;
-    
+
     setIsLoadingMore(true);
-    setPage(prev => prev + 1);
-    
+    setPage((prev) => prev + 1);
+
     // Marquer la position actuelle pour la restaurer après le chargement
-    const scrollElement = document.querySelector('.virtuoso-scroller');
+    const scrollElement = document.querySelector(".virtuoso-scroller");
     const currentScrollTop = scrollElement?.scrollTop || 0;
-    
+
     // Retarder légèrement pour permettre l'animation
     setTimeout(() => {
       setIsLoadingMore(false);
-      
+
       // Restaurer la position de défilement
       setTimeout(() => {
         if (scrollElement) {
@@ -285,154 +377,139 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   }, [hasMoreMessages, isLoadingMore]);
 
   // Modifier la fonction de gestion du scroll pour une implémentation plus simple
-  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-    // Utiliser un debounce simple pour réduire les reflows forcés
-    if (!scrollDebounceRef.current) {
-      scrollDebounceRef.current = true;
-      
-      // Exécuter le code de défilement dans requestAnimationFrame
-      requestAnimationFrame(() => {
-        const container = e.currentTarget;
-        
-        // Marquer que l'utilisateur a intentionnellement défilé
-        userHasScrolledRef.current = true;
-        
-        // Mettre à jour le flag de défilement manuel
-        userScrolledUpRef.current = container.scrollTop < (container.scrollHeight - container.clientHeight - 100);
-        
-        // Afficher le bouton "Charger plus" quand on est près du haut et qu'il y a plus de messages
-        setLoadMoreVisible(container.scrollTop < 150 && hasMoreMessages);
-        
-        // Charger automatiquement plus de messages quand on est très près du haut
-        if (container.scrollTop < 50 && hasMoreMessages && !isLoadingMore) {
-          loadMoreMessages();
-        }
-        
-        // Vérifier quels messages sont visibles
-        checkVisibleMessages();
-        
-        // Réinitialiser le debounce
-        setTimeout(() => {
-          scrollDebounceRef.current = false;
-        }, 100);
-      });
-    }
-  }, [hasMoreMessages, isLoadingMore, loadMoreMessages, checkVisibleMessages]);
+  const handleScroll = useCallback(
+    (e: React.UIEvent<HTMLDivElement>) => {
+      // Utiliser un debounce simple pour réduire les reflows forcés
+      if (!scrollDebounceRef.current) {
+        scrollDebounceRef.current = true;
+
+        // Exécuter le code de défilement dans requestAnimationFrame
+        requestAnimationFrame(() => {
+          const container = e.currentTarget;
+
+          // Marquer que l'utilisateur a intentionnellement défilé
+          userHasScrolledRef.current = true;
+
+          // Mettre à jour le flag de défilement manuel
+          userScrolledUpRef.current =
+            container.scrollTop <
+            container.scrollHeight - container.clientHeight - 100;
+
+          // Afficher le bouton "Charger plus" quand on est près du haut et qu'il y a plus de messages
+          setLoadMoreVisible(container.scrollTop < 150 && hasMoreMessages);
+
+          // Charger automatiquement plus de messages quand on est très près du haut
+          if (container.scrollTop < 50 && hasMoreMessages && !isLoadingMore) {
+            loadMoreMessages();
+          }
+
+          // Vérifier quels messages sont visibles
+          checkVisibleMessages();
+
+          // Réinitialiser le debounce
+          setTimeout(() => {
+            scrollDebounceRef.current = false;
+          }, 100);
+        });
+      }
+    },
+    [hasMoreMessages, isLoadingMore, loadMoreMessages, checkVisibleMessages],
+  );
 
   // Utiliser le hook simplement - il ignore automatiquement les pages de messagerie
   usePreventScrollReset();
-  
-  // Mettre à jour le statut "last_seen" quand l'utilisateur est actif sur le chat
-  useEffect(() => {
-    // Intervalle minimum entre les mises à jour (10 secondes)
-    const throttleInterval = 10 * 1000;
-    // Flag pour indiquer si une mise à jour est en attente
-    
-    const updateLastSeen = async (force = false) => {
-      if (!user?.id) return;
-      
-      const now = Date.now();
-      // Si la dernière mise à jour était il y a moins de 10 secondes et ce n'est pas forcé, ne pas mettre à jour
-      if (!force && now - lastUpdateRef.current < throttleInterval) {
-        // Marquer qu'une mise à jour est en attente si ce n'est pas déjà le cas
-        if (!pendingUpdateRef.current) {
-          pendingUpdateRef.current = true;
-          // Planifier une mise à jour après l'intervalle de throttle
-          setTimeout(() => {
-            pendingUpdateRef.current = false;
-            // Seulement mettre à jour si aucune autre mise à jour n'a été faite entre temps
-            if (Date.now() - lastUpdateRef.current >= throttleInterval) {
-              updateLastSeen(true);
-            }
-          }, throttleInterval - (now - lastUpdateRef.current));
-        }
-        return;
-      }
 
-      try {
-        // Mettre à jour la référence du timestamp
-        lastUpdateRef.current = now;
-        pendingUpdateRef.current = false;
-        
-        // Utiliser la date actuelle
-        const nowDate = new Date();
-        
-        // Vérifier d'abord si une mise à jour est réellement nécessaire
-        const { data: currentProfile, error: fetchError } = await supabase
-          .from('profiles')
-          .select('last_seen')
-          .eq('id', user.id)
-          .single();
-          
-        if (fetchError) {
-          console.error('Erreur lors de la récupération du profil:', fetchError);
-          return;
-        }
-        
-        // Calculer si une mise à jour est nécessaire (si last_seen est plus ancien que 2 minutes)
-        const lastSeenTime = currentProfile?.last_seen ? new Date(currentProfile.last_seen).getTime() : 0;
-        const needsUpdate = !lastSeenTime || (now - lastSeenTime > 2 * 60 * 1000);
-        
-        if (needsUpdate) {
-          await supabase
-            .from('profiles')
-            .update({ last_seen: nowDate.toISOString() })
-            .eq('id', user.id);
-        }
-      } catch (error) {
-        console.error('Erreur lors de la mise à jour du last_seen:', error);
-      }
+  // Remplacer l'ancien useEffect de last_seen par une version optimisée avec les services existants
+  useEffect(() => {
+    if (!user?.id) return;
+
+    // Fonction optimisée pour mettre à jour last_seen
+    const updateLastSeen = async () => {
+      const cacheKey = `last_seen_update_${user.id}`;
+
+      return requestCoordinator.scheduleRequest(
+        cacheKey,
+        async () => {
+          // Utiliser smartCache pour éviter les mises à jour trop fréquentes
+          return smartCache.get(
+            `last_seen_throttle_${user.id}`,
+            "last_seen",
+            async () => {
+              try {
+                const nowISO = new Date().toISOString();
+
+                // Mise à jour directe sans vérification préalable pour réduire de 2 à 1 requête
+                const { error } = await supabase
+                  .from("profiles")
+                  .update({ last_seen: nowISO })
+                  .eq("id", user.id);
+
+                if (error) {
+                  console.error("Erreur mise à jour last_seen:", error);
+                }
+
+                return nowISO;
+              } catch (error) {
+                console.error("Erreur last_seen:", error);
+                throw error;
+              }
+            },
+            false, // Ne pas forcer, utiliser le cache
+          );
+        },
+        "low", // Priorité basse car pas critique
+      );
     };
 
-    // Mettre à jour le statut immédiatement quand le chat est ouvert
-    updateLastSeen(true);
+    // Mise à jour initiale
+    updateLastSeen();
 
-    // Puis mettre à jour périodiquement toutes les 5 minutes
-    const interval = setInterval(() => updateLastSeen(true), 5 * 60 * 1000);
-
-    // Debouncer pour les événements d'activité
+    // Debouncer très agressif pour les événements d'activité
     let activityTimeout: NodeJS.Timeout | null = null;
-    
-    // Et aussi lors d'événements d'activité
+
     const handleActivity = () => {
-      // Nettoyer le timeout précédent s'il existe
       if (activityTimeout) clearTimeout(activityTimeout);
-      
-      // Définir un nouveau timeout pour debouncer l'activité
+
+      // Timeout de 10 secondes au lieu de 500ms pour réduire drastiquement les requêtes
       activityTimeout = setTimeout(() => {
         updateLastSeen();
-        // Également vérifier les messages visibles lors de l'activité de l'utilisateur
         checkVisibleMessages();
-      }, 500);
+      }, 10000);
     };
 
-    window.addEventListener('mousemove', handleActivity);
-    window.addEventListener('keydown', handleActivity);
-    window.addEventListener('click', handleActivity);
-    window.addEventListener('touchstart', handleActivity);
+    // Réduire les événements écoutés et la fréquence
+    const events = ["focus", "click"];
+    events.forEach((event) => {
+      window.addEventListener(event, handleActivity, { passive: true });
+    });
+
+    // Intervalle très espacé (20 minutes au lieu de 5)
+    const interval = setInterval(updateLastSeen, 20 * 60 * 1000);
 
     return () => {
-      clearInterval(interval);
       if (activityTimeout) clearTimeout(activityTimeout);
-      window.removeEventListener('mousemove', handleActivity);
-      window.removeEventListener('keydown', handleActivity);
-      window.removeEventListener('click', handleActivity);
-      window.removeEventListener('touchstart', handleActivity);
+      clearInterval(interval);
+      events.forEach((event) => {
+        window.removeEventListener(event, handleActivity);
+      });
     };
-  }, [user, checkVisibleMessages]);
+  }, [user?.id, checkVisibleMessages]);
 
   // Fonction pour afficher une notification temporaire
-  const showNotification = (message: string, type: 'warning' | 'error' | 'info' | 'success') => {
+  const showNotification = (
+    message: string,
+    type: "warning" | "error" | "info" | "success",
+  ) => {
     setNotification({
       message,
       type,
-      id: Date.now()
+      id: Date.now(),
     });
-    
+
     if (notificationTimeoutRef.current) {
       clearTimeout(notificationTimeoutRef.current);
     }
-    
+
     notificationTimeoutRef.current = setTimeout(() => {
       setNotification(null);
     }, 5000);
@@ -452,7 +529,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const markAsUnread = useCallback(() => {
     if (!user || !conversation) return;
     // Implémentation fictive - à remplacer par votre logique réelle
-    
+
     // Afficher une notification de succès
     showNotification("Messages marqués comme non lus", "success");
   }, [conversation, user]);
@@ -461,10 +538,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const handleDelete = useCallback(() => {
     if (!conversation) return;
     // Implémentation fictive - à remplacer par votre logique réelle
-    
+
     // Afficher une notification de succès
     showNotification("Conversation supprimée", "success");
-    
+
     // Rediriger vers la liste des conversations
     onBack();
   }, [conversation, onBack]);
@@ -492,16 +569,18 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     if (user?.id && conversation?.id) {
       // Marquer les messages comme lus
       markMessagesAsRead(conversation.id, user.id);
-      
+
       // Également mettre à jour les compteurs globaux
       markConversationAsRead(conversation.id);
-      
+
       // Déclencher un événement pour forcer la mise à jour des interfaces
-      if (typeof window !== 'undefined') {
+      if (typeof window !== "undefined") {
         // Événement spécifique pour les messages
-        window.dispatchEvent(new CustomEvent('vynal:messages-read', { 
-          detail: { conversationId: conversation.id, timestamp: Date.now() } 
-        }));
+        window.dispatchEvent(
+          new CustomEvent("vynal:messages-read", {
+            detail: { conversationId: conversation.id, timestamp: Date.now() },
+          }),
+        );
       }
     }
   }, [user, conversation, markMessagesAsRead, markConversationAsRead]);
@@ -514,10 +593,13 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   }, [attachment]);
 
   // Fonction pour supprimer un élément des pièces jointes par index
-  const handleRemoveAttachmentByIndex = useCallback((e: React.MouseEvent, index: number) => {
-    e.preventDefault();
-    removeAttachment(index);
-  }, []);
+  const handleRemoveAttachmentByIndex = useCallback(
+    (e: React.MouseEvent, index: number) => {
+      e.preventDefault();
+      removeAttachment(index);
+    },
+    [],
+  );
 
   // Remplacer la fonction scrollToBottom pour qu'elle ne fasse rien
   const scrollToBottom = useCallback(() => {
@@ -527,14 +609,15 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   // Ajouter un bouton explicite pour aller en bas si nécessaire
   const handleGoToBottom = useCallback(() => {
     if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, []);
 
   // Modifier le handleSendMessage pour ne pas défiler automatiquement après envoi
   const handleSendMessage = async () => {
-    if ((!messageText || messageText.trim() === '') && attachments.length === 0) return;
-    
+    if ((!messageText || messageText.trim() === "") && attachments.length === 0)
+      return;
+
     if (user?.id) {
       try {
         // Valider directement le message avec la fonction locale au lieu d'un appel API
@@ -542,139 +625,163 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           maxLength: 5000,
           minLength: 1,
           censorInsteadOfBlock: true,
-          allowQuotedWords: true,      // Autorise les mots interdits dans les citations/signalements
-          allowLowSeverityWords: true,  // Autorise les mots de faible gravité
-          respectRecommendedActions: true  // Utiliser les actions recommandées
+          allowQuotedWords: true, // Autorise les mots interdits dans les citations/signalements
+          allowLowSeverityWords: true, // Autorise les mots de faible gravité
+          respectRecommendedActions: true, // Utiliser les actions recommandées
         });
-        
+
         if (!validationResult.isValid) {
           // Afficher un message d'erreur si le message contient des mots interdits
-          showNotification(validationResult.errors.join(', '), 'error');
+          showNotification(validationResult.errors.join(", "), "error");
           return;
         }
-        
+
         // Afficher un avertissement si nécessaire mais laisser l'utilisateur envoyer le message
         if (validationResult.warningMessage) {
-          showNotification(validationResult.warningMessage, 'warning');
+          showNotification(validationResult.warningMessage, "warning");
         }
-        
+
         // Ajouter une note aux messages censurés
         let finalMessageText = validationResult.message; // Utiliser toujours le message potentiellement censuré
-        
+
         // Si le message a été censuré, ajouter un marqueur spécial
         if (validationResult.censored) {
           finalMessageText += " [Ce message a été modéré automatiquement]";
         }
-        
+
         // Si un modérateur doit être notifié
         if (validationResult.shouldNotifyModerator) {
           // Ici vous pourriez implémenter une notification à un modérateur
           // Par exemple, enregistrer dans une table "reports" ou envoyer un webhook
-          console.log("Ce message nécessiterait une vérification par un modérateur:", messageText);
+          console.log(
+            "Ce message nécessiterait une vérification par un modérateur:",
+            messageText,
+          );
           // Afficher une notification à l'utilisateur que son message sera examiné
-          showNotification("Votre message contient des éléments qui nécessitent une vérification et pourrait être examiné par un modérateur.", 'info');
+          showNotification(
+            "Votre message contient des éléments qui nécessitent une vérification et pourrait être examiné par un modérateur.",
+            "info",
+          );
         }
-        
+
         // Vérifier si c'est une conversation liée à une commande
-        const isOrderConversation = conversation.id.startsWith('order-') || conversation.order_id;
-        const orderId = conversation.order_id || (isOrderConversation ? conversation.id.replace('order-', '') : null);
+        const isOrderConversation =
+          conversation.id.startsWith("order-") || conversation.order_id;
+        const orderId =
+          conversation.order_id ||
+          (isOrderConversation ? conversation.id.replace("order-", "") : null);
 
         if (isOrderConversation && orderId) {
-          
           // Pour les messages de commande, utiliser directement l'API Supabase
           if (attachments.length > 0) {
             // Message avec pièce jointe
             const attachment = attachments[0]; // On prend la première pièce jointe
-            const { error } = await supabase
-              .from('messages')
-              .insert({
-                order_id: orderId,
-                sender_id: user.id,
-                content: finalMessageText || 'Pièce jointe',
-                read: false,
-                attachment_url: attachment.url,
-                attachment_type: attachment.type,
-                attachment_name: attachment.name
-              });
-              
+            const { error } = await supabase.from("messages").insert({
+              order_id: orderId,
+              sender_id: user.id,
+              content: finalMessageText || "Pièce jointe",
+              read: false,
+              attachment_url: attachment.url,
+              attachment_type: attachment.type,
+              attachment_name: attachment.name,
+            });
+
             if (error) {
-              console.error("Erreur lors de l'envoi du message pour la commande:", error);
+              console.error(
+                "Erreur lors de l'envoi du message pour la commande:",
+                error,
+              );
               throw error;
             }
           } else {
             // Message texte simple
-            const { error } = await supabase
-              .from('messages')
-              .insert({
-                order_id: orderId,
-                sender_id: user.id,
-                content: finalMessageText.trim(),
-                read: false
-              });
-              
+            const { error } = await supabase.from("messages").insert({
+              order_id: orderId,
+              sender_id: user.id,
+              content: finalMessageText.trim(),
+              read: false,
+            });
+
             if (error) {
-              console.error("Erreur lors de l'envoi du message pour la commande:", error);
+              console.error(
+                "Erreur lors de l'envoi du message pour la commande:",
+                error,
+              );
               throw error;
             }
           }
-          
+
           // Récupérer les messages mis à jour après l'envoi
           const { data: updatedMessages, error: fetchError } = await supabase
-            .from('messages')
-            .select('*')
-            .eq('order_id', orderId)
-            .order('created_at', { ascending: true });
-            
+            .from("messages")
+            .select("*")
+            .eq("order_id", orderId)
+            .order("created_at", { ascending: true });
+
           if (fetchError) {
-            console.error("Erreur lors de la récupération des messages:", fetchError);
+            console.error(
+              "Erreur lors de la récupération des messages:",
+              fetchError,
+            );
             throw fetchError;
           }
-          
+
           // Mettre à jour les messages dans le store
           if (updatedMessages) {
             setMessages(updatedMessages);
           }
-          
         } else {
           // Pour les conversations normales, utiliser le store
           if (attachments.length > 0) {
             // Envoyer des messages avec pièces jointes
             for (const attachment of attachments) {
               await sendMessage(
-                conversation.id, 
-                user.id, 
-                finalMessageText || 'Pièce jointe',
+                conversation.id,
+                user.id,
+                finalMessageText || "Pièce jointe",
                 attachment.url,
                 attachment.type,
-                attachment.name
+                attachment.name,
               );
             }
           } else {
             // Envoyer un message texte simple
-            await sendMessage(conversation.id, user.id, finalMessageText.trim());
+            await sendMessage(
+              conversation.id,
+              user.id,
+              finalMessageText.trim(),
+            );
           }
         }
-        
+
         // Réinitialiser tous les états liés aux fichiers
         setAttachments([]);
         setAttachment(null);
         if (fileInputRef.current) {
-          fileInputRef.current.value = '';
+          fileInputRef.current.value = "";
         }
-        
-        setMessageText('');
-        
+
+        setMessageText("");
+
         // Réinitialiser l'état d'écriture
         updateTypingStatus(conversation.id, user.id, false);
-        
+
         // Si le message a été censuré, on affiche une notification
         if (validationResult.censored) {
-          showNotification("Certains mots de votre message ont été censurés.", 'info');
+          showNotification(
+            "Certains mots de votre message ont été censurés.",
+            "info",
+          );
         }
-        
       } catch (error) {
-        console.error("Erreur lors de la validation ou de l'envoi du message:", error);
-        showNotification("Une erreur est survenue lors de l'envoi du message.", 'error');
+        console.error(
+          "Erreur lors de la validation ou de l'envoi du message:",
+          error,
+        );
+        showNotification(
+          "Une erreur est survenue lors de l'envoi du message.",
+          "error",
+        );
       }
     }
   };
@@ -682,15 +789,15 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   // Détecter quand l'utilisateur est en train d'écrire
   const handleTyping = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setMessageText(e.target.value);
-    
-    if (user?.id && e.target.value.trim() !== '') {
+
+    if (user?.id && e.target.value.trim() !== "") {
       updateTypingStatus(conversation.id, user.id, true);
     }
   };
 
   // Gérer la pression des touches (Enter pour envoyer, Shift+Enter pour nouvelle ligne)
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
     }
@@ -699,68 +806,73 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   // Gérer l'upload des fichiers
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
-    
+
     const file = e.target.files[0];
-    
+
     // Vérifier la taille du fichier (10 Mo max)
     if (file.size > 10 * 1024 * 1024) {
-      showNotification("Le fichier est trop volumineux (maximum 10 Mo)", 'error');
-      if (fileInputRef.current) fileInputRef.current.value = '';
+      showNotification(
+        "Le fichier est trop volumineux (maximum 10 Mo)",
+        "error",
+      );
+      if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
-    
+
     setIsUploading(true);
     setAttachment({
       name: file.name,
-      size: file.size
+      size: file.size,
     });
-    
+
     try {
-      const fileExt = file.name.split('.').pop();
+      const fileExt = file.name.split(".").pop();
       const fileName = `${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
       const filePath = `messages/${fileName}`;
-      
+
       // Upload du fichier vers Supabase Storage
       const { data, error } = await supabase.storage
-        .from('attachments')
+        .from("attachments")
         .upload(filePath, file);
-      
+
       if (error) {
-        console.error('Erreur lors de l\'upload du fichier:', error);
-        showNotification("Erreur lors de l'upload du fichier", 'error');
+        console.error("Erreur lors de l'upload du fichier:", error);
+        showNotification("Erreur lors de l'upload du fichier", "error");
         setAttachment(null);
         throw error;
       }
-      
+
       // Récupérer l'URL publique du fichier
       const { data: publicUrlData } = supabase.storage
-        .from('attachments')
+        .from("attachments")
         .getPublicUrl(filePath);
-      
+
       // Déterminer le type de fichier
-      const isImage = file.type.startsWith('image/');
-      
-      setAttachments([...attachments, {
-        url: publicUrlData.publicUrl,
-        type: isImage ? 'image' : 'file',
-        name: file.name
-      }]);
-      
-      showNotification("Fichier ajouté avec succès", 'success');
-      
+      const isImage = file.type.startsWith("image/");
+
+      setAttachments([
+        ...attachments,
+        {
+          url: publicUrlData.publicUrl,
+          type: isImage ? "image" : "file",
+          name: file.name,
+        },
+      ]);
+
+      showNotification("Fichier ajouté avec succès", "success");
     } catch (error) {
-      console.error('Erreur lors de l\'upload du fichier:', error);
-      showNotification("Erreur lors de l'upload du fichier", 'error');
+      console.error("Erreur lors de l'upload du fichier:", error);
+      showNotification("Erreur lors de l'upload du fichier", "error");
       setAttachment(null);
     } finally {
       setIsUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
   // Supprimer une pièce jointe
   const removeAttachment = (index: number) => {
-    setAttachments(prev => prev.filter((_, i) => i !== index));
+    setAttachments((prev) => prev.filter((_, i) => i !== index));
     if (attachments.length === 1) {
       setAttachment(null);
     }
@@ -775,11 +887,11 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     };
 
     if (isMenuOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener("mousedown", handleClickOutside);
     }
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [isMenuOpen]);
 
@@ -787,38 +899,50 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const syncParticipantWithMessages = useCallback(() => {
     if (otherParticipant && messages.length > 0) {
       // Chercher un message de l'autre participant
-      const participantMessage = messages.find(msg => 
-        msg.sender_id === otherParticipant.id && msg.sender
+      const participantMessage = messages.find(
+        (msg) => msg.sender_id === otherParticipant.id && msg.sender,
       );
-      
+
       if (participantMessage?.sender) {
         // Vérifier si on a des données manquantes dans otherParticipant
-        if ((!otherParticipant.avatar_url && participantMessage.sender.avatar_url) || 
-            (!otherParticipant.full_name && participantMessage.sender.full_name)) {
-              
+        if (
+          (!otherParticipant.avatar_url &&
+            participantMessage.sender.avatar_url) ||
+          (!otherParticipant.full_name && participantMessage.sender.full_name)
+        ) {
           // Mettre à jour les informations du participant
-          if (typeof updateConversationParticipant === 'function') {
+          if (typeof updateConversationParticipant === "function") {
             updateConversationParticipant(conversation.id, {
               id: otherParticipant.id,
-              username: participantMessage.sender.username || otherParticipant.username,
-              full_name: participantMessage.sender.full_name || otherParticipant.full_name,
-              avatar_url: participantMessage.sender.avatar_url || otherParticipant.avatar_url,
-              last_seen: otherParticipant.last_seen
+              username:
+                participantMessage.sender.username || otherParticipant.username,
+              full_name:
+                participantMessage.sender.full_name ||
+                otherParticipant.full_name,
+              avatar_url:
+                participantMessage.sender.avatar_url ||
+                otherParticipant.avatar_url,
+              last_seen: otherParticipant.last_seen,
             });
           }
-          
+
           // Mettre à jour le titre immédiatement pour une mise à jour visuelle rapide
           setConversationTitle(
-            participantMessage.sender.full_name || 
-            participantMessage.sender.username || 
-            otherParticipant.full_name ||
-            otherParticipant.username ||
-            "Discussion"
+            participantMessage.sender.full_name ||
+              participantMessage.sender.username ||
+              otherParticipant.full_name ||
+              otherParticipant.username ||
+              "Discussion",
           );
         }
       }
     }
-  }, [otherParticipant, messages, conversation.id, updateConversationParticipant]);
+  }, [
+    otherParticipant,
+    messages,
+    conversation.id,
+    updateConversationParticipant,
+  ]);
 
   // Appeler la fonction quand les messages changent
   useEffect(() => {
@@ -846,32 +970,42 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             <ArrowLeft className="h-4 w-4" />
           </Button>
           {otherParticipant && otherParticipant.avatar_url ? (
-            <EnhancedAvatar 
-              src={otherParticipant.avatar_url} 
-              alt={otherParticipant.full_name || otherParticipant.username || ""}
-              fallback={(otherParticipant.full_name || otherParticipant.username || '?') as string}
+            <EnhancedAvatar
+              src={otherParticipant.avatar_url}
+              alt={
+                otherParticipant.full_name || otherParticipant.username || ""
+              }
+              fallback={
+                (otherParticipant.full_name ||
+                  otherParticipant.username ||
+                  "?") as string
+              }
               className="h-8 w-8"
               onError={() => setHeaderAvatarError(true)}
             />
           ) : (
             <Avatar className="h-8 w-8">
-              <AvatarFallback>{conversationTitle.substring(0, 2).toUpperCase()}</AvatarFallback>
+              <AvatarFallback>
+                {conversationTitle.substring(0, 2).toUpperCase()}
+              </AvatarFallback>
             </Avatar>
           )}
           <div>
             <h2 className="text-sm font-semibold">{conversationTitle}</h2>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              {otherParticipant?.last_seen 
-                ? `Vu ${formatDistanceToNow(new Date(otherParticipant.last_seen), { addSuffix: true, locale: fr })}` 
-                : 'Hors ligne'}
+              {otherParticipant?.last_seen
+                ? `Vu ${formatDistanceToNow(new Date(otherParticipant.last_seen), { addSuffix: true, locale: fr })}`
+                : "Hors ligne"}
             </p>
           </div>
         </div>
         <div className="flex items-center space-x-2">
-          <UnreadBadge count={unreadCounts.byConversation[conversation.id] || 0} />
+          <UnreadBadge
+            count={unreadCounts.byConversation[conversation.id] || 0}
+          />
           <div className="relative" ref={menuRef}>
-            <Button 
-              variant="ghost" 
+            <Button
+              variant="ghost"
               size="icon"
               className="h-8 w-8 p-0 hover:bg-slate-100 dark:hover:bg-slate-800"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -882,7 +1016,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
             <AnimatePresence>
               {isMenuOpen && (
-                <motion.div 
+                <motion.div
                   className="absolute right-0 mt-2 w-48 z-50 rounded-lg border border-vynal-purple-secondary/20 bg-white p-1 text-vynal-purple-dark shadow-lg dark:border-vynal-purple-secondary/20 dark:bg-vynal-purple-dark dark:text-vynal-text-primary backdrop-blur-sm"
                   initial={{ opacity: 0, scale: 0.95, y: -5 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -919,7 +1053,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       <div className="flex-1 overflow-hidden bg-white/20 dark:bg-slate-800/25 relative">
         {/* Bouton flottant pour aller en bas */}
         {messages.length > 20 && (
-          <button 
+          <button
             onClick={handleGoToBottom}
             className="absolute bottom-5 right-5 bg-gray-100 dark:bg-gray-800 p-2 rounded-full shadow-md hover:bg-gray-200 dark:hover:bg-gray-700 z-10 transition-all opacity-70 hover:opacity-100"
             aria-label="Aller en bas"
@@ -927,8 +1061,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             <ChevronDown className="h-4 w-4 text-gray-600 dark:text-gray-300" />
           </button>
         )}
-        
-        <div 
+
+        <div
           ref={messagesContainerRef}
           className="h-full overflow-auto px-2 pt-2 pb-1 scroll-smooth scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-transparent"
           onScroll={handleScroll}
@@ -937,9 +1071,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             {/* Bouton pour charger plus de messages */}
             {loadMoreVisible && hasMoreMessages && (
               <div className="flex justify-center sticky top-0 pt-1 pb-3 z-10 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={loadMoreMessages}
                   disabled={isLoadingMore}
                   className="rounded-full text-xs bg-white shadow-sm hover:bg-gray-100 text-gray-700 flex items-center gap-1 h-6 px-3 py-1 border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-200"
@@ -953,7 +1087,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                 </Button>
               </div>
             )}
-            
+
             {/* Loader lors du chargement initial des messages */}
             {isLoadingMessages && messages.length === 0 && (
               <div className="flex justify-center items-center h-[150px] animate-in fade-in duration-300 ease-in-out">
@@ -961,16 +1095,19 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                   <div className="flex flex-col space-y-3 w-3/4 max-w-md">
                     {/* Skeleton message items avec animation douce */}
                     {[...Array(3)].map((_, i) => (
-                      <div 
-                        key={i} 
-                        className={`flex items-start ${i % 2 === 0 ? 'justify-end' : ''} animate-pulse`}
-                        style={{ animationDelay: `${i * 150}ms`, opacity: 1 - (i * 0.15) }}
+                      <div
+                        key={i}
+                        className={`flex items-start ${i % 2 === 0 ? "justify-end" : ""} animate-pulse`}
+                        style={{
+                          animationDelay: `${i * 150}ms`,
+                          opacity: 1 - i * 0.15,
+                        }}
                       >
                         {i % 2 !== 0 && (
                           <div className="h-6 w-6 rounded-full bg-vynal-purple-secondary/30 mr-2"></div>
                         )}
-                        <div 
-                          className={`h-[50px] rounded-2xl ${i % 2 === 0 ? 'bg-vynal-purple-secondary/30 w-[65%]' : 'bg-vynal-purple-secondary/30 w-[70%]'}`}
+                        <div
+                          className={`h-[50px] rounded-2xl ${i % 2 === 0 ? "bg-vynal-purple-secondary/30 w-[65%]" : "bg-vynal-purple-secondary/30 w-[70%]"}`}
                         ></div>
                       </div>
                     ))}
@@ -978,20 +1115,24 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                 </div>
               </div>
             )}
-            
+
             {/* Liste des messages vide */}
             {messages.length === 0 && !isLoadingMessages && (
               <div className="flex-1 flex flex-col items-center justify-center h-[250px] p-3 text-center">
                 <div className="bg-indigo-100 dark:bg-indigo-900/30 rounded-full p-3 mb-2">
                   <MessageSquare className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
                 </div>
-                <h3 className="text-sm font-semibold mb-1 text-gray-800 dark:text-gray-200">Aucun message</h3>
+                <h3 className="text-sm font-semibold mb-1 text-gray-800 dark:text-gray-200">
+                  Aucun message
+                </h3>
                 <p className="text-gray-500 dark:text-gray-400 text-xs max-w-xs">
-                  Démarrez la conversation avec {otherParticipant?.full_name || 'votre contact'} en envoyant un message ci-dessous.
+                  Démarrez la conversation avec{" "}
+                  {otherParticipant?.full_name || "votre contact"} en envoyant
+                  un message ci-dessous.
                 </p>
               </div>
             )}
-            
+
             {/* Afficher tous les messages */}
             {messages.length > 0 && (
               <div className="flex flex-col w-full space-y-1">
@@ -1004,54 +1145,66 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
                   // Déterminer si le message est de l'utilisateur actuel
                   const isCurrentUser = message.sender_id === user?.id;
-                  
+
                   // Créer une clé de données unique pour ce message
                   const messageKey = `msg-${message.id}`;
-                  
+
                   // Déterminer si nous devons afficher l'avatar (pour les messages groupés)
-                  const showAvatar = !isCurrentUser && 
-                    (index === 0 || 
+                  const showAvatar =
+                    !isCurrentUser &&
+                    (index === 0 ||
                       messages[index - 1].sender_id !== message.sender_id);
-                  
+
                   // Obtenir les messages précédent et suivant pour le groupement
-                  const previousMessage = index > 0 ? messages[index - 1] : undefined;
-                  const nextMessage = index < messages.length - 1 ? messages[index + 1] : undefined;
-                  
+                  const previousMessage =
+                    index > 0 ? messages[index - 1] : undefined;
+                  const nextMessage =
+                    index < messages.length - 1
+                      ? messages[index + 1]
+                      : undefined;
+
                   // Obtenir les informations de l'expéditeur
-                  const sender = message.sender || (isCurrentUser ? {
-                    id: user?.id || message.sender_id || '',
-                    username: user?.user_metadata?.username || 'Vous',
-                    full_name: user?.user_metadata?.full_name,
-                    avatar_url: user?.user_metadata?.avatar_url,
-                  } : {
-                    id: otherParticipant?.id || message.sender_id || '',
-                    username: otherParticipant?.username || 'Utilisateur',
-                    full_name: otherParticipant?.full_name,
-                    avatar_url: otherParticipant?.avatar_url
-                  });
-                  
+                  const sender =
+                    message.sender ||
+                    (isCurrentUser
+                      ? {
+                          id: user?.id || message.sender_id || "",
+                          username: user?.user_metadata?.username || "Vous",
+                          full_name: user?.user_metadata?.full_name,
+                          avatar_url: user?.user_metadata?.avatar_url,
+                        }
+                      : {
+                          id: otherParticipant?.id || message.sender_id || "",
+                          username: otherParticipant?.username || "Utilisateur",
+                          full_name: otherParticipant?.full_name,
+                          avatar_url: otherParticipant?.avatar_url,
+                        });
+
                   // Vérifier si le message est valide avant de le rendre
                   if (!sender.id && message.sender_id) {
                     // Si sender.id est manquant mais que sender_id existe, on utilise sender_id
                     sender.id = message.sender_id;
                   }
-                  
+
                   if (!sender.id) {
-                    console.error("Informations de l'expéditeur manquantes:", message);
+                    console.error(
+                      "Informations de l'expéditeur manquantes:",
+                      message,
+                    );
                     return null;
                   }
-                  
+
                   return (
-                    <div 
+                    <div
                       key={messageKey}
                       data-message-id={message.id}
                       data-key={messageKey}
                       className="w-full mb-2 px-1 min-h-[20px]"
                     >
-                      <MessageBubble 
+                      <MessageBubble
                         message={{
                           ...message,
-                          sender
+                          sender,
                         }}
                         isCurrentUser={isCurrentUser}
                         showAvatar={showAvatar}
@@ -1065,71 +1218,98 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                 })}
               </div>
             )}
-            
+
             {/* Indicateur de frappe */}
             {isOtherParticipantTyping && (
               <div className="flex items-start mb-2 animate-fade-in">
                 <div className="flex items-end">
                   <EnhancedAvatar
-                    src={otherParticipant?.avatar_url || ''} 
-                    alt={otherParticipant?.full_name || 'Contact'}
-                    fallback={getInitials(otherParticipant?.full_name || otherParticipant?.username || 'User')}
+                    src={otherParticipant?.avatar_url || ""}
+                    alt={otherParticipant?.full_name || "Contact"}
+                    fallback={getInitials(
+                      otherParticipant?.full_name ||
+                        otherParticipant?.username ||
+                        "User",
+                    )}
                     className="h-6 w-6 mr-2"
                     fallbackClassName="bg-indigo-100 text-indigo-800 text-xs"
                     onError={() => setTypingAvatarError(true)}
                   />
                   <div className="bg-white dark:bg-gray-800 rounded-2xl px-3 py-1 shadow-sm flex items-center">
                     <div className="flex space-x-1">
-                      <span className="bg-vynal-purple-secondary/30 rounded-full h-1.5 w-1.5 animate-bounce" style={{ animationDelay: '0s' }}></span>
-                      <span className="bg-vynal-purple-secondary/30 rounded-full h-1.5 w-1.5 animate-bounce" style={{ animationDelay: '0.2s' }}></span>
-                      <span className="bg-vynal-purple-secondary/30 rounded-full h-1.5 w-1.5 animate-bounce" style={{ animationDelay: '0.4s' }}></span>
+                      <span
+                        className="bg-vynal-purple-secondary/30 rounded-full h-1.5 w-1.5 animate-bounce"
+                        style={{ animationDelay: "0s" }}
+                      ></span>
+                      <span
+                        className="bg-vynal-purple-secondary/30 rounded-full h-1.5 w-1.5 animate-bounce"
+                        style={{ animationDelay: "0.2s" }}
+                      ></span>
+                      <span
+                        className="bg-vynal-purple-secondary/30 rounded-full h-1.5 w-1.5 animate-bounce"
+                        style={{ animationDelay: "0.4s" }}
+                      ></span>
                     </div>
                   </div>
                 </div>
               </div>
             )}
-            
+
             {/* Élément de référence pour le défilement vers le bas */}
             <div ref={messagesEndRef} className="h-1 w-full" />
           </div>
         </div>
       </div>
-      
+
       {/* Zone de saisie du message */}
       <div className="border-t border-slate-200 dark:border-slate-700/30 p-3 bg-white/40 dark:bg-slate-800/40">
         {notification && (
-          <div className={`mb-2 p-1.5 text-xs rounded-md ${
-            notification.type === 'error' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' :
-            notification.type === 'warning' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300' :
-            notification.type === 'success' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' :
-            'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
-          }`}>
+          <div
+            className={`mb-2 p-1.5 text-xs rounded-md ${
+              notification.type === "error"
+                ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300"
+                : notification.type === "warning"
+                  ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300"
+                  : notification.type === "success"
+                    ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
+                    : "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
+            }`}
+          >
             <div className="flex items-center">
-              {notification.type === 'error' && <X className="h-3 w-3 mr-1 flex-shrink-0" />}
-              {notification.type === 'warning' && <AlertTriangle className="h-3 w-3 mr-1 flex-shrink-0" />}
-              {notification.type === 'success' && <Check className="h-3 w-3 mr-1 flex-shrink-0" />}
-              {notification.type === 'info' && <Info className="h-3 w-3 mr-1 flex-shrink-0" />}
+              {notification.type === "error" && (
+                <X className="h-3 w-3 mr-1 flex-shrink-0" />
+              )}
+              {notification.type === "warning" && (
+                <AlertTriangle className="h-3 w-3 mr-1 flex-shrink-0" />
+              )}
+              {notification.type === "success" && (
+                <Check className="h-3 w-3 mr-1 flex-shrink-0" />
+              )}
+              {notification.type === "info" && (
+                <Info className="h-3 w-3 mr-1 flex-shrink-0" />
+              )}
               {notification.message}
             </div>
-        </div>
-      )}
-      
+          </div>
+        )}
+
         {attachment && (
           <div className="mb-2 p-1.5 bg-white/20 dark:bg-slate-800/25 rounded-md border border-slate-200/50 dark:border-slate-700/15">
             <div className="flex items-center justify-between">
               <div className="flex items-center">
-                <FileIcon 
-                  fileName={attachment.name} 
-                  className="h-5 w-5 mr-2" 
-                />
+                <FileIcon fileName={attachment.name} className="h-5 w-5 mr-2" />
                 <div>
-                  <p className="text-xs font-medium truncate max-w-[200px]">{attachment.name}</p>
-                  <p className="text-xs text-gray-500">{formatFileSize(attachment.size)}</p>
+                  <p className="text-xs font-medium truncate max-w-[200px]">
+                    {attachment.name}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {formatFileSize(attachment.size)}
+                  </p>
                 </div>
               </div>
-              <Button 
-                variant="ghost" 
-                size="icon" 
+              <Button
+                variant="ghost"
+                size="icon"
                 className="h-5 w-5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                 onClick={() => setAttachment(null)}
               >
@@ -1138,7 +1318,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             </div>
           </div>
         )}
-        
+
         <div className="flex items-end gap-2">
           <input
             type="file"
@@ -1146,7 +1326,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             className="hidden"
             onChange={handleFileUpload}
           />
-          
+
           <div className="flex space-x-2">
             <Button
               type="button"
@@ -1162,18 +1342,20 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                 <Paperclip className="h-4 w-4" />
               )}
             </Button>
-          
+
             <Button
               type="button"
               size="sm"
               variant="ghost"
               className="rounded-full bg-white/20 dark:bg-slate-800/25 hover:bg-white/25 dark:hover:bg-slate-800/30 text-slate-700 dark:text-vynal-text-secondary h-8 w-8 p-0 transition-all duration-200"
-              onClick={() => window.alert("La fonction emoji sera implémentée prochainement")}
+              onClick={() =>
+                window.alert("La fonction emoji sera implémentée prochainement")
+              }
             >
               <Smile className="h-4 w-4" />
             </Button>
           </div>
-      
+
           <div className="flex-1 relative">
             <Textarea
               ref={textareaRef}
@@ -1183,14 +1365,20 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               placeholder="Écrivez votre message..."
               className="resize-none py-2 px-3 rounded-full bg-white/20 dark:bg-slate-800/25 border border-slate-200/50 dark:border-slate-700/15 focus-visible:ring-vynal-accent-primary/20 min-h-8 text-sm text-slate-800 dark:text-vynal-text-primary placeholder-slate-600 dark:placeholder-vynal-text-secondary"
               rows={1}
-              style={{ minHeight: '36px', maxHeight: '100px', paddingRight: '40px' }}
+              style={{
+                minHeight: "36px",
+                maxHeight: "100px",
+                paddingRight: "40px",
+              }}
             />
-            
+
             <Button
               type="button"
               size="sm"
               className={`absolute right-1 bottom-1 rounded-full ${
-                messageText.trim() || attachment ? 'bg-vynal-accent-primary hover:bg-vynal-accent-primary/90' : 'bg-slate-300 dark:bg-slate-700'
+                messageText.trim() || attachment
+                  ? "bg-vynal-accent-primary hover:bg-vynal-accent-primary/90"
+                  : "bg-slate-300 dark:bg-slate-700"
               } text-white h-6 w-6 p-0 transition-all duration-200`}
               onClick={handleSendMessage}
               disabled={(!messageText.trim() && !attachment) || isSending}
@@ -1203,24 +1391,33 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             </Button>
           </div>
         </div>
-        
+
         {messageError && (
           <p className="mt-1 text-xs text-red-500">{messageError}</p>
         )}
       </div>
 
       {/* Boîte de dialogue de confirmation pour les notifications */}
-      <AlertDialog open={showNotificationDialog} onOpenChange={setShowNotificationDialog}>
+      <AlertDialog
+        open={showNotificationDialog}
+        onOpenChange={setShowNotificationDialog}
+      >
         <AlertDialogContent className="max-w-sm">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-base">Activer les notifications?</AlertDialogTitle>
+            <AlertDialogTitle className="text-base">
+              Activer les notifications?
+            </AlertDialogTitle>
             <AlertDialogDescription className="text-xs">
-              Recevez des notifications lorsque vous recevez de nouveaux messages, même lorsque l'application est en arrière-plan.
+              Recevez des notifications lorsque vous recevez de nouveaux
+              messages, même lorsque l'application est en arrière-plan.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="text-xs">Plus tard</AlertDialogCancel>
-            <AlertDialogAction onClick={enableNotifications} className="text-xs">
+            <AlertDialogAction
+              onClick={enableNotifications}
+              className="text-xs"
+            >
               Activer
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -1230,4 +1427,4 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   );
 };
 
-export default ChatWindow; 
+export default ChatWindow;

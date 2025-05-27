@@ -1,24 +1,28 @@
-import { Metadata } from 'next';
-import React, { Suspense } from 'react';
-import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Metadata } from "next";
+import React, { Suspense } from "react";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { PUBLIC_ROUTES } from "@/config/routes";
-import { getSupabaseServer } from '@/lib/supabase/server';
-import ServiceView from '@/components/services/ServiceView';
+import { getSupabaseServer } from "@/lib/supabase/server";
+import ServiceView from "@/components/services/ServiceView";
 
 // Configuration pour la génération statique
-export const dynamic = 'force-static';
+export const dynamic = "force-static";
 export const revalidate = 604800; // 7 jours en secondes
 
 // Métadonnées dynamiques pour la page
-export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: {
+  params: { slug: string };
+}): Promise<Metadata> {
   try {
     const { slug } = params;
     const { data: service } = await getSupabaseServer()
-      .from('services')
-      .select('title, description')
-      .eq('slug', slug)
+      .from("services")
+      .select("title, description")
+      .eq("slug", slug)
       .single();
 
     if (service) {
@@ -28,13 +32,14 @@ export async function generateMetadata({ params }: { params: { slug: string } })
       };
     }
   } catch (error) {
-    console.error('Erreur lors de la génération des métadonnées:', error);
+    console.error("Erreur lors de la génération des métadonnées:", error);
   }
 
   // Métadonnées par défaut
   return {
-    title: 'Service | Vynal Platform',
-    description: 'Découvrez ce service proposé par un freelance sur Vynal Platform',
+    title: "Service | Vynal Platform",
+    description:
+      "Découvrez ce service proposé par un freelance sur Vynal Platform",
   };
 }
 
@@ -42,20 +47,22 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 async function getServiceData(slug: string) {
   try {
     const supabase = getSupabaseServer();
-    
+
     if (!supabase) {
       throw new Error("Impossible d'initialiser le client Supabase");
     }
-    
+
     // Récupération du service avec ses catégories et profil
     const { data: service, error } = await supabase
-      .from('services')
-      .select(`
+      .from("services")
+      .select(
+        `
         *,
         categories(*),
         profiles(*)
-      `)
-      .eq('slug', slug)
+      `,
+      )
+      .eq("slug", slug)
       .single();
 
     if (error) {
@@ -64,33 +71,40 @@ async function getServiceData(slug: string) {
 
     // Récupération des services connexes du même freelance en une seule requête
     const { data: relatedServices, error: relatedError } = await supabase
-      .from('services')
-      .select(`
+      .from("services")
+      .select(
+        `
         *,
         profiles (*),
         categories (*)
-      `)
-      .eq('profiles.id', service.profiles.id)
-      .eq('status', 'approved')
-      .eq('active', true)
-      .neq('id', service.id)
+      `,
+      )
+      .eq("profiles.id", service.profiles.id)
+      .eq("status", "approved")
+      .eq("active", true)
+      .neq("id", service.id)
       .limit(3);
 
     if (relatedError) {
-      console.error("Erreur lors de la récupération des services liés:", relatedError);
+      console.error(
+        "Erreur lors de la récupération des services liés:",
+        relatedError,
+      );
     }
 
     // Normalisation du format des images
-    const normalizedImages = Array.isArray(service.images) 
-      ? service.images 
-      : (service.images ? [service.images] : []);
+    const normalizedImages = Array.isArray(service.images)
+      ? service.images
+      : service.images
+        ? [service.images]
+        : [];
 
-    return { 
+    return {
       service: {
         ...service,
-        images: normalizedImages
-      }, 
-      relatedServices: relatedServices || [] 
+        images: normalizedImages,
+      },
+      relatedServices: relatedServices || [],
     };
   } catch (error) {
     console.error("Erreur lors du chargement des données du service:", error);
@@ -104,19 +118,22 @@ async function ServiceDetailContent({ slug }: { slug: string }) {
     const { service, relatedServices } = await getServiceData(slug);
 
     return (
-      <div className="min-h-screen bg-white dark:bg-vynal-purple-dark animate-in fade-in duration-300">
+      <div className="min-h-screen bg-white dark:bg-vynal-purple-dark animate-in fade-in duration-300 service-detail-page stable-scroll">
         <main data-content="loaded">
-          <div className="container mx-auto py-8 px-4 md:px-16 lg:px-24 xl:px-32">
+          <div className="container mx-auto py-8 px-4 md:px-16 lg:px-24 xl:px-32 preserve-scroll">
             <div className="mb-6">
-              <Link href={PUBLIC_ROUTES.SERVICES} className="inline-flex items-center text-vynal-title hover:text-vynal-accent-primary transition-colors text-[11px]">
+              <Link
+                href={PUBLIC_ROUTES.SERVICES}
+                className="inline-flex items-center text-vynal-title hover:text-vynal-accent-primary transition-colors text-[11px]"
+              >
                 <ArrowLeft className="h-3 w-3 mr-1" />
                 Retour aux services
               </Link>
             </div>
-            
+
             {service && (
               <div>
-                <ServiceView 
+                <ServiceView
                   service={service}
                   loading={false}
                   error={null}
@@ -138,7 +155,9 @@ async function ServiceDetailContent({ slug }: { slug: string }) {
           <div className="bg-red-50 dark:bg-red-900/20 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4">
             <ArrowLeft className="h-6 w-6 text-red-500 dark:text-red-400" />
           </div>
-          <h1 className="text-xl font-semibold mb-2 text-gray-800 dark:text-vynal-text-primary">Service introuvable</h1>
+          <h1 className="text-xl font-semibold mb-2 text-gray-800 dark:text-vynal-text-primary">
+            Service introuvable
+          </h1>
           <p className="text-gray-600 dark:text-vynal-text-secondary mb-4">
             Nous n'avons pas pu trouver le service que vous recherchez.
           </p>
@@ -163,11 +182,14 @@ function ServiceDetailLoading() {
             <Skeleton className="h-[400px] w-full mb-4 bg-gray-100 dark:bg-vynal-purple-secondary/30" />
             <div className="grid grid-cols-4 gap-2">
               {[1, 2, 3, 4].map((i) => (
-                <Skeleton key={i} className="h-24 w-full bg-gray-100 dark:bg-vynal-purple-secondary/30" />
+                <Skeleton
+                  key={i}
+                  className="h-24 w-full bg-gray-100 dark:bg-vynal-purple-secondary/30"
+                />
               ))}
             </div>
           </div>
-          
+
           <div className="w-full md:w-1/3">
             <Skeleton className="h-8 w-3/4 mb-4 bg-gray-100 dark:bg-vynal-purple-secondary/30" />
             <Skeleton className="h-6 w-1/2 mb-2 bg-gray-100 dark:bg-vynal-purple-secondary/30" />
@@ -182,10 +204,14 @@ function ServiceDetailLoading() {
 }
 
 // Page principale avec Suspense boundary
-export default function ServiceDetailPage({ params }: { params: { slug: string }}) {
+export default function ServiceDetailPage({
+  params,
+}: {
+  params: { slug: string };
+}) {
   return (
     <Suspense fallback={<ServiceDetailLoading />}>
       <ServiceDetailContent slug={params.slug} />
     </Suspense>
   );
-} 
+}

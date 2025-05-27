@@ -1,7 +1,7 @@
 /* Import Tailwind CSS */
-@import 'tailwindcss/base';
-@import 'tailwindcss/components';
-@import 'tailwindcss/utilities';
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
 
 @layer base {
   :root {
@@ -10,97 +10,98 @@
 
     --card: 0 0% 100%;
     --card-foreground: 272 45% 20%; /* #2C1A4C - Texte principal */
- 
+
     --popover: 0 0% 100%;
     --popover-foreground: 272 45% 20%; /* #2C1A4C - Texte principal */
- 
+
     --primary: 222.2 47.4% 11.2%;
     --primary-foreground: 210 40% 98%;
- 
+
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 0 0% 33.3%; /* #555555 - Texte secondaire (gris anthracite) */
- 
+
     --muted: 210 40% 96.1%;
     --muted-foreground: 0 0% 33.3%; /* #555555 - Texte secondaire */
- 
+
     --accent: 284 100% 53.3%; /* #A020F0 - Accent (violet brillant) */
     --accent-foreground: 0 0% 100%; /* #FFFFFF pour les textes sur fond accent */
- 
+
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
     --border: 0 0% 88%; /* #E0E0E0 - Bordures (gris clair) */
     --input: 0 0% 88%; /* #E0E0E0 - Bordures (gris clair) */
     --ring: 284 100% 53.3%; /* #A020F0 - Accent */
- 
+
     --radius: 0.5rem;
-    
+
     /* Variables RGB pour les couleurs Vynal (light mode) */
     --vynal-text-primary-rgb: 44, 26, 76; /* #2C1A4C - Violet profond */
     --vynal-text-secondary-rgb: 85, 85, 85; /* #555555 - Gris anthracite */
     --vynal-accent-primary-rgb: 255, 102, 178; /* #FF66B2 - Rose - MODIFIÉ */
-    --vynal-accent-secondary-rgb: 123, 31, 162; /* #7B1FA2 - Violet plus foncé (hover) */
+    --vynal-accent-secondary-rgb:
+      123, 31, 162; /* #7B1FA2 - Violet plus foncé (hover) */
     --vynal-border-rgb: 224, 224, 224; /* #E0E0E0 - Gris clair (bordures) */
-    
+
     /* Variables CSS non-RGB */
-    --vynal-text-primary: #2C1A4C;
+    --vynal-text-primary: #2c1a4c;
     --vynal-text-secondary: #555555;
-    --vynal-accent-primary: #FF66B2; /* MODIFIÉ: maintenant rose au lieu de violet */
-    --vynal-accent-secondary: #7B1FA2;
-    --vynal-border: #E0E0E0;
-    
+    --vynal-accent-primary: #ff66b2; /* MODIFIÉ: maintenant rose au lieu de violet */
+    --vynal-accent-secondary: #7b1fa2;
+    --vynal-border: #e0e0e0;
+
     /* Nouvelles variables pour les boutons roses */
-    --vynal-btn-primary-bg: #FF66B2;
-    --vynal-btn-primary-hover: #FF007F;
-    --vynal-btn-primary-text: #2C1A4C;
+    --vynal-btn-primary-bg: #ff66b2;
+    --vynal-btn-primary-hover: #ff007f;
+    --vynal-btn-primary-text: #2c1a4c;
   }
- 
+
   .dark {
     /* Couleurs basées sur le nouveau thème violet foncé */
     --background: 271 90% 8%; /* #100422 - Fond principal (Violet foncé) */
     --foreground: 0 0% 100%; /* #FFFFFF - Texte principal (Blanc pur) */
- 
+
     --card: 267 75% 20%; /* #2A0C57 - Fond secondaire (Violet plus clair) */
     --card-foreground: 0 0% 100%; /* #FFFFFF - Texte principal (Blanc pur) */
- 
+
     --popover: 271 90% 8%; /* #100422 - Fond principal */
     --popover-foreground: 0 0% 100%; /* #FFFFFF - Texte principal */
- 
+
     --primary: 329 100% 70%; /* #FF66B2 - Accent principal (Rose doux) */
     --primary-foreground: 0 0% 100%; /* #FFFFFF - Texte principal */
- 
+
     --secondary: 267 75% 20%; /* #2A0C57 - Fond secondaire (Violet plus clair) */
     --secondary-foreground: 0 0% 84%; /* #D6D6D6 - Texte secondaire (Gris clair) */
- 
+
     --muted: 271 90% 8%; /* #100422 - Fond principal légèrement plus foncé */
     --muted-foreground: 0 0% 84%; /* #D6D6D6 - Texte secondaire (Gris clair) */
- 
+
     --accent: 331 100% 50%; /* #FF007F - Accent secondaire (Rose plus vif) */
     --accent-foreground: 0 0% 100%; /* #FFFFFF - Texte principal */
- 
+
     --destructive: 351 85% 60%; /* #EF4444 - Erreur (Rouge framboise) */
     --destructive-foreground: 0 0% 100%; /* #FFFFFF - Texte principal */
 
     --success: 151 74% 63%; /* #5BE49B - Success (Vert doux) */
     --warning: 45 96% 65%; /* #FCD34D - Warning (Jaune pastel) */
- 
+
     --border: 267 75% 20%; /* #2A0C57 - Fond secondaire */
     --input: 267 75% 20%; /* #2A0C57 - Fond secondaire */
     --ring: 329 100% 70%; /* #FF66B2 - Accent principal */
-    
+
     /* Variables RGB pour les couleurs Vynal (dark mode) */
     --vynal-text-primary-rgb: 255, 255, 255; /* #FFFFFF - Blanc */
     --vynal-text-secondary-rgb: 214, 214, 214; /* #D6D6D6 - Gris clair */
     --vynal-accent-primary-rgb: 255, 102, 178; /* #FF66B2 - Rose */
     --vynal-accent-secondary-rgb: 255, 0, 127; /* #FF007F - Rose vif */
     --vynal-border-rgb: 42, 12, 87; /* #2A0C57 - Violet foncé */
-    
+
     /* Variables CSS non-RGB */
-    --vynal-text-primary: #FFFFFF;
-    --vynal-text-secondary: #D6D6D6;
-    --vynal-accent-primary: #FF66B2;
-    --vynal-accent-secondary: #FF007F;
-    --vynal-border: #2A0C57;
+    --vynal-text-primary: #ffffff;
+    --vynal-text-secondary: #d6d6d6;
+    --vynal-accent-primary: #ff66b2;
+    --vynal-accent-secondary: #ff007f;
+    --vynal-border: #2a0c57;
   }
 }
 
@@ -118,38 +119,55 @@
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
-    transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
+    transition-property:
+      color, background-color, border-color, text-decoration-color, fill, stroke;
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
     transition-duration: 300ms;
-    font-feature-settings: "rlig" 1, "calt" 1;
+    font-feature-settings:
+      "rlig" 1,
+      "calt" 1;
   }
 
   /* Base styles */
-  html, body {
+  html,
+  body {
     min-height: 100vh;
   }
 
   /* Fonts & text sizing */
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     font-family: var(--font-poppins);
     font-weight: 600;
   }
 
-  p, button, .btn, input, select, textarea {
+  p,
+  button,
+  .btn,
+  input,
+  select,
+  textarea {
     font-family: var(--font-poppins);
   }
-  
-  button, .btn {
+
+  button,
+  .btn {
     font-weight: 500;
   }
-  
-  input, select, textarea {
+
+  input,
+  select,
+  textarea {
     font-size: 10px !important;
   }
 
   /* Background gradient */
   body::before {
-    content: '';
+    content: "";
     position: fixed;
     inset: 0;
     z-index: -1;
@@ -168,63 +186,115 @@
     background-attachment: fixed;
   }
 
+  /* Amélioration du comportement de scroll pour les catégories */
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* Empêcher le scroll automatique lors des changements d'URL */
+  .no-auto-scroll {
+    scroll-behavior: auto !important;
+  }
+
+  /* Améliorer le scroll horizontal pour les catégories */
+  .horizontal-scroll-container {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    overscroll-behavior-y: none;
+  }
+
+  /* Empêcher le scroll vertical pendant les interactions avec les catégories */
+  .prevent-scroll {
+    overflow: hidden;
+  }
+
+  /* Améliorer le comportement de scroll pour les pages de détails */
+  .service-detail-page {
+    scroll-behavior: auto;
+  }
+
+  /* Préserver la position de scroll lors des interactions */
+  .preserve-scroll {
+    scroll-behavior: auto !important;
+  }
+
+  /* Empêcher les sauts de scroll pendant les transitions */
+  .stable-scroll {
+    scroll-snap-type: none !important;
+    overscroll-behavior: contain;
+  }
+
   /* Scrollbar styles - Mobile */
   @media (max-width: 768px) {
     * {
       scrollbar-width: none !important;
       -ms-overflow-style: none !important;
     }
-    
+
     *::-webkit-scrollbar {
       display: none !important;
     }
   }
-  
+
   /* Scrollbar styles - Desktop */
   @media (min-width: 769px) {
     html {
       scrollbar-width: thin;
-      scrollbar-color: rgba(var(--vynal-purple-primary-rgb, 148, 85, 211), 0.5) transparent;
+      scrollbar-color: rgba(var(--vynal-purple-primary-rgb, 148, 85, 211), 0.5)
+        transparent;
     }
-    
+
     body {
       -ms-overflow-style: auto;
       scrollbar-width: thin;
     }
-    
+
     ::-webkit-scrollbar {
       width: 10px;
     }
-    
+
     ::-webkit-scrollbar-track {
       background-color: transparent;
       border-radius: 8px;
     }
-    
+
     ::-webkit-scrollbar-thumb {
-      background-color: rgba(var(--vynal-purple-primary-rgb, 148, 85, 211), 0.5);
+      background-color: rgba(
+        var(--vynal-purple-primary-rgb, 148, 85, 211),
+        0.5
+      );
       border-radius: 8px;
       border: 2px solid transparent;
       background-clip: content-box;
     }
-    
+
     ::-webkit-scrollbar-thumb:hover {
-      background-color: rgba(var(--vynal-purple-primary-rgb, 148, 85, 211), 0.7);
+      background-color: rgba(
+        var(--vynal-purple-primary-rgb, 148, 85, 211),
+        0.7
+      );
     }
-    
+
     .dark ::-webkit-scrollbar-thumb {
-      background-color: rgba(var(--vynal-accent-primary-rgb, 255, 102, 178), 0.5);
+      background-color: rgba(
+        var(--vynal-accent-primary-rgb, 255, 102, 178),
+        0.5
+      );
     }
-    
+
     .dark ::-webkit-scrollbar-thumb:hover {
-      background-color: rgba(var(--vynal-accent-primary-rgb, 255, 102, 178), 0.7);
+      background-color: rgba(
+        var(--vynal-accent-primary-rgb, 255, 102, 178),
+        0.7
+      );
     }
-    
+
     .no-scrollbar {
       -ms-overflow-style: auto !important;
       scrollbar-width: thin !important;
     }
-    
+
     .no-scrollbar::-webkit-scrollbar {
       display: block !important;
     }
@@ -243,11 +313,11 @@
   .animate-fade-in {
     animation: fadeIn 0.5s ease-in-out;
   }
-  
+
   .animate-slide-up {
     animation: slideUp 0.3s ease-out;
   }
-  
+
   .animate-bounce-in {
     animation: bounceIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   }
@@ -258,32 +328,52 @@
     animation-fill-mode: forwards;
   }
 
-  .fade-in { animation-name: fadeIn; }
-  .fade-out { animation-name: fadeOut; }
-  .slide-in-from-top { animation-name: slideInFromTop; }
-  .slide-in-from-bottom { animation-name: slideInFromBottom; }
-  .slide-out-to-top { animation-name: slideOutToTop; }
-  .slide-out-to-bottom { animation-name: slideOutToBottom; }
-  .slide-in-from-left { animation-name: slideInFromLeft; }
-  .slide-in-from-right { animation-name: slideInFromRight; }
-  .slide-out-to-left { animation-name: slideOutToLeft; }
-  .slide-out-to-right { animation-name: slideOutToRight; }
+  .fade-in {
+    animation-name: fadeIn;
+  }
+  .fade-out {
+    animation-name: fadeOut;
+  }
+  .slide-in-from-top {
+    animation-name: slideInFromTop;
+  }
+  .slide-in-from-bottom {
+    animation-name: slideInFromBottom;
+  }
+  .slide-out-to-top {
+    animation-name: slideOutToTop;
+  }
+  .slide-out-to-bottom {
+    animation-name: slideOutToBottom;
+  }
+  .slide-in-from-left {
+    animation-name: slideInFromLeft;
+  }
+  .slide-in-from-right {
+    animation-name: slideInFromRight;
+  }
+  .slide-out-to-left {
+    animation-name: slideOutToLeft;
+  }
+  .slide-out-to-right {
+    animation-name: slideOutToRight;
+  }
 
   /* Scrollbar utilities */
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
-  
+
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
-  
+
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
-  
+
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }
@@ -328,61 +418,115 @@
   }
 
   /* Animation states */
-  .fade-in-0 { opacity: 0; }
-  .fade-in-100 { opacity: 1; }
-  .zoom-in-95 { transform: scale(0.95); }
-  .zoom-in-100 { transform: scale(1); }
-  .slide-in-from-top-2 { transform: translateY(-0.5rem); }
-  .slide-in-from-bottom-2 { transform: translateY(0.5rem); }
-  .slide-in-from-left-2 { transform: translateX(-0.5rem); }
-  .slide-in-from-right-2 { transform: translateX(0.5rem); }
-  
-  .data-\[state\=closed\]\:animate-out { animation-name: fade-out; }
-  .data-\[state\=closed\]\:fade-out-0 { animation-name: fade-out; }
-  .data-\[state\=closed\]\:zoom-out-95 { animation-name: zoom-out; }
-  
-  @keyframes fade-out {
-    to { opacity: 0; }
+  .fade-in-0 {
+    opacity: 0;
   }
-  
+  .fade-in-100 {
+    opacity: 1;
+  }
+  .zoom-in-95 {
+    transform: scale(0.95);
+  }
+  .zoom-in-100 {
+    transform: scale(1);
+  }
+  .slide-in-from-top-2 {
+    transform: translateY(-0.5rem);
+  }
+  .slide-in-from-bottom-2 {
+    transform: translateY(0.5rem);
+  }
+  .slide-in-from-left-2 {
+    transform: translateX(-0.5rem);
+  }
+  .slide-in-from-right-2 {
+    transform: translateX(0.5rem);
+  }
+
+  .data-\[state\=closed\]\:animate-out {
+    animation-name: fade-out;
+  }
+  .data-\[state\=closed\]\:fade-out-0 {
+    animation-name: fade-out;
+  }
+  .data-\[state\=closed\]\:zoom-out-95 {
+    animation-name: zoom-out;
+  }
+
+  @keyframes fade-out {
+    to {
+      opacity: 0;
+    }
+  }
+
   @keyframes zoom-out {
-    to { transform: scale(0.95); }
+    to {
+      transform: scale(0.95);
+    }
   }
 
   /* Text styles */
-  .prose { color: var(--vynal-text-primary); }
-  .dark .prose { color: var(--vynal-text-primary); }
-  
-  .vynal-service-text { color: var(--vynal-text-primary) !important; }
-  .dark .vynal-service-text { color: var(--vynal-text-secondary) !important; }
-  
-  .lg\:space-y-2 li span, 
-  .flex-col span { color: var(--vynal-text-primary) !important; }
-  
-  .dark .lg\:space-y-2 li span, 
-  .dark .flex-col span { color: var(--vynal-text-secondary) !important; }
-  
+  .prose {
+    color: var(--vynal-text-primary);
+  }
+  .dark .prose {
+    color: var(--vynal-text-primary);
+  }
+
+  .vynal-service-text {
+    color: var(--vynal-text-primary) !important;
+  }
+  .dark .vynal-service-text {
+    color: var(--vynal-text-secondary) !important;
+  }
+
+  .lg\:space-y-2 li span,
+  .flex-col span {
+    color: var(--vynal-text-primary) !important;
+  }
+
+  .dark .lg\:space-y-2 li span,
+  .dark .flex-col span {
+    color: var(--vynal-text-secondary) !important;
+  }
+
   h2 + p.text-xs,
   p.text-sm.ml-7,
-  p.text-xs.group-hover\:text-vynal-text-secondary { color: var(--vynal-text-secondary) !important; }
-  
+  p.text-xs.group-hover\:text-vynal-text-secondary {
+    color: var(--vynal-text-secondary) !important;
+  }
+
   .dark h2 + p.text-xs,
   .dark p.text-sm.ml-7,
-  .dark p.text-xs.group-hover\:text-vynal-text-secondary { color: var(--vynal-text-secondary) !important; }
-  
-  .dark .price-value { color: var(--vynal-accent-primary) !important; }
-  .dark .flex-col span.price-value { color: var(--vynal-accent-primary) !important; }
+  .dark p.text-xs.group-hover\:text-vynal-text-secondary {
+    color: var(--vynal-text-secondary) !important;
+  }
+
+  .dark .price-value {
+    color: var(--vynal-accent-primary) !important;
+  }
+  .dark .flex-col span.price-value {
+    color: var(--vynal-accent-primary) !important;
+  }
 }
 
 /* Keyframes */
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes fadeOut {
-  from { opacity: 1; }
-  to { opacity: 0; }
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
 }
 
 @keyframes slideUp {
@@ -411,49 +555,87 @@
 }
 
 @keyframes slideInFromTop {
-  from { transform: translateY(-100%); }
-  to { transform: translateY(0); }
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(0);
+  }
 }
 
 @keyframes slideInFromBottom {
-  from { transform: translateY(100%); }
-  to { transform: translateY(0); }
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
 }
 
 @keyframes slideOutToTop {
-  from { transform: translateY(0); }
-  to { transform: translateY(-100%); }
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-100%);
+  }
 }
 
 @keyframes slideOutToBottom {
-  from { transform: translateY(0); }
-  to { transform: translateY(100%); }
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(100%);
+  }
 }
 
 @keyframes slideInFromLeft {
-  from { transform: translateX(-100%); }
-  to { transform: translateX(0); }
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
 }
 
 @keyframes slideInFromRight {
-  from { transform: translateX(100%); }
-  to { transform: translateX(0); }
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
 }
 
 @keyframes slideOutToLeft {
-  from { transform: translateX(0); }
-  to { transform: translateX(-100%); }
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-100%);
+  }
 }
 
 @keyframes slideOutToRight {
-  from { transform: translateX(0); }
-  to { transform: translateX(100%); }
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(100%);
+  }
 }
 
 @keyframes gradient-x {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
 }
 
 .animate-gradient-x {
@@ -484,107 +666,110 @@ mark:hover {
   /* Button styles */
   .btn-vynal-primary {
     font-weight: 500;
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    box-shadow:
+      0 1px 3px 0 rgba(0, 0, 0, 0.1),
+      0 1px 2px 0 rgba(0, 0, 0, 0.06);
     transform: scale(1);
     transition-property: all;
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
     transition-duration: 150ms;
   }
-  
+
   .btn-vynal-primary:hover {
     transform: scale(1.02);
   }
-  
+
   .btn-vynal-primary.light {
-    background-color: #FF66B2;
-    color: #2C1A4C;
+    background-color: #ff66b2;
+    color: #2c1a4c;
   }
-  
+
   .btn-vynal-primary.light:hover {
-    background-color: #FF007F;
+    background-color: #ff007f;
   }
-  
+
   .btn-vynal-primary.dark {
     background-color: var(--vynal-accent-primary);
     color: var(--vynal-purple-dark);
   }
-  
+
   .btn-vynal-primary.dark:hover {
     background-color: var(--vynal-accent-secondary);
   }
-  
+
   /* Outline buttons */
   .btn-vynal-outline {
     transition-property: color, background-color, border-color;
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
     transition-duration: 150ms;
   }
-  
+
   .btn-vynal-outline.light {
     border-color: rgba(255, 102, 178, 0.3);
-    color: #2C1A4C;
+    color: #2c1a4c;
   }
-  
+
   .btn-vynal-outline.light:hover {
     background-color: rgba(255, 102, 178, 0.1);
   }
-  
+
   .btn-vynal-outline.dark {
     background-color: rgba(42, 12, 87, 0.1);
     border-color: rgba(42, 12, 87, 0.4);
   }
-  
+
   .btn-vynal-outline.dark:hover {
     background-color: rgba(42, 12, 87, 0.2);
   }
-  
+
   /* Card styles */
   .card-vynal {
     overflow: hidden;
     border-width: 1px;
     border-radius: 0.75rem;
   }
-  
+
   .card-vynal.light {
     border-color: rgb(229, 231, 235);
     background-color: white;
     box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   }
-  
+
   .card-vynal.dark {
     border-color: rgba(42, 12, 87, 0.4);
     background-color: rgba(16, 4, 34, 0.2);
     backdrop-filter: blur(4px);
   }
-  
+
   /* Text styles */
   .text-vynal-title {
-    color: #2C1A4C;
+    color: #2c1a4c;
   }
-  
+
   .dark .text-vynal-title {
     color: var(--vynal-text-primary);
   }
-  
+
   .text-vynal-body {
     color: #555555;
   }
-  
+
   .dark .text-vynal-body {
     color: var(--vynal-text-secondary);
   }
-  
+
   /* Icon styles */
   .icon-vynal {
-    color: #2C1A4C;
+    color: #2c1a4c;
   }
-  
+
   .dark .icon-vynal {
     color: var(--vynal-accent-primary);
   }
 }
 
 /* Force white text */
-.force-white-text, .force-white-text span {
+.force-white-text,
+.force-white-text span {
   color: white !important;
-} 
+}

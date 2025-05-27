@@ -251,10 +251,10 @@ export async function createPayPalOrder(params: {
         user_action: "PAY_NOW",
         return_url:
           process.env.NEXT_PUBLIC_PAYPAL_SUCCESS_URL ||
-          "https://vynal.vercel.app/payment/success",
+          process.env.NEXT_PUBLIC_SITE_URL + "/payment/success",
         cancel_url:
           process.env.NEXT_PUBLIC_PAYPAL_CANCEL_URL ||
-          "https://vynal.vercel.app/payment/cancel",
+          process.env.NEXT_PUBLIC_SITE_URL + "/payment/cancel",
       },
     };
 
