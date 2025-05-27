@@ -1163,18 +1163,55 @@ export default function UnifiedCheckoutPage({
   };
 
   const handleDirectLink = async () => {
-    if (!paymentData?.clientSecret) return;
+    if (!paymentData?.clientSecret || !service?.price) return;
 
     setDirectPaymentLoading((prev) => ({ ...prev, link: true }));
 
     try {
-      // Pour Link, sélectionner simplement la méthode comme avant
-      // Car Link fonctionne différemment des PaymentRequest APIs
-      setOrderData({
-        ...orderData,
-        selectedPaymentMethod: "link",
-        error: null,
+      const { getStripe } = await import("@/lib/stripe/client");
+      const stripe = await getStripe();
+      if (!stripe) throw new Error("Stripe non disponible");
+
+      // Convertir le montant pour Stripe
+      const {
+        convertToEur,
+        normalizeAmount,
+      } = require("@/lib/utils/currency-updater");
+      const normalizedXofAmount = normalizeAmount(service.price, "XOF");
+      const amountInEuros = convertToEur(
+        normalizedXofAmount,
+        "XOF",
+        false,
+      ) as number;
+
+      // Pour Link, on utilise directement confirmPayment avec redirect si nécessaire
+      const { error, paymentIntent } = await stripe.confirmPayment({
+        clientSecret: paymentData.clientSecret,
+        confirmParams: {
+          return_url: `${window.location.origin}/order/${serviceId}/summary`,
+          payment_method_data: {
+            type: "link",
+          },
+        },
+        redirect: "if_required",
       });
+
+      if (error) {
+        handleStripePaymentError(error);
+      } else if (paymentIntent && paymentIntent.status === "succeeded") {
+        const enrichedPaymentData = {
+          ...paymentIntent,
+          serviceId,
+          paymentMethod: "link",
+          provider: "stripe",
+          originalAmount: service.price,
+          originalCurrency: "XOF",
+          amountInUserCurrency: service.price,
+          userCurrency: "XOF",
+          wasNormalized: false,
+        };
+        await handleStripePaymentSuccess(enrichedPaymentData);
+      }
     } catch (error) {
       console.error("Erreur Stripe Link:", error);
       handleStripePaymentError(error);
@@ -1961,36 +1998,6 @@ export default function UnifiedCheckoutPage({
                     politique de confidentialité
                   </Link>
                 </p>
-
-                {/* Link form - s'affiche quand Link est sélectionné */}
-                {orderData.selectedPaymentMethod === "link" && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3 }}
-                    className="mt-4"
-                  >
-                    <div className="space-y-3">
-                      <div className="text-[10px] sm:text-xs text-slate-600 dark:text-vynal-text-secondary mb-3">
-                        Utilisez le bouton Stripe Link ci-dessous pour finaliser
-                        votre paiement :
-                      </div>
-                      <StripeElementsProvider
-                        clientSecret={paymentData?.clientSecret}
-                        enableApplePay={true}
-                      >
-                        <LinkButton
-                          amount={service?.price || 0}
-                          clientSecret={paymentData?.clientSecret || ""}
-                          onSuccess={handleStripePaymentSuccess}
-                          onError={handleStripePaymentError}
-                          loading={stripeLoading}
-                          serviceId={serviceId}
-                        />
-                      </StripeElementsProvider>
-                    </div>
-                  </motion.div>
-                )}
               </div>
             </div>
           </div>
