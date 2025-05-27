@@ -517,7 +517,7 @@ function Footer() {
               <span className="text-[9px] opacity-70">
                 &copy; {currentYear} Vynal Platform. Tous droits réservés.
                 <span className="ml-2 inline-flex items-center px-1 py-0.5 rounded text-[8px] font-medium bg-vynal-purple-light/10 text-vynal-purple-light dark:bg-vynal-accent-primary/10 dark:text-vynal-accent-primary">
-                  v0.1.173
+                  v0.1.184
                 </span>
               </span>
             </div>

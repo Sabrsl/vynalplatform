@@ -18,9 +18,26 @@ Vynal Platform est une marketplace professionnelle qui permet aux freelances de 
   - Génération de factures et reçus
 - **Messagerie intégrée** : Communication fluide entre clients et freelances avec notifications en temps réel
 - **Système de paiement sécurisé** :
-  - Transactions protégées et système d'escrow
-  - Gestion de portefeuille et de retraits
-  - Historique complet des transactions
+  - **Intégration avec les leaders du paiement** :
+    - Stripe pour les paiements par carte et paiements mobiles
+    - PayPal pour les paiements alternatifs
+  - **Méthodes de paiement sécurisées** :
+    - Cartes bancaires (Visa, Mastercard) via Stripe
+    - Apple Pay pour iOS
+    - Google Pay pour Android
+    - Stripe Link pour les paiements rapides
+  - **Sécurité renforcée** :
+    - Chiffrement SSL/TLS pour toutes les transactions
+    - Conformité PCI DSS via Stripe
+    - Protection contre la fraude avec 3D Secure
+    - Système d'escrow pour sécuriser les transactions
+    - Journalisation sécurisée des événements de paiement
+  - **Fonctionnalités avancées** :
+    - Conversion automatique des devises (XOF vers EUR)
+    - Gestion des abonnements et paiements récurrents
+    - Webhooks pour le suivi en temps réel des transactions
+    - Interface de paiement unifiée et responsive
+    - Support multilingue pour les paiements
 - **Gestion des avis et évaluations** : Système de notation et retours clients pour améliorer la qualité des services
 - **Tableaux de bord personnalisés** : Interfaces dédiées pour freelances, clients et administrateurs
 - **Vérification de documents** : Système sécurisé avec hachage HMAC-SHA256 pour l'authentification des documents
@@ -79,6 +96,9 @@ npm run dev
 - `SUPABASE_SERVICE_ROLE_KEY` : Clé de service Supabase (ne pas exposer côté client)
 - `HMAC_SECRET_KEY` : Clé secrète pour la signature des documents
 - `EMAIL_SMTP_HOST`, `EMAIL_SMTP_USER`, `EMAIL_SMTP_PASSWORD` : Configuration SMTP pour les emails
+- `STRIPE_SECRET_KEY` : Clé secrète Stripe pour les opérations côté serveur
+- `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` : Clé publique Stripe pour l'intégration côté client
+- `STRIPE_WEBHOOK_SECRET` : Clé secrète pour la vérification des webhooks Stripe
 
 ## 🗂️ Structure du projet
 
@@ -100,6 +120,7 @@ npm run dev
 ## 🔒 Sécurité
 
 La plateforme implémente plusieurs niveaux de sécurité :
+
 - **Authentification** : Avec Supabase Auth, JWT et sessions sécurisées
 - **Protection des données** : Sanitization des entrées utilisateur, validation stricte
 - **Sécurité des paiements** : Système d'escrow pour protéger les transactions
@@ -125,4 +146,4 @@ Ce logiciel est la propriété exclusive de Vynal Platform. Toute utilisation, r
 ## 👥 Équipe et contributeurs
 
 - [Sabrsl](https://github.com/Sabrsl) - Fondateur et développeur principal
-- Équipe Vynal - Design, développement et opérations`
+- Équipe Vynal - Design, développement et opérations
