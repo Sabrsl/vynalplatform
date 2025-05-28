@@ -571,8 +571,14 @@ export default function UnifiedCheckoutPage({
       error.payment_intent
     ) {
       // Le paiement a probablement déjà été traité, vérifier son statut
-      if (error.payment_intent.status === "succeeded") {
-        console.log("Le paiement a réussi malgré l'erreur de statut");
+      if (
+        error.payment_intent.status === "succeeded" ||
+        error.payment_intent.status === "processing"
+      ) {
+        console.log(
+          "Le paiement a déjà réussi malgré l'erreur de statut:",
+          error.payment_intent.status,
+        );
 
         // Construire un objet paymentIntent pour le traiter comme un succès
         const paymentIntent = {
@@ -585,8 +591,58 @@ export default function UnifiedCheckoutPage({
           userCurrency: currency.code,
         };
 
-        // Traiter comme un succès
-        await handleStripePaymentSuccess(paymentIntent);
+        // Vérifier si ce paiement est déjà enregistré dans la base de données
+        const checkExistingPayment = async () => {
+          try {
+            const supabaseClient = createClientComponentClient();
+            const { data, error: paymentError } = await supabaseClient
+              .from("payments")
+              .select("id, status, order_id")
+              .eq("payment_intent_id", error.payment_intent.id)
+              .single();
+
+            if (paymentError) {
+              console.warn(
+                "Impossible de vérifier si le paiement existe déjà:",
+                paymentError,
+              );
+              return false;
+            }
+
+            if (data) {
+              console.log("Paiement déjà enregistré:", data);
+
+              if (data.order_id) {
+                // Si on a déjà un ID de commande, on redirige directement vers la page de résumé
+                setOrderData({
+                  ...orderData,
+                  orderId: data.order_id,
+                  paymentSuccess: true,
+                  error: null,
+                });
+
+                router.push(`/order/${serviceId}/summary`);
+                return true;
+              }
+            }
+
+            return false;
+          } catch (checkError) {
+            console.error(
+              "Erreur lors de la vérification du paiement existant:",
+              checkError,
+            );
+            return false;
+          }
+        };
+
+        // Vérifier si le paiement est déjà enregistré avant de le traiter
+        const isAlreadyProcessed = await checkExistingPayment();
+        if (!isAlreadyProcessed) {
+          // Traiter comme un succès
+          await handleStripePaymentSuccess(paymentIntent);
+        }
+
         return;
       }
     }
@@ -597,6 +653,10 @@ export default function UnifiedCheckoutPage({
       error: error.message || "Erreur lors du traitement du paiement",
       paymentSuccess: false,
     });
+
+    setIsLoading(false);
+    setIsSubmitting(false);
+    setShowPaymentLoader(false);
   };
 
   const handleCancelPayment = () => {

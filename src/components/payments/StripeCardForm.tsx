@@ -237,6 +237,11 @@ function StripeCardFormContent({
           (paymentIntentStatus.paymentIntent.status === "succeeded" ||
             paymentIntentStatus.paymentIntent.status === "processing")
         ) {
+          console.log(
+            "PaymentIntent déjà traité, statut:",
+            paymentIntentStatus.paymentIntent.status,
+          );
+
           // Le paiement a déjà été effectué, on notifie le succès sans reconfirmer
           const paymentData = {
             ...paymentIntentStatus.paymentIntent,
@@ -249,6 +254,33 @@ function StripeCardFormContent({
             amountInUserCurrency: amountInUserCurrency, // Montant dans la devise de l'utilisateur
             wasNormalized: wasNormalized, // Indique si une normalisation a été appliquée
           };
+
+          // Appel manuel au webhook pour s'assurer que le paiement est enregistré dans la base
+          try {
+            const manualWebhookResponse = await fetch(
+              "/api/stripe/manual-webhook",
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  paymentIntentId: paymentIntentStatus.paymentIntent.id,
+                }),
+              },
+            );
+
+            if (!manualWebhookResponse.ok) {
+              console.warn(
+                "Échec de l'appel au webhook manuel mais le paiement est déjà validé",
+              );
+            }
+          } catch (webhookError) {
+            console.warn(
+              "Erreur du webhook manuel mais le paiement est déjà validé:",
+              webhookError,
+            );
+          }
 
           onSuccess(paymentData);
           return;
@@ -266,6 +298,7 @@ function StripeCardFormContent({
         payment_method: {
           card: cardElement,
         },
+        // Ne pas utiliser l'option redirect qui n'est pas supportée ici
       });
 
       const { error, paymentIntent } = result;
@@ -277,14 +310,22 @@ function StripeCardFormContent({
           error.type === "invalid_request_error" &&
           error.code === "payment_intent_unexpected_state"
         ) {
+          console.log("Erreur payment_intent_unexpected_state détectée");
+
           // Tenter de récupérer l'état actuel du PaymentIntent
           try {
             const paymentIntentStatus =
               await stripe.retrievePaymentIntent(clientSecret);
 
+            console.log(
+              "État actuel du PaymentIntent:",
+              paymentIntentStatus.paymentIntent?.status,
+            );
+
             if (
               paymentIntentStatus.paymentIntent &&
-              paymentIntentStatus.paymentIntent.status === "succeeded"
+              (paymentIntentStatus.paymentIntent.status === "succeeded" ||
+                paymentIntentStatus.paymentIntent.status === "processing")
             ) {
               // Le paiement a réussi mais l'API a retourné une erreur de confirmation
               const paymentData = {
@@ -298,6 +339,33 @@ function StripeCardFormContent({
                 amountInUserCurrency: amountInUserCurrency,
                 wasNormalized: wasNormalized,
               };
+
+              // Appel manuel au webhook pour s'assurer que le paiement est enregistré dans la base
+              try {
+                const manualWebhookResponse = await fetch(
+                  "/api/stripe/manual-webhook",
+                  {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                      paymentIntentId: paymentIntentStatus.paymentIntent.id,
+                    }),
+                  },
+                );
+
+                if (!manualWebhookResponse.ok) {
+                  console.warn(
+                    "Échec de l'appel au webhook manuel mais le paiement est déjà validé",
+                  );
+                }
+              } catch (webhookError) {
+                console.warn(
+                  "Erreur du webhook manuel mais le paiement est déjà validé:",
+                  webhookError,
+                );
+              }
 
               onSuccess(paymentData);
               return;

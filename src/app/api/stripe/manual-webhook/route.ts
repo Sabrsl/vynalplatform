@@ -131,7 +131,7 @@ export async function POST(req: NextRequest) {
     const { data: existingPayment, error: existingPaymentError } =
       await supabase
         .from("payments")
-        .select("id")
+        .select("id, status, order_id")
         .eq("payment_intent_id", paymentIntentId)
         .limit(1);
 
@@ -149,8 +149,30 @@ export async function POST(req: NextRequest) {
     }
 
     if (existingPayment && existingPayment.length > 0) {
+      console.log("Paiement déjà traité:", existingPayment[0]);
+
+      // Si le paiement existe déjà et a un ordre associé, on retourne les informations
+      // pour éviter de créer un doublon
+      if (existingPayment[0].order_id) {
+        // Récupérer les informations de commande associées à ce paiement
+        const { data: orderData } = await supabase
+          .from("orders")
+          .select("id, order_number")
+          .eq("id", existingPayment[0].order_id)
+          .single();
+
+        return NextResponse.json({
+          message: "Ce paiement a déjà été traité",
+          paymentId: existingPayment[0].id,
+          orderId: existingPayment[0].order_id,
+          orderNumber: orderData?.order_number,
+          alreadyProcessed: true,
+        });
+      }
+
+      // Si pas d'ordre associé, on continue avec un statut déjà traité
       return NextResponse.json({
-        message: "Ce paiement a déjà été traité",
+        message: "Ce paiement a déjà été traité mais sans commande associée",
         paymentId: existingPayment[0].id,
         alreadyProcessed: true,
       });
