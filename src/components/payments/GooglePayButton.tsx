@@ -93,11 +93,9 @@ function GooglePayButtonInternal({
 
       try {
         // Confirmer le paiement avec Stripe
-        const result = await stripe.confirmCardPayment(
-          clientSecret,
-          { payment_method: ev.paymentMethod.id },
-          { handleActions: false },
-        );
+        const result = await stripe.confirmCardPayment(clientSecret, {
+          payment_method: ev.paymentMethod.id,
+        });
 
         const { error, paymentIntent } = result;
 
@@ -299,11 +297,9 @@ function InternalGooglePayButton({
 
       try {
         // Confirmer le paiement avec Stripe
-        const result = await stripe.confirmCardPayment(
-          clientSecret,
-          { payment_method: ev.paymentMethod.id },
-          { handleActions: false },
-        );
+        const result = await stripe.confirmCardPayment(clientSecret, {
+          payment_method: ev.paymentMethod.id,
+        });
 
         const { error, paymentIntent } = result;
 
@@ -455,11 +451,9 @@ function ElementsContextProvider({
 
       try {
         // Confirmer le paiement avec Stripe
-        const result = await stripe.confirmCardPayment(
-          clientSecret,
-          { payment_method: ev.paymentMethod.id },
-          { handleActions: false },
-        );
+        const result = await stripe.confirmCardPayment(clientSecret, {
+          payment_method: ev.paymentMethod.id,
+        });
 
         const { error, paymentIntent } = result;
 
