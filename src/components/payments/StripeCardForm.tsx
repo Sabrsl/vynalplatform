@@ -287,6 +287,37 @@ function StripeCardFormContent({
   if (typeof window !== "undefined") {
     // Utiliser une approche plus sûre avec un type déclaré
     (window as any).stripeSubmitHandler = handleSubmit;
+
+    // Ajouter un timeout pour s'assurer que le DOM est prêt
+    setTimeout(() => {
+      // Exposer la fonction de soumission via un attribut de données
+      const form = document.getElementById("stripe-payment-form");
+      if (form) {
+        console.log(
+          "Formulaire Stripe initialisé avec gestionnaire de soumission",
+        );
+
+        // Créer une fonction globale pour soumettre le formulaire
+        (window as any).submitStripeForm = () => {
+          console.log("Fonction submitStripeForm appelée");
+          try {
+            if (stripe && elements) {
+              handleSubmit(new Event("submit") as any);
+              return true;
+            } else {
+              console.warn("Stripe ou Elements non initialisés");
+              return false;
+            }
+          } catch (error) {
+            console.error(
+              "Erreur lors de la soumission du formulaire Stripe",
+              error,
+            );
+            return false;
+          }
+        };
+      }
+    }, 1000);
   }
 
   return (
@@ -314,6 +345,14 @@ function StripeCardFormContent({
           Paiement sécurisé - Données bancaires non stockées
         </p>
       </div>
+
+      {/* Bouton caché pour permettre une soumission facile depuis l'extérieur */}
+      <button
+        type="submit"
+        id="stripe-hidden-submit"
+        className="hidden"
+        aria-hidden="true"
+      />
 
       {/* Afficher le bouton uniquement si hideButton est false */}
       {!hideButton && (

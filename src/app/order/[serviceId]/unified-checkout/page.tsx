@@ -34,6 +34,13 @@ import { GooglePayButton } from "@/components/payments/GooglePayButton";
 import { LinkButton } from "@/components/payments/LinkButton";
 import { QuickTooltip } from "@/components/ui/tooltip";
 
+// Déclaration pour la fonction globale de soumission Stripe
+declare global {
+  interface Window {
+    submitStripeForm?: () => boolean;
+  }
+}
+
 // États de chargement personnalisés pour le paiement
 const paymentLoadingStates = [
   { text: "Initialisation du paiement..." },
@@ -318,11 +325,6 @@ export default function UnifiedCheckoutPage({
     if (isLoading || !user || isSubmitting) return;
 
     // Validate form
-    if (!orderData.requirements) {
-      setOrderData({ ...orderData, error: "Veuillez décrire votre besoin" });
-      return;
-    }
-
     if (!orderData.selectedPaymentMethod) {
       setOrderData({
         ...orderData,
@@ -463,7 +465,8 @@ export default function UnifiedCheckoutPage({
               service_id: serviceId,
               client_id: user.id,
               freelance_id: service?.profiles?.id,
-              requirements: orderData.requirements,
+              requirements:
+                orderData.requirements || "Aucune description fournie",
               status: "pending",
               price: service?.price || 0,
               delivery_time: service?.delivery_time || 3,
@@ -567,7 +570,7 @@ export default function UnifiedCheckoutPage({
           service_id: serviceIdToUse,
           client_id: user.id,
           freelance_id: service?.profiles?.id,
-          requirements: orderData.requirements,
+          requirements: orderData.requirements || "Aucune description fournie",
           status: "pending",
           price: service?.price || 0,
           delivery_time: service?.delivery_time || 3,
@@ -713,7 +716,8 @@ export default function UnifiedCheckoutPage({
               service_id: serviceId,
               client_id: user.id,
               freelance_id: service?.profiles?.id,
-              requirements: orderData.requirements,
+              requirements:
+                orderData.requirements || "Aucune description fournie",
               status: "pending",
               price: service?.price || 0,
               delivery_time: service?.delivery_time || 3,
@@ -1988,7 +1992,7 @@ export default function UnifiedCheckoutPage({
                                   (orderData.requirements.length > 60
                                     ? "..."
                                     : "")
-                                : "Cliquez pour ajouter une description..."}
+                                : "Cliquez pour ajouter une description... (facultatif)"}
                             </p>
                           </div>
                         </div>
@@ -2030,15 +2034,61 @@ export default function UnifiedCheckoutPage({
                           !orderData.isTestMode
                         ) {
                           e.preventDefault();
-                          const form = document.getElementById(
-                            "stripe-payment-form",
-                          ) as HTMLFormElement;
-                          if (form) {
-                            form.dispatchEvent(
-                              new Event("submit", { cancelable: true }),
+                          console.log(
+                            "Tentative de soumission du formulaire Stripe via méthode globale",
+                          );
+
+                          // Utiliser la fonction globale si disponible
+                          if (
+                            window.submitStripeForm &&
+                            typeof window.submitStripeForm === "function"
+                          ) {
+                            console.log(
+                              "Fonction submitStripeForm trouvée, appel",
                             );
+                            window.submitStripeForm();
                           } else {
-                            console.error("Formulaire Stripe non trouvé");
+                            console.log(
+                              "Fonction submitStripeForm non disponible, méthode de secours",
+                            );
+                            const form = document.getElementById(
+                              "stripe-payment-form",
+                            ) as HTMLFormElement;
+                            if (form) {
+                              try {
+                                // Tenter de cliquer sur le bouton caché
+                                const hiddenSubmitButton =
+                                  document.getElementById(
+                                    "stripe-hidden-submit",
+                                  );
+                                if (hiddenSubmitButton) {
+                                  console.log(
+                                    "Bouton caché trouvé, déclenchement du clic",
+                                  );
+                                  (
+                                    hiddenSubmitButton as HTMLButtonElement
+                                  ).click();
+                                } else {
+                                  // Fallback - tenter de déclencher l'événement submit directement
+                                  console.log(
+                                    "Bouton caché non trouvé, utilisation de dispatchEvent",
+                                  );
+                                  form.dispatchEvent(
+                                    new Event("submit", {
+                                      bubbles: true,
+                                      cancelable: true,
+                                    }),
+                                  );
+                                }
+                              } catch (error) {
+                                console.error(
+                                  "Erreur lors de la soumission du formulaire",
+                                  error,
+                                );
+                              }
+                            } else {
+                              console.error("Formulaire Stripe non trouvé");
+                            }
                           }
                         } else {
                           // Sinon, utiliser le flux standard
@@ -2047,7 +2097,6 @@ export default function UnifiedCheckoutPage({
                       }}
                       disabled={
                         isSubmitting ||
-                        !orderData.requirements ||
                         !orderData.selectedPaymentMethod ||
                         (orderData.selectedPaymentMethod === "card" &&
                           !orderData.isTestMode &&
@@ -2179,7 +2228,7 @@ export default function UnifiedCheckoutPage({
             <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-slate-700/20">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-slate-800 dark:text-vynal-text-primary">
-                  Description de votre besoin
+                  Description de votre besoin (facultatif)
                 </h3>
                 <button
                   type="button"

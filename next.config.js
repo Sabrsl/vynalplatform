@@ -35,11 +35,16 @@ const nextConfig = {
       },
       {
         protocol: "https",
-        hostname: "lh3.googleusercontent.com",
+        hostname: "avatars.githubusercontent.com",
+        pathname: "**",
       },
       {
         protocol: "https",
         hostname: "pbs.twimg.com",
+      },
+      {
+        protocol: "https",
+        hostname: "lh3.googleusercontent.com",
       },
     ],
     formats: ["image/avif", "image/webp"],
