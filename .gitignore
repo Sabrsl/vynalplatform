@@ -111,3 +111,9 @@ public/workbox-*.js
 
 # Notes
 /docs/
+
+# Fichiers liés aux éléments inutilisés
+backup-ts-files-*/
+check-unused-imports.ps1
+find-unused-ts-elements.ps1
+unused-elements-report.md
