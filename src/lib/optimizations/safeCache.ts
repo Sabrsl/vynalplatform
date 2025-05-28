@@ -1,102 +1,108 @@
-/**
- * Utilitaires de sécurité pour le système de cache
- * Ces fonctions ajoutent une couche de vérification pour garantir l'intégrité des données
+﻿/**
+ * Utilitaires de sÃ©curitÃ© pour le systÃ¨me de cache
+ * Ces fonctions ajoutent une couche de vÃ©rification pour garantir l'intÃ©gritÃ© des donnÃ©es
  */
 
-import { getCachedData, setCachedData, type CacheOptions } from './cache';
+// import { getCachedData, setCachedData, type CacheOptions } from './cache'; // Imports inutilisÃ©s: setCachedData, type CacheOptions
 
 /**
- * Récupère des données du cache avec vérification de type et valeur par défaut
- * Cette fonction ajoute une couche de sécurité pour garantir que les données récupérées
- * correspondent au type attendu et fournit des valeurs par défaut appropriées
- * 
- * @param key Clé de cache
- * @param defaultValue Valeur par défaut si aucune donnée n'est trouvée ou si le type est incorrect
- * @param typeCheck Fonction optionnelle pour vérifier le type des données
+ * RÃ©cupÃ¨re des donnÃ©es du cache avec vÃ©rification de type et valeur par dÃ©faut
+ * Cette fonction ajoute une couche de sÃ©curitÃ© pour garantir que les donnÃ©es rÃ©cupÃ©rÃ©es
+ * correspondent au type attendu et fournit des valeurs par dÃ©faut appropriÃ©es
+ *
+ * @param key ClÃ© de cache
+ * @param defaultValue Valeur par dÃ©faut si aucune donnÃ©e n'est trouvÃ©e ou si le type est incorrect
+ * @param typeCheck Fonction optionnelle pour vÃ©rifier le type des donnÃ©es
  * @param options Options de cache
- * @returns Les données typées ou la valeur par défaut
+ * @returns Les donnÃ©es typÃ©es ou la valeur par dÃ©faut
  */
 export function getSafeCachedData<T>(
-  key: string, 
+  key: string,
   defaultValue: T,
   typeCheck?: (data: any) => boolean,
-  options?: CacheOptions
+  options?: CacheOptions,
 ): T {
-  // Récupérer les données du cache
+  // RÃ©cupÃ©rer les donnÃ©es du cache
   const cachedData = getCachedData<T>(key, options);
-  
-  // Si aucune donnée n'est trouvée, retourner la valeur par défaut
+
+  // Si aucune donnÃ©e n'est trouvÃ©e, retourner la valeur par dÃ©faut
   if (cachedData === null || cachedData === undefined) {
     return defaultValue;
   }
-  
-  // Vérifications spécifiques selon le type attendu
+
+  // VÃ©rifications spÃ©cifiques selon le type attendu
   if (Array.isArray(defaultValue) && !Array.isArray(cachedData)) {
     console.warn(`Cache data for key "${key}" is not an array as expected`);
     return defaultValue;
   }
-  
-  // Si une fonction de vérification personnalisée est fournie, l'utiliser
+
+  // Si une fonction de vÃ©rification personnalisÃ©e est fournie, l'utiliser
   if (typeCheck && !typeCheck(cachedData)) {
     console.warn(`Cache data for key "${key}" failed type check`);
     return defaultValue;
   }
-  
-  // Vérifications supplémentaires pour les types primitifs
+
+  // VÃ©rifications supplÃ©mentaires pour les types primitifs
   if (
-    (typeof defaultValue === 'string' && typeof cachedData !== 'string') ||
-    (typeof defaultValue === 'number' && typeof cachedData !== 'number') ||
-    (typeof defaultValue === 'boolean' && typeof cachedData !== 'boolean')
+    (typeof defaultValue === "string" && typeof cachedData !== "string") ||
+    (typeof defaultValue === "number" && typeof cachedData !== "number") ||
+    (typeof defaultValue === "boolean" && typeof cachedData !== "boolean")
   ) {
     console.warn(`Cache data for key "${key}" has incorrect primitive type`);
     return defaultValue;
   }
-  
-  // Si c'est un objet vide utilisé comme valeur par défaut, vérifier que cachedData est un objet
+
+  // Si c'est un objet vide utilisÃ© comme valeur par dÃ©faut, vÃ©rifier que cachedData est un objet
   if (
-    typeof defaultValue === 'object' && 
-    !Array.isArray(defaultValue) && 
+    typeof defaultValue === "object" &&
+    !Array.isArray(defaultValue) &&
     defaultValue !== null &&
-    (typeof cachedData !== 'object' || Array.isArray(cachedData) || cachedData === null)
+    (typeof cachedData !== "object" ||
+      Array.isArray(cachedData) ||
+      cachedData === null)
   ) {
     console.warn(`Cache data for key "${key}" is not an object as expected`);
     return defaultValue;
   }
-  
+
   return cachedData;
 }
 
 /**
- * Vérifie si un objet ressemble à un tableau d'objets du type attendu
- * Cette fonction est utile pour valider les données récupérées du cache
- * 
- * @param data Données à vérifier
- * @param requiredProps Tableau de propriétés obligatoires
- * @returns Booléen indiquant si les données sont du type attendu
+ * VÃ©rifie si un objet ressemble Ã  un tableau d'objets du type attendu
+ * Cette fonction est utile pour valider les donnÃ©es rÃ©cupÃ©rÃ©es du cache
+ *
+ * @param data DonnÃ©es Ã  vÃ©rifier
+ * @param requiredProps Tableau de propriÃ©tÃ©s obligatoires
+ * @returns BoolÃ©en indiquant si les donnÃ©es sont du type attendu
  */
-export function isValidObjectArray(data: any, requiredProps: string[]): boolean {
+export function isValidObjectArray(
+  data: any,
+  requiredProps: string[],
+): boolean {
   if (!Array.isArray(data)) {
     return false;
   }
-  
-  return data.every(item => 
-    typeof item === 'object' && 
-    item !== null && 
-    requiredProps.every(prop => prop in item)
+
+  return data.every(
+    (item) =>
+      typeof item === "object" &&
+      item !== null &&
+      requiredProps.every((prop) => prop in item),
   );
 }
 
 /**
- * Vérifie si un objet ressemble à un objet du type attendu
- * 
- * @param data Données à vérifier
- * @param requiredProps Tableau de propriétés obligatoires
- * @returns Booléen indiquant si les données sont du type attendu
+ * VÃ©rifie si un objet ressemble Ã  un objet du type attendu
+ *
+ * @param data DonnÃ©es Ã  vÃ©rifier
+ * @param requiredProps Tableau de propriÃ©tÃ©s obligatoires
+ * @returns BoolÃ©en indiquant si les donnÃ©es sont du type attendu
  */
 export function isValidObject(data: any, requiredProps: string[]): boolean {
-  if (typeof data !== 'object' || data === null || Array.isArray(data)) {
+  if (typeof data !== "object" || data === null || Array.isArray(data)) {
     return false;
   }
-  
-  return requiredProps.every(prop => prop in data);
-} 
+
+  return requiredProps.every((prop) => prop in data);
+}
