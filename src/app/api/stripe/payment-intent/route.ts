@@ -144,8 +144,10 @@ export async function POST(req: NextRequest) {
         .select("id")
         .eq("service_id", serviceId)
         .eq("client_id", userId)
-        .eq("status", "pending")
-        .single();
+        .or(`status.eq.pending,status.eq.pre_payment`)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
       if (existingOrderError && existingOrderError.code !== "PGRST116") {
         throw new Error(

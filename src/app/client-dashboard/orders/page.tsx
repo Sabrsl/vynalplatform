@@ -1,7 +1,20 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback, useRef, Fragment } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  useRef,
+  Fragment,
+} from "react";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
 import { Loader } from "@/components/ui/loader";
@@ -10,15 +23,37 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { OrderCard } from "@/components/orders/OrderCard";
 import { ClientDashboardPageSkeleton } from "@/components/skeletons/ClientDashboardPageSkeleton";
-import { ShoppingBag, Search, Filter, X, Calendar, Clock, Package, CheckCircle, AlertCircle, ShoppingCart, ArrowLeft } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  ShoppingBag,
+  Search,
+  Filter,
+  X,
+  Calendar,
+  Clock,
+  Package,
+  CheckCircle,
+  AlertCircle,
+  ShoppingCart,
+  ArrowLeft,
+} from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase/client";
 import { PaginationControls } from "@/components/ui/pagination";
 import { CurrencyDisplay } from "@/components/ui/CurrencyDisplay";
 import { NavigationLoadingState } from "@/app/providers";
-import { getCachedData, setCachedData, CACHE_EXPIRY } from "@/lib/optimizations/cache";
+import {
+  getCachedData,
+  setCachedData,
+  CACHE_EXPIRY,
+} from "@/lib/optimizations/cache";
 
 // Types pour les commandes
 interface Order {
@@ -28,7 +63,13 @@ interface Order {
   client_id: string;
   freelance_id: string;
   service_id: string;
-  status: 'pending' | 'in_progress' | 'completed' | 'delivered' | 'revision_requested' | 'cancelled';
+  status:
+    | "pending"
+    | "in_progress"
+    | "completed"
+    | "delivered"
+    | "revision_requested"
+    | "cancelled";
   price: number;
   delivery_time: number;
   requirements: string | null;
@@ -50,9 +91,9 @@ interface Order {
 
 // Clés de cache
 const CACHE_KEYS = {
-  ORDERS_LIST: 'client_orders_list_',
-  ORDERS_COUNTS: 'client_orders_counts_',
-  ORDERS_TIMESTAMP: 'client_orders_timestamp_'
+  ORDERS_LIST: "client_orders_list_",
+  ORDERS_COUNTS: "client_orders_counts_",
+  ORDERS_TIMESTAMP: "client_orders_timestamp_",
 };
 
 export default function ClientOrdersPage() {
@@ -68,9 +109,9 @@ export default function ClientOrdersPage() {
   const [counts, setCounts] = useState({
     activeCount: 0,
     pendingCount: 0,
-    completedCount: 0, 
+    completedCount: 0,
     cancelledCount: 0,
-    totalCount: 0
+    totalCount: 0,
   });
   const itemsPerPage = 10;
   const searchQueryRef = useRef(searchQuery);
@@ -81,28 +122,31 @@ export default function ClientOrdersPage() {
     activeTab: "",
     searchQuery: "",
     sortBy: "",
-    currentPage: 0
+    currentPage: 0,
   });
 
   // Générer les clés de cache avec un préfixe unique par utilisateur
-  const cacheKeyBase = useMemo(() => 
-    user?.id ? `${CACHE_KEYS.ORDERS_LIST}${user.id}` : '', 
-  [user?.id]);
+  const cacheKeyBase = useMemo(
+    () => (user?.id ? `${CACHE_KEYS.ORDERS_LIST}${user.id}` : ""),
+    [user?.id],
+  );
 
   // Générer une clé unique pour cet ensemble de paramètres
   const generateCacheKey = useCallback(() => {
-    if (!cacheKeyBase) return '';
-    
-    return `${cacheKeyBase}_${activeTab}_${sortBy}_${currentPage}_${searchQuery || 'no_search'}`;
+    if (!cacheKeyBase) return "";
+
+    return `${cacheKeyBase}_${activeTab}_${sortBy}_${currentPage}_${searchQuery || "no_search"}`;
   }, [cacheKeyBase, activeTab, sortBy, currentPage, searchQuery]);
 
   // Vérifier si les paramètres ont changé pour éviter les chargements inutiles
   const hasParamsChanged = useCallback(() => {
     const lastParams = lastLoadParamsRef.current;
-    return lastParams.activeTab !== activeTab || 
-           lastParams.searchQuery !== searchQuery || 
-           lastParams.sortBy !== sortBy || 
-           lastParams.currentPage !== currentPage;
+    return (
+      lastParams.activeTab !== activeTab ||
+      lastParams.searchQuery !== searchQuery ||
+      lastParams.sortBy !== sortBy ||
+      lastParams.currentPage !== currentPage
+    );
   }, [activeTab, searchQuery, sortBy, currentPage]);
 
   // Méthode de secours si la RPC échoue
@@ -110,44 +154,52 @@ export default function ClientOrdersPage() {
     if (!user) return;
 
     try {
-      console.log("Utilisation de la méthode de secours pour charger les données");
-      
+      console.log(
+        "Utilisation de la méthode de secours pour charger les données",
+      );
+
       // Exécuter les requêtes en parallèle pour éviter la cascade
       const ordersPromise = (() => {
         let query = supabase
-          .from('orders')
-          .select(`
+          .from("orders")
+          .select(
+            `
             *,
             service:services(title, description),
             freelance:profiles!freelance_id(full_name, avatar_url)
-          `, { count: 'exact' })
-          .eq('client_id', user.id);
+          `,
+            { count: "exact" },
+          )
+          .eq("client_id", user.id)
+          .not("status", "eq", "pre_payment");
 
         // Appliquer le filtre par status
         if (activeTab === "active") {
-          query = query.in('status', ['in_progress', 'completed', 'delivered']);
+          query = query.in("status", ["in_progress", "completed", "delivered"]);
         } else if (activeTab === "pending") {
-          query = query.eq('status', 'pending');
+          query = query.eq("status", "pending");
         } else if (activeTab === "completed") {
-          query = query.in('status', ['completed', 'delivered']);
+          query = query.in("status", ["completed", "delivered"]);
         } else if (activeTab === "cancelled") {
-          query = query.eq('status', 'cancelled');
+          query = query.eq("status", "cancelled");
         }
 
         // Appliquer la recherche
         if (searchQuery) {
-          query = query.or(`service.title.ilike.%${searchQuery}%,freelance.full_name.ilike.%${searchQuery}%`);
+          query = query.or(
+            `service.title.ilike.%${searchQuery}%,freelance.full_name.ilike.%${searchQuery}%`,
+          );
         }
 
         // Appliquer le tri
         if (sortBy === "recent") {
-          query = query.order('created_at', { ascending: false });
+          query = query.order("created_at", { ascending: false });
         } else if (sortBy === "oldest") {
-          query = query.order('created_at', { ascending: true });
+          query = query.order("created_at", { ascending: true });
         } else if (sortBy === "price_high") {
-          query = query.order('price', { ascending: false });
+          query = query.order("price", { ascending: false });
         } else if (sortBy === "price_low") {
-          query = query.order('price', { ascending: true });
+          query = query.order("price", { ascending: true });
         }
 
         // Pagination
@@ -160,43 +212,47 @@ export default function ClientOrdersPage() {
 
       // Obtenir les compteurs en une seule requête
       const countsPromise = supabase
-        .from('orders')
-        .select('status')
-        .eq('client_id', user.id);
+        .from("orders")
+        .select("status")
+        .eq("client_id", user.id)
+        .not("status", "eq", "pre_payment");
 
       // Attendre les deux requêtes
-      const [ordersResult, countsResult] = await Promise.all([ordersPromise, countsPromise]);
-      
+      const [ordersResult, countsResult] = await Promise.all([
+        ordersPromise,
+        countsPromise,
+      ]);
+
       // Gérer les erreurs potentielles
       if (ordersResult.error) throw ordersResult.error;
       if (countsResult.error) throw countsResult.error;
-      
+
       // Calculer les compteurs à partir des résultats
       const counts = {
         totalCount: 0,
         activeCount: 0,
         pendingCount: 0,
         completedCount: 0,
-        cancelledCount: 0
+        cancelledCount: 0,
       };
 
       // Compter les statuts
-      countsResult.data?.forEach((order: { status: Order['status'] }) => {
+      countsResult.data?.forEach((order: { status: Order["status"] }) => {
         counts.totalCount++;
-        switch(order.status) {
-          case 'in_progress':
-          case 'completed':
-          case 'delivered':
+        switch (order.status) {
+          case "in_progress":
+          case "completed":
+          case "delivered":
             counts.activeCount++;
             break;
-          case 'pending':
+          case "pending":
             counts.pendingCount++;
             break;
-          case 'completed':
-          case 'delivered':
+          case "completed":
+          case "delivered":
             counts.completedCount++;
             break;
-          case 'cancelled':
+          case "cancelled":
             counts.cancelledCount++;
             break;
         }
@@ -211,13 +267,13 @@ export default function ClientOrdersPage() {
       if (cacheKeyBase) {
         const cacheKey = generateCacheKey();
         setCachedData(cacheKey, ordersResult.data || [], {
-          expiry: CACHE_EXPIRY.DASHBOARD_DATA
+          expiry: CACHE_EXPIRY.DASHBOARD_DATA,
         });
         setCachedData(`${CACHE_KEYS.ORDERS_COUNTS}${user.id}`, counts, {
-          expiry: CACHE_EXPIRY.DASHBOARD_DATA
+          expiry: CACHE_EXPIRY.DASHBOARD_DATA,
         });
         setCachedData(`${CACHE_KEYS.ORDERS_TIMESTAMP}${user.id}`, Date.now(), {
-          expiry: CACHE_EXPIRY.DASHBOARD_DATA
+          expiry: CACHE_EXPIRY.DASHBOARD_DATA,
         });
       }
 
@@ -226,141 +282,193 @@ export default function ClientOrdersPage() {
         activeTab,
         searchQuery,
         sortBy,
-        currentPage
+        currentPage,
       };
-
     } catch (error) {
       console.error("Erreur lors du chargement des données de secours:", error);
       throw error;
     }
-  }, [user, activeTab, searchQuery, sortBy, currentPage, itemsPerPage, setCounts, setOrders, setTotalCount, cacheKeyBase, generateCacheKey]);
+  }, [
+    user,
+    activeTab,
+    searchQuery,
+    sortBy,
+    currentPage,
+    itemsPerPage,
+    setCounts,
+    setOrders,
+    setTotalCount,
+    cacheKeyBase,
+    generateCacheKey,
+  ]);
 
   // Fonction unifiée pour charger à la fois les compteurs et les commandes
-  const loadOrdersData = useCallback(async (forceRefresh = false) => {
-    if (!user || isFetchingRef.current || NavigationLoadingState.isNavigating) return;
+  const loadOrdersData = useCallback(
+    async (forceRefresh = false) => {
+      if (!user || isFetchingRef.current || NavigationLoadingState.isNavigating)
+        return;
 
-    // Si les paramètres n'ont pas changé et ce n'est pas un forceRefresh, ne pas charger à nouveau
-    if (!forceRefresh && !hasParamsChanged() && orders.length > 0) {
-      return;
-    }
-    
-    isFetchingRef.current = true;
-    
-    if (initialLoadRef.current) {
-      // Ne pas modifier le state loading au début si c'est le chargement initial
-      // Cela évite de déclencher un rendu supplémentaire
-      initialLoadRef.current = false;
-    } else {
-      setLoading(true);
-    }
-
-    try {
-      const cacheKey = generateCacheKey();
-      
-      // Vérifier le cache avant d'effectuer une requête réseau
-      if (!forceRefresh && cacheKey) {
-        const cachedOrders = getCachedData<Order[]>(cacheKey);
-        const cachedCounts = getCachedData<typeof counts>(`${CACHE_KEYS.ORDERS_COUNTS}${user.id}`);
-        const cachedTimestamp = getCachedData<number>(`${CACHE_KEYS.ORDERS_TIMESTAMP}${user.id}`);
-        
-        if (cachedOrders && cachedCounts && cachedTimestamp) {
-          // Utiliser les données en cache si elles existent et sont récentes (moins de 2 minutes)
-          const isCacheValid = Date.now() - cachedTimestamp < 2 * 60 * 1000;
-          
-          if (isCacheValid) {
-            console.log("Utilisation du cache pour les commandes");
-            setOrders(cachedOrders);
-            setCounts(cachedCounts);
-            setTotalCount(cachedCounts.totalCount);
-            setLoading(false);
-            isFetchingRef.current = false;
-            
-            // Mettre à jour les paramètres du dernier chargement
-            lastLoadParamsRef.current = {
-              activeTab,
-              searchQuery,
-              sortBy,
-              currentPage
-            };
-            
-            return;
-          }
-        }
-      }
-
-      // 1. Utiliser une RPC unifiée qui retourne à la fois les compteurs et les commandes filtrées
-      const { data: rpcData, error: rpcError } = await supabase.rpc('get_client_orders_with_counts', {
-        p_client_id: user.id,
-        p_status: activeTab === 'all' ? null : 
-                 activeTab === 'active' ? ['in_progress', 'completed', 'delivered'] :
-                 activeTab === 'pending' ? ['pending'] :
-                 activeTab === 'completed' ? ['completed', 'delivered'] :
-                 activeTab === 'cancelled' ? ['cancelled'] : null,
-        p_search_query: searchQuery || null,
-        p_sort_by: sortBy,
-        p_page: currentPage,
-        p_items_per_page: itemsPerPage
-      });
-
-      if (rpcError) {
-        console.error("Erreur RPC:", rpcError);
-        // Méthode de secours: charger séparément les données, mais de manière optimisée
-        await loadDataLegacy();
+      // Si les paramètres n'ont pas changé et ce n'est pas un forceRefresh, ne pas charger à nouveau
+      if (!forceRefresh && !hasParamsChanged() && orders.length > 0) {
         return;
       }
 
-      if (rpcData) {
-        // Mettre à jour les états en une seule fois pour éviter les rendus multiples
-        const updates = {
-          counts: {
-            totalCount: rpcData.counts.total_count || 0,
-            activeCount: rpcData.counts.active_count || 0,
-            pendingCount: rpcData.counts.pending_count || 0,
-            completedCount: rpcData.counts.completed_count || 0,
-            cancelledCount: rpcData.counts.cancelled_count || 0
-          },
-          orders: rpcData.orders || [],
-          totalCount: rpcData.counts.filtered_count || 0
-        };
-        
-        // Batch update pour minimiser les rendus
-        setCounts(updates.counts);
-        setOrders(updates.orders);
-        setTotalCount(updates.totalCount);
+      isFetchingRef.current = true;
 
-        // Mettre en cache les résultats
-        if (cacheKeyBase) {
-          const cacheKey = generateCacheKey();
-          setCachedData(cacheKey, updates.orders, {
-            expiry: CACHE_EXPIRY.DASHBOARD_DATA
-          });
-          setCachedData(`${CACHE_KEYS.ORDERS_COUNTS}${user.id}`, updates.counts, {
-            expiry: CACHE_EXPIRY.DASHBOARD_DATA
-          });
-          setCachedData(`${CACHE_KEYS.ORDERS_TIMESTAMP}${user.id}`, Date.now(), {
-            expiry: CACHE_EXPIRY.DASHBOARD_DATA
-          });
+      if (initialLoadRef.current) {
+        // Ne pas modifier le state loading au début si c'est le chargement initial
+        // Cela évite de déclencher un rendu supplémentaire
+        initialLoadRef.current = false;
+      } else {
+        setLoading(true);
+      }
+
+      try {
+        const cacheKey = generateCacheKey();
+
+        // Vérifier le cache avant d'effectuer une requête réseau
+        if (!forceRefresh && cacheKey) {
+          const cachedOrders = getCachedData<Order[]>(cacheKey);
+          const cachedCounts = getCachedData<typeof counts>(
+            `${CACHE_KEYS.ORDERS_COUNTS}${user.id}`,
+          );
+          const cachedTimestamp = getCachedData<number>(
+            `${CACHE_KEYS.ORDERS_TIMESTAMP}${user.id}`,
+          );
+
+          if (cachedOrders && cachedCounts && cachedTimestamp) {
+            // Utiliser les données en cache si elles existent et sont récentes (moins de 2 minutes)
+            const isCacheValid = Date.now() - cachedTimestamp < 2 * 60 * 1000;
+
+            if (isCacheValid) {
+              console.log("Utilisation du cache pour les commandes");
+              setOrders(cachedOrders);
+              setCounts(cachedCounts);
+              setTotalCount(cachedCounts.totalCount);
+              setLoading(false);
+              isFetchingRef.current = false;
+
+              // Mettre à jour les paramètres du dernier chargement
+              lastLoadParamsRef.current = {
+                activeTab,
+                searchQuery,
+                sortBy,
+                currentPage,
+              };
+
+              return;
+            }
+          }
         }
 
-        // Mettre à jour les paramètres du dernier chargement
-        lastLoadParamsRef.current = {
-          activeTab,
-          searchQuery,
-          sortBy,
-          currentPage
-        };
+        // 1. Utiliser une RPC unifiée qui retourne à la fois les compteurs et les commandes filtrées
+        const { data: rpcData, error: rpcError } = await supabase.rpc(
+          "get_client_orders_with_counts",
+          {
+            p_client_id: user.id,
+            p_status:
+              activeTab === "all"
+                ? null
+                : activeTab === "active"
+                  ? ["in_progress", "completed", "delivered"]
+                  : activeTab === "pending"
+                    ? ["pending"]
+                    : activeTab === "completed"
+                      ? ["completed", "delivered"]
+                      : activeTab === "cancelled"
+                        ? ["cancelled"]
+                        : null,
+            p_search_query: searchQuery || null,
+            p_sort_by: sortBy,
+            p_page: currentPage,
+            p_items_per_page: itemsPerPage,
+            p_exclude_pre_payment: true, // Exclure les commandes en pré-paiement
+          },
+        );
+
+        if (rpcError) {
+          console.error("Erreur RPC:", rpcError);
+          // Méthode de secours: charger séparément les données, mais de manière optimisée
+          await loadDataLegacy();
+          return;
+        }
+
+        if (rpcData) {
+          // Mettre à jour les états en une seule fois pour éviter les rendus multiples
+          const updates = {
+            counts: {
+              totalCount: rpcData.counts.total_count || 0,
+              activeCount: rpcData.counts.active_count || 0,
+              pendingCount: rpcData.counts.pending_count || 0,
+              completedCount: rpcData.counts.completed_count || 0,
+              cancelledCount: rpcData.counts.cancelled_count || 0,
+            },
+            orders: rpcData.orders || [],
+            totalCount: rpcData.counts.filtered_count || 0,
+          };
+
+          // Batch update pour minimiser les rendus
+          setCounts(updates.counts);
+          setOrders(updates.orders);
+          setTotalCount(updates.totalCount);
+
+          // Mettre en cache les résultats
+          if (cacheKeyBase) {
+            const cacheKey = generateCacheKey();
+            setCachedData(cacheKey, updates.orders, {
+              expiry: CACHE_EXPIRY.DASHBOARD_DATA,
+            });
+            setCachedData(
+              `${CACHE_KEYS.ORDERS_COUNTS}${user.id}`,
+              updates.counts,
+              {
+                expiry: CACHE_EXPIRY.DASHBOARD_DATA,
+              },
+            );
+            setCachedData(
+              `${CACHE_KEYS.ORDERS_TIMESTAMP}${user.id}`,
+              Date.now(),
+              {
+                expiry: CACHE_EXPIRY.DASHBOARD_DATA,
+              },
+            );
+          }
+
+          // Mettre à jour les paramètres du dernier chargement
+          lastLoadParamsRef.current = {
+            activeTab,
+            searchQuery,
+            sortBy,
+            currentPage,
+          };
+        }
+      } catch (error) {
+        console.error("Erreur lors du chargement des données:", error);
+        // Méthode de secours en cas d'exception
+        await loadDataLegacy();
+      } finally {
+        setLoading(false);
+        isFetchingRef.current = false;
       }
-    } catch (error) {
-      console.error("Erreur lors du chargement des données:", error);
-      // Méthode de secours en cas d'exception
-      await loadDataLegacy();
-    } finally {
-      setLoading(false);
-      isFetchingRef.current = false;
-    }
-  }, [user, activeTab, searchQuery, sortBy, currentPage, itemsPerPage, loadDataLegacy, 
-      setCounts, setOrders, setTotalCount, setLoading, cacheKeyBase, generateCacheKey, 
-      hasParamsChanged, orders.length]);
+    },
+    [
+      user,
+      activeTab,
+      searchQuery,
+      sortBy,
+      currentPage,
+      itemsPerPage,
+      loadDataLegacy,
+      setCounts,
+      setOrders,
+      setTotalCount,
+      setLoading,
+      cacheKeyBase,
+      generateCacheKey,
+      hasParamsChanged,
+      orders.length,
+    ],
+  );
 
   // Charger les données au montage et quand les dépendances changent
   useEffect(() => {
@@ -371,20 +479,29 @@ export default function ClientOrdersPage() {
 
   // Écouter les événements d'invalidation du cache
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    
+    if (typeof window === "undefined") return;
+
     const handleCacheInvalidation = () => {
       if (user && !NavigationLoadingState.isNavigating) {
         loadOrdersData(true);
       }
     };
-    
-    window.addEventListener('vynal:client-cache-invalidated', handleCacheInvalidation);
-    window.addEventListener('vynal:orders-updated', handleCacheInvalidation);
-    
+
+    window.addEventListener(
+      "vynal:client-cache-invalidated",
+      handleCacheInvalidation,
+    );
+    window.addEventListener("vynal:orders-updated", handleCacheInvalidation);
+
     return () => {
-      window.removeEventListener('vynal:client-cache-invalidated', handleCacheInvalidation);
-      window.removeEventListener('vynal:orders-updated', handleCacheInvalidation);
+      window.removeEventListener(
+        "vynal:client-cache-invalidated",
+        handleCacheInvalidation,
+      );
+      window.removeEventListener(
+        "vynal:orders-updated",
+        handleCacheInvalidation,
+      );
     };
   }, [loadOrdersData, user]);
 
@@ -392,12 +509,12 @@ export default function ClientOrdersPage() {
   useEffect(() => {
     // Stocker la valeur actuelle pour comparaison
     searchQueryRef.current = searchQuery;
-    
+
     // Annuler le timer précédent
     if (debouncedSearchRef.current) {
       clearTimeout(debouncedSearchRef.current);
     }
-    
+
     // Configurer un nouveau timer
     debouncedSearchRef.current = setTimeout(() => {
       if (searchQueryRef.current === searchQuery) {
@@ -405,7 +522,7 @@ export default function ClientOrdersPage() {
         loadOrdersData(false);
       }
     }, 300);
-    
+
     return () => {
       if (debouncedSearchRef.current) {
         clearTimeout(debouncedSearchRef.current);
@@ -414,48 +531,75 @@ export default function ClientOrdersPage() {
   }, [searchQuery, loadOrdersData]);
 
   // Handler pour la recherche avec reset de pagination
-  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(e.target.value);
-  }, []);
+  const handleSearchChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setSearchQuery(e.target.value);
+    },
+    [],
+  );
 
   // Handler pour le changement d'onglet
-  const handleTabChange = useCallback((tab: string) => {
-    setActiveTab(tab);
-    setCurrentPage(1); // Réinitialiser la pagination
-    loadOrdersData(false);
-  }, [loadOrdersData]);
+  const handleTabChange = useCallback(
+    (tab: string) => {
+      setActiveTab(tab);
+      setCurrentPage(1); // Réinitialiser la pagination
+      loadOrdersData(false);
+    },
+    [loadOrdersData],
+  );
 
   // Handler pour le changement de tri
-  const handleSortChange = useCallback((value: string) => {
-    setSortBy(value);
-    setCurrentPage(1); // Réinitialiser la pagination
-    loadOrdersData(false);
-  }, [loadOrdersData]);
+  const handleSortChange = useCallback(
+    (value: string) => {
+      setSortBy(value);
+      setCurrentPage(1); // Réinitialiser la pagination
+      loadOrdersData(false);
+    },
+    [loadOrdersData],
+  );
 
   // Gérer le changement de page
-  const handlePageChange = useCallback((page: number) => {
-    setCurrentPage(page);
-    // Faire défiler vers le haut
-    window.scrollTo(0, 0);
-    loadOrdersData(false);
-  }, [loadOrdersData]);
+  const handlePageChange = useCallback(
+    (page: number) => {
+      setCurrentPage(page);
+      // Faire défiler vers le haut
+      window.scrollTo(0, 0);
+      loadOrdersData(false);
+    },
+    [loadOrdersData],
+  );
 
   // Optimisation : Helper pour les classes de badge selon le statut
-  const getStatusBadgeClasses = useCallback((status: Order['status']) => {
+  const getStatusBadgeClasses = useCallback((status: Order["status"]) => {
     const baseClasses = "text-[8px] sm:text-[8px] border";
-    
-    switch(status) {
-      case 'in_progress':
-        return cn(baseClasses, "bg-blue-700/10 text-blue-700 border-blue-700/20");
-      case 'completed':
-        return cn(baseClasses, "bg-green-700/10 text-green-700 border-green-700/20");
-      case 'delivered':
-        return cn(baseClasses, "bg-vynal-accent-primary/10 text-vynal-accent-primary border-vynal-accent-primary/20");
-      case 'pending':
-        return cn(baseClasses, "bg-yellow-700/10 text-yellow-700 border-yellow-700/20");
-      case 'revision_requested':
-        return cn(baseClasses, "bg-orange-700/10 text-orange-700 border-orange-700/20");
-      case 'cancelled':
+
+    switch (status) {
+      case "in_progress":
+        return cn(
+          baseClasses,
+          "bg-blue-700/10 text-blue-700 border-blue-700/20",
+        );
+      case "completed":
+        return cn(
+          baseClasses,
+          "bg-green-700/10 text-green-700 border-green-700/20",
+        );
+      case "delivered":
+        return cn(
+          baseClasses,
+          "bg-vynal-accent-primary/10 text-vynal-accent-primary border-vynal-accent-primary/20",
+        );
+      case "pending":
+        return cn(
+          baseClasses,
+          "bg-yellow-700/10 text-yellow-700 border-yellow-700/20",
+        );
+      case "revision_requested":
+        return cn(
+          baseClasses,
+          "bg-orange-700/10 text-orange-700 border-orange-700/20",
+        );
+      case "cancelled":
         return cn(baseClasses, "bg-red-700/10 text-red-700 border-red-700/20");
       default:
         return baseClasses;
@@ -463,19 +607,19 @@ export default function ClientOrdersPage() {
   }, []);
 
   // Optimisation : Helper pour le texte du statut
-  const getStatusText = useCallback((status: Order['status']) => {
-    switch(status) {
-      case 'in_progress':
+  const getStatusText = useCallback((status: Order["status"]) => {
+    switch (status) {
+      case "in_progress":
         return "En cours";
-      case 'completed':
+      case "completed":
         return "Terminée";
-      case 'delivered':
+      case "delivered":
         return "Livrée";
-      case 'pending':
+      case "pending":
         return "En attente";
-      case 'revision_requested':
+      case "revision_requested":
         return "Révision demandée";
-      case 'cancelled':
+      case "cancelled":
         return "Annulée";
       default:
         return status;
@@ -483,13 +627,19 @@ export default function ClientOrdersPage() {
   }, []);
 
   // Classes de style unifiées pour une UI cohérente
-  const mainCardClasses = "bg-white/30 dark:bg-slate-900/30 backdrop-blur-sm border border-slate-200/30 dark:border-slate-700/30 shadow-sm rounded-lg transition-all duration-200";
-  const innerCardClasses = "bg-white/25 dark:bg-slate-800/25 backdrop-blur-sm border border-slate-200/15 dark:border-slate-700/15 rounded-lg transition-all duration-200";
-  const badgeClasses = "bg-white/20 dark:bg-slate-800/20 backdrop-blur-sm text-slate-700 dark:text-vynal-text-primary border-slate-200/30 dark:border-slate-700/30";
-  const titleClasses = "text-[10px] sm:text-xs md:text-[10px] lg:text-[11px] text-slate-800 dark:text-vynal-text-primary";
+  const mainCardClasses =
+    "bg-white/30 dark:bg-slate-900/30 backdrop-blur-sm border border-slate-200/30 dark:border-slate-700/30 shadow-sm rounded-lg transition-all duration-200";
+  const innerCardClasses =
+    "bg-white/25 dark:bg-slate-800/25 backdrop-blur-sm border border-slate-200/15 dark:border-slate-700/15 rounded-lg transition-all duration-200";
+  const badgeClasses =
+    "bg-white/20 dark:bg-slate-800/20 backdrop-blur-sm text-slate-700 dark:text-vynal-text-primary border-slate-200/30 dark:border-slate-700/30";
+  const titleClasses =
+    "text-[10px] sm:text-xs md:text-[10px] lg:text-[11px] text-slate-800 dark:text-vynal-text-primary";
   const subtitleClasses = "text-slate-600 dark:text-vynal-text-secondary";
-  const buttonClasses = "text-[8px] sm:text-[8px] text-slate-700 dark:text-vynal-text-primary";
-  const countClasses = "text-[8px] sm:text-[8px] text-slate-600 dark:text-vynal-text-secondary";
+  const buttonClasses =
+    "text-[8px] sm:text-[8px] text-slate-700 dark:text-vynal-text-primary";
+  const countClasses =
+    "text-[8px] sm:text-[8px] text-slate-600 dark:text-vynal-text-secondary";
 
   // Éviter les cascades d'affichage avec un rendu conditionnel optimisé
   const renderOrdersList = useCallback(() => {
@@ -499,9 +649,12 @@ export default function ClientOrdersPage() {
           <div className="rounded-full bg-slate-100/20 dark:bg-slate-800/20 p-3 mb-2">
             <ShoppingBag className="h-6 w-6 text-slate-400 dark:text-slate-500" />
           </div>
-          <h3 className="mt-3 text-sm font-medium text-slate-800 dark:text-vynal-text-primary">Aucune commande</h3>
+          <h3 className="mt-3 text-sm font-medium text-slate-800 dark:text-vynal-text-primary">
+            Aucune commande
+          </h3>
           <p className="mt-1 text-xs text-slate-600 dark:text-vynal-text-secondary max-w-sm">
-            Vous n'avez pas encore de commandes. Trouvez un service pour commencer.
+            Vous n'avez pas encore de commandes. Trouvez un service pour
+            commencer.
           </p>
           <Button size="sm" className="mt-3" asChild>
             <Link href="/services">Trouver un service</Link>
@@ -514,8 +667,14 @@ export default function ClientOrdersPage() {
     return (
       <Fragment>
         {orders.map((order) => (
-          <Link href={`/client-dashboard/orders/${order.id}`} key={order.id} className="block mb-3">
-            <div className={`p-3 ${innerCardClasses} hover:bg-white/40 dark:hover:bg-slate-800/40 transition-colors cursor-pointer`}>
+          <Link
+            href={`/client-dashboard/orders/${order.id}`}
+            key={order.id}
+            className="block mb-3"
+          >
+            <div
+              className={`p-3 ${innerCardClasses} hover:bg-white/40 dark:hover:bg-slate-800/40 transition-colors cursor-pointer`}
+            >
               <div className="flex items-start justify-between">
                 <div className="space-y-1">
                   <p className={`text-[10px] sm:text-[10px] ${titleClasses}`}>
@@ -533,7 +692,7 @@ export default function ClientOrdersPage() {
                 <div className="flex items-center gap-1 bg-slate-200/50 dark:bg-slate-800/30 px-1.5 py-0.5 rounded-full">
                   <Calendar className="h-2 w-2 text-slate-500 dark:text-vynal-text-secondary" />
                   <span className={countClasses}>
-                    {new Date(order.created_at).toLocaleDateString('fr-FR')}
+                    {new Date(order.created_at).toLocaleDateString("fr-FR")}
                   </span>
                 </div>
                 <div className="flex items-center gap-1 bg-slate-200/50 dark:bg-slate-800/30 px-1.5 py-0.5 rounded-full">
@@ -545,7 +704,10 @@ export default function ClientOrdersPage() {
                 <div className="flex items-center gap-1 bg-slate-200/50 dark:bg-slate-800/30 px-1.5 py-0.5 rounded-full">
                   <span className="text-[8px] sm:text-[8px] text-slate-500 dark:text-vynal-text-secondary"></span>
                   <span className={`${countClasses} font-bold`}>
-                    <CurrencyDisplay amount={Math.round(order.price)} displayFullName={true} />
+                    <CurrencyDisplay
+                      amount={Math.round(order.price)}
+                      displayFullName={true}
+                    />
                   </span>
                 </div>
               </div>
@@ -563,7 +725,19 @@ export default function ClientOrdersPage() {
         )}
       </Fragment>
     );
-  }, [orders, totalCount, currentPage, itemsPerPage, innerCardClasses, titleClasses, subtitleClasses, countClasses, getStatusBadgeClasses, getStatusText, handlePageChange]);
+  }, [
+    orders,
+    totalCount,
+    currentPage,
+    itemsPerPage,
+    innerCardClasses,
+    titleClasses,
+    subtitleClasses,
+    countClasses,
+    getStatusBadgeClasses,
+    getStatusText,
+    handlePageChange,
+  ]);
 
   if (authLoading || loading) {
     return <ClientDashboardPageSkeleton />;
@@ -575,7 +749,9 @@ export default function ClientOrdersPage() {
     <div className="container max-w-6xl mx-auto px-4 py-6">
       <div className="flex flex-col space-y-2 md:flex-row md:items-center md:justify-between md:space-y-0 mb-6">
         <div>
-          <h1 className={`text-base sm:text-lg md:text-2xl font-bold ${titleClasses} flex items-center`}>
+          <h1
+            className={`text-base sm:text-lg md:text-2xl font-bold ${titleClasses} flex items-center`}
+          >
             <ShoppingBag className="mr-2 h-4 w-4 sm:h-5 sm:w-5 text-vynal-accent-primary" />
             Mes Commandes
           </h1>
@@ -583,10 +759,14 @@ export default function ClientOrdersPage() {
             Gérez et suivez toutes vos commandes
           </p>
         </div>
-        
+
         <div className="flex items-center space-x-2">
           <Link href="/client-dashboard">
-            <Button variant="ghost" size="sm" className="text-[10px] sm:text-xs">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-[10px] sm:text-xs"
+            >
               <ArrowLeft className="mr-1 h-3 w-3" />
               Tableau de bord
             </Button>
@@ -616,10 +796,18 @@ export default function ClientOrdersPage() {
               <SelectValue placeholder="Trier par" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="recent" className="text-[10px] sm:text-xs">Les plus récentes</SelectItem>
-              <SelectItem value="oldest" className="text-[10px] sm:text-xs">Les plus anciennes</SelectItem>
-              <SelectItem value="price_high" className="text-[10px] sm:text-xs">Prix: décroissant</SelectItem>
-              <SelectItem value="price_low" className="text-[10px] sm:text-xs">Prix: croissant</SelectItem>
+              <SelectItem value="recent" className="text-[10px] sm:text-xs">
+                Les plus récentes
+              </SelectItem>
+              <SelectItem value="oldest" className="text-[10px] sm:text-xs">
+                Les plus anciennes
+              </SelectItem>
+              <SelectItem value="price_high" className="text-[10px] sm:text-xs">
+                Prix: décroissant
+              </SelectItem>
+              <SelectItem value="price_low" className="text-[10px] sm:text-xs">
+                Prix: croissant
+              </SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -627,9 +815,14 @@ export default function ClientOrdersPage() {
 
       {/* Tabs pour filtrer les commandes */}
       <div className="flex justify-center mb-6">
-        <Tabs defaultValue="all" value={activeTab} onValueChange={handleTabChange} className="w-full">
+        <Tabs
+          defaultValue="all"
+          value={activeTab}
+          onValueChange={handleTabChange}
+          className="w-full"
+        >
           <TabsList className="bg-slate-100/70 dark:bg-slate-800/20 p-1 rounded-lg border border-slate-200/50 dark:border-slate-700/20 w-full flex flex-nowrap overflow-x-auto scrollbar-hide">
-            <TabsTrigger 
+            <TabsTrigger
               value="all"
               className="flex-none whitespace-nowrap data-[state=active]:bg-vynal-accent-primary/30 data-[state=active]:text-vynal-accent-primary dark:data-[state=active]:bg-vynal-accent-primary/5 dark:data-[state=active]:text-vynal-accent-primary/40 data-[state=active]:shadow-sm text-[10px] sm:text-xs text-slate-700 dark:text-slate-300 hover:bg-vynal-accent-primary/10"
             >
@@ -638,7 +831,7 @@ export default function ClientOrdersPage() {
                 {counts.totalCount}
               </Badge>
             </TabsTrigger>
-            <TabsTrigger 
+            <TabsTrigger
               value="active"
               className="flex-none whitespace-nowrap data-[state=active]:bg-amber-500/30 data-[state=active]:text-amber-600 dark:data-[state=active]:bg-amber-500/5 dark:data-[state=active]:text-amber-500/40 data-[state=active]:shadow-sm text-[10px] sm:text-xs text-slate-700 dark:text-slate-300 hover:bg-amber-500/10"
             >
@@ -647,7 +840,7 @@ export default function ClientOrdersPage() {
                 {counts.activeCount}
               </Badge>
             </TabsTrigger>
-            <TabsTrigger 
+            <TabsTrigger
               value="pending"
               className="flex-none whitespace-nowrap data-[state=active]:bg-slate-500/30 data-[state=active]:text-slate-600 dark:data-[state=active]:bg-slate-500/5 dark:data-[state=active]:text-slate-500/40 data-[state=active]:shadow-sm text-[10px] sm:text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-500/10"
             >
@@ -656,7 +849,7 @@ export default function ClientOrdersPage() {
                 {counts.pendingCount}
               </Badge>
             </TabsTrigger>
-            <TabsTrigger 
+            <TabsTrigger
               value="completed"
               className="flex-none whitespace-nowrap data-[state=active]:bg-emerald-500/30 data-[state=active]:text-emerald-600 dark:data-[state=active]:bg-emerald-500/5 dark:data-[state=active]:text-emerald-500/40 data-[state=active]:shadow-sm text-[10px] sm:text-xs text-slate-700 dark:text-slate-300 hover:bg-emerald-500/10"
             >
@@ -665,7 +858,7 @@ export default function ClientOrdersPage() {
                 {counts.completedCount}
               </Badge>
             </TabsTrigger>
-            <TabsTrigger 
+            <TabsTrigger
               value="cancelled"
               className="flex-none whitespace-nowrap data-[state=active]:bg-red-500/30 data-[state=active]:text-red-600 dark:data-[state=active]:bg-red-500/5 dark:data-[state=active]:text-red-500/40 data-[state=active]:shadow-sm text-[10px] sm:text-xs text-slate-700 dark:text-slate-300 hover:bg-red-500/10"
             >
@@ -676,33 +869,23 @@ export default function ClientOrdersPage() {
             </TabsTrigger>
           </TabsList>
           <TabsContent value="all" className="m-0">
-            <div className="space-y-3">
-              {renderOrdersList()}
-            </div>
+            <div className="space-y-3">{renderOrdersList()}</div>
           </TabsContent>
 
           <TabsContent value="pending" className="m-0">
-            <div className="space-y-3">
-              {renderOrdersList()}
-            </div>
+            <div className="space-y-3">{renderOrdersList()}</div>
           </TabsContent>
 
           <TabsContent value="completed" className="m-0">
-            <div className="space-y-3">
-              {renderOrdersList()}
-            </div>
+            <div className="space-y-3">{renderOrdersList()}</div>
           </TabsContent>
 
           <TabsContent value="cancelled" className="m-0">
-            <div className="space-y-3">
-              {renderOrdersList()}
-            </div>
+            <div className="space-y-3">{renderOrdersList()}</div>
           </TabsContent>
 
           <TabsContent value="active" className="m-0">
-            <div className="space-y-3">
-              {renderOrdersList()}
-            </div>
+            <div className="space-y-3">{renderOrdersList()}</div>
           </TabsContent>
         </Tabs>
       </div>

@@ -322,221 +322,110 @@ export default function UnifiedCheckoutPage({
   };
 
   const handlePlaceOrder = async () => {
-    if (isLoading || !user || isSubmitting) return;
+    setIsLoading(true);
+    setIsSubmitting(true);
+    const startTime = Date.now();
+    const supabase = createClientComponentClient();
 
-    // Validate form
-    if (!orderData.selectedPaymentMethod) {
+    try {
+      // Vérification que l'utilisateur existe
+      if (!user) {
+        throw new Error("Utilisateur non authentifié");
+      }
+
+      // Générer le numéro de commande une seule fois
+      const orderNumber = `CMD-${Date.now()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
+
+      // Pour les paiements autres que par carte, créer une commande immédiatement
+      if (orderData.selectedPaymentMethod !== "card") {
+        // Mode réel: toujours créer une commande standard
+
+        // Payment data validation
+        const validationError = validatePayment();
+        if (validationError) {
+          setOrderData({ ...orderData, error: validationError });
+          setIsLoading(false);
+          setIsSubmitting(false);
+          setShowPaymentLoader(false);
+          return;
+        }
+
+        // Create order
+        const { data: order, error: orderError } = await supabase
+          .from("orders")
+          .insert({
+            service_id: serviceId,
+            client_id: user.id,
+            freelance_id: service?.profiles?.id,
+            requirements:
+              orderData.requirements || "Aucune description fournie",
+            status: "pending",
+            price: service?.price || 0,
+            delivery_time: service?.delivery_time || 3,
+            order_number: orderNumber,
+          })
+          .select("id, order_number")
+          .single();
+
+        if (orderError) {
+          console.error(
+            "Erreur lors de la création de la commande:",
+            orderError,
+          );
+          throw new Error("Erreur lors de la création de la commande");
+        }
+
+        console.log("Commande créée avec succès:", {
+          id: order.id,
+          order_number: order.order_number,
+        });
+
+        // Process payment
+        const { error: processPaymentError } = await supabase
+          .from("payments")
+          .insert({
+            order_id: order.id,
+            client_id: user.id,
+            freelance_id: service?.profiles?.id,
+            amount: service?.price || 0,
+            status: "pending",
+            payment_method: orderData.selectedPaymentMethod,
+          });
+
+        if (processPaymentError) {
+          throw new Error("Erreur lors du traitement du paiement");
+        }
+
+        // Préparer les données avant la redirection
+        setOrderData({
+          ...orderData,
+          orderId: order.id,
+          orderNumber: order.order_number,
+          error: null,
+        });
+
+        // Attendre que l'animation soit terminée
+        const elapsedTime = Date.now() - startTime;
+        const remainingTime = Math.max(0, paymentDuration - elapsedTime);
+
+        if (remainingTime > 0) {
+          await new Promise((resolve) => setTimeout(resolve, remainingTime));
+        }
+
+        // Redirection vers la page de confirmation
+        router.push(`/order/${serviceId}/summary`);
+      }
+      // Pour les paiements par carte, Stripe CardForm gère le flux de paiement
+    } catch (err) {
+      console.error("Erreur lors du paiement:", err);
       setOrderData({
         ...orderData,
-        error: "Veuillez sélectionner une méthode de paiement",
+        error: err instanceof Error ? err.message : "Une erreur est survenue",
       });
-      return;
+      setIsLoading(false);
+      setIsSubmitting(false);
+      setShowPaymentLoader(false);
     }
-
-    // Check payment method data
-    if (orderData.selectedPaymentMethod === "card") {
-      // Pour Stripe, nous utiliserons maintenant StripeCardForm qui gère sa propre validation
-      if (!paymentData || !paymentData.clientSecret) {
-        setOrderData({
-          ...orderData,
-          error: "Erreur lors de l'initialisation du paiement par carte",
-        });
-        return;
-      }
-    } else if (orderData.selectedPaymentMethod === "paypal") {
-      // Aucune validation supplémentaire requise pour PayPal
-    } else if (
-      orderData.selectedPaymentMethod === "wave" ||
-      orderData.selectedPaymentMethod === "orange-money"
-    ) {
-      if (!mobileNumber) {
-        setOrderData({
-          ...orderData,
-          error: `Veuillez saisir votre numéro ${orderData.selectedPaymentMethod === "wave" ? "Wave" : "Orange Money"}`,
-        });
-        return;
-      }
-    }
-
-    // Si nous sommes en mode test ou si la méthode n'est pas carte, utiliser l'ancien flux
-    if (orderData.isTestMode || orderData.selectedPaymentMethod !== "card") {
-      // Démarrer les indicateurs de chargement
-      setIsLoading(true);
-      setIsSubmitting(true);
-      setShowPaymentLoader(true);
-
-      try {
-        const startTime = Date.now();
-        const supabase = createClientComponentClient();
-
-        // Vérification que l'utilisateur existe
-        if (!user) {
-          throw new Error("Utilisateur non authentifié");
-        }
-
-        // Générer le numéro de commande une seule fois
-        const orderNumber = `CMD-${Date.now()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
-
-        if (orderData.isTestMode) {
-          // Créer une commande de test réelle dans la base de données
-          const { data: order, error: orderError } = await supabase
-            .from("orders")
-            .insert({
-              service_id: serviceId,
-              client_id: user.id,
-              freelance_id: service?.profiles?.id,
-              requirements: `[TEST] ${orderData.requirements}`,
-              status: "pending",
-              price: service?.price || 0,
-              delivery_time: service?.delivery_time || 3,
-              order_number: orderNumber,
-            })
-            .select("id, order_number")
-            .single();
-
-          if (orderError) {
-            console.error(
-              "Erreur lors de la création de la commande de test:",
-              orderError,
-            );
-            throw new Error(
-              "Erreur lors de la création de la commande de test",
-            );
-          }
-
-          console.log("Commande créée avec succès:", {
-            id: order.id,
-            order_number: order.order_number,
-          });
-
-          // Créer une entrée de paiement fictif
-          const { error: processPaymentError } = await supabase
-            .from("payments")
-            .insert({
-              order_id: order.id, // Utiliser l'ID généré par Supabase
-              client_id: user.id,
-              freelance_id: service?.profiles?.id,
-              amount: service?.price || 0,
-              status: "pending",
-              payment_method: `TEST_${orderData.selectedPaymentMethod}`,
-            });
-
-          if (processPaymentError) {
-            console.error(
-              "Erreur lors de la création du paiement de test:",
-              processPaymentError,
-            );
-          }
-
-          // Préparer les données avant la redirection
-          setOrderData({
-            ...orderData,
-            orderId: order.id,
-            orderNumber: order.order_number,
-            testPaymentSuccess: true,
-            error: null,
-          });
-
-          // Attendre que l'animation soit terminée
-          const elapsedTime = Date.now() - startTime;
-          const remainingTime = Math.max(0, paymentDuration - elapsedTime);
-
-          if (remainingTime > 0) {
-            await new Promise((resolve) => setTimeout(resolve, remainingTime));
-          }
-
-          // Redirection vers la page de confirmation
-          router.push(`/order/${serviceId}/summary`);
-        } else {
-          // Payment data validation
-          const validationError = validatePayment();
-          if (validationError) {
-            setOrderData({ ...orderData, error: validationError });
-            setIsLoading(false);
-            setIsSubmitting(false);
-            setShowPaymentLoader(false);
-            return;
-          }
-
-          // Create order
-          const { data: order, error: orderError } = await supabase
-            .from("orders")
-            .insert({
-              service_id: serviceId,
-              client_id: user.id,
-              freelance_id: service?.profiles?.id,
-              requirements:
-                orderData.requirements || "Aucune description fournie",
-              status: "pending",
-              price: service?.price || 0,
-              delivery_time: service?.delivery_time || 3,
-              order_number: orderNumber,
-            })
-            .select("id, order_number")
-            .single();
-
-          if (orderError) {
-            console.error(
-              "Erreur lors de la création de la commande:",
-              orderError,
-            );
-            throw new Error("Erreur lors de la création de la commande");
-          }
-
-          console.log("Commande créée avec succès:", {
-            id: order.id,
-            order_number: order.order_number,
-          });
-
-          // Process payment
-          const { error: processPaymentError } = await supabase
-            .from("payments")
-            .insert({
-              order_id: order.id,
-              client_id: user.id,
-              freelance_id: service?.profiles?.id,
-              amount: service?.price || 0,
-              status: "pending",
-              payment_method: orderData.selectedPaymentMethod,
-            });
-
-          if (processPaymentError) {
-            throw new Error("Erreur lors du traitement du paiement");
-          }
-
-          // Préparer les données avant la redirection
-          setOrderData({
-            ...orderData,
-            orderId: order.id,
-            orderNumber: order.order_number,
-            testPaymentSuccess: false,
-            error: null,
-          });
-
-          // Attendre que l'animation soit terminée
-          const elapsedTime = Date.now() - startTime;
-          const remainingTime = Math.max(0, paymentDuration - elapsedTime);
-
-          if (remainingTime > 0) {
-            await new Promise((resolve) => setTimeout(resolve, remainingTime));
-          }
-
-          // Redirection vers la page de confirmation
-          router.push(`/order/${serviceId}/summary`);
-        }
-      } catch (err) {
-        console.error("Erreur lors du paiement:", err);
-        setOrderData({
-          ...orderData,
-          error: err instanceof Error ? err.message : "Une erreur est survenue",
-          testPaymentSuccess: false,
-        });
-        setIsLoading(false);
-        setIsSubmitting(false);
-        setShowPaymentLoader(false);
-      }
-    }
-    // Pour les paiements par carte, Stripe CardForm gère le flux de paiement
   };
 
   const handleStripePaymentSuccess = async (paymentIntent: any) => {
