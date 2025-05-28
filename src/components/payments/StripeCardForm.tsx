@@ -465,6 +465,7 @@ function StripeCardFormContent({
       onSubmit={handleSubmit}
       className="space-y-5"
       id="stripe-payment-form"
+      data-elements="true"
     >
       {/* Notification sur la devise utilisée pour le paiement */}
       <PaymentCurrencyNotice amount={amount} compact useFixedAmount={false} />

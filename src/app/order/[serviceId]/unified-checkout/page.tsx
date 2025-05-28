@@ -33,11 +33,12 @@ import { ApplePayButton } from "@/components/payments/ApplePayButton";
 import { GooglePayButton } from "@/components/payments/GooglePayButton";
 import { LinkButton } from "@/components/payments/LinkButton";
 import { QuickTooltip } from "@/components/ui/tooltip";
+import Script from "next/script";
 
 // Déclaration pour la fonction globale de soumission Stripe
 declare global {
   interface Window {
-    submitStripeForm?: () => boolean;
+    submitStripeForm?: (stripe: any, elements: any) => Promise<void>;
   }
 }
 
@@ -113,6 +114,24 @@ export default function UnifiedCheckoutPage({
     setIsLoading,
     validatePayment,
   } = useOrderData(serviceId);
+
+  // Charger le script Stripe payment
+  useEffect(() => {
+    // Ajouter l'attribut data-order-id au formulaire de paiement
+    const updatePaymentForm = () => {
+      const form = document.getElementById("stripe-payment-form");
+      if (form && orderData.orderId) {
+        form.setAttribute("data-order-id", orderData.orderId);
+      }
+    };
+
+    // Vérifier après le chargement initial et lorsque orderData change
+    updatePaymentForm();
+
+    // Configurer un intervalle pour s'assurer que l'attribut est ajouté
+    const interval = setInterval(updatePaymentForm, 1000);
+    return () => clearInterval(interval);
+  }, [orderData.orderId]);
 
   // Reset selected payment method
   useEffect(() => {
@@ -1223,383 +1242,170 @@ export default function UnifiedCheckoutPage({
   }
 
   return (
-    <div className="min-h-screen bg-slate-50/70 dark:bg-vynal-purple-dark/30 py-8 px-4 sm:px-6 font-poppins">
-      {/* Loader du paiement */}
-      <MultiStepLoader
-        loadingStates={paymentLoadingStates}
-        loading={showPaymentLoader}
-        duration={1800}
-        totalDuration={paymentDuration}
-      />
+    <>
+      {/* Script pour les paiements Stripe */}
+      <Script src="/js/stripe-payment.js" strategy="lazyOnload" />
 
-      {/* Back button */}
-      <div className="max-w-4xl mx-auto mb-4">
-        <button
-          onClick={handleBack}
-          className="inline-flex items-center text-slate-600 dark:text-vynal-text-secondary hover:text-vynal-accent-secondary dark:hover:text-vynal-accent-primary transition-colors text-[10px] sm:text-xs font-poppins"
-        >
-          <ChevronLeft className="h-3 w-3 mr-1" />
-          <span>Retour</span>
-        </button>
-      </div>
+      {/* Modal de chargement de paiement */}
+      {showPaymentLoader && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-sm">
+          <div className="bg-white dark:bg-slate-900 p-6 rounded-lg shadow-lg w-full max-w-md">
+            <MultiStepLoader
+              loadingStates={paymentLoadingStates}
+              duration={paymentDuration}
+            />
+          </div>
+        </div>
+      )}
 
-      {/* Main content - Stripe-like layout */}
-      <div className="max-w-4xl mx-auto">
-        <div className="flex flex-col md:flex-row gap-8 items-start">
-          {/* Left column - Order summary */}
-          <div className="w-full md:w-2/5 lg:w-1/3 md:sticky md:top-8">
-            <div className="bg-white/30 dark:bg-slate-900/30 shadow-sm rounded-xl p-5 border border-slate-200 dark:border-slate-700/30">
-              {/* TEST MODE badge */}
-              {orderData.isTestMode && (
-                <div className="flex items-center mb-4 p-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-700/20">
-                  <span className="text-[8px] sm:text-[10px] font-medium text-amber-600 dark:text-amber-500 uppercase tracking-wider">
-                    Mode test
-                  </span>
+      <div className="min-h-screen bg-slate-50/70 dark:bg-vynal-purple-dark/30 py-8 px-4 sm:px-6 font-poppins">
+        {/* Back button */}
+        <div className="max-w-4xl mx-auto mb-4">
+          <button
+            onClick={handleBack}
+            className="inline-flex items-center text-slate-600 dark:text-vynal-text-secondary hover:text-vynal-accent-secondary dark:hover:text-vynal-accent-primary transition-colors text-[10px] sm:text-xs font-poppins"
+          >
+            <ChevronLeft className="h-3 w-3 mr-1" />
+            <span>Retour</span>
+          </button>
+        </div>
+
+        {/* Main content - Stripe-like layout */}
+        <div className="max-w-4xl mx-auto">
+          <div className="flex flex-col md:flex-row gap-8 items-start">
+            {/* Left column - Order summary */}
+            <div className="w-full md:w-2/5 lg:w-1/3 md:sticky md:top-8">
+              <div className="bg-white/30 dark:bg-slate-900/30 shadow-sm rounded-xl p-5 border border-slate-200 dark:border-slate-700/30">
+                {/* TEST MODE badge */}
+                {orderData.isTestMode && (
+                  <div className="flex items-center mb-4 p-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-700/20">
+                    <span className="text-[8px] sm:text-[10px] font-medium text-amber-600 dark:text-amber-500 uppercase tracking-wider">
+                      Mode test
+                    </span>
+                  </div>
+                )}
+
+                {/* Merchant Info */}
+                <div className="mb-4">
+                  <h2 className="text-[10px] sm:text-xs font-semibold text-slate-800 dark:text-vynal-text-primary mb-1">
+                    Payer {service?.profiles?.display_name || "Prestataire"}
+                  </h2>
+                  <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
+                    {formatPrice(service?.price || 0)}
+                  </h1>
                 </div>
-              )}
 
-              {/* Merchant Info */}
-              <div className="mb-4">
-                <h2 className="text-[10px] sm:text-xs font-semibold text-slate-800 dark:text-vynal-text-primary mb-1">
-                  Payer {service?.profiles?.display_name || "Prestataire"}
-                </h2>
-                <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
-                  {formatPrice(service?.price || 0)}
-                </h1>
-              </div>
-
-              {/* Service details */}
-              <div className="space-y-3 pb-4 mb-4 border-b border-slate-200 dark:border-slate-700/20">
-                {service?.images && service.images.length > 0 ? (
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-md overflow-hidden relative flex-shrink-0">
-                      <Image
-                        src={service.images[0]}
-                        alt={service.title || "Service"}
-                        fill
-                        sizes="40px"
-                        className="object-cover"
-                      />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-[10px] sm:text-xs font-medium text-slate-800 dark:text-vynal-text-primary truncate">
-                        {service?.title || "Service"}
-                      </h3>
-                      <div className="flex items-center mt-1">
-                        {service?.delivery_time && (
-                          <>
-                            <Clock className="h-2 w-2 text-slate-400 mr-1" />
-                            <span className="text-[7px] sm:text-[9px] text-slate-500 dark:text-vynal-text-secondary">
-                              {service.delivery_time} jour(s)
-                            </span>
-                          </>
-                        )}
+                {/* Service details */}
+                <div className="space-y-3 pb-4 mb-4 border-b border-slate-200 dark:border-slate-700/20">
+                  {service?.images && service.images.length > 0 ? (
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-md overflow-hidden relative flex-shrink-0">
+                        <Image
+                          src={service.images[0]}
+                          alt={service.title || "Service"}
+                          fill
+                          sizes="40px"
+                          className="object-cover"
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-[10px] sm:text-xs font-medium text-slate-800 dark:text-vynal-text-primary truncate">
+                          {service?.title || "Service"}
+                        </h3>
+                        <div className="flex items-center mt-1">
+                          {service?.delivery_time && (
+                            <>
+                              <Clock className="h-2 w-2 text-slate-400 mr-1" />
+                              <span className="text-[7px] sm:text-[9px] text-slate-500 dark:text-vynal-text-secondary">
+                                {service.delivery_time} jour(s)
+                              </span>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ) : null}
-              </div>
+                  ) : null}
+                </div>
 
-              {/* Price breakdown */}
-              <div className="space-y-2 pt-1 pb-4 border-b border-slate-200 dark:border-slate-700/20">
-                <div className="flex justify-between">
-                  <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-vynal-text-secondary">
-                    Prix du service
+                {/* Price breakdown */}
+                <div className="space-y-2 pt-1 pb-4 border-b border-slate-200 dark:border-slate-700/20">
+                  <div className="flex justify-between">
+                    <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-vynal-text-secondary">
+                      Prix du service
+                    </span>
+                    <span className="text-[9px] sm:text-[10px] text-slate-800 dark:text-vynal-text-primary">
+                      {formatPrice(service?.price || 0)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-vynal-text-secondary">
+                      Frais de service
+                    </span>
+                    <span className="text-[9px] sm:text-[10px] text-green-600 dark:text-green-500">
+                      Inclus
+                    </span>
+                  </div>
+                </div>
+
+                {/* Total */}
+                <div className="pt-4 flex justify-between items-center">
+                  <span className="text-[10px] sm:text-xs font-medium text-slate-800 dark:text-vynal-text-primary">
+                    Total
                   </span>
-                  <span className="text-[9px] sm:text-[10px] text-slate-800 dark:text-vynal-text-primary">
+                  <span className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
                     {formatPrice(service?.price || 0)}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-vynal-text-secondary">
-                    Frais de service
-                  </span>
-                  <span className="text-[9px] sm:text-[10px] text-green-600 dark:text-green-500">
-                    Inclus
-                  </span>
-                </div>
-              </div>
 
-              {/* Total */}
-              <div className="pt-4 flex justify-between items-center">
-                <span className="text-[10px] sm:text-xs font-medium text-slate-800 dark:text-vynal-text-primary">
-                  Total
-                </span>
-                <span className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
-                  {formatPrice(service?.price || 0)}
-                </span>
-              </div>
-
-              {/* Security badge */}
-              <div className="mt-6 flex items-center justify-center">
-                <div className="flex items-center space-x-1">
-                  <QuickTooltip
-                    content="Paiement sécurisé SSL 256-bit"
-                    side="top"
-                    variant="default"
-                    delayDuration={100}
-                    className="bg-slate-100/90 dark:bg-slate-800/90
-                      border border-slate-200 dark:border-slate-700/30
-                      text-slate-700 dark:text-vynal-text-primary
-                      shadow-sm backdrop-blur-sm
-                      rounded-lg"
-                  >
-                    <Lock className="h-3 w-3 text-vynal-accent-secondary dark:text-vynal-accent-primary" />
-                  </QuickTooltip>
-                  <span className="text-[7px] sm:text-[8px] text-slate-400 dark:text-vynal-text-secondary">
-                    Paiement sécurisé
-                  </span>
+                {/* Security badge */}
+                <div className="mt-6 flex items-center justify-center">
+                  <div className="flex items-center space-x-1">
+                    <QuickTooltip
+                      content="Paiement sécurisé SSL 256-bit"
+                      side="top"
+                      variant="default"
+                      delayDuration={100}
+                      className="bg-slate-100/90 dark:bg-slate-800/90
+                        border border-slate-200 dark:border-slate-700/30
+                        text-slate-700 dark:text-vynal-text-primary
+                        shadow-sm backdrop-blur-sm
+                        rounded-lg"
+                    >
+                      <Lock className="h-3 w-3 text-vynal-accent-secondary dark:text-vynal-accent-primary" />
+                    </QuickTooltip>
+                    <span className="text-[7px] sm:text-[8px] text-slate-400 dark:text-vynal-text-secondary">
+                      Paiement sécurisé
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Right column - Payment form */}
-          <div className="flex-1 w-full">
-            <div className="bg-white/25 dark:bg-slate-900/20 shadow-sm rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700/20">
-              {/* Payment methods */}
-              <div className="p-4 sm:p-5 space-y-4 sm:space-y-5">
-                <h2 className="text-[10px] sm:text-xs font-medium text-slate-800 dark:text-vynal-text-primary">
-                  Payer par
-                </h2>
+            {/* Right column - Payment form */}
+            <div className="flex-1 w-full">
+              <div className="bg-white/25 dark:bg-slate-900/20 shadow-sm rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700/20">
+                {/* Payment methods */}
+                <div className="p-4 sm:p-5 space-y-4 sm:space-y-5">
+                  <h2 className="text-[10px] sm:text-xs font-medium text-slate-800 dark:text-vynal-text-primary">
+                    Payer par
+                  </h2>
 
-                {/* Error alert */}
-                {orderData.error && (
-                  <div className="bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 rounded-lg p-2 sm:p-3 text-[9px] sm:text-xs text-red-600 dark:text-red-400 flex items-start">
-                    <AlertCircle className="h-3 w-3 mt-0.5 mr-2 flex-shrink0 text-vynal-accent-secondary dark:text-vynal-accent-primary" />
-                    <p>{orderData.error}</p>
-                  </div>
-                )}
-
-                {/* Payment method buttons */}
-                <div className="grid grid-cols-3 gap-2 sm:gap-3 mt-3 sm:mt-4">
-                  {/* Wave Button */}
-                  <QuickTooltip
-                    content="Wave Money : Bientôt disponible sur Vynal"
-                    side="top"
-                    variant="default"
-                    delayDuration={150}
-                    className="bg-slate-100/90 dark:bg-slate-800/90
-                      border border-slate-200 dark:border-slate-700/30
-                      text-slate-700 dark:text-vynal-text-primary
-                      shadow-sm backdrop-blur-sm
-                      rounded-lg"
-                  >
-                    <button
-                      onClick={() => handleMethodSelect("wave")}
-                      className={`py-2.5 sm:py-3 px-3 sm:px-4 rounded-md flex items-center justify-center transition-all border ${
-                        orderData.selectedPaymentMethod === "wave"
-                          ? "bg-gradient-to-r from-vynal-accent-secondary to-purple-500 dark:from-vynal-accent-primary dark:to-purple-600 text-white border-vynal-accent-secondary dark:border-vynal-accent-primary shadow-lg"
-                          : "bg-slate-200/60 hover:bg-slate-100 dark:bg-slate-800/25 dark:hover:bg-slate-800/40 text-slate-700 dark:text-vynal-text-secondary border-slate-200/50 dark:border-slate-700/30"
-                      }`}
-                    >
-                      <Image
-                        src="/assets/partners/logo_wave_.webp"
-                        alt="Wave"
-                        width={52}
-                        height={52}
-                        className="h-6 w-6 sm:h-8 sm:w-8 mr-1.5 sm:mr-2"
-                      />
-                      <span className="text-[10px] sm:text-xs font-medium">
-                        Wave
-                      </span>
-                    </button>
-                  </QuickTooltip>
-
-                  {/* Orange Money Button */}
-                  <QuickTooltip
-                    content="Orange Money : Bientôt disponible sur Vynal"
-                    side="top"
-                    variant="default"
-                    delayDuration={150}
-                    className="bg-slate-100/90 dark:bg-slate-800/90
-                      border border-slate-200 dark:border-slate-700/30
-                      text-slate-700 dark:text-vynal-text-primary
-                      shadow-sm backdrop-blur-sm
-                      rounded-lg"
-                  >
-                    <button
-                      onClick={() => handleMethodSelect("orange-money")}
-                      className={`py-2.5 sm:py-3 px-3 sm:px-4 rounded-md flex items-center justify-center transition-all border ${
-                        orderData.selectedPaymentMethod === "orange-money"
-                          ? "bg-gradient-to-r from-orange-400 to-vynal-accent-secondary dark:from-orange-500 dark:to-vynal-accent-primary text-white border-orange-400 dark:border-orange-500 shadow-lg"
-                          : "bg-slate-200/60 hover:bg-slate-100 dark:bg-slate-800/25 dark:hover:bg-slate-800/40 text-slate-700 dark:text-vynal-text-secondary border-slate-200/50 dark:border-slate-700/30"
-                      }`}
-                    >
-                      <Image
-                        src="/images/payment/orangemoney.png"
-                        alt="Orange Money"
-                        width={40}
-                        height={40}
-                        className="h-6 w-6 sm:h-8 sm:w-8 mr-1.5 sm:mr-2"
-                      />
-                      <span className="text-[10px] sm:text-xs font-medium">
-                        Orange
-                      </span>
-                    </button>
-                  </QuickTooltip>
-
-                  {/* PayPal Button */}
-                  <QuickTooltip
-                    content="Paiement sécurisé PayPal avec conversion automatique"
-                    side="top"
-                    variant="default"
-                    delayDuration={150}
-                    className="bg-slate-100/90 dark:bg-slate-800/90
-                      border border-slate-200 dark:border-slate-700/30
-                      text-slate-700 dark:text-vynal-text-primary
-                      shadow-sm backdrop-blur-sm
-                      rounded-lg"
-                  >
-                    <button
-                      onClick={() => handleMethodSelect("paypal")}
-                      className={`py-2.5 sm:py-3 px-3 sm:px-4 rounded-md flex items-center justify-center transition-all border ${
-                        orderData.selectedPaymentMethod === "paypal"
-                          ? "bg-gradient-to-r from-blue-500 to-vynal-accent-secondary dark:from-blue-600 dark:to-vynal-accent-primary text-white border-blue-500 dark:border-blue-600 shadow-lg"
-                          : "bg-slate-200/60 hover:bg-slate-100 dark:bg-slate-800/25 dark:hover:bg-slate-800/40 text-slate-700 dark:text-vynal-text-secondary border-slate-200/50 dark:border-slate-700/30"
-                      }`}
-                    >
-                      <Image
-                        src="/images/payment/paypallogo.png"
-                        alt="PayPal"
-                        width={32}
-                        height={32}
-                        className="h-6 w-6 sm:h-8 sm:w-8 mr-1.5 sm:mr-2"
-                      />
-                      <span className="text-[10px] sm:text-xs font-medium">
-                        PayPal
-                      </span>
-                    </button>
-                  </QuickTooltip>
-                </div>
-
-                {/* Wave form */}
-                {orderData.selectedPaymentMethod === "wave" && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="mt-3 sm:mt-4 p-3 sm:p-4 bg-white/20 dark:bg-slate-800/25 rounded-md border border-slate-200 dark:border-slate-700/15"
-                  >
-                    <div className="flex items-center mb-2 sm:mb-3">
-                      <Image
-                        src="/assets/partners/logo_wave_.webp"
-                        alt="Wave"
-                        width={20}
-                        height={20}
-                        className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2"
-                      />
-                      <h3 className="text-[10px] sm:text-xs font-medium text-slate-800 dark:text-vynal-text-primary">
-                        Wave
-                      </h3>
+                  {/* Error alert */}
+                  {orderData.error && (
+                    <div className="bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 rounded-lg p-2 sm:p-3 text-[9px] sm:text-xs text-red-600 dark:text-red-400 flex items-start">
+                      <AlertCircle className="h-3 w-3 mt-0.5 mr-2 flex-shrink0 text-vynal-accent-secondary dark:text-vynal-accent-primary" />
+                      <p>{orderData.error}</p>
                     </div>
+                  )}
 
-                    <div>
-                      <label
-                        htmlFor="wave-number"
-                        className="text-[9px] sm:text-[10px] text-slate-600 dark:text-vynal-text-secondary block mb-1"
-                      >
-                        Numéro de téléphone
-                      </label>
-                      <Input
-                        id="wave-number"
-                        type="tel"
-                        placeholder="77 123 45 67"
-                        value={mobileNumber}
-                        onChange={(e) => setMobileNumber(e.target.value)}
-                        className="h-9 sm:h-10 text-[10px] sm:text-sm bg-white/40 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700/15 rounded-md opacity-50 cursor-not-allowed"
-                        disabled
-                      />
-                      <p className="mt-1.5 sm:mt-2 text-[11px] sm:text-sm text-amber-600 dark:text-amber-500">
-                        Le paiement par Wave sera disponible prochainement.
-                      </p>
-                    </div>
-                  </motion.div>
-                )}
-
-                {/* Orange Money form */}
-                {orderData.selectedPaymentMethod === "orange-money" && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="mt-3 sm:mt-4 p-3 sm:p-4 bg-white/20 dark:bg-slate-800/25 rounded-md border border-slate-200 dark:border-slate-700/15"
-                  >
-                    <div className="flex items-center mb-2 sm:mb-3">
-                      <Image
-                        src="/images/payment/orangemoney.png"
-                        alt="Orange Money"
-                        width={40}
-                        height={40}
-                        className="h-6 w-6 sm:h-8 sm:w-8 mr-1.5 sm:mr-2"
-                      />
-                      <h3 className="text-[10px] sm:text-xs font-medium text-slate-800 dark:text-vynal-text-primary">
-                        Orange Money
-                      </h3>
-                    </div>
-
-                    <div>
-                      <label
-                        htmlFor="orange-number"
-                        className="text-[9px] sm:text-[10px] text-slate-600 dark:text-vynal-text-secondary block mb-1"
-                      >
-                        Numéro de téléphone
-                      </label>
-                      <Input
-                        id="orange-number"
-                        type="tel"
-                        placeholder="77 123 45 67"
-                        value={mobileNumber}
-                        onChange={(e) => setMobileNumber(e.target.value)}
-                        className="h-9 sm:h-10 text-[10px] sm:text-sm bg-white/40 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700/15 rounded-md opacity-50 cursor-not-allowed"
-                        disabled
-                      />
-                      <p className="mt-1.5 sm:mt-2 text-[11px] sm:text-sm text-amber-600 dark:text-amber-500">
-                        Le paiement par Orange Money sera disponible
-                        prochainement.
-                      </p>
-                    </div>
-                  </motion.div>
-                )}
-
-                {/* PayPal form */}
-                {orderData.selectedPaymentMethod === "paypal" && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3 }}
-                    className="mt-4"
-                  >
-                    <div className="space-y-3">
-                      {/* PayPal Buttons */}
-                      <PayPalButtonsForm
-                        amount={service?.price || 0}
-                        serviceId={serviceId}
-                        onSuccess={handlePayPalPaymentSuccess}
-                        onError={handlePayPalPaymentError}
-                        loading={false}
-                      />
-                    </div>
-                  </motion.div>
-                )}
-
-                {/* Section Apple Pay, Google Pay et Link - affichage automatique */}
-                <div className="mt-4">
-                  <div className="grid grid-cols-3 gap-2 sm:gap-3">
-                    {/* Apple Pay Button */}
+                  {/* Payment method buttons */}
+                  <div className="grid grid-cols-3 gap-2 sm:gap-3 mt-3 sm:mt-4">
+                    {/* Wave Button */}
                     <QuickTooltip
-                      content={
-                        checkingAvailability
-                          ? "Vérification de la disponibilité d'Apple Pay..."
-                          : !paymentAvailability.applePay
-                            ? "Apple Pay non disponible sur cet appareil"
-                            : directPaymentLoading.applePay
-                              ? "Traitement Apple Pay en cours..."
-                              : "Payer en un clic avec Apple Pay"
-                      }
+                      content="Wave Money : Bientôt disponible sur Vynal"
                       side="top"
                       variant="default"
-                      delayDuration={100}
+                      delayDuration={150}
                       className="bg-slate-100/90 dark:bg-slate-800/90
                         border border-slate-200 dark:border-slate-700/30
                         text-slate-700 dark:text-vynal-text-primary
@@ -1607,64 +1413,32 @@ export default function UnifiedCheckoutPage({
                         rounded-lg"
                     >
                       <button
-                        onClick={() => {
-                          if (
-                            paymentAvailability.applePay &&
-                            !checkingAvailability
-                          ) {
-                            handleDirectApplePay();
-                          }
-                        }}
-                        disabled={
-                          !paymentAvailability.applePay ||
-                          checkingAvailability ||
-                          directPaymentLoading.applePay
-                        }
-                        className={`py-2.5 sm:py-3 px-3 sm:px-4 rounded-md flex items-center justify-center transition-all ${
-                          paymentAvailability.applePay && !checkingAvailability
-                            ? "bg-pink-200/80 hover:bg-pink-200/80 dark:bg-pink-900/25 dark:hover:bg-pink-800/40 text-pink-700 dark:text-pink-300 cursor-pointer border border-pink-200/50 dark:border-pink-700/30"
-                            : "bg-slate-100/30 dark:bg-slate-800/30 text-slate-400 dark:text-vynal-text-secondary/50 cursor-not-allowed opacity-50"
+                        onClick={() => handleMethodSelect("wave")}
+                        className={`py-2.5 sm:py-3 px-3 sm:px-4 rounded-md flex items-center justify-center transition-all border ${
+                          orderData.selectedPaymentMethod === "wave"
+                            ? "bg-gradient-to-r from-vynal-accent-secondary to-purple-500 dark:from-vynal-accent-primary dark:to-purple-600 text-white border-vynal-accent-secondary dark:border-vynal-accent-primary shadow-lg"
+                            : "bg-slate-200/60 hover:bg-slate-100 dark:bg-slate-800/25 dark:hover:bg-slate-800/40 text-slate-700 dark:text-vynal-text-secondary border-slate-200/50 dark:border-slate-700/30"
                         }`}
-                        title={
-                          checkingAvailability
-                            ? "Vérification de la disponibilité..."
-                            : !paymentAvailability.applePay
-                              ? "Apple Pay non disponible sur cet appareil"
-                              : "Payer avec Apple Pay"
-                        }
                       >
                         <Image
-                          src="/images/payment/applepay.png"
-                          alt="Apple Pay"
-                          width={40}
-                          height={40}
-                          className={`h-6 w-6 sm:h-8 sm:w-8 mr-1.5 sm:mr-2 ${
-                            !paymentAvailability.applePay ||
-                            checkingAvailability
-                              ? "opacity-50"
-                              : ""
-                          }`}
+                          src="/assets/partners/logo_wave_.webp"
+                          alt="Wave"
+                          width={52}
+                          height={52}
+                          className="h-6 w-6 sm:h-8 sm:w-8 mr-1.5 sm:mr-2"
                         />
                         <span className="text-[10px] sm:text-xs font-medium">
-                          {directPaymentLoading.applePay ? "..." : "Apple Pay"}
+                          Wave
                         </span>
                       </button>
                     </QuickTooltip>
 
-                    {/* Google Pay Button */}
+                    {/* Orange Money Button */}
                     <QuickTooltip
-                      content={
-                        checkingAvailability
-                          ? "Vérification de la disponibilité de Google Pay..."
-                          : !paymentAvailability.googlePay
-                            ? "Google Pay non disponible sur cet appareil"
-                            : directPaymentLoading.googlePay
-                              ? "Traitement Google Pay en cours..."
-                              : "Payer en un clic avec Google Pay"
-                      }
+                      content="Orange Money : Bientôt disponible sur Vynal"
                       side="top"
                       variant="default"
-                      delayDuration={100}
+                      delayDuration={150}
                       className="bg-slate-100/90 dark:bg-slate-800/90
                         border border-slate-200 dark:border-slate-700/30
                         text-slate-700 dark:text-vynal-text-primary
@@ -1672,66 +1446,32 @@ export default function UnifiedCheckoutPage({
                         rounded-lg"
                     >
                       <button
-                        onClick={() => {
-                          if (
-                            paymentAvailability.googlePay &&
-                            !checkingAvailability
-                          ) {
-                            handleDirectGooglePay();
-                          }
-                        }}
-                        disabled={
-                          !paymentAvailability.googlePay ||
-                          checkingAvailability ||
-                          directPaymentLoading.googlePay
-                        }
-                        className={`py-2.5 sm:py-3 px-3 sm:px-4 rounded-md flex items-center justify-center transition-all ${
-                          paymentAvailability.googlePay && !checkingAvailability
-                            ? "bg-pink-200/80 hover:bg-pink-200/80 dark:bg-pink-900/25 dark:hover:bg-pink-800/40 text-pink-700 dark:text-pink-300 cursor-pointer border border-pink-200/50 dark:border-pink-700/30"
-                            : "bg-slate-100/30 dark:bg-slate-800/30 text-slate-400 dark:text-vynal-text-secondary/50 cursor-not-allowed opacity-50"
+                        onClick={() => handleMethodSelect("orange-money")}
+                        className={`py-2.5 sm:py-3 px-3 sm:px-4 rounded-md flex items-center justify-center transition-all border ${
+                          orderData.selectedPaymentMethod === "orange-money"
+                            ? "bg-gradient-to-r from-orange-400 to-vynal-accent-secondary dark:from-orange-500 dark:to-vynal-accent-primary text-white border-orange-400 dark:border-orange-500 shadow-lg"
+                            : "bg-slate-200/60 hover:bg-slate-100 dark:bg-slate-800/25 dark:hover:bg-slate-800/40 text-slate-700 dark:text-vynal-text-secondary border-slate-200/50 dark:border-slate-700/30"
                         }`}
-                        title={
-                          checkingAvailability
-                            ? "Vérification de la disponibilité..."
-                            : !paymentAvailability.googlePay
-                              ? "Google Pay non disponible sur cet appareil"
-                              : "Payer avec Google Pay"
-                        }
                       >
                         <Image
-                          src="/images/payment/googlepaylogo.png"
-                          alt="Google Pay"
+                          src="/images/payment/orangemoney.png"
+                          alt="Orange Money"
                           width={40}
                           height={40}
-                          className={`h-6 w-6 sm:h-8 sm:w-8 mr-1.5 sm:mr-2 ${
-                            !paymentAvailability.googlePay ||
-                            checkingAvailability
-                              ? "opacity-50"
-                              : ""
-                          }`}
+                          className="h-6 w-6 sm:h-8 sm:w-8 mr-1.5 sm:mr-2"
                         />
                         <span className="text-[10px] sm:text-xs font-medium">
-                          {directPaymentLoading.googlePay
-                            ? "..."
-                            : "Google Pay"}
+                          Orange
                         </span>
                       </button>
                     </QuickTooltip>
 
-                    {/* Link Button */}
+                    {/* PayPal Button */}
                     <QuickTooltip
-                      content={
-                        checkingAvailability
-                          ? "Vérification de la disponibilité de Stripe Link..."
-                          : !paymentAvailability.link
-                            ? "Stripe Link non disponible"
-                            : directPaymentLoading.link
-                              ? "Traitement Stripe Link en cours..."
-                              : "Payer rapidement avec Stripe Link"
-                      }
+                      content="Paiement sécurisé PayPal avec conversion automatique"
                       side="top"
                       variant="default"
-                      delayDuration={100}
+                      delayDuration={150}
                       className="bg-slate-100/90 dark:bg-slate-800/90
                         border border-slate-200 dark:border-slate-700/30
                         text-slate-700 dark:text-vynal-text-primary
@@ -1739,458 +1479,821 @@ export default function UnifiedCheckoutPage({
                         rounded-lg"
                     >
                       <button
-                        onClick={() => {
-                          if (
-                            paymentAvailability.link &&
-                            !checkingAvailability
-                          ) {
-                            handleDirectLink();
-                          }
-                        }}
-                        disabled={
-                          !paymentAvailability.link ||
-                          checkingAvailability ||
-                          directPaymentLoading.link
-                        }
-                        className={`py-2.5 sm:py-3 px-3 sm:px-4 rounded-md flex items-center justify-center transition-all ${
-                          paymentAvailability.link && !checkingAvailability
-                            ? "bg-pink-200/80 hover:bg-pink-200/80 dark:bg-pink-900/25 dark:hover:bg-pink-800/40 text-pink-700 dark:text-pink-300 cursor-pointer border border-pink-200/50 dark:border-pink-700/30"
-                            : "bg-slate-100/30 dark:bg-slate-800/30 text-slate-400 dark:text-vynal-text-secondary/50 cursor-not-allowed opacity-50"
+                        onClick={() => handleMethodSelect("paypal")}
+                        className={`py-2.5 sm:py-3 px-3 sm:px-4 rounded-md flex items-center justify-center transition-all border ${
+                          orderData.selectedPaymentMethod === "paypal"
+                            ? "bg-gradient-to-r from-blue-500 to-vynal-accent-secondary dark:from-blue-600 dark:to-vynal-accent-primary text-white border-blue-500 dark:border-blue-600 shadow-lg"
+                            : "bg-slate-200/60 hover:bg-slate-100 dark:bg-slate-800/25 dark:hover:bg-slate-800/40 text-slate-700 dark:text-vynal-text-secondary border-slate-200/50 dark:border-slate-700/30"
                         }`}
-                        title={
-                          checkingAvailability
-                            ? "Vérification de la disponibilité..."
-                            : !paymentAvailability.link
-                              ? "Stripe Link non disponible"
-                              : "Payer avec Stripe Link"
-                        }
                       >
                         <Image
-                          src="/images/payment/linklogo.png"
-                          alt="Stripe Link"
-                          width={40}
-                          height={40}
-                          className={`h-6 w-6 sm:h-8 sm:w-8 mr-1.5 sm:mr-2 ${
-                            !paymentAvailability.link || checkingAvailability
-                              ? "opacity-50"
-                              : ""
-                          }`}
+                          src="/images/payment/paypallogo.png"
+                          alt="PayPal"
+                          width={32}
+                          height={32}
+                          className="h-6 w-6 sm:h-8 sm:w-8 mr-1.5 sm:mr-2"
                         />
                         <span className="text-[10px] sm:text-xs font-medium">
-                          {directPaymentLoading.link ? "..." : "Link"}
+                          PayPal
                         </span>
                       </button>
                     </QuickTooltip>
                   </div>
-                </div>
 
-                {/* Or separator */}
-                <div className="relative flex items-center py-3 sm:py-4 mt-1 sm:mt-2">
-                  <div className="flex-grow border-t border-slate-200 dark:border-slate-700/20"></div>
-                  <span className="flex-shrink mx-2 sm:mx-3 text-[8px] sm:text-[9px] text-slate-400 dark:text-vynal-text-secondary">
-                    Ou payer par carte
-                  </span>
-                  <div className="flex-grow border-t border-slate-200 dark:border-slate-700/20"></div>
-                </div>
-
-                {/* Card payment section - collapsible */}
-                <div
-                  onClick={(e) => {
-                    if (
-                      e.target === e.currentTarget ||
-                      e.target === e.currentTarget.firstElementChild
-                    ) {
-                      handleMethodSelect("card");
-                    }
-                  }}
-                  className={`border rounded-md overflow-hidden cursor-pointer transition-all hover:border-vynal-accent-secondary/50 dark:hover:border-vynal-accent-primary/50 hover:shadow-md ${
-                    orderData.selectedPaymentMethod === "card"
-                      ? "border-vynal-accent-secondary dark:border-vynal-accent-primary shadow-lg ring-2 ring-vynal-accent-secondary/20 dark:ring-vynal-accent-primary/20"
-                      : "border-slate-200 dark:border-slate-700/20"
-                  }`}
-                >
-                  <div
-                    className={`p-2.5 sm:p-3 flex items-center justify-between ${
-                      orderData.selectedPaymentMethod === "card"
-                        ? "bg-gradient-to-r from-vynal-accent-secondary/15 to-purple-500/10 dark:from-vynal-accent-primary/15 dark:to-purple-600/10 border-vynal-accent-secondary/30 dark:border-vynal-accent-primary/30"
-                        : "bg-slate-200/60 dark:bg-slate-800/25"
-                    }`}
-                  >
-                    <div className="flex items-center">
-                      <CreditCard className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2 text-vynal-accent-secondary dark:text-vynal-accent-primary" />
-                      <span className="text-[10px] sm:text-xs font-medium text-slate-800 dark:text-vynal-text-primary">
-                        Carte bancaire
-                      </span>
-                    </div>
-                    <div className="flex items-center">
-                      <QuickTooltip
-                        content="Paiement par carte Visa accepté"
-                        side="top"
-                        variant="default"
-                        delayDuration={200}
-                        className="bg-slate-100/90 dark:bg-slate-800/90
-                          border border-slate-200 dark:border-slate-700/30
-                          text-slate-700 dark:text-vynal-text-primary
-                          shadow-sm backdrop-blur-sm
-                          rounded-lg"
-                      >
-                        <Image
-                          src="/images/payment/visalogo.png"
-                          alt="Visa"
-                          width={60}
-                          height={20}
-                          className="h-6 sm:h-7 opacity-80 object-contain"
-                        />
-                      </QuickTooltip>
-                      <QuickTooltip
-                        content="Paiement par carte Mastercard accepté"
-                        side="top"
-                        variant="default"
-                        delayDuration={200}
-                        className="bg-slate-100/90 dark:bg-slate-800/90
-                          border border-slate-200 dark:border-slate-700/30
-                          text-slate-700 dark:text-vynal-text-primary
-                          shadow-sm backdrop-blur-sm
-                          rounded-lg"
-                      >
-                        <Image
-                          src="/images/payment/mastercardlogo.png"
-                          alt="Mastercard"
-                          width={40}
-                          height={40}
-                          className="h-6 sm:h-7 opacity-80 object-contain ml-2"
-                        />
-                      </QuickTooltip>
-                      <QuickTooltip
-                        content="Paiement par carte American Express accepté"
-                        side="top"
-                        variant="default"
-                        delayDuration={200}
-                        className="bg-slate-100/90 dark:bg-slate-800/90
-                          border border-slate-200 dark:border-slate-700/30
-                          text-slate-700 dark:text-vynal-text-primary
-                          shadow-sm backdrop-blur-sm
-                          rounded-lg"
-                      >
-                        <Image
-                          src="/images/payment/americanexpresslogo.png"
-                          alt="American Express"
-                          width={54}
-                          height={28}
-                          className="h-5 sm:h-5 opacity-80 object-contain ml-2"
-                        />
-                      </QuickTooltip>
-                    </div>
-                  </div>
-
-                  {/* Card form - expanded only when selected */}
-                  {orderData.selectedPaymentMethod === "card" && (
+                  {/* Wave form */}
+                  {orderData.selectedPaymentMethod === "wave" && (
                     <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: "auto" }}
-                      transition={{ duration: 0.3 }}
-                      className="border-t border-slate-200 dark:border-slate-700/20 p-4"
-                      onClick={(e) => e.stopPropagation()} // Empêche la propagation du clic aux éléments parents
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="mt-3 sm:mt-4 p-3 sm:p-4 bg-white/20 dark:bg-slate-800/25 rounded-md border border-slate-200 dark:border-slate-700/15"
                     >
-                      <div className="space-y-4">
-                        {/* Email */}
-                        <div>
-                          <label
-                            htmlFor="email"
-                            className="text-[9px] sm:text-[10px] text-slate-600 dark:text-vynal-text-secondary block mb-1"
-                          >
-                            E-mail
-                          </label>
-                          <Input
-                            id="email"
-                            type="email"
-                            placeholder="email@exemple.com"
-                            className="h-10 text-xs sm:text-sm bg-white/40 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700/15 rounded-md"
-                            value={user?.email || ""}
-                            disabled
-                          />
-                        </div>
+                      <div className="flex items-center mb-2 sm:mb-3">
+                        <Image
+                          src="/assets/partners/logo_wave_.webp"
+                          alt="Wave"
+                          width={20}
+                          height={20}
+                          className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2"
+                        />
+                        <h3 className="text-[10px] sm:text-xs font-medium text-slate-800 dark:text-vynal-text-primary">
+                          Wave
+                        </h3>
+                      </div>
 
-                        {/* Stripe Card Element */}
-                        <StripeElementsProvider
-                          clientSecret={paymentData?.clientSecret}
-                          enableApplePay={false}
+                      <div>
+                        <label
+                          htmlFor="wave-number"
+                          className="text-[9px] sm:text-[10px] text-slate-600 dark:text-vynal-text-secondary block mb-1"
                         >
-                          <div className="space-y-4">
-                            {/* Formulaire de carte Stripe */}
-                            <StripeCardForm
-                              amount={service?.price || 0}
-                              clientSecret={paymentData?.clientSecret || ""}
-                              onSuccess={handleStripePaymentSuccess}
-                              onError={handleStripePaymentError}
-                              loading={stripeLoading}
-                              buttonText={`Payer ${formatPrice(service?.price || 0)}`}
-                              hideButton={true}
-                              serviceId={serviceId}
-                            />
-                          </div>
-                        </StripeElementsProvider>
-
-                        {stripeError && (
-                          <div className="text-red-500 text-xs mt-2">
-                            {stripeError}
-                          </div>
-                        )}
+                          Numéro de téléphone
+                        </label>
+                        <Input
+                          id="wave-number"
+                          type="tel"
+                          placeholder="77 123 45 67"
+                          value={mobileNumber}
+                          onChange={(e) => setMobileNumber(e.target.value)}
+                          className="h-9 sm:h-10 text-[10px] sm:text-sm bg-white/40 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700/15 rounded-md opacity-50 cursor-not-allowed"
+                          disabled
+                        />
+                        <p className="mt-1.5 sm:mt-2 text-[11px] sm:text-sm text-amber-600 dark:text-amber-500">
+                          Le paiement par Wave sera disponible prochainement.
+                        </p>
                       </div>
                     </motion.div>
                   )}
-                </div>
 
-                {/* Bouton pour ouvrir la modale de description */}
-                <div className="mt-4 border-t border-slate-200 dark:border-slate-700/20 pt-4">
-                  <QuickTooltip
-                    content="Décrivez précisément votre besoin pour un meilleur résultat"
-                    side="top"
-                    variant="default"
-                    delayDuration={200}
-                    className="bg-slate-100/90 dark:bg-slate-800/90
-                      border border-slate-200 dark:border-slate-700/30
-                      text-slate-700 dark:text-vynal-text-primary
-                      shadow-sm backdrop-blur-sm
-                      rounded-lg"
-                  >
-                    <button
-                      type="button"
-                      onClick={openDescriptionModal}
-                      className="flex items-center justify-between w-full p-2.5 sm:p-3 bg-slate-200/60 dark:bg-slate-800/25 border border-slate-200 dark:border-slate-700/15 rounded-lg text-left hover:bg-slate-100 dark:hover:bg-slate-800/40 transition-all duration-200 hover:border-vynal-accent-secondary/50 dark:hover:border-vynal-accent-primary/50 hover:shadow-md"
+                  {/* Orange Money form */}
+                  {orderData.selectedPaymentMethod === "orange-money" && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="mt-3 sm:mt-4 p-3 sm:p-4 bg-white/20 dark:bg-slate-800/25 rounded-md border border-slate-200 dark:border-slate-700/15"
                     >
-                      <div className="flex items-center">
-                        <div className="flex items-center">
-                          <FileCheck className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2 text-vynal-accent-secondary dark:text-vynal-accent-primary" />
-                          <div>
-                            <h3 className="text-[10px] sm:text-xs text-slate-800 dark:text-vynal-text-primary line-clamp-2">
-                              Description de votre besoin
-                            </h3>
-                            <p className="text-[9px] text-slate-500 dark:text-vynal-text-secondary mt-0.5 line-clamp-1">
-                              {orderData.requirements
-                                ? orderData.requirements.substring(0, 60) +
-                                  (orderData.requirements.length > 60
-                                    ? "..."
-                                    : "")
-                                : "Cliquez pour ajouter une description... (facultatif)"}
-                            </p>
-                          </div>
-                        </div>
+                      <div className="flex items-center mb-2 sm:mb-3">
+                        <Image
+                          src="/images/payment/orangemoney.png"
+                          alt="Orange Money"
+                          width={40}
+                          height={40}
+                          className="h-6 w-6 sm:h-8 sm:w-8 mr-1.5 sm:mr-2"
+                        />
+                        <h3 className="text-[10px] sm:text-xs font-medium text-slate-800 dark:text-vynal-text-primary">
+                          Orange Money
+                        </h3>
                       </div>
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-5 w-5 text-slate-400 dark:text-vynal-text-secondary"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                        />
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                        />
-                      </svg>
-                    </button>
-                  </QuickTooltip>
-                </div>
 
-                {/* Bouton de paiement unifié - Affiché pour toutes les méthodes de paiement SAUF Apple Pay, Google Pay et Link */}
-                {orderData.selectedPaymentMethod &&
-                  !["apple-pay", "google-pay", "link"].includes(
-                    orderData.selectedPaymentMethod,
-                  ) && (
-                    <button
-                      onClick={(e) => {
-                        // Si c'est le mode carte et pas le mode test, soumettre le formulaire Stripe
-                        if (
-                          orderData.selectedPaymentMethod === "card" &&
-                          !orderData.isTestMode
-                        ) {
-                          e.preventDefault();
-                          console.log(
-                            "Tentative de soumission du formulaire Stripe via méthode globale",
-                          );
-
-                          // Utiliser la fonction globale si disponible
-                          if (
-                            window.submitStripeForm &&
-                            typeof window.submitStripeForm === "function"
-                          ) {
-                            console.log(
-                              "Fonction submitStripeForm trouvée, appel",
-                            );
-                            window.submitStripeForm();
-                          } else {
-                            console.log(
-                              "Fonction submitStripeForm non disponible, méthode de secours",
-                            );
-                            const form = document.getElementById(
-                              "stripe-payment-form",
-                            ) as HTMLFormElement;
-                            if (form) {
-                              try {
-                                // Tenter de cliquer sur le bouton caché
-                                const hiddenSubmitButton =
-                                  document.getElementById(
-                                    "stripe-hidden-submit",
-                                  );
-                                if (hiddenSubmitButton) {
-                                  console.log(
-                                    "Bouton caché trouvé, déclenchement du clic",
-                                  );
-                                  (
-                                    hiddenSubmitButton as HTMLButtonElement
-                                  ).click();
-                                } else {
-                                  // Fallback - tenter de déclencher l'événement submit directement
-                                  console.log(
-                                    "Bouton caché non trouvé, utilisation de dispatchEvent",
-                                  );
-                                  form.dispatchEvent(
-                                    new Event("submit", {
-                                      bubbles: true,
-                                      cancelable: true,
-                                    }),
-                                  );
-                                }
-                              } catch (error) {
-                                console.error(
-                                  "Erreur lors de la soumission du formulaire",
-                                  error,
-                                );
-                              }
-                            } else {
-                              console.error("Formulaire Stripe non trouvé");
-                            }
-                          }
-                        } else {
-                          // Sinon, utiliser le flux standard
-                          handlePlaceOrder();
-                        }
-                      }}
-                      disabled={
-                        isSubmitting ||
-                        !orderData.selectedPaymentMethod ||
-                        (orderData.selectedPaymentMethod === "card" &&
-                          !orderData.isTestMode &&
-                          !paymentData?.clientSecret)
-                      }
-                      className="w-full h-11 mt-3 bg-vynal-accent-secondary hover:bg-vynal-accent-primary dark:bg-vynal-accent-primary dark:hover:bg-vynal-accent-secondary disabled:opacity-50 disabled:cursor-not-allowed transition-all text-white dark:text-vynal-text-primary font-medium rounded-md text-base sm:text-lg border border-transparent hover:border-vynal-accent-primary/50 dark:hover:border-vynal-accent-secondary/50 hover:shadow-md"
-                    >
-                      {isSubmitting ? (
-                        <span className="flex items-center justify-center">
-                          <svg
-                            className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                          >
-                            <circle
-                              className="opacity-25"
-                              cx="12"
-                              cy="12"
-                              r="10"
-                              stroke="currentColor"
-                              strokeWidth="4"
-                            ></circle>
-                            <path
-                              className="opacity-75"
-                              fill="currentColor"
-                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                            ></path>
-                          </svg>
-                          Traitement en cours...
-                        </span>
-                      ) : (
-                        `Payer ${formatPrice(service?.price || 0)}`
-                      )}
-                    </button>
+                      <div>
+                        <label
+                          htmlFor="orange-number"
+                          className="text-[9px] sm:text-[10px] text-slate-600 dark:text-vynal-text-secondary block mb-1"
+                        >
+                          Numéro de téléphone
+                        </label>
+                        <Input
+                          id="orange-number"
+                          type="tel"
+                          placeholder="77 123 45 67"
+                          value={mobileNumber}
+                          onChange={(e) => setMobileNumber(e.target.value)}
+                          className="h-9 sm:h-10 text-[10px] sm:text-sm bg-white/40 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700/15 rounded-md opacity-50 cursor-not-allowed"
+                          disabled
+                        />
+                        <p className="mt-1.5 sm:mt-2 text-[11px] sm:text-sm text-amber-600 dark:text-amber-500">
+                          Le paiement par Orange Money sera disponible
+                          prochainement.
+                        </p>
+                      </div>
+                    </motion.div>
                   )}
 
-                {/* Stripe logo */}
-                <div className="flex items-center justify-center mt-4 space-x-1">
-                  <span className="text-[7px] sm:text-[8px] text-slate-400 dark:text-vynal-text-secondary">
-                    Propulsé par
-                  </span>
-                  <Image
-                    src="/assets/partners/logo_stripe.webp"
-                    alt="Stripe"
-                    width={40}
-                    height={16}
-                    className="h-4 opacity-60"
-                  />
-                </div>
+                  {/* PayPal form */}
+                  {orderData.selectedPaymentMethod === "paypal" && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3 }}
+                      className="mt-4"
+                    >
+                      <div className="space-y-3">
+                        {/* PayPal Buttons */}
+                        <PayPalButtonsForm
+                          amount={service?.price || 0}
+                          serviceId={serviceId}
+                          onSuccess={handlePayPalPaymentSuccess}
+                          onError={handlePayPalPaymentError}
+                          loading={false}
+                        />
+                      </div>
+                    </motion.div>
+                  )}
 
-                {/* Logos des méthodes de paiement acceptées */}
-                <div className="flex items-center justify-center mt-2 space-x-2">
-                  <Image
-                    src="/images/payment/visalogo.png"
-                    alt="Visa"
-                    width={60}
-                    height={20}
-                    className="h-6 sm:h-7 opacity-80 object-contain"
-                  />
-                  <Image
-                    src="/images/payment/mastercardlogo.png"
-                    alt="Mastercard"
-                    width={40}
-                    height={40}
-                    className="h-6 sm:h-7 opacity-80 object-contain ml-2"
-                  />
-                  <Image
-                    src="/images/payment/americanexpresslogo.png"
-                    alt="American Express"
-                    width={54}
-                    height={28}
-                    className="h-5 sm:h-5 opacity-80 object-contain ml-2"
-                  />
-                  <Image
-                    src="/images/payment/applepay.png"
-                    alt="Apple Pay"
-                    width={48}
-                    height={24}
-                    className="h-7 object-contain opacity-80"
-                  />
-                  <Image
-                    src="/images/payment/googlepaylogo.png"
-                    alt="Google Pay"
-                    width={48}
-                    height={24}
-                    className="h-7 object-contain opacity-80"
-                  />
-                  <Image
-                    src="/images/payment/linklogo.png"
-                    alt="Stripe Link"
-                    width={48}
-                    height={24}
-                    className="h-7 object-contain opacity-80"
-                  />
-                </div>
+                  {/* Section Apple Pay, Google Pay et Link - affichage automatique */}
+                  <div className="mt-4">
+                    <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                      {/* Apple Pay Button */}
+                      <QuickTooltip
+                        content={
+                          checkingAvailability
+                            ? "Vérification de la disponibilité d'Apple Pay..."
+                            : !paymentAvailability.applePay
+                              ? "Apple Pay non disponible sur cet appareil"
+                              : directPaymentLoading.applePay
+                                ? "Traitement Apple Pay en cours..."
+                                : "Payer en un clic avec Apple Pay"
+                        }
+                        side="top"
+                        variant="default"
+                        delayDuration={100}
+                        className="bg-slate-100/90 dark:bg-slate-800/90
+                          border border-slate-200 dark:border-slate-700/30
+                          text-slate-700 dark:text-vynal-text-primary
+                          shadow-sm backdrop-blur-sm
+                          rounded-lg"
+                      >
+                        <button
+                          onClick={() => {
+                            if (
+                              paymentAvailability.applePay &&
+                              !checkingAvailability
+                            ) {
+                              handleDirectApplePay();
+                            }
+                          }}
+                          disabled={
+                            !paymentAvailability.applePay ||
+                            checkingAvailability ||
+                            directPaymentLoading.applePay
+                          }
+                          className={`py-2.5 sm:py-3 px-3 sm:px-4 rounded-md flex items-center justify-center transition-all ${
+                            paymentAvailability.applePay &&
+                            !checkingAvailability
+                              ? "bg-pink-200/80 hover:bg-pink-200/80 dark:bg-pink-900/25 dark:hover:bg-pink-800/40 text-pink-700 dark:text-pink-300 cursor-pointer border border-pink-200/50 dark:border-pink-700/30"
+                              : "bg-slate-100/30 dark:bg-slate-800/30 text-slate-400 dark:text-vynal-text-secondary/50 cursor-not-allowed opacity-50"
+                          }`}
+                          title={
+                            checkingAvailability
+                              ? "Vérification de la disponibilité..."
+                              : !paymentAvailability.applePay
+                                ? "Apple Pay non disponible sur cet appareil"
+                                : "Payer avec Apple Pay"
+                          }
+                        >
+                          <Image
+                            src="/images/payment/applepay.png"
+                            alt="Apple Pay"
+                            width={40}
+                            height={40}
+                            className={`h-6 w-6 sm:h-8 sm:w-8 mr-1.5 sm:mr-2 ${
+                              !paymentAvailability.applePay ||
+                              checkingAvailability
+                                ? "opacity-50"
+                                : ""
+                            }`}
+                          />
+                          <span className="text-[10px] sm:text-xs font-medium">
+                            {directPaymentLoading.applePay
+                              ? "..."
+                              : "Apple Pay"}
+                          </span>
+                        </button>
+                      </QuickTooltip>
 
-                {/* Terms and conditions */}
-                <p className="text-[7px] sm:text-[8px] text-center text-slate-500 dark:text-vynal-text-secondary mt-3">
-                  En finalisant votre commande, vous acceptez nos{" "}
-                  <Link
-                    href="/terms-of-service"
-                    className="text-vynal-accent-secondary dark:text-vynal-accent-primary hover:underline"
+                      {/* Google Pay Button */}
+                      <QuickTooltip
+                        content={
+                          checkingAvailability
+                            ? "Vérification de la disponibilité de Google Pay..."
+                            : !paymentAvailability.googlePay
+                              ? "Google Pay non disponible sur cet appareil"
+                              : directPaymentLoading.googlePay
+                                ? "Traitement Google Pay en cours..."
+                                : "Payer en un clic avec Google Pay"
+                        }
+                        side="top"
+                        variant="default"
+                        delayDuration={100}
+                        className="bg-slate-100/90 dark:bg-slate-800/90
+                          border border-slate-200 dark:border-slate-700/30
+                          text-slate-700 dark:text-vynal-text-primary
+                          shadow-sm backdrop-blur-sm
+                          rounded-lg"
+                      >
+                        <button
+                          onClick={() => {
+                            if (
+                              paymentAvailability.googlePay &&
+                              !checkingAvailability
+                            ) {
+                              handleDirectGooglePay();
+                            }
+                          }}
+                          disabled={
+                            !paymentAvailability.googlePay ||
+                            checkingAvailability ||
+                            directPaymentLoading.googlePay
+                          }
+                          className={`py-2.5 sm:py-3 px-3 sm:px-4 rounded-md flex items-center justify-center transition-all ${
+                            paymentAvailability.googlePay &&
+                            !checkingAvailability
+                              ? "bg-pink-200/80 hover:bg-pink-200/80 dark:bg-pink-900/25 dark:hover:bg-pink-800/40 text-pink-700 dark:text-pink-300 cursor-pointer border border-pink-200/50 dark:border-pink-700/30"
+                              : "bg-slate-100/30 dark:bg-slate-800/30 text-slate-400 dark:text-vynal-text-secondary/50 cursor-not-allowed opacity-50"
+                          }`}
+                          title={
+                            checkingAvailability
+                              ? "Vérification de la disponibilité..."
+                              : !paymentAvailability.googlePay
+                                ? "Google Pay non disponible sur cet appareil"
+                                : "Payer avec Google Pay"
+                          }
+                        >
+                          <Image
+                            src="/images/payment/googlepaylogo.png"
+                            alt="Google Pay"
+                            width={40}
+                            height={40}
+                            className={`h-6 w-6 sm:h-8 sm:w-8 mr-1.5 sm:mr-2 ${
+                              !paymentAvailability.googlePay ||
+                              checkingAvailability
+                                ? "opacity-50"
+                                : ""
+                            }`}
+                          />
+                          <span className="text-[10px] sm:text-xs font-medium">
+                            {directPaymentLoading.googlePay
+                              ? "..."
+                              : "Google Pay"}
+                          </span>
+                        </button>
+                      </QuickTooltip>
+
+                      {/* Link Button */}
+                      <QuickTooltip
+                        content={
+                          checkingAvailability
+                            ? "Vérification de la disponibilité de Stripe Link..."
+                            : !paymentAvailability.link
+                              ? "Stripe Link non disponible"
+                              : directPaymentLoading.link
+                                ? "Traitement Stripe Link en cours..."
+                                : "Payer rapidement avec Stripe Link"
+                        }
+                        side="top"
+                        variant="default"
+                        delayDuration={100}
+                        className="bg-slate-100/90 dark:bg-slate-800/90
+                          border border-slate-200 dark:border-slate-700/30
+                          text-slate-700 dark:text-vynal-text-primary
+                          shadow-sm backdrop-blur-sm
+                          rounded-lg"
+                      >
+                        <button
+                          onClick={() => {
+                            if (
+                              paymentAvailability.link &&
+                              !checkingAvailability
+                            ) {
+                              handleDirectLink();
+                            }
+                          }}
+                          disabled={
+                            !paymentAvailability.link ||
+                            checkingAvailability ||
+                            directPaymentLoading.link
+                          }
+                          className={`py-2.5 sm:py-3 px-3 sm:px-4 rounded-md flex items-center justify-center transition-all ${
+                            paymentAvailability.link && !checkingAvailability
+                              ? "bg-pink-200/80 hover:bg-pink-200/80 dark:bg-pink-900/25 dark:hover:bg-pink-800/40 text-pink-700 dark:text-pink-300 cursor-pointer border border-pink-200/50 dark:border-pink-700/30"
+                              : "bg-slate-100/30 dark:bg-slate-800/30 text-slate-400 dark:text-vynal-text-secondary/50 cursor-not-allowed opacity-50"
+                          }`}
+                          title={
+                            checkingAvailability
+                              ? "Vérification de la disponibilité..."
+                              : !paymentAvailability.link
+                                ? "Stripe Link non disponible"
+                                : "Payer avec Stripe Link"
+                          }
+                        >
+                          <Image
+                            src="/images/payment/linklogo.png"
+                            alt="Stripe Link"
+                            width={40}
+                            height={40}
+                            className={`h-6 w-6 sm:h-8 sm:w-8 mr-1.5 sm:mr-2 ${
+                              !paymentAvailability.link || checkingAvailability
+                                ? "opacity-50"
+                                : ""
+                            }`}
+                          />
+                          <span className="text-[10px] sm:text-xs font-medium">
+                            {directPaymentLoading.link ? "..." : "Link"}
+                          </span>
+                        </button>
+                      </QuickTooltip>
+                    </div>
+                  </div>
+
+                  {/* Or separator */}
+                  <div className="relative flex items-center py-3 sm:py-4 mt-1 sm:mt-2">
+                    <div className="flex-grow border-t border-slate-200 dark:border-slate-700/20"></div>
+                    <span className="flex-shrink mx-2 sm:mx-3 text-[8px] sm:text-[9px] text-slate-400 dark:text-vynal-text-secondary">
+                      Ou payer par carte
+                    </span>
+                    <div className="flex-grow border-t border-slate-200 dark:border-slate-700/20"></div>
+                  </div>
+
+                  {/* Card payment section - collapsible */}
+                  <div
+                    onClick={(e) => {
+                      if (
+                        e.target === e.currentTarget ||
+                        e.target === e.currentTarget.firstElementChild
+                      ) {
+                        handleMethodSelect("card");
+                      }
+                    }}
+                    className={`border rounded-md overflow-hidden cursor-pointer transition-all hover:border-vynal-accent-secondary/50 dark:hover:border-vynal-accent-primary/50 hover:shadow-md ${
+                      orderData.selectedPaymentMethod === "card"
+                        ? "border-vynal-accent-secondary dark:border-vynal-accent-primary shadow-lg ring-2 ring-vynal-accent-secondary/20 dark:ring-vynal-accent-primary/20"
+                        : "border-slate-200 dark:border-slate-700/20"
+                    }`}
                   >
-                    conditions générales
-                  </Link>{" "}
-                  et notre{" "}
-                  <Link
-                    href="/privacy-policy"
-                    className="text-vynal-accent-secondary dark:text-vynal-accent-primary hover:underline"
-                  >
-                    politique de confidentialité
-                  </Link>
-                </p>
+                    <div
+                      className={`p-2.5 sm:p-3 flex items-center justify-between ${
+                        orderData.selectedPaymentMethod === "card"
+                          ? "bg-gradient-to-r from-vynal-accent-secondary/15 to-purple-500/10 dark:from-vynal-accent-primary/15 dark:to-purple-600/10 border-vynal-accent-secondary/30 dark:border-vynal-accent-primary/30"
+                          : "bg-slate-200/60 dark:bg-slate-800/25"
+                      }`}
+                    >
+                      <div className="flex items-center">
+                        <CreditCard className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2 text-vynal-accent-secondary dark:text-vynal-accent-primary" />
+                        <span className="text-[10px] sm:text-xs font-medium text-slate-800 dark:text-vynal-text-primary">
+                          Carte bancaire
+                        </span>
+                      </div>
+                      <div className="flex items-center">
+                        <QuickTooltip
+                          content="Paiement par carte Visa accepté"
+                          side="top"
+                          variant="default"
+                          delayDuration={200}
+                          className="bg-slate-100/90 dark:bg-slate-800/90
+                            border border-slate-200 dark:border-slate-700/30
+                            text-slate-700 dark:text-vynal-text-primary
+                            shadow-sm backdrop-blur-sm
+                            rounded-lg"
+                        >
+                          <Image
+                            src="/images/payment/visalogo.png"
+                            alt="Visa"
+                            width={60}
+                            height={20}
+                            className="h-6 sm:h-7 opacity-80 object-contain"
+                          />
+                        </QuickTooltip>
+                        <QuickTooltip
+                          content="Paiement par carte Mastercard accepté"
+                          side="top"
+                          variant="default"
+                          delayDuration={200}
+                          className="bg-slate-100/90 dark:bg-slate-800/90
+                            border border-slate-200 dark:border-slate-700/30
+                            text-slate-700 dark:text-vynal-text-primary
+                            shadow-sm backdrop-blur-sm
+                            rounded-lg"
+                        >
+                          <Image
+                            src="/images/payment/mastercardlogo.png"
+                            alt="Mastercard"
+                            width={40}
+                            height={40}
+                            className="h-6 sm:h-7 opacity-80 object-contain ml-2"
+                          />
+                        </QuickTooltip>
+                        <QuickTooltip
+                          content="Paiement par carte American Express accepté"
+                          side="top"
+                          variant="default"
+                          delayDuration={200}
+                          className="bg-slate-100/90 dark:bg-slate-800/90
+                            border border-slate-200 dark:border-slate-700/30
+                            text-slate-700 dark:text-vynal-text-primary
+                            shadow-sm backdrop-blur-sm
+                            rounded-lg"
+                        >
+                          <Image
+                            src="/images/payment/americanexpresslogo.png"
+                            alt="American Express"
+                            width={54}
+                            height={28}
+                            className="h-5 sm:h-5 opacity-80 object-contain ml-2"
+                          />
+                        </QuickTooltip>
+                      </div>
+                    </div>
+
+                    {/* Card form - expanded only when selected */}
+                    {orderData.selectedPaymentMethod === "card" && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        transition={{ duration: 0.3 }}
+                        className="border-t border-slate-200 dark:border-slate-700/20 p-4"
+                        onClick={(e) => e.stopPropagation()} // Empêche la propagation du clic aux éléments parents
+                      >
+                        <div className="space-y-4">
+                          {/* Email */}
+                          <div>
+                            <label
+                              htmlFor="email"
+                              className="text-[9px] sm:text-[10px] text-slate-600 dark:text-vynal-text-secondary block mb-1"
+                            >
+                              E-mail
+                            </label>
+                            <Input
+                              id="email"
+                              type="email"
+                              placeholder="email@exemple.com"
+                              className="h-10 text-xs sm:text-sm bg-white/40 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700/15 rounded-md"
+                              value={user?.email || ""}
+                              disabled
+                            />
+                          </div>
+
+                          {/* Stripe Card Element */}
+                          <StripeElementsProvider
+                            clientSecret={paymentData?.clientSecret}
+                            enableApplePay={false}
+                          >
+                            <div className="space-y-4">
+                              {/* Formulaire de carte Stripe */}
+                              <StripeCardForm
+                                amount={service?.price || 0}
+                                clientSecret={paymentData?.clientSecret || ""}
+                                onSuccess={handleStripePaymentSuccess}
+                                onError={handleStripePaymentError}
+                                loading={stripeLoading}
+                                buttonText={`Payer ${formatPrice(service?.price || 0)}`}
+                                hideButton={true}
+                                serviceId={serviceId}
+                              />
+                            </div>
+                          </StripeElementsProvider>
+
+                          {stripeError && (
+                            <div className="text-red-500 text-xs mt-2">
+                              {stripeError}
+                            </div>
+                          )}
+                        </div>
+                      </motion.div>
+                    )}
+                  </div>
+
+                  {/* Bouton pour ouvrir la modale de description */}
+                  <div className="mt-4 border-t border-slate-200 dark:border-slate-700/20 pt-4">
+                    <QuickTooltip
+                      content="Décrivez précisément votre besoin pour un meilleur résultat"
+                      side="top"
+                      variant="default"
+                      delayDuration={200}
+                      className="bg-slate-100/90 dark:bg-slate-800/90
+                        border border-slate-200 dark:border-slate-700/30
+                        text-slate-700 dark:text-vynal-text-primary
+                        shadow-sm backdrop-blur-sm
+                        rounded-lg"
+                    >
+                      <button
+                        type="button"
+                        onClick={openDescriptionModal}
+                        className="flex items-center justify-between w-full p-2.5 sm:p-3 bg-slate-200/60 dark:bg-slate-800/25 border border-slate-200 dark:border-slate-700/15 rounded-lg text-left hover:bg-slate-100 dark:hover:bg-slate-800/40 transition-all duration-200 hover:border-vynal-accent-secondary/50 dark:hover:border-vynal-accent-primary/50 hover:shadow-md"
+                      >
+                        <div className="flex items-center">
+                          <div className="flex items-center">
+                            <FileCheck className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2 text-vynal-accent-secondary dark:text-vynal-accent-primary" />
+                            <div>
+                              <h3 className="text-[10px] sm:text-xs text-slate-800 dark:text-vynal-text-primary line-clamp-2">
+                                Description de votre besoin
+                              </h3>
+                              <p className="text-[9px] text-slate-500 dark:text-vynal-text-secondary mt-0.5 line-clamp-1">
+                                {orderData.requirements
+                                  ? orderData.requirements.substring(0, 60) +
+                                    (orderData.requirements.length > 60
+                                      ? "..."
+                                      : "")
+                                  : "Cliquez pour ajouter une description... (facultatif)"}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-5 w-5 text-slate-400 dark:text-vynal-text-secondary"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                          />
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                          />
+                        </svg>
+                      </button>
+                    </QuickTooltip>
+                  </div>
+
+                  {/* Bouton de paiement unifié - Affiché pour toutes les méthodes de paiement SAUF Apple Pay, Google Pay et Link */}
+                  {orderData.selectedPaymentMethod &&
+                    !["apple-pay", "google-pay", "link"].includes(
+                      orderData.selectedPaymentMethod,
+                    ) && (
+                      <button
+                        onClick={(e) => {
+                          // Si c'est le mode carte et pas le mode test, soumettre le formulaire Stripe
+                          if (
+                            orderData.selectedPaymentMethod === "card" &&
+                            !orderData.isTestMode
+                          ) {
+                            e.preventDefault();
+                            console.log(
+                              "Tentative de soumission du formulaire Stripe via méthode globale",
+                            );
+
+                            // Utiliser la fonction globale si disponible
+                            if (
+                              window.submitStripeForm &&
+                              typeof window.submitStripeForm === "function"
+                            ) {
+                              console.log(
+                                "Fonction submitStripeForm trouvée, appel",
+                              );
+
+                              // Gérer la soumission du formulaire Stripe via une IIFE async pour permettre await
+                              (async () => {
+                                try {
+                                  const { getStripe } = await import(
+                                    "@/lib/stripe/client"
+                                  );
+                                  const stripe = await getStripe();
+                                  if (!stripe) {
+                                    throw new Error(
+                                      "Impossible d'initialiser Stripe",
+                                    );
+                                  }
+
+                                  // S'assurer que nous avons un clientSecret
+                                  if (!paymentData?.clientSecret) {
+                                    throw new Error("Client secret manquant");
+                                  }
+
+                                  // Rechercher le formulaire Stripe et ajouter les attributs nécessaires
+                                  const form = document.getElementById(
+                                    "stripe-payment-form",
+                                  );
+                                  if (form) {
+                                    // Ajouter l'ID de commande si disponible
+                                    if (orderData.orderId) {
+                                      form.setAttribute(
+                                        "data-order-id",
+                                        orderData.orderId,
+                                      );
+                                    }
+
+                                    // Ajouter directement le client secret au formulaire
+                                    form.setAttribute(
+                                      "data-client-secret",
+                                      paymentData.clientSecret,
+                                    );
+                                    console.log(
+                                      "Client secret ajouté au formulaire",
+                                    );
+                                  } else {
+                                    throw new Error(
+                                      "Formulaire Stripe non trouvé",
+                                    );
+                                  }
+
+                                  // Appel à la fonction submitStripeForm
+                                  if (window.submitStripeForm) {
+                                    console.log(
+                                      "Appel de submitStripeForm avec les paramètres corrects",
+                                    );
+                                    await window.submitStripeForm(stripe, null);
+                                  } else {
+                                    throw new Error(
+                                      "Fonction submitStripeForm non disponible",
+                                    );
+                                  }
+                                } catch (error) {
+                                  console.error(
+                                    "Erreur lors de l'appel à submitStripeForm:",
+                                    error,
+                                  );
+                                  // Méthode de secours - ancien comportement
+                                  const form = document.getElementById(
+                                    "stripe-payment-form",
+                                  );
+                                  if (form)
+                                    form.dispatchEvent(
+                                      new Event("submit", { bubbles: true }),
+                                    );
+                                }
+                              })();
+                            } else {
+                              console.log(
+                                "Fonction submitStripeForm non disponible, méthode de secours",
+                              );
+                              const form = document.getElementById(
+                                "stripe-payment-form",
+                              ) as HTMLFormElement;
+                              if (form) {
+                                try {
+                                  // Tenter de cliquer sur le bouton caché
+                                  const hiddenSubmitButton =
+                                    document.getElementById(
+                                      "stripe-hidden-submit",
+                                    );
+                                  if (hiddenSubmitButton) {
+                                    console.log(
+                                      "Bouton caché trouvé, déclenchement du clic",
+                                    );
+                                    (
+                                      hiddenSubmitButton as HTMLButtonElement
+                                    ).click();
+                                  } else {
+                                    // Fallback - tenter de déclencher l'événement submit directement
+                                    console.log(
+                                      "Bouton caché non trouvé, utilisation de dispatchEvent",
+                                    );
+                                    form.dispatchEvent(
+                                      new Event("submit", {
+                                        bubbles: true,
+                                        cancelable: true,
+                                      }),
+                                    );
+                                  }
+                                } catch (error) {
+                                  console.error(
+                                    "Erreur lors de la soumission du formulaire",
+                                    error,
+                                  );
+                                }
+                              } else {
+                                console.error("Formulaire Stripe non trouvé");
+                              }
+                            }
+                          } else {
+                            // Sinon, utiliser le flux standard
+                            handlePlaceOrder();
+                          }
+                        }}
+                        disabled={
+                          isSubmitting ||
+                          !orderData.selectedPaymentMethod ||
+                          (orderData.selectedPaymentMethod === "card" &&
+                            !orderData.isTestMode &&
+                            !paymentData?.clientSecret)
+                        }
+                        className="w-full h-11 mt-3 bg-vynal-accent-secondary hover:bg-vynal-accent-primary dark:bg-vynal-accent-primary dark:hover:bg-vynal-accent-secondary disabled:opacity-50 disabled:cursor-not-allowed transition-all text-white dark:text-vynal-text-primary font-medium rounded-md text-base sm:text-lg border border-transparent hover:border-vynal-accent-primary/50 dark:hover:border-vynal-accent-secondary/50 hover:shadow-md"
+                      >
+                        {isSubmitting ? (
+                          <span className="flex items-center justify-center">
+                            <svg
+                              className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                              xmlns="http://www.w3.org/2000/svg"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                            >
+                              <circle
+                                className="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                strokeWidth="4"
+                              ></circle>
+                              <path
+                                className="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                              ></path>
+                            </svg>
+                            Traitement en cours...
+                          </span>
+                        ) : (
+                          `Payer ${formatPrice(service?.price || 0)}`
+                        )}
+                      </button>
+                    )}
+
+                  {/* Stripe logo */}
+                  <div className="flex items-center justify-center mt-4 space-x-1">
+                    <span className="text-[7px] sm:text-[8px] text-slate-400 dark:text-vynal-text-secondary">
+                      Propulsé par
+                    </span>
+                    <Image
+                      src="/assets/partners/logo_stripe.webp"
+                      alt="Stripe"
+                      width={40}
+                      height={16}
+                      className="h-4 opacity-60"
+                    />
+                  </div>
+
+                  {/* Logos des méthodes de paiement acceptées */}
+                  <div className="flex items-center justify-center mt-2 space-x-2">
+                    <Image
+                      src="/images/payment/visalogo.png"
+                      alt="Visa"
+                      width={60}
+                      height={20}
+                      className="h-6 sm:h-7 opacity-80 object-contain"
+                    />
+                    <Image
+                      src="/images/payment/mastercardlogo.png"
+                      alt="Mastercard"
+                      width={40}
+                      height={40}
+                      className="h-6 sm:h-7 opacity-80 object-contain ml-2"
+                    />
+                    <Image
+                      src="/images/payment/americanexpresslogo.png"
+                      alt="American Express"
+                      width={54}
+                      height={28}
+                      className="h-5 sm:h-5 opacity-80 object-contain ml-2"
+                    />
+                    <Image
+                      src="/images/payment/applepay.png"
+                      alt="Apple Pay"
+                      width={48}
+                      height={24}
+                      className="h-7 object-contain opacity-80"
+                    />
+                    <Image
+                      src="/images/payment/googlepaylogo.png"
+                      alt="Google Pay"
+                      width={48}
+                      height={24}
+                      className="h-7 object-contain opacity-80"
+                    />
+                    <Image
+                      src="/images/payment/linklogo.png"
+                      alt="Stripe Link"
+                      width={48}
+                      height={24}
+                      className="h-7 object-contain opacity-80"
+                    />
+                  </div>
+
+                  {/* Terms and conditions */}
+                  <p className="text-[7px] sm:text-[8px] text-center text-slate-500 dark:text-vynal-text-secondary mt-3">
+                    En finalisant votre commande, vous acceptez nos{" "}
+                    <Link
+                      href="/terms-of-service"
+                      className="text-vynal-accent-secondary dark:text-vynal-accent-primary hover:underline"
+                    >
+                      conditions générales
+                    </Link>{" "}
+                    et notre{" "}
+                    <Link
+                      href="/privacy-policy"
+                      className="text-vynal-accent-secondary dark:text-vynal-accent-primary hover:underline"
+                    >
+                      politique de confidentialité
+                    </Link>
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -2265,6 +2368,6 @@ export default function UnifiedCheckoutPage({
           </motion.div>
         </div>
       )}
-    </div>
+    </>
   );
 }
