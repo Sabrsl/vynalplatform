@@ -534,7 +534,7 @@ export default function UnifiedCheckoutPage({
         ...orderData,
         orderId: order.id,
         orderNumber: order.order_number,
-        testPaymentSuccess: false,
+        paymentSuccess: false,
         error: null,
       });
 
@@ -553,7 +553,7 @@ export default function UnifiedCheckoutPage({
       setOrderData({
         ...orderData,
         error: err instanceof Error ? err.message : "Une erreur est survenue",
-        testPaymentSuccess: false,
+        paymentSuccess: false,
       });
       setIsLoading(false);
       setIsSubmitting(false);
@@ -566,7 +566,7 @@ export default function UnifiedCheckoutPage({
     setOrderData({
       ...orderData,
       error: error.message || "Erreur lors du traitement du paiement",
-      testPaymentSuccess: false,
+      paymentSuccess: false,
     });
   };
 

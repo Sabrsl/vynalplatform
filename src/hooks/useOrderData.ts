@@ -18,6 +18,7 @@ interface OrderData {
   error?: string | null;
   paymentProcessing: boolean;
   paymentSuccess: boolean;
+  isTestMode?: boolean;
 }
 
 export function useOrderData(serviceId: string) {
@@ -41,6 +42,7 @@ export function useOrderData(serviceId: string) {
     },
     paymentProcessing: false,
     paymentSuccess: false,
+    isTestMode: false,
   });
 
   const supabase = createClientComponentClient();
