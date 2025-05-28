@@ -105,6 +105,18 @@ const CONTACT_EMAIL = "support@vynalplatform.com";
 // Liste des devises principales à afficher en priorité dans le footer
 const FOOTER_CURRENCIES = ["XOF", "EUR", "USD", "GBP", "MAD", "XAF"];
 
+// Liste des méthodes de paiement à afficher dans le footer
+const PAYMENT_METHODS = [
+  { name: "Visa", logo: "/images/payment/visalogo.png" },
+  { name: "Mastercard", logo: "/images/payment/mastercardlogo.png" },
+  { name: "American Express", logo: "/images/payment/americanexpresslogo.png" },
+  { name: "Apple Pay", logo: "/images/payment/applepay.png" },
+  { name: "Google Pay", logo: "/images/payment/googlepaylogo.png" },
+  { name: "PayPal", logo: "/images/payment/paypallogo.png" },
+  { name: "Orange Money", logo: "/images/payment/orangemoney.png" },
+  { name: "Wave", logo: "/assets/partners/logo_wave_.webp" },
+];
+
 // Composant pour les icônes sociales (mémorisé)
 const SocialIcons = memo(() => {
   return (
@@ -418,6 +430,35 @@ const CurrencySelector = memo(() => {
 
 CurrencySelector.displayName = "CurrencySelector";
 
+// Composant pour les méthodes de paiement (mémorisé)
+const PaymentMethods = memo(() => {
+  return (
+    <motion.div
+      className="mt-4 flex flex-wrap gap-3"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ delay: 0.2, duration: 0.5 }}
+    >
+      {PAYMENT_METHODS.map((method) => (
+        <div
+          key={method.name}
+          className="h-8 w-auto flex items-center justify-center"
+        >
+          <Image
+            src={method.logo}
+            alt={`Paiement par ${method.name}`}
+            className="h-6 w-auto object-contain opacity-80"
+            width={48}
+            height={24}
+          />
+        </div>
+      ))}
+    </motion.div>
+  );
+});
+
+PaymentMethods.displayName = "PaymentMethods";
+
 // Composant principal du footer
 function Footer() {
   const [mounted, setMounted] = useState(false);
@@ -486,6 +527,15 @@ function Footer() {
               <br />
               Des services de qualité à prix fixe.
             </p>
+
+            {/* Méthodes de paiement acceptées */}
+            <div className="mt-5 mb-3">
+              <p className="text-[10px] text-gray-400 dark:text-vynal-text-secondary">
+                Moyens de paiement acceptés:
+              </p>
+              <PaymentMethods />
+            </div>
+
             <SocialIcons />
           </motion.div>
 
