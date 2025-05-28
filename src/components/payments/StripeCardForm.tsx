@@ -226,6 +226,41 @@ function StripeCardFormContent({
         throw new Error("Élément de carte non disponible");
       }
 
+      // Vérifier l'état du PaymentIntent avant confirmation
+      try {
+        const paymentIntentStatus =
+          await stripe.retrievePaymentIntent(clientSecret);
+
+        // Si le paiement est déjà réussi ou en cours de traitement, informer l'utilisateur
+        if (
+          paymentIntentStatus.paymentIntent &&
+          (paymentIntentStatus.paymentIntent.status === "succeeded" ||
+            paymentIntentStatus.paymentIntent.status === "processing")
+        ) {
+          // Le paiement a déjà été effectué, on notifie le succès sans reconfirmer
+          const paymentData = {
+            ...paymentIntentStatus.paymentIntent,
+            serviceId, // Ajout du serviceId pour lier correctement le paiement au service
+            provider: "stripe",
+            amount: amountInEur, // Montant en EUR
+            originalAmount: normalizedAmount, // Montant original en XOF
+            originalCurrency: "XOF", // Devise originale toujours XOF
+            userCurrency: userCurrency.code, // Devise affichée à l'utilisateur
+            amountInUserCurrency: amountInUserCurrency, // Montant dans la devise de l'utilisateur
+            wasNormalized: wasNormalized, // Indique si une normalisation a été appliquée
+          };
+
+          onSuccess(paymentData);
+          return;
+        }
+      } catch (statusError) {
+        console.warn(
+          "Impossible de vérifier le statut du PaymentIntent:",
+          statusError,
+        );
+        // On continue avec la confirmation normale
+      }
+
       // Confirmation du paiement avec Stripe
       const result = await stripe.confirmCardPayment(clientSecret, {
         payment_method: {
@@ -237,6 +272,44 @@ function StripeCardFormContent({
 
       // Gestion des erreurs
       if (error) {
+        // Si erreur de type "payment_intent_unexpected_state", c'est que le paiement a déjà été traité
+        if (
+          error.type === "invalid_request_error" &&
+          error.code === "payment_intent_unexpected_state"
+        ) {
+          // Tenter de récupérer l'état actuel du PaymentIntent
+          try {
+            const paymentIntentStatus =
+              await stripe.retrievePaymentIntent(clientSecret);
+
+            if (
+              paymentIntentStatus.paymentIntent &&
+              paymentIntentStatus.paymentIntent.status === "succeeded"
+            ) {
+              // Le paiement a réussi mais l'API a retourné une erreur de confirmation
+              const paymentData = {
+                ...paymentIntentStatus.paymentIntent,
+                serviceId,
+                provider: "stripe",
+                amount: amountInEur,
+                originalAmount: normalizedAmount,
+                originalCurrency: "XOF",
+                userCurrency: userCurrency.code,
+                amountInUserCurrency: amountInUserCurrency,
+                wasNormalized: wasNormalized,
+              };
+
+              onSuccess(paymentData);
+              return;
+            }
+          } catch (retrieveError) {
+            console.error(
+              "Erreur lors de la récupération du PaymentIntent:",
+              retrieveError,
+            );
+          }
+        }
+
         setCardError(error.message || "Erreur lors du traitement du paiement");
         onError(error);
       } else if (paymentIntent) {

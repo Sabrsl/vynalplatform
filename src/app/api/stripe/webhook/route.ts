@@ -251,9 +251,9 @@ async function handlePaymentIntentSucceeded(paymentIntent: any) {
         .from("payments")
         .select("id, status, order_id")
         .eq("payment_intent_id", paymentIntent.id)
-        .maybeSingle();
+        .limit(1);
 
-    if (existingPaymentError && existingPaymentError.code !== "PGRST116") {
+    if (existingPaymentError) {
       console.error(
         "Erreur lors de la vérification du paiement existant:",
         existingPaymentError,
@@ -261,12 +261,15 @@ async function handlePaymentIntentSucceeded(paymentIntent: any) {
       return;
     }
 
-    let orderId = existingPayment?.order_id || existingOrderId;
+    let orderId =
+      existingPayment && existingPayment.length > 0
+        ? existingPayment[0].order_id
+        : existingOrderId;
     let orderNumber = "";
 
     // Si le paiement existe, mettre à jour son statut et la commande associée
-    if (existingPayment) {
-      if (existingPayment.status !== "paid") {
+    if (existingPayment && existingPayment.length > 0) {
+      if (existingPayment[0].status !== "paid") {
         // Mettre à jour le statut du paiement avec informations supplémentaires
         await supabase
           .from("payments")
@@ -286,7 +289,7 @@ async function handlePaymentIntentSucceeded(paymentIntent: any) {
             }),
             updated_at: new Date().toISOString(),
           })
-          .eq("id", existingPayment.id);
+          .eq("id", existingPayment[0].id);
 
         // Mettre à jour le statut de la commande si elle existe
         if (orderId) {

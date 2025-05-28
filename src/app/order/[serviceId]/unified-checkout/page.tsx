@@ -561,8 +561,37 @@ export default function UnifiedCheckoutPage({
     }
   };
 
-  const handleStripePaymentError = (error: any) => {
+  const handleStripePaymentError = async (error: any) => {
     console.error("Erreur de paiement Stripe:", error);
+
+    // Vérifier si c'est une erreur de statut inattendu (paiement déjà traité)
+    if (
+      error.type === "invalid_request_error" &&
+      error.code === "payment_intent_unexpected_state" &&
+      error.payment_intent
+    ) {
+      // Le paiement a probablement déjà été traité, vérifier son statut
+      if (error.payment_intent.status === "succeeded") {
+        console.log("Le paiement a réussi malgré l'erreur de statut");
+
+        // Construire un objet paymentIntent pour le traiter comme un succès
+        const paymentIntent = {
+          id: error.payment_intent.id,
+          serviceId: serviceId,
+          // Autres informations nécessaires
+          amount: service?.price || 0,
+          originalAmount: service?.price || 0,
+          originalCurrency: "XOF",
+          userCurrency: currency.code,
+        };
+
+        // Traiter comme un succès
+        await handleStripePaymentSuccess(paymentIntent);
+        return;
+      }
+    }
+
+    // Gestion normale des erreurs
     setOrderData({
       ...orderData,
       error: error.message || "Erreur lors du traitement du paiement",

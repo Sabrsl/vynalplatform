@@ -33,207 +33,74 @@ export function useStripePayment() {
    * Crée un PaymentIntent côté serveur
    */
   const createPaymentIntent = useCallback(
-    async ({
-      amount,
-      serviceId,
-      freelanceId,
-      metadata = {},
-      bypassAuth = false,
-    }: CreatePaymentIntentParams) => {
-      // Vérification de l'authentification
-      if (!user) {
-        setError("Vous devez être connecté pour effectuer un paiement");
-        return null;
-      }
-
-      // Mise à jour de l'état local
+    async (params: CreatePaymentIntentParams): Promise<PaymentResponse> => {
       setLoading(true);
       setError(null);
 
       try {
-        // Le montant reçu est déjà en XOF (pas de centimes pour XOF)
-        // Note: le serveur gèrera la conversion en EUR si nécessaire
-        // Tous les prix sont stockés en XOF dans la base de données
-        const amountInXof = amount; // Le montant est déjà en XOF (pas de centimes)
-        console.log(`Montant pour paiement: ${amount} XOF`);
-
-        // Journalisation de la tentative de paiement pour l'audit
-        try {
-          await logSecurityEvent({
-            type: "payment_attempt",
-            userId: user.id,
-            severity: "medium",
-            details: {
-              amount: amountInXof,
-              serviceId,
-            },
-          });
-        } catch (logError) {
-          console.warn("Erreur de journalisation, on continue", logError);
-          // On continue même si la journalisation échoue
+        // Vérifier si l'utilisateur est connecté
+        if (!params.bypassAuth && !user) {
+          throw new Error("Utilisateur non connecté");
         }
 
-        // Vérifier d'abord si le freelance_id existe pour ce service
-        let actualFreelanceId = freelanceId;
+        // Générer un identifiant idempotent pour éviter les créations multiples
+        const idempotencyKey = `payment_${params.serviceId}_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
 
-        if (!actualFreelanceId) {
-          const { data: serviceData, error: serviceError } = await supabase
-            .from("services")
-            .select("freelance_id")
-            .eq("id", serviceId)
-            .maybeSingle();
+        // Appel à l'API pour créer un PaymentIntent
+        const response = await fetch("/api/stripe/payment-intent", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Idempotency-Key": idempotencyKey,
+          },
+          body: JSON.stringify({
+            amount: params.amount,
+            serviceId: params.serviceId,
+            freelanceId: params.freelanceId,
+            metadata: params.metadata,
+          }),
+        });
 
-          if (serviceError && serviceError.code !== "PGRST116") {
-            console.error(
-              "Erreur lors de la récupération des données du service:",
-              serviceError,
-            );
-            throw new Error(
-              `Erreur récupération service: ${serviceError.message}`,
-            );
-          } else if (serviceData) {
-            actualFreelanceId = serviceData.freelance_id;
-          }
-        }
-
-        if (!actualFreelanceId) {
-          throw new Error("ID du freelance requis pour le paiement");
-        }
-
-        // Appel à l'API pour créer un PaymentIntent et une commande si nécessaire
-        // Note: L'API convertira automatiquement le montant en euros pour le traitement par Stripe
-        let retryCount = 0;
-        const maxRetries = 2;
-        let response;
-        let lastError;
-
-        // Boucle de tentatives avec backoff exponentiel
-        while (retryCount <= maxRetries) {
-          try {
-            response = await fetch("/api/stripe/payment-intent", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                amount: amountInXof,
-                serviceId,
-                freelanceId: actualFreelanceId,
-                metadata: {
-                  ...metadata,
-                  clientId: user.id,
-                  userId: user.id,
-                  deliveryTime: metadata.deliveryTime || "7",
-                  requirements:
-                    metadata.requirements || "Test de paiement automatisé",
-                },
-              }),
-              credentials: "include",
-            });
-
-            // Si la requête a réussi, sortir de la boucle
-            if (response.ok) {
-              break;
-            } else {
-              // En cas d'erreur, enregistrer l'erreur et réessayer
-              const errorText = await response.text();
-              let errorData;
-              try {
-                errorData = JSON.parse(errorText);
-              } catch (e) {
-                errorData = {
-                  error: errorText || "Erreur de serveur inconnue",
-                };
-              }
-
-              lastError = new Error(
-                errorData.error || `Erreur serveur: ${response.status}`,
-              );
-              console.warn(
-                `Tentative ${retryCount + 1}/${maxRetries + 1} échouée:`,
-                lastError,
-              );
-
-              // Attendre avant de réessayer (backoff exponentiel)
-              if (retryCount < maxRetries) {
-                const waitTime = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s, etc.
-                await new Promise((resolve) => setTimeout(resolve, waitTime));
-              }
-            }
-          } catch (fetchError: any) {
-            // Erreur réseau, enregistrer et réessayer
-            lastError = fetchError;
-            console.warn(
-              `Tentative ${retryCount + 1}/${maxRetries + 1} échouée (erreur réseau):`,
-              fetchError,
-            );
-
-            if (retryCount < maxRetries) {
-              const waitTime = Math.pow(2, retryCount) * 1000;
-              await new Promise((resolve) => setTimeout(resolve, waitTime));
-            }
-          }
-
-          retryCount++;
-        }
-
-        // Vérifier si toutes les tentatives ont échoué
-        if (!response || !response.ok) {
-          throw (
-            lastError ||
-            new Error(
-              "Échec de la création du paiement après plusieurs tentatives",
-            )
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(
+            errorData.error || "Erreur lors de la création du PaymentIntent",
           );
         }
 
-        // Traitement de la réponse
         const data = await response.json();
         setPaymentData(data);
 
-        // Journaliser la création réussie du PaymentIntent
-        try {
-          await logSecurityEvent({
-            type: "payment_intent_created",
-            userId: user.id,
-            severity: "info",
-            details: {
-              paymentIntentId: data.paymentIntentId,
-              serviceId,
-              orderId: data.orderId,
-              amount: amountInXof,
-            },
-          });
-        } catch (logError) {
-          console.warn("Erreur lors de la journalisation du succès", logError);
-          // On continue même si la journalisation échoue
-        }
+        // Journaliser l'événement de sécurité
+        logSecurityEvent({
+          type: "payment_intent_created",
+          severity: "info",
+          details: {
+            paymentIntentId: data.paymentIntentId,
+            serviceId: params.serviceId,
+            amount: params.amount,
+          },
+        });
 
         return data;
       } catch (err: any) {
-        console.error("Erreur de paiement:", err);
-        setError(
-          err.message ||
-            "Une erreur est survenue lors de la préparation du paiement",
-        );
+        const errorMessage =
+          err.message || "Erreur lors de la création du PaymentIntent";
+        console.error("Erreur de création de PaymentIntent:", errorMessage);
+        setError(errorMessage);
 
-        // Journalisation de l'erreur pour l'audit
-        try {
-          await logSecurityEvent({
-            type: "payment_intent_error",
-            userId: user.id,
-            severity: "high",
-            details: {
-              error: err.message,
-              amount: amount,
-              serviceId,
-            },
-          });
-        } catch (logError) {
-          console.warn("Erreur de journalisation de l'échec", logError);
-        }
+        // Journaliser l'événement de sécurité
+        logSecurityEvent({
+          type: "payment_intent_error",
+          severity: "medium",
+          details: {
+            error: errorMessage,
+            serviceId: params.serviceId,
+            amount: params.amount,
+          },
+        });
 
-        return null;
+        throw err;
       } finally {
         setLoading(false);
       }

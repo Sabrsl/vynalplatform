@@ -133,9 +133,9 @@ export async function POST(req: NextRequest) {
         .from("payments")
         .select("id")
         .eq("payment_intent_id", paymentIntentId)
-        .maybeSingle();
+        .limit(1);
 
-    if (existingPaymentError && existingPaymentError.code !== "PGRST116") {
+    if (existingPaymentError) {
       console.error(
         "Erreur lors de la vérification du paiement existant:",
         existingPaymentError,
@@ -148,10 +148,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (existingPayment) {
+    if (existingPayment && existingPayment.length > 0) {
       return NextResponse.json({
         message: "Ce paiement a déjà été traité",
-        paymentId: existingPayment.id,
+        paymentId: existingPayment[0].id,
         alreadyProcessed: true,
       });
     }
