@@ -23,12 +23,12 @@ ALTER TABLE payment_intents ENABLE ROW LEVEL SECURITY;
 
 -- 3. Créer un déclencheur pour mettre à jour le champ updated_at
 CREATE OR REPLACE FUNCTION update_payment_intents_updated_at()
-RETURNS TRIGGER AS $BODY$
+RETURNS TRIGGER AS $$
 BEGIN
   NEW.updated_at = now();
   RETURN NEW;
 END;
-$BODY$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS set_payment_intents_updated_at ON payment_intents;
 CREATE TRIGGER set_payment_intents_updated_at
@@ -111,7 +111,7 @@ CREATE OR REPLACE FUNCTION get_payment_status(payment_id UUID)
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
-AS $BODY$
+AS $$
 DECLARE
   result JSONB;
   user_id UUID;
@@ -141,4 +141,4 @@ BEGIN
   
   RETURN result;
 END;
-$BODY$; 
+$$; 

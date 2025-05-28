@@ -218,5 +218,3 @@ Après chaque étape:
 5. Vérifier l'expérience utilisateur complète (pas juste les fonctionnalités)
 
 Ce plan graduel permet d'améliorer les performances sans causer de régressions en production et en maintenant la sécurité des accès aux différentes parties de l'application.
- 
- 

@@ -1015,7 +1015,7 @@ export function detectInappropriateContent(
       // Considérer ces patterns comme hautement suspects
       result.obfuscationDetected = true;
 
-      for (const _ of matches) {
+      for (const match of matches) {
         if (!result.matches.includes(description)) {
           result.matches.push(description);
 
@@ -1078,7 +1078,7 @@ export function detectInappropriateContent(
     if (matches) {
       result.obfuscationDetected = true;
 
-      for (const _ of matches) {
+      for (const match of matches) {
         if (!result.matches.includes(description)) {
           result.matches.push(description);
         }

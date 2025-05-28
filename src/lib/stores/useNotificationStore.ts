@@ -1,9 +1,13 @@
-﻿import { create } from "zustand";
+import { create } from "zustand";
 import { supabase } from "@/lib/supabase/client";
 import type { Database } from "@/types/database";
 import { StateCreator } from "zustand";
-// import { eventEmitter, EVENTS, type NotificationEvent } from '@/lib/utils/events'; // Imports inutilisÃ©s: type NotificationEvent
-// import { FREELANCE_ROUTES, CLIENT_ROUTES } from "@/config/routes"; // Imports inutilisÃ©s: CLIENT_ROUTES
+import {
+  eventEmitter,
+  EVENTS,
+  type NotificationEvent,
+} from "@/lib/utils/events";
+import { FREELANCE_ROUTES, CLIENT_ROUTES } from "@/config/routes";
 
 export type Notification = Database["public"]["Tables"]["notifications"]["Row"];
 
@@ -47,25 +51,23 @@ export const useNotificationStore = create<NotificationState>(((set, get) => ({
         throw new Error("ID utilisateur non valide");
       }
 
-      // VÃ©rifier que l'utilisateur est bien authentifiÃ©
+      // Vérifier que l'utilisateur est bien authentifié
       const { data: userSession } = await supabase.auth.getSession();
       const sessionUserId = userSession?.session?.user?.id;
 
       if (!sessionUserId) {
-        console.error("Utilisateur non authentifiÃ©");
+        console.error("Utilisateur non authentifié");
         throw new Error(
-          "Vous devez Ãªtre connectÃ© pour accÃ©der aux notifications",
+          "Vous devez être connecté pour accéder aux notifications",
         );
       }
 
-      // VÃ©rifier que l'ID demandÃ© correspond Ã  l'utilisateur authentifiÃ©
+      // Vérifier que l'ID demandé correspond à l'utilisateur authentifié
       if (userId !== sessionUserId) {
         console.error(
-          "Tentative d'accÃ¨s aux notifications d'un autre utilisateur",
+          "Tentative d'accès aux notifications d'un autre utilisateur",
         );
-        throw new Error(
-          "Vous n'Ãªtes pas autorisÃ© Ã  voir ces notifications",
-        );
+        throw new Error("Vous n'êtes pas autorisé à voir ces notifications");
       }
 
       const { data, error } = await supabase
@@ -76,11 +78,11 @@ export const useNotificationStore = create<NotificationState>(((set, get) => ({
 
       if (error) {
         console.error(
-          "Erreur lors de la rÃ©cupÃ©ration des notifications:",
+          "Erreur lors de la récupération des notifications:",
           error,
         );
         throw new Error(
-          `Erreur de rÃ©cupÃ©ration des notifications: ${error.message}`,
+          `Erreur de récupération des notifications: ${error.message}`,
         );
       }
 
@@ -94,11 +96,11 @@ export const useNotificationStore = create<NotificationState>(((set, get) => ({
       });
     } catch (err: any) {
       console.error(
-        "Erreur dÃ©taillÃ©e lors de la rÃ©cupÃ©ration des notifications:",
+        "Erreur détaillée lors de la récupération des notifications:",
         err,
       );
       set({
-        error: `Impossible de rÃ©cupÃ©rer les notifications: ${err.message || "Erreur inconnue"}`,
+        error: `Impossible de récupérer les notifications: ${err.message || "Erreur inconnue"}`,
         isLoading: false,
       });
     }
@@ -116,14 +118,11 @@ export const useNotificationStore = create<NotificationState>(((set, get) => ({
         .single();
 
       if (error) {
-        console.error(
-          "Erreur lors de la crÃ©ation de la notification:",
-          error,
-        );
+        console.error("Erreur lors de la création de la notification:", error);
         throw error;
       }
 
-      // Si c'est pour l'utilisateur actuel, mettre Ã  jour le store
+      // Si c'est pour l'utilisateur actuel, mettre à jour le store
       const { data: userSession } = await supabase.auth.getSession();
       const userId = userSession?.session?.user?.id;
 
@@ -136,11 +135,11 @@ export const useNotificationStore = create<NotificationState>(((set, get) => ({
 
       return data;
     } catch (err) {
-      console.error("Erreur lors de la crÃ©ation de la notification:", err);
+      console.error("Erreur lors de la création de la notification:", err);
     }
   },
 
-  // Nouvelle fonction spÃ©cifique pour les notifications de messages pour les freelances
+  // Nouvelle fonction spécifique pour les notifications de messages pour les freelances
   createMessageNotification: async (
     userId: string,
     senderId: string,
@@ -148,12 +147,12 @@ export const useNotificationStore = create<NotificationState>(((set, get) => ({
     content: string,
   ) => {
     try {
-      // Ne pas crÃ©er de notification si l'expÃ©diteur est le destinataire
+      // Ne pas créer de notification si l'expéditeur est le destinataire
       if (userId === senderId) {
         return;
       }
 
-      // RÃ©cupÃ©rer les informations sur l'expÃ©diteur
+      // Récupérer les informations sur l'expéditeur
       const { data: senderData, error: senderError } = await supabase
         .from("profiles")
         .select("username, full_name, role")
@@ -162,13 +161,13 @@ export const useNotificationStore = create<NotificationState>(((set, get) => ({
 
       if (senderError) {
         console.error(
-          "Erreur lors de la rÃ©cupÃ©ration des infos de l'expÃ©diteur:",
+          "Erreur lors de la récupération des infos de l'expéditeur:",
           senderError,
         );
         return;
       }
 
-      // DÃ©terminer si le destinataire est un freelance
+      // Déterminer si le destinataire est un freelance
       const { data: recipientData, error: recipientError } = await supabase
         .from("profiles")
         .select("role, email")
@@ -177,7 +176,7 @@ export const useNotificationStore = create<NotificationState>(((set, get) => ({
 
       if (recipientError) {
         console.error(
-          "Erreur lors de la rÃ©cupÃ©ration du rÃ´le du destinataire:",
+          "Erreur lors de la récupération du rôle du destinataire:",
           recipientError,
         );
         return;
@@ -189,7 +188,7 @@ export const useNotificationStore = create<NotificationState>(((set, get) => ({
       const truncatedContent =
         content.length > 50 ? `${content.substring(0, 47)}...` : content;
 
-      // CrÃ©er une notification pour tous les utilisateurs (freelances et clients)
+      // Créer une notification pour tous les utilisateurs (freelances et clients)
       const { data: notificationData, error: notifError } = await supabase
         .from("notifications")
         .insert({
@@ -209,13 +208,13 @@ export const useNotificationStore = create<NotificationState>(((set, get) => ({
 
       if (notifError) {
         console.error(
-          "Erreur lors de la crÃ©ation de la notification:",
+          "Erreur lors de la création de la notification:",
           notifError,
         );
         return;
       }
 
-      // Si c'est pour l'utilisateur actuel, mettre Ã  jour le store
+      // Si c'est pour l'utilisateur actuel, mettre à jour le store
       const { data: userSession } = await supabase.auth.getSession();
       const currentUserId = userSession?.session?.user?.id;
 
@@ -226,10 +225,10 @@ export const useNotificationStore = create<NotificationState>(((set, get) => ({
         }));
       }
 
-      // DÃ©clencher immÃ©diatement le traitement pour envoyer l'email
+      // Déclencher immédiatement le traitement pour envoyer l'email
       try {
         console.log(
-          "Traitement immÃ©diat de la notification pour envoi d'email:",
+          "Traitement immédiat de la notification pour envoi d'email:",
           notificationData.id,
         );
         await fetch("/api/notifications/process-immediate", {
@@ -243,13 +242,13 @@ export const useNotificationStore = create<NotificationState>(((set, get) => ({
         });
       } catch (emailError) {
         console.error(
-          "Erreur lors du dÃ©clenchement de l'envoi d'email:",
+          "Erreur lors du déclenchement de l'envoi d'email:",
           emailError,
         );
       }
     } catch (err) {
       console.error(
-        "Erreur lors de la crÃ©ation de la notification de message:",
+        "Erreur lors de la création de la notification de message:",
         err,
       );
     }
@@ -270,7 +269,7 @@ export const useNotificationStore = create<NotificationState>(((set, get) => ({
         throw error;
       }
 
-      // Mettre Ã  jour l'Ã©tat local
+      // Mettre à jour l'état local
       set((state) => {
         const updatedNotifications = state.notifications.map((notif) =>
           notif.id === notificationId ? { ...notif, read: true } : notif,
@@ -310,7 +309,7 @@ export const useNotificationStore = create<NotificationState>(((set, get) => ({
         throw error;
       }
 
-      // Mettre Ã  jour l'Ã©tat local
+      // Mettre à jour l'état local
       set((state) => ({
         notifications: state.notifications.map((notif) => ({
           ...notif,
@@ -341,16 +340,16 @@ export const useNotificationStore = create<NotificationState>(((set, get) => ({
         async (payload: any) => {
           const { new: newNotification } = payload;
 
-          console.log("Nouvelle notification reÃ§ue:", newNotification);
+          console.log("Nouvelle notification reçue:", newNotification);
 
-          // Ajouter la notification Ã  l'Ã©tat
+          // Ajouter la notification à l'état
           set((state) => ({
             notifications: [newNotification, ...state.notifications],
             unreadCount: state.unreadCount + 1,
           }));
 
-          // Ã‰mettre un Ã©vÃ©nement pour afficher une notification toast
-          // Les composants React peuvent s'abonner Ã  cet Ã©vÃ©nement
+          // Émettre un événement pour afficher une notification toast
+          // Les composants React peuvent s'abonner à cet événement
           eventEmitter.emit(EVENTS.NOTIFICATION, {
             title: newNotification.type,
             description: newNotification.content,
@@ -374,7 +373,7 @@ export const useNotificationStore = create<NotificationState>(((set, get) => ({
         (payload: any) => {
           const { new: updatedNotification } = payload;
 
-          // Mettre Ã  jour la notification dans l'Ã©tat
+          // Mettre à jour la notification dans l'état
           set((state) => {
             const updatedNotifications = state.notifications.map((notif) =>
               notif.id === updatedNotification.id ? updatedNotification : notif,
@@ -394,7 +393,7 @@ export const useNotificationStore = create<NotificationState>(((set, get) => ({
       )
       .subscribe();
 
-    // Abonnement aux nouveaux messages pour crÃ©er des notifications
+    // Abonnement aux nouveaux messages pour créer des notifications
     const messagesSubscription = supabase
       .channel("messages-for-notifications-channel")
       .on(
@@ -412,17 +411,17 @@ export const useNotificationStore = create<NotificationState>(((set, get) => ({
             return;
           }
 
-          // VÃ©rifier si l'utilisateur est participant Ã  cette conversation
+          // Vérifier si l'utilisateur est participant à cette conversation
           if (newMessage.conversation_id) {
-            // RÃ©cupÃ©rer le rÃ´le de l'utilisateur actuel
+            // Récupérer le rôle de l'utilisateur actuel
             const { data: userRole } = await supabase
               .from("profiles")
               .select("role")
               .eq("id", userId)
               .single();
 
-            // Pour les freelances, crÃ©er des notifications pour tous les messages
-            // sauf ceux qu'ils ont envoyÃ©s eux-mÃªmes
+            // Pour les freelances, créer des notifications pour tous les messages
+            // sauf ceux qu'ils ont envoyés eux-mêmes
             if (
               userRole?.role === "freelance" &&
               newMessage.sender_id !== userId
@@ -431,7 +430,7 @@ export const useNotificationStore = create<NotificationState>(((set, get) => ({
                 `[Notification] Nouveau message dans la conversation ${newMessage.conversation_id}`,
               );
 
-              // VÃ©rifier si l'utilisateur est dÃ©jÃ  participant Ã  cette conversation
+              // Vérifier si l'utilisateur est déjà participant à cette conversation
               const { data: participantCheck } = await supabase
                 .from("conversation_participants")
                 .select("id")
@@ -440,7 +439,7 @@ export const useNotificationStore = create<NotificationState>(((set, get) => ({
                 .maybeSingle();
 
               if (participantCheck) {
-                // CrÃ©er une notification pour le freelance
+                // Créer une notification pour le freelance
                 get().createMessageNotification(
                   userId,
                   newMessage.sender_id,
@@ -448,15 +447,15 @@ export const useNotificationStore = create<NotificationState>(((set, get) => ({
                   newMessage.content,
                 );
               } else {
-                // Si le freelance n'est pas encore participant Ã  cette conversation
-                // mais qu'il devrait recevoir des messages (par exemple, s'il est mentionnÃ©)
-                // on peut ajouter une logique spÃ©cifique ici
+                // Si le freelance n'est pas encore participant à cette conversation
+                // mais qu'il devrait recevoir des messages (par exemple, s'il est mentionné)
+                // on peut ajouter une logique spécifique ici
                 console.log(
-                  `Le freelance n'est pas encore participant Ã  la conversation ${newMessage.conversation_id}`,
+                  `Le freelance n'est pas encore participant à la conversation ${newMessage.conversation_id}`,
                 );
 
-                // VÃ©rifier si ce message concerne le freelance
-                // Par exemple, vÃ©rifier si le message mentionne un de ses services
+                // Vérifier si ce message concerne le freelance
+                // Par exemple, vérifier si le message mentionne un de ses services
                 const { data: servicesData } = await supabase
                   .from("services")
                   .select("id")
@@ -464,9 +463,9 @@ export const useNotificationStore = create<NotificationState>(((set, get) => ({
 
                 if (servicesData && servicesData.length > 0) {
                   // Si le message concerne un des services du freelance
-                  // ou si c'est une demande initiale, ajouter le freelance Ã  la conversation
+                  // ou si c'est une demande initiale, ajouter le freelance à la conversation
 
-                  // Exemple de logique pour dÃ©terminer si le message est pertinent
+                  // Exemple de logique pour déterminer si le message est pertinent
                   const serviceIds = servicesData.map((s) => s.id);
 
                   // Si c'est le premier message de la conversation
@@ -486,7 +485,7 @@ export const useNotificationStore = create<NotificationState>(((set, get) => ({
                       });
 
                     if (!insertError) {
-                      // CrÃ©er une notification
+                      // Créer une notification
                       get().createMessageNotification(
                         userId,
                         newMessage.sender_id,

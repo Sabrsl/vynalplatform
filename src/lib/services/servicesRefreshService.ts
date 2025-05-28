@@ -1,15 +1,15 @@
-﻿/**
- * Service de rafraÃ®chissement des services
- * Ce module permet de forcer le rafraÃ®chissement des composants qui affichent des services
- * lorsque des services sont validÃ©s, rejetÃ©s ou dÃ©publiÃ©s.
+/**
+ * Service de rafraîchissement des services
+ * Ce module permet de forcer le rafraîchissement des composants qui affichent des services
+ * lorsque des services sont validés, rejetés ou dépubliés.
  */
 
-// import { setCachedData } from '@/lib/optimizations'; // Imports inutilisÃ©s: setCachedData
+import { setCachedData } from "@/lib/optimizations";
 
-// Intervalle en millisecondes pour le rafraÃ®chissement automatique
+// Intervalle en millisecondes pour le rafraîchissement automatique
 const AUTO_REFRESH_INTERVAL = 10000; // 10 secondes
 
-// Stockage des Ã©couteurs de rafraÃ®chissement
+// Stockage des écouteurs de rafraîchissement
 const refreshListeners: Array<() => void> = [];
 
 // ID des intervalles pour pouvoir les nettoyer
@@ -17,9 +17,9 @@ let autoRefreshIntervalId: number | null = null;
 let isAutoRefreshActive = false;
 
 /**
- * Ajoute un Ã©couteur de rafraÃ®chissement
- * @param listener Fonction Ã  appeler lors du rafraÃ®chissement
- * @returns Fonction pour retirer l'Ã©couteur
+ * Ajoute un écouteur de rafraîchissement
+ * @param listener Fonction à appeler lors du rafraîchissement
+ * @returns Fonction pour retirer l'écouteur
  */
 export function addRefreshListener(listener: () => void): () => void {
   refreshListeners.push(listener);
@@ -33,31 +33,31 @@ export function addRefreshListener(listener: () => void): () => void {
 }
 
 /**
- * DÃ©clenche le rafraÃ®chissement de tous les composants enregistrÃ©s
+ * Déclenche le rafraîchissement de tous les composants enregistrés
  */
 export function triggerRefresh(): void {
   console.log(
-    `RafraÃ®chissement dÃ©clenchÃ© pour ${refreshListeners.length} composant(s)`,
+    `Rafraîchissement déclenché pour ${refreshListeners.length} composant(s)`,
   );
   refreshListeners.forEach((listener) => {
     try {
       listener();
     } catch (error) {
-      console.error("Erreur lors du rafraÃ®chissement:", error);
+      console.error("Erreur lors du rafraîchissement:", error);
     }
   });
 }
 
 /**
- * Active le rafraÃ®chissement automatique des composants
- * Utile aprÃ¨s une action d'administration pour s'assurer que les mises Ã  jour sont propagÃ©es
- * @param duration DurÃ©e en millisecondes pendant laquelle le rafraÃ®chissement sera actif (0 = illimitÃ©)
+ * Active le rafraîchissement automatique des composants
+ * Utile après une action d'administration pour s'assurer que les mises à jour sont propagées
+ * @param duration Durée en millisecondes pendant laquelle le rafraîchissement sera actif (0 = illimité)
  */
 export function startAutoRefresh(duration: number = 30000): void {
-  // ArrÃªter l'ancien intervalle s'il existe
+  // Arrêter l'ancien intervalle s'il existe
   stopAutoRefresh();
 
-  // DÃ©marrer un nouvel intervalle
+  // Démarrer un nouvel intervalle
   isAutoRefreshActive = true;
   autoRefreshIntervalId = window.setInterval(() => {
     if (isAutoRefreshActive) {
@@ -68,49 +68,49 @@ export function startAutoRefresh(duration: number = 30000): void {
   }, AUTO_REFRESH_INTERVAL);
 
   console.log(
-    `RafraÃ®chissement automatique activÃ© (intervalle: ${AUTO_REFRESH_INTERVAL}ms)`,
+    `Rafraîchissement automatique activé (intervalle: ${AUTO_REFRESH_INTERVAL}ms)`,
   );
 
-  // Si une durÃ©e est spÃ©cifiÃ©e, programmer l'arrÃªt
+  // Si une durée est spécifiée, programmer l'arrêt
   if (duration > 0) {
     setTimeout(() => {
       stopAutoRefresh();
     }, duration);
     console.log(
-      `Le rafraÃ®chissement automatique s'arrÃªtera dans ${duration}ms`,
+      `Le rafraîchissement automatique s'arrêtera dans ${duration}ms`,
     );
   }
 }
 
 /**
- * ArrÃªte le rafraÃ®chissement automatique
+ * Arrête le rafraîchissement automatique
  */
 export function stopAutoRefresh(): void {
   if (autoRefreshIntervalId !== null) {
     window.clearInterval(autoRefreshIntervalId);
     autoRefreshIntervalId = null;
     isAutoRefreshActive = false;
-    console.log("RafraÃ®chissement automatique dÃ©sactivÃ©");
+    console.log("Rafraîchissement automatique désactivé");
   }
 }
 
 /**
- * Initialise les Ã©couteurs d'Ã©vÃ©nements pour le rafraÃ®chissement automatique
- * Cette fonction doit Ãªtre appelÃ©e une fois au dÃ©marrage de l'application
+ * Initialise les écouteurs d'événements pour le rafraîchissement automatique
+ * Cette fonction doit être appelée une fois au démarrage de l'application
  */
 export function initRefreshListeners(): void {
   if (typeof window === "undefined") return;
 
-  // RafraÃ®chissement lors des Ã©vÃ©nements de mise Ã  jour de service
+  // Rafraîchissement lors des événements de mise à jour de service
   window.addEventListener("vynal:service-updated", () => {
     triggerRefresh();
-    // DÃ©marrer le rafraÃ®chissement automatique pendant 1 minute
+    // Démarrer le rafraîchissement automatique pendant 1 minute
     startAutoRefresh(60000);
   });
 
-  // RafraÃ®chissement lors des Ã©vÃ©nements d'invalidation de cache
+  // Rafraîchissement lors des événements d'invalidation de cache
   window.addEventListener("vynal:cache-invalidated", (e: any) => {
-    // VÃ©rifier si l'Ã©vÃ©nement concerne les services
+    // Vérifier si l'événement concerne les services
     if (
       e.detail?.keys?.includes("services_") ||
       e.detail?.keys?.includes("freelance_services_")
@@ -120,16 +120,16 @@ export function initRefreshListeners(): void {
     }
   });
 
-  // RafraÃ®chissement lors des Ã©vÃ©nements spÃ©cifiques aux services freelance
+  // Rafraîchissement lors des événements spécifiques aux services freelance
   window.addEventListener("vynal:freelance-services-updated", () => {
     triggerRefresh();
     startAutoRefresh(30000);
   });
 
-  // ArrÃªter le rafraÃ®chissement automatique quand l'utilisateur quitte la page
+  // Arrêter le rafraîchissement automatique quand l'utilisateur quitte la page
   window.addEventListener("beforeunload", () => {
     stopAutoRefresh();
   });
 
-  console.log("Ã‰couteurs de rafraÃ®chissement initialisÃ©s");
+  console.log("Écouteurs de rafraîchissement initialisés");
 }

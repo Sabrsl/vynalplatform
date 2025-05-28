@@ -1,13 +1,13 @@
-﻿// import { SupabaseClient } from '@supabase/supabase-js'; // Imports inutilisÃ©s: SupabaseClient
+import { SupabaseClient } from "@supabase/supabase-js";
 import { PostgrestFilterBuilder } from "@supabase/postgrest-js";
 
 /**
- * Construit une requÃªte de recherche en Ã©vitant les problÃ¨mes avec les relations et PostgREST
+ * Construit une requête de recherche en évitant les problèmes avec les relations et PostgREST
  *
- * @param query - La requÃªte Supabase de base
- * @param searchTerm - Le terme de recherche Ã  utiliser
- * @param fields - Les champs dans lesquels rechercher (sans inclure categories.name qui cause des problÃ¨mes)
- * @returns La requÃªte avec le filtre de recherche appliquÃ©
+ * @param query - La requête Supabase de base
+ * @param searchTerm - Le terme de recherche à utiliser
+ * @param fields - Les champs dans lesquels rechercher (sans inclure categories.name qui cause des problèmes)
+ * @returns La requête avec le filtre de recherche appliqué
  */
 export function buildSearchQuery<T>(
   query: PostgrestFilterBuilder<any, any, any>,
@@ -45,11 +45,11 @@ export function buildSearchQuery<T>(
 
 /**
  * Utilitaire pour ajouter des filtres de recherche courants
- * en Ã©vitant les problÃ¨mes de recherche sur les relations
+ * en évitant les problèmes de recherche sur les relations
  *
- * @param query - La requÃªte de base Ã  Ã©tendre
+ * @param query - La requête de base à étendre
  * @param options - Options de filtrage
- * @returns La requÃªte avec les filtres appliquÃ©s
+ * @returns La requête avec les filtres appliqués
  */
 export function addCommonFilters(
   query: PostgrestFilterBuilder<any, any, any>,
@@ -89,7 +89,7 @@ export function addCommonFilters(
   }
 
   // Appliquer la recherche uniquement sur les champs directs
-  // (sans relation comme categories.name qui cause des problÃ¨mes)
+  // (sans relation comme categories.name qui cause des problèmes)
   if (searchTerm && fields.length > 0) {
     const directFields = fields.filter((field) => !field.includes("."));
     if (directFields.length > 0) {

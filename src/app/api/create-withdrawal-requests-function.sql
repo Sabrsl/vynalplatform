@@ -3,7 +3,7 @@ CREATE OR REPLACE FUNCTION public.create_withdrawal_requests_if_not_exists()
 RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
-AS $BODY$
+AS $$
 BEGIN
   -- Vérifier si la table existe déjà
   IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'withdrawal_requests') THEN
@@ -68,4 +68,4 @@ BEGIN
     ';
   END IF;
 END;
-$BODY$; 
+$$; 

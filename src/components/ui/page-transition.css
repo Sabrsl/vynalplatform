@@ -1,29 +1,31 @@
 /* Optimisations des animations pour éviter les effets de cascade et les flashs */
 .page-transition-container {
   /* Utiliser des propriétés optimisées pour le rendu GPU */
-  animation: none;
-  backface-visibility: hidden;
-  opacity: 1;
-  perspective: 1000px;
   transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
   will-change: opacity;
+
+  /* Affichage immédiat sans animation pour éviter tout délai */
+  opacity: 1;
+  animation: none;
 }
 
 /* Support pour réduire le motion sur les appareils qui le préfèrent */
 @media (prefers-reduced-motion: reduce) {
   .page-transition-container {
+    transition: none;
     animation: none;
     opacity: 1;
-    transition: none;
   }
 }
 
 /* Optimisation des éléments de squelette pour éviter les cascades et flashs */
 .skeleton-wrapper {
-  animation: none;
   contain: layout style paint;
-  opacity: 1;
   will-change: transform;
+  opacity: 1;
+  animation: none;
 }
 
 /* Désactiver les animations pulsantes par défaut pour les squelettes */

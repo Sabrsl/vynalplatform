@@ -1,8 +1,3 @@
-SET ANSI_NULLS ON;
-SET QUOTED_IDENTIFIER ON;
-SET NOCOUNT ON;
-SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
-
 -- Script pour configurer les règles RLS (Row Level Security) pour la table security_events
 -- Exécutez ce script dans l'interface SQL de Supabase
 
