@@ -946,11 +946,12 @@ export default function UnifiedCheckoutPage({
 
       paymentRequest.on("paymentmethod", async (ev: any) => {
         try {
-          const { error, paymentIntent } = await stripe.confirmCardPayment(
+          const result = await stripe.confirmCardPayment(
             paymentData.clientSecret,
             { payment_method: ev.paymentMethod.id },
-            { handleActions: false },
           );
+
+          const { error, paymentIntent } = result;
 
           if (error) {
             ev.complete("fail");
@@ -1022,11 +1023,12 @@ export default function UnifiedCheckoutPage({
 
       paymentRequest.on("paymentmethod", async (ev: any) => {
         try {
-          const { error, paymentIntent } = await stripe.confirmCardPayment(
+          const result = await stripe.confirmCardPayment(
             paymentData.clientSecret,
             { payment_method: ev.paymentMethod.id },
-            { handleActions: false },
           );
+
+          const { error, paymentIntent } = result;
 
           if (error) {
             ev.complete("fail");
