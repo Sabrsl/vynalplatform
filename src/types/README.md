@@ -24,4 +24,4 @@ Ces déclarations sont vides et ne fournissent pas d'implémentation réelle. El
 
 ### Utilisation
 
-Ces types sont automatiquement disponibles dans l'ensemble du projet grâce à la configuration TypeScript. 
+Ces types sont automatiquement disponibles dans l'ensemble du projet grâce à la configuration TypeScript.

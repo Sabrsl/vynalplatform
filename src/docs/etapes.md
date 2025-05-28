@@ -22,7 +22,7 @@ Nous avons posé les fondations de la plateforme Vynal. Voici les prochaines ét
 - [x] Finalisation des hooks useAuth et useUser
 - [x] Page de profil utilisateur (client/freelance)
 - [x] Page d'édition de profil
-- [x] Upload d'avatar  
+- [x] Upload d'avatar
 
 ## Étape 3 : Système de services ✅
 
@@ -53,7 +53,7 @@ Nous avons posé les fondations de la plateforme Vynal. Voici les prochaines ét
 - [x] Tableau de bord financier
 - [ ] Système de retraits pour les freelances
 
-## Étape 6 : Messagerie et avis  ✅
+## Étape 6 : Messagerie et avis ✅
 
 - [x] Système de messagerie par commande
 - [ ] Notifications en temps réel
@@ -110,4 +110,4 @@ Nous avons posé les fondations de la plateforme Vynal. Voici les prochaines ét
 - Tirer parti de l'API de stockage de Supabase pour les images et fichiers
 - Mettre en place le Row Level Security (RLS) dès le début pour chaque table
 - Bien séparer la logique métier (services) de l'interface utilisateur (composants)
-- Réutiliser les composants UI au maximum pour maintenir la cohérence 
+- Réutiliser les composants UI au maximum pour maintenir la cohérence

@@ -24,13 +24,13 @@ Ce module centralise toutes les fonctionnalités d'optimisation de l'application
 Toujours importer depuis le point d'entrée principal pour maintenir la compatibilité :
 
 ```typescript
-import { 
+import {
   getCachedData,
   setCachedData,
   invalidateCache,
   CACHE_KEYS,
-  CACHE_EXPIRY
-} from '@/lib/optimizations';
+  CACHE_EXPIRY,
+} from "@/lib/optimizations";
 ```
 
 ### Mise en cache des données
@@ -39,7 +39,7 @@ import {
 // Stocker des données en cache
 setCachedData(CACHE_KEYS.USER_PROFILE + userId, userData, {
   expiry: CACHE_EXPIRY.USER_PROFILE,
-  priority: 'high'
+  priority: "high",
 });
 
 // Récupérer des données du cache
@@ -52,7 +52,10 @@ invalidateCache(CACHE_KEYS.USER_PROFILE + userId);
 ### Invalidation par groupe
 
 ```typescript
-import { invalidateCachesByEvent, CACHE_EVENT_TYPES } from '@/lib/optimizations';
+import {
+  invalidateCachesByEvent,
+  CACHE_EVENT_TYPES,
+} from "@/lib/optimizations";
 
 // Invalider toutes les données liées aux services
 invalidateCachesByEvent(CACHE_EVENT_TYPES.SERVICES_UPDATED);
@@ -61,13 +64,13 @@ invalidateCachesByEvent(CACHE_EVENT_TYPES.SERVICES_UPDATED);
 ### Requêtes réseau optimisées
 
 ```typescript
-import { optimizedFetchWithRetry } from '@/lib/optimizations';
+import { optimizedFetchWithRetry } from "@/lib/optimizations";
 
 // Effectuer une requête avec retries automatiques
-const data = await optimizedFetchWithRetry('/api/data', {
-  method: 'GET',
+const data = await optimizedFetchWithRetry("/api/data", {
+  method: "GET",
   retries: 3,
-  retryDelay: 1000
+  retryDelay: 1000,
 });
 ```
 
@@ -76,12 +79,12 @@ const data = await optimizedFetchWithRetry('/api/data', {
 Pour les nouveaux développements, utilisez le système standardisé de clés :
 
 ```typescript
-import { CacheKeyPrefix, makeCacheKey } from '@/lib/optimizations/invalidation';
+import { CacheKeyPrefix, makeCacheKey } from "@/lib/optimizations/invalidation";
 
 // Créer une clé standardisée avec paramètres
-const cacheKey = makeCacheKey(CacheKeyPrefix.ClientStats, { 
-  userId: '123',
-  includeActivities: true
+const cacheKey = makeCacheKey(CacheKeyPrefix.ClientStats, {
+  userId: "123",
+  includeActivities: true,
 });
 ```
 
@@ -95,4 +98,4 @@ const cacheKey = makeCacheKey(CacheKeyPrefix.ClientStats, {
 
 ## Migration
 
-Consultez le fichier `MIGRATION.md` pour les instructions détaillées sur la migration des constantes. 
+Consultez le fichier `MIGRATION.md` pour les instructions détaillées sur la migration des constantes.

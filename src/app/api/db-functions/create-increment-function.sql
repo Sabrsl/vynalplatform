@@ -3,7 +3,7 @@ CREATE OR REPLACE FUNCTION public.create_increment_value_function()
 RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
-AS $$
+AS $BODY$
 BEGIN
   -- Vérifier si la fonction existe déjà
   IF NOT EXISTS (
@@ -23,7 +23,7 @@ BEGIN
       RETURNS numeric
       LANGUAGE plpgsql
       SECURITY DEFINER
-      AS $func$
+      AS $BODY$
       DECLARE
         current_value numeric;
         new_value numeric;
@@ -38,18 +38,18 @@ BEGIN
         
         RETURN new_value;
       END;
-      $func$;
+      $BODY$;
     ';
   END IF;
 END;
-$$;
+$BODY$;
 
 -- Fonction pour créer la fonction de décrémentation
 CREATE OR REPLACE FUNCTION public.create_decrement_value_function()
 RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
-AS $$
+AS $BODY$
 BEGIN
   -- Vérifier si la fonction existe déjà
   IF NOT EXISTS (
@@ -69,7 +69,7 @@ BEGIN
       RETURNS numeric
       LANGUAGE plpgsql
       SECURITY DEFINER
-      AS $func$
+      AS $BODY$
       DECLARE
         current_value numeric;
         new_value numeric;
@@ -89,8 +89,8 @@ BEGIN
         
         RETURN new_value;
       END;
-      $func$;
+      $BODY$;
     ';
   END IF;
 END;
-$$; 
+$BODY$; 

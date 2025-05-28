@@ -5,12 +5,14 @@ Ce composant résout les problèmes de stabilité et de fiabilité d'affichage d
 ## Problèmes résolus
 
 1. **Photos d'avatar qui disparaissent aléatoirement** - Résolu avec plusieurs mécanismes:
+
    - Préchargement des images avant affichage
    - Gestion explicite des erreurs de chargement
    - Mécanisme de retentative avec cache-busting automatique
    - Protection contre les fuites de mémoire
 
 2. **Clignotements et états intermédiaires indésirables** - Résolu avec:
+
    - Fallback visuel pendant le chargement
    - Système intelligent d'initiales comme alternative
    - Transitions visuelles fluides
@@ -33,13 +35,13 @@ Ce composant résout les problèmes de stabilité et de fiabilité d'affichage d
 
 ```tsx
 // Exemple d'utilisation simple
-<UserAvatar 
+<UserAvatar
   size="md"
   shape="circle"
 />
 
 // Exemple avec options avancées
-<UserAvatar 
+<UserAvatar
   size="lg"
   alt="Jean Dupont"
   shape="circle"
@@ -51,16 +53,16 @@ Ce composant résout les problèmes de stabilité et de fiabilité d'affichage d
 
 ## Propriétés
 
-| Propriété | Type | Description |
-|-----------|------|-------------|
-| `size` | `'xs' \| 'sm' \| 'md' \| 'lg' \| 'xl'` | Taille de l'avatar (défaut: `'md'`) |
-| `shape` | `'rounded' \| 'circle'` | Forme de l'avatar (défaut: `'rounded'`) |
-| `alt` | `string` | Texte alternatif pour l'accessibilité |
-| `className` | `string` | Classes CSS additionnelles |
-| `forceInitials` | `boolean` | Forcer l'utilisation des initiales |
-| `status` | `'online' \| 'offline' \| 'away' \| 'busy' \| 'none'` | Statut en ligne de l'utilisateur |
-| `loading` | `boolean` | État de chargement |
-| `error` | `boolean` | État d'erreur |
-| `onClick` | `React.MouseEventHandler<HTMLDivElement>` | Gestionnaire de clic |
-| `showTooltip` | `boolean` | Afficher une bulle d'aide |
-| `tooltipText` | `string` | Texte de la bulle d'aide | 
+| Propriété       | Type                                                  | Description                             |
+| --------------- | ----------------------------------------------------- | --------------------------------------- |
+| `size`          | `'xs' \| 'sm' \| 'md' \| 'lg' \| 'xl'`                | Taille de l'avatar (défaut: `'md'`)     |
+| `shape`         | `'rounded' \| 'circle'`                               | Forme de l'avatar (défaut: `'rounded'`) |
+| `alt`           | `string`                                              | Texte alternatif pour l'accessibilité   |
+| `className`     | `string`                                              | Classes CSS additionnelles              |
+| `forceInitials` | `boolean`                                             | Forcer l'utilisation des initiales      |
+| `status`        | `'online' \| 'offline' \| 'away' \| 'busy' \| 'none'` | Statut en ligne de l'utilisateur        |
+| `loading`       | `boolean`                                             | État de chargement                      |
+| `error`         | `boolean`                                             | État d'erreur                           |
+| `onClick`       | `React.MouseEventHandler<HTMLDivElement>`             | Gestionnaire de clic                    |
+| `showTooltip`   | `boolean`                                             | Afficher une bulle d'aide               |
+| `tooltipText`   | `string`                                              | Texte de la bulle d'aide                |

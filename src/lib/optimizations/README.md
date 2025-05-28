@@ -22,42 +22,42 @@ Utilisez les hooks optimisés au lieu des hooks standard pour bénéficier du ca
 
 ```tsx
 // Au lieu de useCategories
-import { useOptimizedCategories } from '@/hooks/useOptimizedCategories';
+import { useOptimizedCategories } from "@/hooks/useOptimizedCategories";
 
 function MyCategoriesComponent() {
   const { categories, loading, error, refresh } = useOptimizedCategories();
-  
+
   // ...
 }
 
 // Au lieu de useServices
-import { useOptimizedServices } from '@/hooks/useOptimizedServices';
+import { useOptimizedServices } from "@/hooks/useOptimizedServices";
 
 function MyServicesComponent() {
   const { services, loading, error } = useOptimizedServices({
-    categoryId: 'some-id'
+    categoryId: "some-id",
   });
-  
+
   // ...
 }
 
 // Au lieu de usePaginatedServices
-import { useOptimizedPaginatedServices } from '@/hooks/useOptimizedPaginatedServices';
+import { useOptimizedPaginatedServices } from "@/hooks/useOptimizedPaginatedServices";
 
 function MyPaginatedComponent() {
-  const { 
-    services, 
-    loading, 
-    currentPage, 
+  const {
+    services,
+    loading,
+    currentPage,
     totalPages,
     goToPage,
     loadMore,
-    hasMore
+    hasMore,
   } = useOptimizedPaginatedServices({
     pageSize: 10,
-    loadMoreMode: true
+    loadMoreMode: true,
   });
-  
+
   // ...
 }
 ```
@@ -67,38 +67,33 @@ function MyPaginatedComponent() {
 Utilisez le hook `usePerformanceMonitor` pour collecter et analyser les performances :
 
 ```tsx
-import { usePerformanceMonitor } from '@/hooks/usePerformanceMonitor';
+import { usePerformanceMonitor } from "@/hooks/usePerformanceMonitor";
 
 function MyComponent() {
-  const { 
-    metrics, 
-    measure, 
-    measureOperation,
-    measureAsync,
-    isLowEndDevice
-  } = usePerformanceMonitor();
-  
+  const { metrics, measure, measureOperation, measureAsync, isLowEndDevice } =
+    usePerformanceMonitor();
+
   // Optimisations pour les appareils à faibles performances
   useEffect(() => {
     if (isLowEndDevice) {
       // Réduire les animations, charger moins d'images, etc.
     }
   }, [isLowEndDevice]);
-  
+
   // Mesurer une opération spécifique
   const handleComplexOperation = () => {
-    return measureOperation('complexCalculation', () => {
+    return measureOperation("complexCalculation", () => {
       // Code complexe ici
       return result;
     });
   };
-  
+
   // Mesurer une opération asynchrone
   const handleDataFetch = async () => {
-    const data = await measureAsync('fetchData', fetchSomeData());
+    const data = await measureAsync("fetchData", fetchSomeData());
     return data;
   };
-  
+
   // ...
 }
 ```
@@ -106,25 +101,25 @@ function MyComponent() {
 ### 4. Utilitaires d'optimisation réseau
 
 ```tsx
-import { preloadResources, optimizedFetchWithRetry } from '@/lib/optimizations/network';
+import {
+  preloadResources,
+  optimizedFetchWithRetry,
+} from "@/lib/optimizations/network";
 
 // Précharger des ressources importantes
-preloadResources([
-  '/images/hero.webp',
-  '/css/critical.css'
-]);
+preloadResources(["/images/hero.webp", "/css/critical.css"]);
 
 // Faire une requête API avec retry automatique
 const fetchData = async () => {
-  const { data, error } = await optimizedFetchWithRetry('/api/data', {
+  const { data, error } = await optimizedFetchWithRetry("/api/data", {
     retries: 3,
-    timeout: 5000
+    timeout: 5000,
   });
-  
+
   if (error) {
     // Gérer l'erreur
   }
-  
+
   return data;
 };
 ```
@@ -132,16 +127,16 @@ const fetchData = async () => {
 ### 5. Gestion du cache
 
 ```tsx
-import { 
-  getCachedData, 
-  setCachedData, 
-  invalidateCache, 
-  CACHE_KEYS 
-} from '@/lib/optimizations';
+import {
+  getCachedData,
+  setCachedData,
+  invalidateCache,
+  CACHE_KEYS,
+} from "@/lib/optimizations";
 
 // Stocker des données en cache
 setCachedData(CACHE_KEYS.USER_PROFILE + userId, userData, {
-  expiry: 30 * 60 * 1000 // 30 minutes
+  expiry: 30 * 60 * 1000, // 30 minutes
 });
 
 // Récupérer des données du cache
@@ -189,4 +184,4 @@ Si vous rencontrez des problèmes de performance :
 
 ## Contributeurs
 
-Ce module a été créé pour résoudre les problèmes de navigation et d'affichage des données dans l'application Vynal Platform. 
+Ce module a été créé pour résoudre les problèmes de navigation et d'affichage des données dans l'application Vynal Platform.

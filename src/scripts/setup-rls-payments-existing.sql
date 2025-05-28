@@ -72,7 +72,7 @@ CREATE OR REPLACE FUNCTION get_payment_status(payment_id UUID)
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
-AS $$
+AS $BODY$
 DECLARE
   result JSONB;
   user_id UUID;
@@ -103,4 +103,4 @@ BEGIN
   
   RETURN result;
 END;
-$$; 
+$BODY$; 
