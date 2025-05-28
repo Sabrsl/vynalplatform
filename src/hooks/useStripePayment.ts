@@ -283,19 +283,22 @@ export function useStripePayment() {
               .select("order_id")
               .eq("payment_intent_id", paymentIntentId)
               .eq("client_id", user.id)
-              .maybeSingle();
+              .limit(1);
 
-            if (paymentError && paymentError.code !== "PGRST116") {
+            if (paymentError) {
               console.error(
                 "Erreur lors de la récupération du paiement:",
                 paymentError,
               );
-            } else if (paymentData && paymentData.order_id) {
+            } else if (paymentData && paymentData.length > 0) {
+              // Modifier pour accéder au premier élément du tableau
+              const orderId = paymentData[0].order_id;
+
               // Mettre à jour le statut de la commande
               await supabase
                 .from("orders")
                 .update({ status: "paid" })
-                .eq("id", paymentData.order_id)
+                .eq("id", orderId)
                 .eq("client_id", user.id);
             }
           } else if (webhookResult.alreadyProcessed) {
@@ -364,19 +367,22 @@ export function useStripePayment() {
             .select("order_id")
             .eq("payment_intent_id", paymentIntentId)
             .eq("client_id", user.id)
-            .maybeSingle();
+            .limit(1);
 
-          if (paymentError && paymentError.code !== "PGRST116") {
+          if (paymentError) {
             console.error(
               "Erreur lors de la récupération du paiement:",
               paymentError,
             );
-          } else if (paymentData && paymentData.order_id) {
+          } else if (paymentData && paymentData.length > 0) {
+            // Modifier pour accéder au premier élément du tableau
+            const orderId = paymentData[0].order_id;
+
             // Mettre à jour le statut de la commande
             await supabase
               .from("orders")
               .update({ status: "payment_failed" })
-              .eq("id", paymentData.order_id)
+              .eq("id", orderId)
               .eq("client_id", user.id);
           }
 
@@ -389,7 +395,10 @@ export function useStripePayment() {
               paymentIntentId,
               serviceId,
               error: errorMessage,
-              orderId: paymentData?.order_id,
+              orderId:
+                paymentData && paymentData.length > 0
+                  ? paymentData[0].order_id
+                  : undefined,
             },
           });
         } catch (err) {
