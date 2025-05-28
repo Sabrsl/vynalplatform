@@ -4,7 +4,7 @@
  * lorsque des services sont validés, rejetés ou dépubliés.
  */
 
-import { setCachedData } from "@/lib/optimizations";
+import { setCachedData } from '@/lib/optimizations';
 
 // Intervalle en millisecondes pour le rafraîchissement automatique
 const AUTO_REFRESH_INTERVAL = 10000; // 10 secondes
@@ -23,7 +23,7 @@ let isAutoRefreshActive = false;
  */
 export function addRefreshListener(listener: () => void): () => void {
   refreshListeners.push(listener);
-
+  
   return () => {
     const index = refreshListeners.indexOf(listener);
     if (index !== -1) {
@@ -36,14 +36,12 @@ export function addRefreshListener(listener: () => void): () => void {
  * Déclenche le rafraîchissement de tous les composants enregistrés
  */
 export function triggerRefresh(): void {
-  console.log(
-    `Rafraîchissement déclenché pour ${refreshListeners.length} composant(s)`,
-  );
-  refreshListeners.forEach((listener) => {
+  console.log(`Rafraîchissement déclenché pour ${refreshListeners.length} composant(s)`);
+  refreshListeners.forEach(listener => {
     try {
       listener();
     } catch (error) {
-      console.error("Erreur lors du rafraîchissement:", error);
+      console.error('Erreur lors du rafraîchissement:', error);
     }
   });
 }
@@ -56,7 +54,7 @@ export function triggerRefresh(): void {
 export function startAutoRefresh(duration: number = 30000): void {
   // Arrêter l'ancien intervalle s'il existe
   stopAutoRefresh();
-
+  
   // Démarrer un nouvel intervalle
   isAutoRefreshActive = true;
   autoRefreshIntervalId = window.setInterval(() => {
@@ -66,19 +64,15 @@ export function startAutoRefresh(duration: number = 30000): void {
       stopAutoRefresh();
     }
   }, AUTO_REFRESH_INTERVAL);
-
-  console.log(
-    `Rafraîchissement automatique activé (intervalle: ${AUTO_REFRESH_INTERVAL}ms)`,
-  );
-
+  
+  console.log(`Rafraîchissement automatique activé (intervalle: ${AUTO_REFRESH_INTERVAL}ms)`);
+  
   // Si une durée est spécifiée, programmer l'arrêt
   if (duration > 0) {
     setTimeout(() => {
       stopAutoRefresh();
     }, duration);
-    console.log(
-      `Le rafraîchissement automatique s'arrêtera dans ${duration}ms`,
-    );
+    console.log(`Le rafraîchissement automatique s'arrêtera dans ${duration}ms`);
   }
 }
 
@@ -90,7 +84,7 @@ export function stopAutoRefresh(): void {
     window.clearInterval(autoRefreshIntervalId);
     autoRefreshIntervalId = null;
     isAutoRefreshActive = false;
-    console.log("Rafraîchissement automatique désactivé");
+    console.log('Rafraîchissement automatique désactivé');
   }
 }
 
@@ -99,37 +93,35 @@ export function stopAutoRefresh(): void {
  * Cette fonction doit être appelée une fois au démarrage de l'application
  */
 export function initRefreshListeners(): void {
-  if (typeof window === "undefined") return;
-
+  if (typeof window === 'undefined') return;
+  
   // Rafraîchissement lors des événements de mise à jour de service
-  window.addEventListener("vynal:service-updated", () => {
+  window.addEventListener('vynal:service-updated', () => {
     triggerRefresh();
     // Démarrer le rafraîchissement automatique pendant 1 minute
     startAutoRefresh(60000);
   });
-
+  
   // Rafraîchissement lors des événements d'invalidation de cache
-  window.addEventListener("vynal:cache-invalidated", (e: any) => {
+  window.addEventListener('vynal:cache-invalidated', (e: any) => {
     // Vérifier si l'événement concerne les services
-    if (
-      e.detail?.keys?.includes("services_") ||
-      e.detail?.keys?.includes("freelance_services_")
-    ) {
+    if (e.detail?.keys?.includes('services_') || 
+        e.detail?.keys?.includes('freelance_services_')) {
       triggerRefresh();
       startAutoRefresh(30000);
     }
   });
-
+  
   // Rafraîchissement lors des événements spécifiques aux services freelance
-  window.addEventListener("vynal:freelance-services-updated", () => {
+  window.addEventListener('vynal:freelance-services-updated', () => {
     triggerRefresh();
     startAutoRefresh(30000);
   });
-
+  
   // Arrêter le rafraîchissement automatique quand l'utilisateur quitte la page
-  window.addEventListener("beforeunload", () => {
+  window.addEventListener('beforeunload', () => {
     stopAutoRefresh();
   });
-
-  console.log("Écouteurs de rafraîchissement initialisés");
-}
+  
+  console.log('Écouteurs de rafraîchissement initialisés');
+} 

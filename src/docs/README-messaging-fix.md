@@ -5,7 +5,6 @@ Ce document explique comment déployer la correction pour résoudre le problème
 ## Problème résolu
 
 Le problème était que lorsqu'un client contactait un freelance via le bouton "Contacter" sur une page de détails de service, le message était bien envoyé mais :
-
 1. Le client ne voyait pas la conversation dans son tableau de bord Messages
 2. Le freelance ne recevait pas le message et ne le voyait pas dans son tableau de bord Messages
 
@@ -78,13 +77,11 @@ Si vous rencontrez toujours des erreurs :
 
 1. **Vérifiez la console du navigateur** : Les logs détaillés permettent d'identifier où se produit l'erreur
 
-2. **Vérifiez les erreurs 403** :
-
+2. **Vérifiez les erreurs 403** : 
    - Si vous voyez une erreur 403, assurez-vous d'avoir exécuté la migration `fix_conversation_permissions.sql`
    - Vérifiez que l'utilisateur est correctement authentifié (token valide)
 
 3. **Vérifiez les logs côté serveur** :
-
    - Dans la console Supabase, vérifiez les logs SQL pour identifier les requêtes qui échouent
 
 4. **Vérifiez les conversations existantes** :
@@ -92,10 +89,10 @@ Si vous rencontrez toujours des erreurs :
 ```sql
 -- Mettre à jour toutes les conversations sans last_message_time défini
 UPDATE conversations
-SET
+SET 
   last_message_time = COALESCE(
-    (SELECT MAX(created_at)
-     FROM messages
+    (SELECT MAX(created_at) 
+     FROM messages 
      WHERE messages.conversation_id = conversations.id),
     updated_at,
     created_at
@@ -106,4 +103,4 @@ WHERE last_message_time IS NULL;
 
 ## Support
 
-Si vous rencontrez des problèmes avec cette correction, veuillez contacter l'équipe de développement.
+Si vous rencontrez des problèmes avec cette correction, veuillez contacter l'équipe de développement. 

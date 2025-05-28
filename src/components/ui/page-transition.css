@@ -5,7 +5,7 @@
   backface-visibility: hidden;
   perspective: 1000px;
   will-change: opacity;
-
+  
   /* Affichage immédiat sans animation pour éviter tout délai */
   opacity: 1;
   animation: none;
@@ -32,4 +32,4 @@
 .skeleton-stable {
   animation: none !important;
   opacity: 0.8;
-}
+} 

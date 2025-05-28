@@ -5,7 +5,6 @@ Ce document explique comment tester l'intégration Stripe dans votre application
 ## Mode Test vs Mode Production
 
 Stripe propose deux environnements distincts :
-
 - **Mode Test** : Utilisez les clés préfixées par `pk_test_` et `sk_test_` pour des transactions simulées
 - **Mode Production** : Utilisez les clés préfixées par `pk_live_` et `sk_live_` pour des transactions réelles
 
@@ -14,26 +13,22 @@ Stripe propose deux environnements distincts :
 Vous pouvez utiliser ces cartes pour tester différents scénarios sans effectuer de vraies transactions :
 
 ### Paiement réussi
-
 - **Numéro** : `4242 4242 4242 4242`
 - **Date** : N'importe quelle date future
 - **CVC** : N'importe quel code à 3 chiffres
 - **Code postal** : N'importe quel code postal à 5 chiffres
 
 ### Échec du paiement
-
 - **Numéro** : `4000 0000 0000 0002`
 - **Date** : N'importe quelle date future
 - **CVC** : N'importe quel code à 3 chiffres
 
 ### Authentification 3D Secure requise
-
 - **Numéro** : `4000 0000 0000 3220`
 - **Date** : N'importe quelle date future
 - **CVC** : N'importe quel code à 3 chiffres
 
 ### Carte refusée
-
 - **Numéro** : `4000 0000 0000 0069`
 - **Date** : N'importe quelle date future
 - **CVC** : N'importe quel code à 3 chiffres
@@ -43,25 +38,21 @@ Vous pouvez utiliser ces cartes pour tester différents scénarios sans effectue
 Pour tester les webhooks en environnement de développement local :
 
 1. Installez l'outil CLI Stripe :
-
    ```bash
    npm install -g stripe
    ```
 
 2. Connectez-vous à votre compte Stripe :
-
    ```bash
    stripe login
    ```
 
 3. Démarrez l'écoute des événements :
-
    ```bash
    stripe listen --forward-to http://localhost:3000/api/stripe/webhook
    ```
 
 4. L'outil vous fournira une clé de webhook à utiliser. Copiez-la dans votre fichier `.env.development.local` :
-
    ```
    STRIPE_WEBHOOK_SECRET=whsec_...
    ```

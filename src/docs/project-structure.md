@@ -1,7 +1,6 @@
 # Structure du Projet Vynal Platform
 
 ## Structure des Dossiers
-
 ```
 vynal-platform/
 ├── src/
@@ -69,54 +68,46 @@ vynal-platform/
 ## Étapes de Développement
 
 ### Étape 1: Configuration Initiale
-
 - Initialisation du projet Next.js avec TypeScript
 - Configuration de Tailwind CSS et shadcn/ui
 - Configuration de Supabase
 - Mise en place de la structure des dossiers
 
 ### Étape 2: Authentification et Profils
-
 - Configuration de l'authentification Supabase
 - Mise en place des pages de connexion/inscription
 - Création des profils utilisateurs
 - Configuration des règles RLS pour la sécurité
 
 ### Étape 3: Système de Services
-
 - Création des modèles de données pour les services
 - Développement des pages de création/affichage de services
 - Implémentation des catégories et sous-catégories
 - Système de filtrage et recherche
 
 ### Étape 4: Système de Commandes
-
 - Modèle de données pour les commandes
 - Workflow de commande (création, suivi, modification)
 - Intégration avec les services
 - Gestion des statuts
 
 ### Étape 5: Paiements et Wallet
-
 - Mise en place du système de paiement fictif
 - Création du wallet utilisateur
 - Historique des transactions
 - Gestion des statuts de paiement
 
 ### Étape 6: Messagerie et Avis
-
 - Système de messagerie par commande
 - Système d'avis et de notation
 - Gestion des disputes
 
 ### Étape 7: Dashboards
-
 - Dashboard freelance
 - Dashboard client
 - Dashboard administrateur
 
 ### Étape 8: Finalisation
-
 - Tests et débogage
 - Optimisation des performances
-- Déploiement
+- Déploiement 

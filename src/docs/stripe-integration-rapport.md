@@ -100,4 +100,4 @@ Pour améliorer davantage l'intégration, nous recommandons :
 
 ## Conclusion
 
-L'intégration Stripe est désormais complète et robuste. Elle gère correctement tous les cas d'utilisation principaux et met à jour la base de données de manière cohérente. Les outils de test permettent de valider facilement le bon fonctionnement du système.
+L'intégration Stripe est désormais complète et robuste. Elle gère correctement tous les cas d'utilisation principaux et met à jour la base de données de manière cohérente. Les outils de test permettent de valider facilement le bon fonctionnement du système. 

@@ -1,7 +1,6 @@
 # Documentation Technique Vynal Platform
 
 ## Table des matières
-
 1. [Mise à jour en temps réel](#mise-à-jour-en-temps-réel)
 2. [Optimisation des composants](#optimisation-des-composants)
 3. [Configuration Email](#configuration-email)
@@ -13,11 +12,9 @@
 #### 1. Gestion des abonnements en temps réel
 
 ##### Problème
-
 La mise à jour en temps réel n'est pas correctement implémentée avec Supabase Realtime, ce qui peut entraîner des problèmes de synchronisation et de performance.
 
 ##### Solution
-
 Implémentation d'une solution robuste pour les mises à jour en temps réel :
 
 ```typescript
@@ -25,33 +22,33 @@ Implémentation d'une solution robuste pour les mises à jour en temps réel :
 const setupRealtime = (supabase, userId) => {
   // S'abonner aux nouvelles conversations où l'utilisateur est participant
   const conversationsSubscription = supabase
-    .channel("conversation-updates")
+    .channel('conversation-updates')
     .on(
-      "postgres_changes",
+      'postgres_changes',
       {
-        event: "*",
-        schema: "public",
-        table: "conversation_participants",
-        filter: `participant_id=eq.${userId}`,
+        event: '*',
+        schema: 'public',
+        table: 'conversation_participants',
+        filter: `participant_id=eq.${userId}`
       },
-      (payload) => handleConversationUpdate(payload),
+      (payload) => handleConversationUpdate(payload)
     )
     .subscribe();
 
   // S'abonner aux nouveaux messages dans toutes les conversations de l'utilisateur
   const messagesSubscription = supabase
-    .channel("message-updates")
+    .channel('message-updates')
     .on(
-      "postgres_changes",
+      'postgres_changes',
       {
-        event: "INSERT",
-        schema: "public",
-        table: "messages",
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages'
       },
       (payload) => {
         // Vérifier si le message appartient à une conversation de l'utilisateur
         checkAndHandleNewMessage(payload.new, userId);
-      },
+      }
     )
     .subscribe();
 
@@ -73,14 +70,14 @@ const setupRealtime = (supabase, userId) => {
 
 ### 1. Utilisation des hooks optimisés
 
-| Hook standard            | Hook optimisé                   |
-| ------------------------ | ------------------------------- |
-| `useAuth`                | `useOptimizedAuth`              |
-| `useUser`                | `useOptimizedUser`              |
-| `useServices`            | `useOptimizedServices`          |
-| `usePaginatedServices`   | `useOptimizedPaginatedServices` |
-| `useTotalUnreadMessages` | `useMessageCounts`              |
-| `useDashboard`           | `useOptimizedDashboard`         |
+| Hook standard | Hook optimisé |
+|--------------|---------------|
+| `useAuth` | `useOptimizedAuth` |
+| `useUser` | `useOptimizedUser` |
+| `useServices` | `useOptimizedServices` |
+| `usePaginatedServices` | `useOptimizedPaginatedServices` |
+| `useTotalUnreadMessages` | `useMessageCounts` |
+| `useDashboard` | `useOptimizedDashboard` |
 
 ### 2. Indicateurs de rafraîchissement
 
@@ -88,10 +85,10 @@ Utilisez le composant `RefreshIndicator` pour tous les boutons de rafraîchissem
 
 ```tsx
 <Button onClick={refreshData} disabled={isRefreshing}>
-  <RefreshIndicator
-    isRefreshing={isRefreshing}
-    size="md"
-    text
+  <RefreshIndicator 
+    isRefreshing={isRefreshing} 
+    size="md" 
+    text 
     variant="primary"
   />
 </Button>
@@ -115,7 +112,6 @@ const { lastRefresh, updateLastRefresh, getLastRefreshText } = useLastRefresh();
 ### Architecture
 
 Le système d'email utilise :
-
 - **Nodemailer** comme bibliothèque principale
 - **Templates HTML** stockés dans `src/templates/email/`
 - **Variables d'environnement** pour la configuration SMTP
@@ -143,19 +139,16 @@ EMAIL_REPLY_TO=contact@vynalplatform.com
 ### Bonnes pratiques
 
 1. **Sécurité**
-
    - Ne stockez jamais les identifiants SMTP dans le code
    - Utilisez des mots de passe d'application sécurisés
    - Utilisez des variables d'environnement en production
 
 2. **Performance**
-
    - Envoi asynchrone
    - Utilisation du cache de transporteur
    - Option de pool en production
 
 3. **Delivrabilité**
-
    - Tests réguliers
    - Utilisation de SPF et DKIM
    - Éviter le contenu spam
@@ -163,4 +156,4 @@ EMAIL_REPLY_TO=contact@vynalplatform.com
 4. **Limites de taux**
    - Respecter les limites du fournisseur
    - Utiliser `canSendEmailToUser`
-   - Implémenter une queue pour les envois massifs
+   - Implémenter une queue pour les envois massifs 

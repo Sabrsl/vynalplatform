@@ -136,11 +136,11 @@ Pour tester les paiements sans utiliser de vraies cartes bancaires :
 
 1. Utilisez les cartes de test Stripe suivantes :
 
-| Scénario          | Numéro de carte     | Date              | CVC                    |
-| ----------------- | ------------------- | ----------------- | ---------------------- |
-| Paiement réussi   | 4242 4242 4242 4242 | Toute date future | Tout code à 3 chiffres |
+| Scénario | Numéro de carte | Date | CVC |
+|----------|-----------------|------|-----|
+| Paiement réussi | 4242 4242 4242 4242 | Toute date future | Tout code à 3 chiffres |
 | Échec du paiement | 4000 0000 0000 0002 | Toute date future | Tout code à 3 chiffres |
-| 3D Secure requis  | 4000 0000 0000 3220 | Toute date future | Tout code à 3 chiffres |
+| 3D Secure requis | 4000 0000 0000 3220 | Toute date future | Tout code à 3 chiffres |
 
 2. Testez différents montants et scénarios de paiement.
 3. Vérifiez les paiements de test dans le [dashboard Stripe](https://dashboard.stripe.com/test/payments).
@@ -154,7 +154,6 @@ Lorsque vous êtes prêt à passer en production :
 1. Vérifiez que tous les tests ont été effectués avec succès.
 2. Configurez les webhooks de production comme expliqué ci-dessus.
 3. Configurez les variables d'environnement sur votre service d'hébergement :
-
    - Vercel : Dans les paramètres du projet, section "Environment Variables"
    - Netlify : Dans les paramètres du site, section "Build & deploy > Environment"
    - Autres services : Consultez leur documentation respective
@@ -178,23 +177,19 @@ L'intégration Stripe a été conçue avec la sécurité comme priorité :
 ### Problèmes courants et solutions
 
 1. **Le paiement échoue avec une erreur d'authentification**
-
    - Vérifiez que les clés API sont correctement configurées
    - Assurez-vous d'utiliser le bon ensemble de clés (test vs production)
 
 2. **Les webhooks ne sont pas reçus**
-
    - Vérifiez que l'URL du webhook est accessible publiquement
    - Vérifiez que la clé de signature du webhook est correcte
    - Consultez les logs du webhook dans le dashboard Stripe
 
 3. **Erreur "No such payment_intent"**
-
    - Le PaymentIntent peut avoir expiré (durée de vie par défaut : 24h)
    - Vérifiez que vous n'utilisez pas une clé de test en production ou vice versa
 
 4. **Problèmes d'affichage du formulaire de carte**
-
    - Vérifiez que le composant `StripeElementsProvider` enveloppe correctement le formulaire
    - Assurez-vous que `clientSecret` est correctement passé au provider
 

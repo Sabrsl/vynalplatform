@@ -3,99 +3,76 @@
  * Gère l'envoi d'emails et le rendu des templates
  */
 
-import nodemailer, { Transporter, TransportOptions } from "nodemailer";
-import Handlebars from "handlebars";
-import fs from "fs";
-import path from "path";
-import { APP_CONFIG } from "./constants";
-import sanitizeHtml from "sanitize-html";
+import nodemailer, { Transporter, TransportOptions } from 'nodemailer';
+import Handlebars from 'handlebars';
+import fs from 'fs';
+import path from 'path';
+import { APP_CONFIG } from './constants';
+import sanitizeHtml from 'sanitize-html';
 import { FREELANCE_ROUTES, CLIENT_ROUTES } from "@/config/routes";
 
 // Logger dédié pour les emails
 const emailLogger = {
   info: (message: string) => {
-    if (
-      process.env.NODE_ENV !== "production" ||
-      process.env.EMAIL_DEBUG === "true"
-    ) {
+    if (process.env.NODE_ENV !== 'production' || process.env.EMAIL_DEBUG === 'true') {
       console.log(`[EMAIL INFO] ${message}`);
     }
   },
   error: (message: string, error?: any) => {
-    console.error(`[EMAIL ERROR] ${message}`, error || "");
-  },
+    console.error(`[EMAIL ERROR] ${message}`, error || '');
+  }
 };
 
 // Configurer des helpers Handlebars
-Handlebars.registerHelper("formatDate", function (dateString) {
-  if (!dateString) return "Non disponible";
-
+Handlebars.registerHelper('formatDate', function(dateString) {
+  if (!dateString) return 'Non disponible';
+  
   try {
     const date = new Date(dateString);
-    if (isNaN(date.getTime())) return "Date invalide";
-
-    return new Intl.DateTimeFormat("fr-FR", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
+    if (isNaN(date.getTime())) return 'Date invalide';
+    
+    return new Intl.DateTimeFormat('fr-FR', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
     }).format(date);
   } catch (error) {
-    console.error("Erreur lors du formatage de la date:", error);
-    return "Erreur de date";
+    console.error('Erreur lors du formatage de la date:', error);
+    return 'Erreur de date';
   }
 });
 
 // Helper pour traiter les balises HTML dans les descriptions de services
-Handlebars.registerHelper("safeHtml", function (text) {
-  if (!text) return "";
-
+Handlebars.registerHelper('safeHtml', function(text) {
+  if (!text) return '';
+  
   try {
     // Utiliser sanitize-html pour nettoyer le contenu tout en autorisant certaines balises
     const sanitizedHtml = sanitizeHtml(text, {
       allowedTags: [
-        "p",
-        "br",
-        "b",
-        "i",
-        "em",
-        "strong",
-        "u",
-        "ul",
-        "ol",
-        "li",
-        "span",
-        "div",
-        "h1",
-        "h2",
-        "h3",
-        "h4",
-        "h5",
-        "h6",
+        'p', 'br', 'b', 'i', 'em', 'strong', 'u', 'ul', 'ol', 'li', 
+        'span', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'
       ],
       allowedAttributes: {
-        "*": ["class", "style"],
+        '*': ['class', 'style']
       },
       allowedStyles: {
-        "*": {
-          color: [
-            /^#(0-9a-f){3,6}$/i,
-            /^rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)$/i,
-            /^rgba\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*\d+\.?\d*\s*\)$/i,
-          ],
-          "text-align": [/^left$/, /^right$/, /^center$/, /^justify$/],
-          "font-weight": [/^\d+$/, /^bold$/, /^normal$/],
-          "font-style": [/^italic$/, /^normal$/],
-          "text-decoration": [/^underline$/, /^none$/],
-        },
-      },
+        '*': {
+          'color': [/^#(0-9a-f){3,6}$/i, /^rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)$/i, /^rgba\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*\d+\.?\d*\s*\)$/i],
+          'text-align': [/^left$/, /^right$/, /^center$/, /^justify$/],
+          'font-weight': [/^\d+$/, /^bold$/, /^normal$/],
+          'font-style': [/^italic$/, /^normal$/],
+          'text-decoration': [/^underline$/, /^none$/]
+        }
+      }
     });
-
+    
     // Retourner le HTML sécurisé en tant que SafeString pour que Handlebars ne l'échappe pas
     return new Handlebars.SafeString(sanitizedHtml);
   } catch (error) {
-    console.error("Erreur lors du traitement du HTML sécurisé:", error);
+    console.error('Erreur lors du traitement du HTML sécurisé:', error);
     // En cas d'erreur, retourner le texte échappé
     return new Handlebars.SafeString(Handlebars.escapeExpression(text));
   }
@@ -135,7 +112,7 @@ interface OrderConfirmationOptions {
 interface WelcomeEmailOptions {
   to: string;
   name: string;
-  role: "client" | "freelance";
+  role: 'client' | 'freelance';
 }
 
 interface PasswordResetOptions {
@@ -154,51 +131,48 @@ const createTransporter = (): nodemailer.Transporter => {
   }
 
   const host = process.env.EMAIL_SMTP_HOST;
-  const port = parseInt(process.env.EMAIL_SMTP_PORT || "587", 10);
+  const port = parseInt(process.env.EMAIL_SMTP_PORT || '587', 10);
   const user = process.env.EMAIL_SMTP_USER;
   const pass = process.env.EMAIL_SMTP_PASSWORD;
 
-  console.log("Configuration du transporteur SMTP:");
-  console.log("- Host:", host || "NON DÉFINI");
-  console.log("- Port:", port);
-  console.log("- User:", user ? `${user}` : "NON DÉFINI"); // Pour Resend, le user est 'resend'
-  console.log("- Password:", pass ? "DÉFINI (masqué)" : "NON DÉFINI");
-  console.log("- From Address:", process.env.EMAIL_FROM_ADDRESS);
-  console.log("- From Name:", process.env.EMAIL_FROM_NAME);
+  console.log('Configuration du transporteur SMTP:');
+  console.log('- Host:', host || 'NON DÉFINI');
+  console.log('- Port:', port);
+  console.log('- User:', user ? `${user}` : 'NON DÉFINI'); // Pour Resend, le user est 'resend'
+  console.log('- Password:', pass ? 'DÉFINI (masqué)' : 'NON DÉFINI');
+  console.log('- From Address:', process.env.EMAIL_FROM_ADDRESS);
+  console.log('- From Name:', process.env.EMAIL_FROM_NAME);
 
   // Vérifier que les paramètres essentiels sont définis
   if (!host || !user || !pass) {
-    const errorMessage =
-      "Configuration SMTP incomplète. Vérifiez les variables d'environnement EMAIL_SMTP_HOST, EMAIL_SMTP_USER et EMAIL_SMTP_PASSWORD.";
+    const errorMessage = 'Configuration SMTP incomplète. Vérifiez les variables d\'environnement EMAIL_SMTP_HOST, EMAIL_SMTP_USER et EMAIL_SMTP_PASSWORD.';
     console.error(errorMessage);
-
+    
     // En mode développement, utiliser un transporteur de prévisualisation
-    if (process.env.NODE_ENV !== "production") {
-      console.log(
-        "Utilisation du transporteur de prévisualisation en mode développement",
-      );
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('Utilisation du transporteur de prévisualisation en mode développement');
       transporter = nodemailer.createTransport({
-        host: "localhost",
+        host: 'localhost',
         port: 1025,
         secure: false,
         tls: {
-          rejectUnauthorized: false,
+          rejectUnauthorized: false
         },
         auth: {
-          user: "dev",
-          pass: "dev",
-        },
+          user: 'dev',
+          pass: 'dev'
+        }
       });
       return transporter;
     }
-
+    
     throw new Error(errorMessage);
   }
 
   // Configuration spéciale pour Resend
-  if (host === "smtp.resend.com") {
-    console.log("Configuration spécifique pour Resend");
-
+  if (host === 'smtp.resend.com') {
+    console.log('Configuration spécifique pour Resend');
+    
     const transportConfig = {
       host,
       port,
@@ -208,20 +182,17 @@ const createTransporter = (): nodemailer.Transporter => {
         pass, // clé API Resend
       },
       tls: {
-        rejectUnauthorized: false, // Solution possible pour les problèmes SSL avec Resend
-      },
+        rejectUnauthorized: false // Solution possible pour les problèmes SSL avec Resend
+      }
     };
-
+    
     try {
       // Créer et stocker le transporteur
       transporter = nodemailer.createTransport(transportConfig);
-      console.log("Transporteur Resend créé avec succès");
+      console.log('Transporteur Resend créé avec succès');
       return transporter;
     } catch (error) {
-      console.error(
-        "Erreur lors de la création du transporteur Resend:",
-        error,
-      );
+      console.error('Erreur lors de la création du transporteur Resend:', error);
       throw error;
     }
   }
@@ -242,8 +213,8 @@ const createTransporter = (): nodemailer.Transporter => {
   };
 
   // Ajouter une option de pool pour gérer plusieurs connexions simultanées
-  if (process.env.NODE_ENV === "production") {
-    console.log("Mode production: configuration du pool de connexions");
+  if (process.env.NODE_ENV === 'production') {
+    console.log('Mode production: configuration du pool de connexions');
     (transportConfig as any).pool = {
       maxConnections: 5,
       maxMessages: 100,
@@ -255,10 +226,10 @@ const createTransporter = (): nodemailer.Transporter => {
   try {
     // Créer et stocker le transporteur
     transporter = nodemailer.createTransport(transportConfig);
-    console.log("Transporteur SMTP créé avec succès");
+    console.log('Transporteur SMTP créé avec succès');
     return transporter;
   } catch (error) {
-    console.error("Erreur lors de la création du transporteur SMTP:", error);
+    console.error('Erreur lors de la création du transporteur SMTP:', error);
     throw error;
   }
 };
@@ -266,78 +237,58 @@ const createTransporter = (): nodemailer.Transporter => {
 // Lecture d'un template email
 const readEmailTemplate = (templatePath: string): string => {
   try {
-    console.log("Tentative de lecture du template:", templatePath);
-
+    console.log('Tentative de lecture du template:', templatePath);
+    
     // Liste de tous les chemins possibles à essayer dans l'ordre
     const pathsToTry = [
       // 1. Chemin relatif standard
       templatePath,
-
+      
       // 2. Chemin absolu basé sur process.cwd()
       path.join(process.cwd(), templatePath),
-
+      
       // 3. Chemin depuis la racine du projet sans le préfixe 'src'
-      path.join(process.cwd(), templatePath.replace(/^src\//, "")),
-
+      path.join(process.cwd(), templatePath.replace(/^src\//, '')),
+      
       // 4. Chemins spécifiques pour l'environnement de production
-      path.join(process.cwd(), "public", templatePath),
-      path.join(process.cwd(), ".next", "server", templatePath),
-
+      path.join(process.cwd(), 'public', templatePath),
+      path.join(process.cwd(), '.next', 'server', templatePath),
+      
       // 5. Essayer avec templates à la racine
-      path.join(process.cwd(), "templates", path.basename(templatePath)),
-
+      path.join(process.cwd(), 'templates', path.basename(templatePath)),
+      
       // 6. Essayer le dossier templates/email spécifique
-      path.join(
-        process.cwd(),
-        "templates",
-        "email",
-        path.basename(templatePath),
-      ),
-
+      path.join(process.cwd(), 'templates', 'email', path.basename(templatePath)),
+      
       // 7. Essayer en extrayant juste le dernier niveau du dossier + fichier
-      path.join(
-        process.cwd(),
-        path.basename(path.dirname(templatePath)),
-        path.basename(templatePath),
-      ),
+      path.join(process.cwd(), path.basename(path.dirname(templatePath)), path.basename(templatePath))
     ];
-
+    
     // Essayer chaque chemin potentiel
     for (const tryPath of pathsToTry) {
       try {
-        console.log("Essai du chemin:", tryPath);
-        const templateContent = fs.readFileSync(tryPath, "utf8");
-        console.log("✅ Template lu avec succès depuis:", tryPath);
+        console.log('Essai du chemin:', tryPath);
+        const templateContent = fs.readFileSync(tryPath, 'utf8');
+        console.log('✅ Template lu avec succès depuis:', tryPath);
         return templateContent;
       } catch (error: any) {
         // Continuer à la prochaine tentative
         console.log(`❌ Échec avec le chemin: ${tryPath} - ${error.message}`);
       }
     }
-
+    
     // Si on arrive ici, aucun chemin n'a fonctionné
-    console.error(
-      "Tous les chemins ont échoué pour le template:",
-      templatePath,
-    );
-    throw new Error(
-      `Impossible de trouver le template d'email: ${templatePath}`,
-    );
+    console.error('Tous les chemins ont échoué pour le template:', templatePath);
+    throw new Error(`Impossible de trouver le template d'email: ${templatePath}`);
   } catch (error) {
-    console.error("Erreur lors de la lecture du template:", error);
-
+    console.error('Erreur lors de la lecture du template:', error);
+    
     // Obtenir le nom du template à partir du chemin pour personnaliser le message d'erreur
-    const templateName = path
-      .basename(templatePath, ".html")
-      .replace(/_/g, " ");
-    const templateType = templatePath.includes("service_approved")
-      ? "approbation de service"
-      : templatePath.includes("service_rejected")
-        ? "rejet de service"
-        : templatePath.includes("service_unpublished")
-          ? "dépublication de service"
-          : "notification";
-
+    const templateName = path.basename(templatePath, '.html').replace(/_/g, ' ');
+    const templateType = templatePath.includes('service_approved') ? 'approbation de service' :
+                         templatePath.includes('service_rejected') ? 'rejet de service' :
+                         templatePath.includes('service_unpublished') ? 'dépublication de service' : 'notification';
+    
     // En cas d'erreur, retourner un template par défaut plus informatif
     return `
       <!DOCTYPE html>
@@ -377,63 +328,57 @@ const readEmailTemplate = (templatePath: string): string => {
  * @param template - Le template HTML
  * @param variables - Les variables à remplacer dans le template
  */
-const renderHandlebarsTemplate = (
-  template: string,
-  variables: Record<string, string | undefined>,
-): string => {
+const renderHandlebarsTemplate = (template: string, variables: Record<string, string | undefined>): string => {
   try {
     // Pré-traitement des variables avant de les passer à Handlebars
     const processedVariables = { ...variables };
-
+    
     // S'assurer que les dates ont des valeurs par défaut
     if (!processedVariables.rejectionDate) {
       processedVariables.rejectionDate = new Date().toISOString();
     }
-
+    
     if (!processedVariables.approvalDate) {
       processedVariables.approvalDate = new Date().toISOString();
     }
-
+    
     if (!processedVariables.creationDate) {
       processedVariables.creationDate = new Date().toISOString();
     }
-
+    
     if (!processedVariables.unpublishedDate) {
       processedVariables.unpublishedDate = new Date().toISOString();
     }
-
+    
     // Ajouter les variables standards au contexte
     const context = {
       ...processedVariables,
       contactEmail: APP_CONFIG.contactEmail,
       currentYear: new Date().getFullYear().toString(),
-      siteName: APP_CONFIG.siteName,
+      siteName: APP_CONFIG.siteName
     };
-
+    
     // Compiler et rendre le template Handlebars
     const compiledTemplate = Handlebars.compile(template);
     return compiledTemplate(context);
   } catch (error) {
-    console.error("Erreur lors du rendu du template Handlebars:", error);
-
+    console.error('Erreur lors du rendu du template Handlebars:', error);
+    
     // Fallback: utiliser l'ancienne méthode de remplacement simple
     let result = template;
-
+    
     for (const [key, value] of Object.entries(variables)) {
       if (value !== undefined) {
-        const regex = new RegExp(`{{${key}}}`, "g");
+        const regex = new RegExp(`{{${key}}}`, 'g');
         result = result.replace(regex, value);
       }
     }
-
+    
     // Remplacer les variables standards
     result = result.replace(/{{contactEmail}}/g, APP_CONFIG.contactEmail);
-    result = result.replace(
-      /{{currentYear}}/g,
-      new Date().getFullYear().toString(),
-    );
+    result = result.replace(/{{currentYear}}/g, new Date().getFullYear().toString());
     result = result.replace(/{{siteName}}/g, APP_CONFIG.siteName);
-
+    
     return result;
   }
 };
@@ -441,35 +386,28 @@ const renderHandlebarsTemplate = (
 // Fonction de base pour l'envoi d'emails
 export const sendEmail = async (options: EmailOptions): Promise<boolean> => {
   try {
-    console.log(
-      "Début de sendEmail avec options:",
-      JSON.stringify({
-        to: options.to,
-        subject: options.subject,
-        from:
-          options.from ||
-          process.env.EMAIL_FROM_ADDRESS ||
-          APP_CONFIG.contactEmail,
-        hasText: !!options.text,
-        hasHtml: !!options.html,
-      }),
-    );
-
+    console.log('Début de sendEmail avec options:', JSON.stringify({
+      to: options.to,
+      subject: options.subject,
+      from: options.from || process.env.EMAIL_FROM_ADDRESS || APP_CONFIG.contactEmail,
+      hasText: !!options.text,
+      hasHtml: !!options.html
+    }));
+    
     const emailTransporter = createTransporter();
 
     // Ajout d'un ID unique pour le traçage
     const messageId = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
-
+    
     // Définir l'expéditeur en fonction des paramètres d'environnement
     const fromName = process.env.EMAIL_FROM_NAME || APP_CONFIG.siteName;
-    const fromAddress =
-      process.env.EMAIL_FROM_ADDRESS || APP_CONFIG.contactEmail;
-
+    const fromAddress = process.env.EMAIL_FROM_ADDRESS || APP_CONFIG.contactEmail;
+    
     // Construire l'adresse From au format "Nom <email>"
     let from = options.from || `"${fromName}" <${fromAddress}>`;
-    if (!from.includes("<") && !from.includes(">")) {
+    if (!from.includes('<') && !from.includes('>')) {
       // Si l'adresse ne contient pas le format avec des crochets, on construit le bon format
-      if (from.includes("@")) {
+      if (from.includes('@')) {
         // C'est juste une adresse email sans nom
         from = `"${fromName}" <${from}>`;
       } else {
@@ -477,12 +415,12 @@ export const sendEmail = async (options: EmailOptions): Promise<boolean> => {
         from = `"${from}" <${fromAddress}>`;
       }
     }
-
-    console.log("From address formatée:", from);
-
+    
+    console.log('From address formatée:', from);
+    
     const mailOptions = {
       from: from,
-      to: Array.isArray(options.to) ? options.to.join(",") : options.to,
+      to: Array.isArray(options.to) ? options.to.join(',') : options.to,
       subject: options.subject,
       text: options.text,
       html: options.html,
@@ -491,37 +429,33 @@ export const sendEmail = async (options: EmailOptions): Promise<boolean> => {
       cc: options.cc,
       bcc: options.bcc,
       headers: {
-        "X-Message-ID": messageId,
-        "X-Mailer": "Vynal Platform Mailer",
+        'X-Message-ID': messageId,
+        'X-Mailer': 'Vynal Platform Mailer',
       },
     };
 
     console.log(`Envoi d'email [${messageId}] à ${options.to}`);
-
+    
     // Log the mailOptions with redacted HTML/text content for brevity
     const loggableOptions = {
       ...mailOptions,
-      html: mailOptions.html
-        ? `[${mailOptions.html.length} caractères]`
-        : undefined,
-      text: mailOptions.text
-        ? `[${mailOptions.text.length} caractères]`
-        : undefined,
+      html: mailOptions.html ? `[${mailOptions.html.length} caractères]` : undefined,
+      text: mailOptions.text ? `[${mailOptions.text.length} caractères]` : undefined,
     };
-    console.log("Options d'envoi:", JSON.stringify(loggableOptions, null, 2));
-
+    console.log('Options d\'envoi:', JSON.stringify(loggableOptions, null, 2));
+    
     const info = await emailTransporter.sendMail(mailOptions);
     console.log(`Email [${messageId}] envoyé avec succès à ${options.to}`);
-    console.log("Réponse du serveur SMTP:", info.response);
-    console.log("Message ID:", info.messageId);
-    console.log("Accepted:", info.accepted);
-    console.log("Rejected:", info.rejected);
-
+    console.log('Réponse du serveur SMTP:', info.response);
+    console.log('Message ID:', info.messageId);
+    console.log('Accepted:', info.accepted);
+    console.log('Rejected:', info.rejected);
+    
     return true;
   } catch (error) {
     console.error(`Erreur lors de l'envoi de l'email à ${options.to}:`, error);
     // Enregistrer l'erreur pour analyse ultérieure dans un système de monitoring
-    if (process.env.NODE_ENV === "production") {
+    if (process.env.NODE_ENV === 'production') {
       // TODO: Ajouter l'intégration avec un service de monitoring d'erreurs
     }
     return false;
@@ -545,15 +479,12 @@ const emailLastSent: Record<string, number> = {};
 export const canSendEmailToUser = (email: string): boolean => {
   const now = Date.now();
   const lastSent = emailLastSent[email] || 0;
-  const rateLimitSeconds = parseInt(
-    process.env.EMAIL_RATE_LIMIT_SECONDS || "60",
-    10,
-  );
-
+  const rateLimitSeconds = parseInt(process.env.EMAIL_RATE_LIMIT_SECONDS || '60', 10);
+  
   if (now - lastSent < rateLimitSeconds * 1000) {
     return false;
   }
-
+  
   emailLastSent[email] = now;
   return true;
 };
@@ -568,93 +499,80 @@ export const canSendEmailToUser = (email: string): boolean => {
  */
 export const sendTemplateEmail = async (
   to: string | string[],
-  subject: string,
-  templatePath: string,
+  subject: string, 
+  templatePath: string, 
   variables: Record<string, string | undefined>,
-  options: Partial<EmailOptions> = {},
+  options: Partial<EmailOptions> = {}
 ): Promise<boolean> => {
   try {
     console.log(`[EMAIL] Début sendTemplateEmail: ${templatePath} pour ${to}`);
-
+    
     // Lire le template
     console.log(`[EMAIL] Lecture du template: ${templatePath}`);
     const template = readEmailTemplate(templatePath);
-    console.log(
-      `[EMAIL] Template lu avec succès (longueur: ${template.length} caractères)`,
-    );
-
+    console.log(`[EMAIL] Template lu avec succès (longueur: ${template.length} caractères)`);
+    
     // Vérifier les variables essentielles
     const missingVars: string[] = [];
-    ["freelanceName", "serviceTitle", "servicePrice"].forEach((key) => {
+    ['freelanceName', 'serviceTitle', 'servicePrice'].forEach(key => {
       if (!variables[key]) missingVars.push(key);
     });
-
+    
     if (missingVars.length > 0) {
-      console.warn(`[EMAIL] Variables manquantes: ${missingVars.join(", ")}`);
+      console.warn(`[EMAIL] Variables manquantes: ${missingVars.join(', ')}`);
       // Ajouter des valeurs par défaut pour les variables manquantes
-      missingVars.forEach((key) => {
-        variables[key] =
-          key === "freelanceName"
-            ? "Utilisateur"
-            : key === "serviceTitle"
-              ? "Service"
-              : key === "servicePrice"
-                ? "0"
-                : "Non spécifié";
+      missingVars.forEach(key => {
+        variables[key] = key === 'freelanceName' ? 'Utilisateur' : 
+                         key === 'serviceTitle' ? 'Service' : 
+                         key === 'servicePrice' ? '0' : 'Non spécifié';
       });
     }
-
+    
     // Compiler et rendre le template avec Handlebars
-    console.log(
-      `[EMAIL] Rendu du template avec ${Object.keys(variables).length} variables`,
-    );
+    console.log(`[EMAIL] Rendu du template avec ${Object.keys(variables).length} variables`);
     const html = renderHandlebarsTemplate(template, variables);
-    console.log(
-      `[EMAIL] Template rendu avec succès (longueur: ${html.length} caractères)`,
-    );
-
+    console.log(`[EMAIL] Template rendu avec succès (longueur: ${html.length} caractères)`);
+    
     // Convertir le HTML en texte brut de manière sécurisée
     const text = (() => {
       // Map des entités HTML courantes
       const entitiesMap: Record<string, string> = {
-        "&amp;": "&",
-        "&lt;": "<",
-        "&gt;": ">",
-        "&quot;": '"',
-        "&#39;": "'",
-        "&#x27;": "'",
-        "&#x2F;": "/",
-        "&nbsp;": " ",
+        '&amp;': '&',
+        '&lt;': '<',
+        '&gt;': '>',
+        '&quot;': '"',
+        '&#39;': "'",
+        '&#x27;': "'",
+        '&#x2F;': '/',
+        '&nbsp;': ' '
       };
-
+        
       // Fonction pour décoder les entités HTML
       const decodeHtmlEntities = (html: string): string => {
+          
         // Remplacer toutes les entités HTML connues
-        return html.replace(
-          /&amp;|&lt;|&gt;|&quot;|&#39;|&#x27;|&#x2F;|&nbsp;/g,
-          (entity) => entitiesMap[entity] || entity,
+        return html.replace(/&amp;|&lt;|&gt;|&quot;|&#39;|&#x27;|&#x2F;|&nbsp;/g, 
+          (entity) => entitiesMap[entity] || entity
         );
       };
-
+        
       // 1. Supprimer les balises HTML complètement et sécuriser le contenu
       let plainText = sanitizeHtml(html, {
         allowedTags: [], // Supprimer toutes les balises HTML
-        allowedAttributes: {}, // Supprimer tous les attributs
+        allowedAttributes: {} // Supprimer tous les attributs
       });
-
+        
       // 2. Décoder les entités HTML de façon sécurisée
       plainText = decodeHtmlEntities(plainText);
-
+        
       // 3. Normaliser les espaces
-      plainText = plainText.replace(/\s+/g, " ").trim();
-
+      plainText = plainText.replace(/\s+/g, ' ').trim();
+        
       return plainText;
     })();
-
-    console.log(
-      `[EMAIL] Version texte générée (longueur: ${text.length} caractères)`,
-    );
-
+    
+    console.log(`[EMAIL] Version texte générée (longueur: ${text.length} caractères)`);
+    
     // Envoyer l'email
     console.log(`[EMAIL] Envoi de l'email à ${to}`);
     const result = await sendEmail({
@@ -662,88 +580,77 @@ export const sendTemplateEmail = async (
       subject,
       html,
       text,
-      ...options,
+      ...options
     });
-
+    
     if (result) {
       console.log(`[EMAIL] ✅ Email envoyé avec succès à ${to}`);
     } else {
       console.error(`[EMAIL] ❌ Échec de l'envoi d'email à ${to}`);
     }
-
+    
     return result;
   } catch (error) {
-    console.error(
-      `[EMAIL] Erreur critique lors de l'envoi d'email template à ${to}:`,
-      error,
-    );
+    console.error(`[EMAIL] Erreur critique lors de l'envoi d'email template à ${to}:`, error);
     return false;
   }
 };
 
 // Templates pour les emails courants
-export const sendWelcomeEmail = async (
-  options: WelcomeEmailOptions,
-): Promise<boolean> => {
+export const sendWelcomeEmail = async (options: WelcomeEmailOptions): Promise<boolean> => {
   try {
-    console.log(
-      "Début de sendWelcomeEmail avec options:",
-      JSON.stringify({
-        to: options.to,
-        name: options.name,
-        role: options.role,
-      }),
-    );
+    console.log('Début de sendWelcomeEmail avec options:', JSON.stringify({
+      to: options.to,
+      name: options.name,
+      role: options.role
+    }));
 
-    const templatePath =
-      options.role === "client"
-        ? "src/templates/email/client/welcome.html"
-        : "src/templates/email/freelance/welcome.html";
-
-    console.log("Template path sélectionné:", templatePath);
-
+    const templatePath = options.role === 'client' 
+      ? 'src/templates/email/client/welcome.html'
+      : 'src/templates/email/freelance/welcome.html';
+    
+    console.log('Template path sélectionné:', templatePath);
+    
     // Définir le lien du tableau de bord en fonction du rôle
-    let dashboardLink = "";
-
-    if (options.role === "client") {
+    let dashboardLink = '';
+    
+    if (options.role === 'client') {
       dashboardLink = `${APP_URLS.baseUrl}/client-dashboard`;
-    } else if (options.role === "freelance") {
+    } else if (options.role === 'freelance') {
       dashboardLink = `${APP_URLS.baseUrl}/dashboard`;
     } else {
       // Fallback au cas où
       dashboardLink = `${APP_URLS.baseUrl}/dashboard`;
     }
-
+    
     const variables = {
       clientName: options.name,
       dashboardLink: dashboardLink,
-      userRole: options.role,
+      userRole: options.role
     };
-
-    console.log("Variables du template:", JSON.stringify(variables));
-    console.log("APP_URLS.baseUrl:", APP_URLS.baseUrl);
-    console.log("Dashboard Link:", dashboardLink);
-
+    
+    console.log('Variables du template:', JSON.stringify(variables));
+    console.log('APP_URLS.baseUrl:', APP_URLS.baseUrl);
+    console.log('Dashboard Link:', dashboardLink);
+    
     const result = await sendTemplateEmail(
       options.to,
       `Bienvenue sur ${APP_CONFIG.siteName} !`,
       templatePath,
-      variables,
+      variables
     );
-
-    console.log("Résultat de sendTemplateEmail:", result);
+    
+    console.log('Résultat de sendTemplateEmail:', result);
     return result;
   } catch (error) {
-    console.error("Erreur dans sendWelcomeEmail:", error);
+    console.error('Erreur dans sendWelcomeEmail:', error);
     return false;
   }
 };
 
-export const sendOrderConfirmationEmail = async (
-  options: OrderConfirmationOptions,
-): Promise<boolean> => {
-  const templatePath = "src/templates/email/client/order_confirmation.html";
-
+export const sendOrderConfirmationEmail = async (options: OrderConfirmationOptions): Promise<boolean> => {
+  const templatePath = 'src/templates/email/client/order_confirmation.html';
+  
   const variables = {
     buyerName: options.buyerName,
     orderNumber: options.orderNumber,
@@ -755,72 +662,70 @@ export const sendOrderConfirmationEmail = async (
     sellerName: options.sellerName,
     orderLink: `${APP_URLS.baseUrl}${FREELANCE_ROUTES.ORDERS}/${options.orderNumber}`,
   };
-
+  
   return await sendTemplateEmail(
     options.to,
     `Confirmation de votre commande #${options.orderNumber}`,
     templatePath,
-    variables,
+    variables
   );
 };
 
-export const sendPasswordResetEmail = async (
-  options: PasswordResetOptions,
-): Promise<boolean> => {
-  const templatePath = "src/templates/email/password_reset.html";
-
+export const sendPasswordResetEmail = async (options: PasswordResetOptions): Promise<boolean> => {
+  const templatePath = 'src/templates/email/password_reset.html';
+  
   const variables = {
     resetLink: options.resetLink,
-    expiryTime: "1 heure",
+    expiryTime: '1 heure',
   };
-
+  
   return await sendTemplateEmail(
     options.to,
     `Réinitialisation de votre mot de passe ${APP_CONFIG.siteName}`,
     templatePath,
-    variables,
+    variables
   );
 };
 
 // Utilitaires de formatage pour les emails
 export const formatDateFr = (date: Date): string => {
-  return new Intl.DateTimeFormat("fr-FR", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    hour: "numeric",
-    minute: "numeric",
+  return new Intl.DateTimeFormat('fr-FR', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: 'numeric'
   }).format(date);
 };
 
 // Exporter les URLs de l'application
-import { APP_URLS } from "./constants";
+import { APP_URLS } from './constants';
 
 // Fonction simplifiée pour un email de bienvenue sans dépendance aux templates
 export const sendBasicWelcomeEmail = async (options: {
   to: string;
   name: string;
-  role: "client" | "freelance";
+  role: 'client' | 'freelance';
 }): Promise<boolean> => {
   try {
-    console.log("Envoi d'un email de bienvenue basique à:", options.to);
-
+    console.log('Envoi d\'un email de bienvenue basique à:', options.to);
+    
     // Définir le lien du tableau de bord en fonction du rôle
-    let dashboardLink = "";
-    let dashboardText = "";
-
-    if (options.role === "client") {
+    let dashboardLink = '';
+    let dashboardText = '';
+    
+    if (options.role === 'client') {
       dashboardLink = `${APP_URLS.baseUrl}/client-dashboard`;
-      dashboardText = "Espace Client";
-    } else if (options.role === "freelance") {
+      dashboardText = 'Espace Client';
+    } else if (options.role === 'freelance') {
       dashboardLink = `${APP_URLS.baseUrl}/dashboard`;
-      dashboardText = "Espace Freelance";
+      dashboardText = 'Espace Freelance';
     } else {
       // Fallback au cas où
       dashboardLink = `${APP_URLS.baseUrl}/dashboard`;
-      dashboardText = "Tableau de bord";
+      dashboardText = 'Tableau de bord';
     }
-
+    
     // Créer un HTML simple directement dans le code
     const html = `
       <!DOCTYPE html>
@@ -835,7 +740,7 @@ export const sendBasicWelcomeEmail = async (options: {
           
           <p>Bonjour ${options.name},</p>
           
-          <p>Nous sommes ravis de vous accueillir sur ${APP_CONFIG.siteName}${options.role === "freelance" ? " en tant que freelance" : " en tant que client"}.</p>
+          <p>Nous sommes ravis de vous accueillir sur ${APP_CONFIG.siteName}${options.role === 'freelance' ? ' en tant que freelance' : ' en tant que client'}.</p>
           
           <p>Accédez à votre ${dashboardText} : <a href="${dashboardLink}" style="color: #6554AF; text-decoration: none; font-weight: bold; padding: 10px 15px; background-color: #f4f4f9; border-radius: 4px; display: inline-block; margin: 10px 0;">${dashboardText}</a></p>
           
@@ -850,14 +755,14 @@ export const sendBasicWelcomeEmail = async (options: {
       </body>
       </html>
     `;
-
+    
     // Construire un texte simple alternatif
     const text = `
       Bienvenue sur ${APP_CONFIG.siteName} !
       
       Bonjour ${options.name},
       
-      Nous sommes ravis de vous accueillir sur ${APP_CONFIG.siteName}${options.role === "freelance" ? " en tant que freelance" : " en tant que client"}.
+      Nous sommes ravis de vous accueillir sur ${APP_CONFIG.siteName}${options.role === 'freelance' ? ' en tant que freelance' : ' en tant que client'}.
       
       Accédez à votre ${dashboardText} : ${dashboardLink}
       
@@ -868,19 +773,16 @@ export const sendBasicWelcomeEmail = async (options: {
       
       © ${new Date().getFullYear()} ${APP_CONFIG.siteName}. Tous droits réservés.
     `;
-
+    
     // Envoyer l'email
     return await sendEmail({
       to: options.to,
       subject: `Bienvenue sur ${APP_CONFIG.siteName} !`,
       html,
-      text,
+      text
     });
   } catch (error) {
-    console.error(
-      "Erreur lors de l'envoi de l'email de bienvenue basique:",
-      error,
-    );
+    console.error('Erreur lors de l\'envoi de l\'email de bienvenue basique:', error);
     return false;
   }
 };

@@ -5,7 +5,6 @@ Ce document explique la stratégie de centralisation des constantes et les étap
 ## Problème résolu
 
 Nous avions plusieurs définitions de constantes (CACHE_KEYS, FETCH_CONFIG, etc.) dispersées dans plusieurs fichiers :
-
 - `index.ts`
 - `compatibility.ts`
 - `invalidation.ts`
@@ -31,7 +30,7 @@ Nous avons créé un système centralisé de gestion des constantes dans le fich
 Utilisez toujours les imports depuis `index.ts` pour conserver une rétrocompatibilité :
 
 ```typescript
-import { CACHE_KEYS, CACHE_EXPIRY, FETCH_CONFIG } from "@/lib/optimizations";
+import { CACHE_KEYS, CACHE_EXPIRY, FETCH_CONFIG } from '@/lib/optimizations';
 ```
 
 ### Nouveaux projets ou composants
@@ -39,7 +38,7 @@ import { CACHE_KEYS, CACHE_EXPIRY, FETCH_CONFIG } from "@/lib/optimizations";
 Pour les nouveaux projets ou composants, utilisez le nouveau format de clés via l'enum `CacheKeyPrefix` :
 
 ```typescript
-import { CacheKeyPrefix, makeCacheKey } from "@/lib/optimizations/invalidation";
+import { CacheKeyPrefix, makeCacheKey } from '@/lib/optimizations/invalidation';
 
 // Utiliser le nouveau format
 const cacheKey = makeCacheKey(CacheKeyPrefix.ClientStats, { userId });
@@ -50,13 +49,10 @@ const cacheKey = makeCacheKey(CacheKeyPrefix.ClientStats, { userId });
 Si vous avez besoin de convertir entre les formats :
 
 ```typescript
-import {
-  legacyToNewKey,
-  newToLegacyKey,
-} from "@/lib/optimizations/constants-manager";
+import { legacyToNewKey, newToLegacyKey } from '@/lib/optimizations/constants-manager';
 
 // Convertir de l'ancien au nouveau format
-const newKey = legacyToNewKey("client_stats_123");
+const newKey = legacyToNewKey('client_stats_123');
 
 // Convertir du nouveau à l'ancien format
 const legacyKey = newToLegacyKey(CacheKeyPrefix.ClientStats);
@@ -72,4 +68,4 @@ const legacyKey = newToLegacyKey(CacheKeyPrefix.ClientStats);
 
 - Évitez de définir de nouvelles constantes en dehors du fichier `constants-manager.ts`
 - Reportez-vous au fichier `cache-keys.ts` pour comprendre la structure du nouveau format de clés
-- Utilisez `makeCacheKey` pour créer des clés standardisées avec des paramètres
+- Utilisez `makeCacheKey` pour créer des clés standardisées avec des paramètres 
