@@ -227,14 +227,13 @@ function StripeCardFormContent({
       }
 
       // Confirmation du paiement avec Stripe
-      const { error, paymentIntent } = await stripe.confirmCardPayment(
-        clientSecret,
-        {
-          payment_method: {
-            card: cardElement,
-          },
+      const result = await stripe.confirmCardPayment(clientSecret, {
+        payment_method: {
+          card: cardElement,
         },
-      );
+      });
+
+      const { error, paymentIntent } = result;
 
       // Gestion des erreurs
       if (error) {

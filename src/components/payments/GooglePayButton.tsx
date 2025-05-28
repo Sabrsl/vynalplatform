@@ -93,11 +93,13 @@ function GooglePayButtonInternal({
 
       try {
         // Confirmer le paiement avec Stripe
-        const { error, paymentIntent } = await stripe.confirmCardPayment(
+        const result = await stripe.confirmCardPayment(
           clientSecret,
           { payment_method: ev.paymentMethod.id },
           { handleActions: false },
         );
+
+        const { error, paymentIntent } = result;
 
         if (error) {
           // Informer Google Pay que le paiement a échoué
@@ -297,11 +299,13 @@ function InternalGooglePayButton({
 
       try {
         // Confirmer le paiement avec Stripe
-        const { error, paymentIntent } = await stripe.confirmCardPayment(
+        const result = await stripe.confirmCardPayment(
           clientSecret,
           { payment_method: ev.paymentMethod.id },
           { handleActions: false },
         );
+
+        const { error, paymentIntent } = result;
 
         if (error) {
           // Informer Google Pay que le paiement a échoué
@@ -451,11 +455,13 @@ function ElementsContextProvider({
 
       try {
         // Confirmer le paiement avec Stripe
-        const { error, paymentIntent } = await stripe.confirmCardPayment(
+        const result = await stripe.confirmCardPayment(
           clientSecret,
           { payment_method: ev.paymentMethod.id },
           { handleActions: false },
         );
+
+        const { error, paymentIntent } = result;
 
         if (error) {
           // Informer Google Pay que le paiement a échoué

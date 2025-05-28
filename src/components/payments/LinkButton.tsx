@@ -95,11 +95,13 @@ function LinkButtonInternal({
 
       try {
         // Confirmer le paiement avec Stripe
-        const { error, paymentIntent } = await stripe.confirmCardPayment(
+        const result = await stripe.confirmCardPayment(
           clientSecret,
           { payment_method: ev.paymentMethod.id },
           { handleActions: false },
         );
+
+        const { error, paymentIntent } = result;
 
         if (error) {
           // Informer que le paiement a échoué

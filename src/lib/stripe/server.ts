@@ -161,6 +161,11 @@ export async function createPaymentIntent(params: {
     customer: params.customerId,
     metadata: params.metadata,
     payment_method_types: ["card", "link"],
+    payment_method_options: {
+      card: {
+        request_three_d_secure: "automatic",
+      },
+    },
   });
 }
 
