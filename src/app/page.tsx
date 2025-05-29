@@ -40,7 +40,7 @@ const HOMEPAGE_CACHE_KEY = 'homepage_data';
 // et ne pas impacter les performances de chargement initiales
 const WelcomeChatbotDynamic = dynamic(() => 
   import('@/components/ui/WelcomeChatbot').then(mod => mod.WelcomeChatbot),
-  { ssr: false, loading: () => null }
+  { ssr: false }
 );
 
 const TextRevealSectionDynamic = dynamic(() => 
@@ -50,7 +50,7 @@ const TextRevealSectionDynamic = dynamic(() =>
 
 const BorderBeamButtonDynamic = dynamic(() =>
   import('@/components/ui/border-beam-button').then(mod => mod.BorderBeamButton),
-  { ssr: true, loading: () => null }
+  { ssr: true }
 );
 
 const PartnersSectionDynamic = dynamic(() => 
@@ -63,7 +63,6 @@ const FastLCPTitle = memo(() => (
   <h1 
     className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 leading-tight bg-gradient-to-r from-vynal-accent-secondary to-vynal-accent-primary bg-clip-text text-transparent" 
     id="lcp-title"
-    style={{ contentVisibility: 'auto' }}
   >
     Trouvez des freelances qualifiés pour tous vos projets
   </h1>
@@ -87,104 +86,11 @@ export default function Home() {
   // Référence pour suivre si le composant est monté
   const mountedRef = useRef(true);
 
-  // Gestion optimisée du cache pour les catégories et sous-catégories
-  useEffect(() => {
-    // Fonction pour récupérer ou mettre en cache les données
-    const loadCategoriesFromCache = () => {
-      try {
-        // Essayer d'abord le cache local pour les catégories et sous-catégories
-        const cachedHomepageData = getCachedData<HomepageData | null>(HOMEPAGE_CACHE_KEY);
-        
-        if (cachedHomepageData && 
-            cachedHomepageData.categories && 
-            cachedHomepageData.subcategories &&
-            cachedHomepageData.categories.length && 
-            cachedHomepageData.subcategories.length) {
-          
-          // Utiliser les données du cache immédiatement
-          setLocalCategories(cachedHomepageData.categories);
-          setLocalSubcategories(cachedHomepageData.subcategories);
-          setIsLoadingCategories(false);
-          
-          // Ne pas revalider si le cache est récent (moins de 24h)
-          const cacheAge = Date.now() - cachedHomepageData.timestamp;
-          const MAX_AGE = 24 * 60 * 60 * 1000; // 24 heures
-          
-          if (cacheAge < MAX_AGE) {
-            return;
-          }
-        }
-      } catch (error) {
-        console.error('Erreur lors de la récupération du cache:', error);
-      }
-    };
-
-    // Charger depuis le cache immédiatement
-    loadCategoriesFromCache();
-  }, []);
-
-  // Effet pour mettre à jour le cache quand les données fraîches sont disponibles
-  useEffect(() => {
-    if (!categoriesLoading && categories && subcategories) {
-      // Mettre à jour l'état local avec les données fraîches
-      setLocalCategories(categories);
-      setLocalSubcategories(subcategories);
-      setIsLoadingCategories(false);
-      
-      // Mettre à jour le cache avec les nouvelles données
-      setCachedData(
-        HOMEPAGE_CACHE_KEY,
-        {
-          categories,
-          subcategories,
-          timestamp: Date.now(),
-          version: '1.1' // Incrémenter la version en cas de changement de structure
-        },
-        {
-          expiry: 14 * 24 * 60 * 60 * 1000, // 14 jours pour une page d'accueil
-          priority: 'high'
-        }
-      );
-    }
-  }, [categories, subcategories, categoriesLoading]);
-
-  // Détecter les appareils mobiles pour optimiser les performances
-  useEffect(() => {
-    const checkMobile = () => {
-      const mobile = window.innerWidth < 768 || navigator.userAgent.toLowerCase().includes('mobi');
-      setIsMobile(mobile);
-    };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-  
-  // Charger les composants non critiques de manière différée
-  useEffect(() => {
-    // Utiliser requestIdleCallback ou setTimeout pour différer les calculs non critiques
-    const loadNonCriticalComponents = () => {
-      setLoadedComponents(true);
-    };
-    
-    if (typeof window !== 'undefined') {
-      if ('requestIdleCallback' in window) {
-        // @ts-ignore
-        window.requestIdleCallback(loadNonCriticalComponents, { timeout: 2000 });
-      } else {
-        // Fallback pour les navigateurs qui ne supportent pas requestIdleCallback
-        setTimeout(loadNonCriticalComponents, 1000);
-      }
-    }
-  }, []);
-
   const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
     if (searchQuery.trim()) {
       setIsSearching(true);
-      // Toujours rediriger vers PUBLIC_ROUTES.SERVICES
       router.push(`${PUBLIC_ROUTES.SERVICES}?search=${encodeURIComponent(searchQuery.trim())}`);
     }
   };
@@ -200,26 +106,93 @@ export default function Home() {
   // Mettre à jour le placeholder en fonction de la taille de l'écran
   useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth < 640) { // Mobile uniquement
-        setMobilePlaceholder("Que cherchez vous ? Par exemple : IA...");
-      } else {
-        setMobilePlaceholder(searchPlaceholders[0]);
-      }
+      const isMobile = window.innerWidth < 640;
+      setMobilePlaceholder(isMobile ? "Que cherchez vous ? Par exemple : IA..." : searchPlaceholders[0]);
     };
     
-    handleResize(); // Exécuter immédiatement
+    handleResize();
     window.addEventListener('resize', handleResize);
     
-    return () => {
-      window.removeEventListener('resize', handleResize);
-    };
-  }, []);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [searchPlaceholders]);
 
   // Fonction pour gérer les clics sur les catégories
   const handleCategoryClick = (categorySlug: string) => {
-    // Rediriger simplement vers la catégorie sans chercher à atteindre les sous-catégories
     router.push(`${PUBLIC_ROUTES.SERVICES}?category=${categorySlug}`);
   };
+
+  // Gestion optimisée du cache pour les catégories et sous-catégories
+  useEffect(() => {
+    const loadCategoriesFromCache = () => {
+      try {
+        const cachedHomepageData = getCachedData<HomepageData | null>(HOMEPAGE_CACHE_KEY);
+        
+        if (cachedHomepageData?.categories?.length && cachedHomepageData?.subcategories?.length) {
+          setLocalCategories(cachedHomepageData.categories);
+          setLocalSubcategories(cachedHomepageData.subcategories);
+          setIsLoadingCategories(false);
+          
+          const cacheAge = Date.now() - cachedHomepageData.timestamp;
+          const MAX_AGE = 24 * 60 * 60 * 1000; // 24 heures
+          
+          if (cacheAge < MAX_AGE) return;
+        }
+      } catch (error) {
+        console.error('Erreur lors de la récupération du cache:', error);
+      }
+    };
+
+    loadCategoriesFromCache();
+  }, []);
+
+  // Effet pour mettre à jour le cache quand les données fraîches sont disponibles
+  useEffect(() => {
+    if (!categoriesLoading && categories && subcategories) {
+      setLocalCategories(categories);
+      setLocalSubcategories(subcategories);
+      setIsLoadingCategories(false);
+      
+      setCachedData(
+        HOMEPAGE_CACHE_KEY,
+        {
+          categories,
+          subcategories,
+          timestamp: Date.now(),
+          version: '1.1'
+        },
+        {
+          expiry: 14 * 24 * 60 * 60 * 1000,
+          priority: 'high'
+        }
+      );
+    }
+  }, [categories, subcategories, categoriesLoading]);
+
+  // Détecter les appareils mobiles pour optimiser les performances
+  useEffect(() => {
+    const checkMobile = () => {
+      const isMobile = window.innerWidth < 768 || /mobi/i.test(navigator.userAgent);
+      setIsMobile(isMobile);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+  
+  // Charger les composants non critiques de manière différée
+  useEffect(() => {
+    const loadNonCriticalComponents = () => setLoadedComponents(true);
+    
+    if (typeof window !== 'undefined') {
+      if ('requestIdleCallback' in window) {
+        window.requestIdleCallback(loadNonCriticalComponents, { timeout: 2000 });
+      } else {
+        setTimeout(loadNonCriticalComponents, 1000);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     const isLoading = authLoading || userLoading;
@@ -304,49 +277,43 @@ export default function Home() {
                   src="/assets/partners/logo_free_money.webp" 
                   alt="Free Money" 
                   width={84}
-                  height={20}
+                  height={18}
                   className="h-4 md:h-5 w-auto object-contain grayscale hover:grayscale-0 transition-all duration-300" 
-                  priority={false}
                 />
                 <Image 
                   src="/assets/partners/logo_stripe.webp" 
                   alt="Stripe" 
                   width={84}
-                  height={20}
+                  height={18}
                   className="h-4 md:h-5 w-auto object-contain grayscale hover:grayscale-0 transition-all duration-300" 
-                  priority={false}
                 />
                 <Image 
                   src="/assets/partners/logo_wave_.webp" 
                   alt="Wave" 
                   width={84}
-                  height={20}
+                  height={18}
                   className="h-4 md:h-5 w-auto object-contain grayscale hover:grayscale-0 transition-all duration-300" 
-                  priority={false}
                 />
                 <Image 
                   src="/assets/partners/om_logo_.webp" 
                   alt="OM" 
                   width={84}
-                  height={20}
+                  height={18}
                   className="h-4 md:h-5 w-auto object-contain grayscale hover:grayscale-0 transition-all duration-300" 
-                  priority={false}
                 />
                 <Image 
                   src="/assets/partners/Google_.webp" 
                   alt="Google" 
                   width={84}
-                  height={20}
+                  height={18}
                   className="h-4 md:h-5 w-auto object-contain grayscale hover:grayscale-0 transition-all duration-300" 
-                  priority={false}
                 />
                 <Image 
                   src="/assets/partners/Logo-GitHub-Black.webp" 
                   alt="GitHub" 
                   width={84}
-                  height={20}
+                  height={18}
                   className="h-4 md:h-5 w-auto object-contain dark:invert grayscale hover:grayscale-0 transition-all duration-300" 
-                  priority={false}
                 />
               </div>
             </div>
