@@ -422,10 +422,28 @@ CurrencySelector.displayName = "CurrencySelector";
 function Footer() {
   const [mounted, setMounted] = useState(false);
   const currentYear = new Date().getFullYear();
+  const [appVersion, setAppVersion] = useState<string | null>(null);
+  const [versionError, setVersionError] = useState<string | null>(null);
 
   // S'assurer que le rendu se fait uniquement côté client
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  // Récupérer la version de l'application dynamiquement
+  useEffect(() => {
+    fetch("/version.json?_t=" + Date.now())
+      .then((res) => res.json())
+      .then((data) => {
+        setAppVersion(data.version);
+        setVersionError(null);
+        console.log("Version récupérée (footer) :", data.version);
+      })
+      .catch((err) => {
+        setAppVersion(null);
+        setVersionError("Erreur version");
+        console.error("Erreur version.json (footer)", err);
+      });
   }, []);
 
   // Éviter tout flash de contenu non stylisé
@@ -517,7 +535,10 @@ function Footer() {
               <span className="text-[9px] opacity-70">
                 &copy; {currentYear} Vynal Platform. Tous droits réservés.
                 <span className="ml-2 inline-flex items-center px-1 py-0.5 rounded text-[8px] font-medium bg-vynal-purple-light/10 text-vynal-purple-light dark:bg-vynal-accent-primary/10 dark:text-vynal-accent-primary">
-                  v0.1.207
+                  {String(appVersion)}
+                  {versionError && (
+                    <span className="text-red-500 ml-2">{versionError}</span>
+                  )}
                 </span>
               </span>
             </div>
