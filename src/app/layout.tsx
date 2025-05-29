@@ -1,87 +1,155 @@
-import './globals.css';
-import type { Metadata, Viewport } from 'next';
-import { Poppins } from 'next/font/google';
-import { Providers } from './providers';
-import MainLayout from '@/components/layout/main-layout';
-import { Suspense } from 'react';
-import ScrollRestoration from './scroll-restoration';
-import Script from 'next/script';
-import dynamic from 'next/dynamic';
+import "./globals.css";
+import type { Metadata, Viewport } from "next";
+import { Poppins } from "next/font/google";
+import { Providers } from "./providers";
+import MainLayout from "@/components/layout/main-layout";
+import { Suspense } from "react";
+import ScrollRestoration from "./scroll-restoration";
+import Script from "next/script";
+import dynamic from "next/dynamic";
 
 // Chargement dynamique du composant de vérification de version (côté client uniquement)
-const VersionChecker = dynamic(() => import('@/components/ui/VersionChecker'), { 
-  ssr: false 
+const VersionChecker = dynamic(() => import("@/components/ui/VersionChecker"), {
+  ssr: false,
 });
 
 // Préchargement de la police Poppins pour améliorer le LCP
 const poppins = Poppins({
-  subsets: ['latin'],
-  weight: ['300', '400', '500', '600', '700'],
-  variable: '--font-poppins',
-  display: 'swap', // Affiche le texte avec une police système pendant le chargement
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
+  variable: "--font-poppins",
+  display: "swap", // Affiche le texte avec une police système pendant le chargement
   preload: true,
 });
 
 function Loading() {
-  return <div className="p-6 animate-pulse bg-vynal-purple-dark min-h-screen text-vynal-text-primary">Chargement de la page...</div>;
+  return (
+    <div className="p-6 animate-pulse bg-vynal-purple-dark min-h-screen text-vynal-text-primary">
+      Chargement de la page...
+    </div>
+  );
 }
 
 export const viewport: Viewport = {
-  width: 'device-width',
+  width: "device-width",
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: '#FF66B2', // Rose fixe pour tous les modes
+  themeColor: "#FF66B2", // Rose fixe pour tous les modes
 };
 
 export const metadata: Metadata = {
-  title: 'Vynal - Plateforme de micro-services numériques en Afrique',
-  description: 'Vynal est une plateforme dédiée aux services numériques proposés par des professionnels indépendants',
-  keywords: 'freelance, clients, afrique, services, marketplace, gig economy',
-  manifest: '/favicon/manifest.json',
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://vynalplatform.com'),
+  title: "Vynal - Plateforme de micro-services numériques en Afrique",
+  description:
+    "Vynal est une plateforme dédiée aux services numériques proposés par des professionnels indépendants",
+  keywords: "freelance, clients, afrique, services, marketplace, gig economy",
+  manifest: "/favicon/manifest.json",
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL || "https://vynalplatform.com",
+  ),
   icons: {
     icon: [
-      { url: '/favicon_vynalplatform.ico' },
-      { url: '/favicon/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
-      { url: '/favicon/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
-      { url: '/favicon/favicon-96x96.png', sizes: '96x96', type: 'image/png' },
-      { url: '/favicon/favicon-192x192.png', sizes: '192x192', type: 'image/png' }
+      { url: "/favicon_vynalplatform.ico" },
+      { url: "/favicon/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon/favicon-96x96.png", sizes: "96x96", type: "image/png" },
+      {
+        url: "/favicon/favicon-192x192.png",
+        sizes: "192x192",
+        type: "image/png",
+      },
     ],
     apple: [
-      { url: '/favicon/apple-icon.png' },
-      { url: '/favicon/apple-icon-57x57.png', sizes: '57x57', type: 'image/png' },
-      { url: '/favicon/apple-icon-60x60.png', sizes: '60x60', type: 'image/png' },
-      { url: '/favicon/apple-icon-72x72.png', sizes: '72x72', type: 'image/png' },
-      { url: '/favicon/apple-icon-76x76.png', sizes: '76x76', type: 'image/png' },
-      { url: '/favicon/apple-icon-114x114.png', sizes: '114x114', type: 'image/png' },
-      { url: '/favicon/apple-icon-120x120.png', sizes: '120x120', type: 'image/png' },
-      { url: '/favicon/apple-icon-144x144.png', sizes: '144x144', type: 'image/png' },
-      { url: '/favicon/apple-icon-152x152.png', sizes: '152x152', type: 'image/png' },
-      { url: '/favicon/apple-icon-180x180.png', sizes: '180x180', type: 'image/png' }
+      { url: "/favicon/apple-icon.png" },
+      {
+        url: "/favicon/apple-icon-57x57.png",
+        sizes: "57x57",
+        type: "image/png",
+      },
+      {
+        url: "/favicon/apple-icon-60x60.png",
+        sizes: "60x60",
+        type: "image/png",
+      },
+      {
+        url: "/favicon/apple-icon-72x72.png",
+        sizes: "72x72",
+        type: "image/png",
+      },
+      {
+        url: "/favicon/apple-icon-76x76.png",
+        sizes: "76x76",
+        type: "image/png",
+      },
+      {
+        url: "/favicon/apple-icon-114x114.png",
+        sizes: "114x114",
+        type: "image/png",
+      },
+      {
+        url: "/favicon/apple-icon-120x120.png",
+        sizes: "120x120",
+        type: "image/png",
+      },
+      {
+        url: "/favicon/apple-icon-144x144.png",
+        sizes: "144x144",
+        type: "image/png",
+      },
+      {
+        url: "/favicon/apple-icon-152x152.png",
+        sizes: "152x152",
+        type: "image/png",
+      },
+      {
+        url: "/favicon/apple-icon-180x180.png",
+        sizes: "180x180",
+        type: "image/png",
+      },
     ],
-    shortcut: '/favicon_vynalplatform.ico',
+    shortcut: "/favicon_vynalplatform.ico",
     other: [
-      { url: '/favicon/android-icon-192x192.png', sizes: '192x192', type: 'image/png', rel: 'icon' },
-      { url: '/favicon/ms-icon-144x144.png', sizes: '144x144', type: 'image/png', rel: 'icon' },
-      { url: '/favicon/ms-icon-150x150.png', sizes: '150x150', type: 'image/png', rel: 'icon' },
-      { url: '/favicon/ms-icon-310x310.png', sizes: '310x310', type: 'image/png', rel: 'icon' }
-    ]
+      {
+        url: "/favicon/android-icon-192x192.png",
+        sizes: "192x192",
+        type: "image/png",
+        rel: "icon",
+      },
+      {
+        url: "/favicon/ms-icon-144x144.png",
+        sizes: "144x144",
+        type: "image/png",
+        rel: "icon",
+      },
+      {
+        url: "/favicon/ms-icon-150x150.png",
+        sizes: "150x150",
+        type: "image/png",
+        rel: "icon",
+      },
+      {
+        url: "/favicon/ms-icon-310x310.png",
+        sizes: "310x310",
+        type: "image/png",
+        rel: "icon",
+      },
+    ],
   },
   // PWA et Apple Web App configuration
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'black',
-    title: 'Vynal'
+    statusBarStyle: "black",
+    title: "Vynal",
   },
   // Amélioration pour les partages sociaux
   openGraph: {
-    type: 'website',
-    locale: 'fr_FR',
-    url: 'https://vynalplatform.com',
-    title: 'Vynal - Plateforme de services numériques',
-    description: 'Trouvez des freelances qualifiés pour tous vos projets digitaux',
-    siteName: 'Vynal Platform',
+    type: "website",
+    locale: "fr_FR",
+    url: "https://vynalplatform.com",
+    title: "Vynal - Plateforme de services numériques",
+    description:
+      "Trouvez des freelances qualifiés pour tous vos projets digitaux",
+    siteName: "Vynal Platform",
   },
 };
 
@@ -129,85 +197,129 @@ export default function RootLayout({
     <html lang="fr" suppressHydrationWarning className="overflow-x-hidden">
       <head>
         {/* Préconnexions pour accélérer le chargement des ressources externes */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" crossOrigin="anonymous" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        
+        <link
+          rel="preconnect"
+          href="https://fonts.googleapis.com"
+          crossOrigin="anonymous"
+        />
+        <link
+          rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossOrigin="anonymous"
+        />
+
         {/* Configuration du favicon pour IE/Edge */}
-        <meta name="msapplication-config" content="/favicon/browserconfig.xml" />
-        
+        <meta
+          name="msapplication-config"
+          content="/favicon/browserconfig.xml"
+        />
+
         {/* Gestion des safe-area-inset pour les appareils mobiles */}
-        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-        
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1, viewport-fit=cover"
+        />
+
         {/* Meta tags additionnels pour les moteurs de recherche */}
-        <link rel="icon" type="image/x-icon" href="/favicon_vynalplatform.ico" />
-        <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
-        <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
-        <link rel="icon" type="image/png" sizes="192x192" href="/favicon/favicon-192x192.png" />
-        
+        <link rel="icon" href="/favicon.ico" />
+        <link
+          rel="icon"
+          type="image/png"
+          sizes="32x32"
+          href="/favicon-32x32.png"
+        />
+        <link
+          rel="icon"
+          type="image/png"
+          sizes="16x16"
+          href="/favicon-16x16.png"
+        />
+        <link rel="shortcut icon" href="/favicon.ico" />
+
         {/* Configuration simple avec couleur rose fixe et fallbacks complets */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        
+        <meta
+          name="apple-mobile-web-app-status-bar-style"
+          content="black-translucent"
+        />
+
         {/* Fallbacks pour tous les navigateurs et appareils */}
         <meta name="theme-color" content="#FF66B2" />
-        <meta name="theme-color" content="#FF66B2" media="(prefers-color-scheme: light)" />
-        <meta name="theme-color" content="#FF66B2" media="(prefers-color-scheme: dark)" />
+        <meta
+          name="theme-color"
+          content="#FF66B2"
+          media="(prefers-color-scheme: light)"
+        />
+        <meta
+          name="theme-color"
+          content="#FF66B2"
+          media="(prefers-color-scheme: dark)"
+        />
         <meta name="msapplication-navbutton-color" content="#FF66B2" />
         <meta name="msapplication-TileColor" content="#FF66B2" />
-        
+
         {/* Fallbacks Apple spécifiques */}
         <meta name="apple-mobile-web-app-title" content="Vynal" />
-        <link rel="mask-icon" href="/favicon/safari-pinned-tab.svg" color="#FF66B2" />
-        
+        <link
+          rel="mask-icon"
+          href="/favicon/safari-pinned-tab.svg"
+          color="#FF66B2"
+        />
+
         {/* Fallback Android */}
         <meta name="mobile-web-app-capable" content="yes" />
-        
 
-        
         {/* Préchargement des ressources critiques */}
         <link rel="preload" href="/js/lcp-optimizer.js" as="script" />
-        <link rel="preload" href="/css/performance-optimizations.css" as="style" />
-        
+        <link
+          rel="preload"
+          href="/css/performance-optimizations.css"
+          as="style"
+        />
+
         {/* Script d'optimisation LCP avancé avec Next/Script - priorité maximale */}
-        <Script 
+        <Script
           id="lcp-optimizer"
           src="/js/lcp-optimizer.js"
           strategy="beforeInteractive"
         />
-        
+
         {/* Scripts secondaires */}
-        <Script 
+        <Script
           id="resource-hints"
           src="/js/resource-hints.js"
           strategy="afterInteractive"
         />
-        
+
         {/* Utilitaire de communication avec le Service Worker */}
-        <Script 
+        <Script
           id="service-worker-client"
           src="/js/service-worker-client.js"
           strategy="afterInteractive"
         />
-        
+
         {/* Préchargement des assets critiques */}
-        <link 
-          rel="prefetch" 
-          href="/assets/partners/logo_wave_.webp" 
-          as="image" 
+        <link
+          rel="prefetch"
+          href="/assets/partners/logo_wave_.webp"
+          as="image"
           type="image/webp"
           fetchPriority="low"
         />
-        
+
         {/* Style critique pour le LCP chargé inline */}
-        <style suppressHydrationWarning dangerouslySetInnerHTML={{ __html: criticalStyles }} />
-        
+        <style
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{ __html: criticalStyles }}
+        />
+
         {/* CSS performance - chargé de façon non-bloquante */}
-        <link 
-          rel="stylesheet" 
+        <link
+          rel="stylesheet"
           href="/css/performance-optimizations.css"
           media="print"
         />
-        
+
         {/* Script pour charger le CSS après le premier rendu */}
         <Script id="load-performance-css" strategy="afterInteractive">
           {`
@@ -220,22 +332,25 @@ export default function RootLayout({
           `}
         </Script>
       </head>
-      <body className={`${poppins.variable} font-poppins transition-colors duration-300`}>
+      <body
+        className={`${poppins.variable} font-poppins transition-colors duration-300`}
+      >
         <Providers>
           <ScrollRestoration />
           <Suspense fallback={<Loading />}>
-            <MainLayout>
-              {children}
-            </MainLayout>
+            <MainLayout>{children}</MainLayout>
           </Suspense>
-          <div id="navigation-progress-indicator" className="fixed top-0 left-0 w-full h-1 bg-gradient-to-r from-vynal-purple-primary via-vynal-accent-primary to-vynal-purple-primary bg-size-200 animate-gradient-x z-50 hidden" />
-          
+          <div
+            id="navigation-progress-indicator"
+            className="fixed top-0 left-0 w-full h-1 bg-gradient-to-r from-vynal-purple-primary via-vynal-accent-primary to-vynal-purple-primary bg-size-200 animate-gradient-x z-50 hidden"
+          />
+
           {/* Système de détection des mises à jour */}
           <VersionChecker checkInterval={2 * 60 * 1000} />
         </Providers>
-        
+
         {/* Script de performance avec Next/Script */}
-        <Script 
+        <Script
           id="performance-utils"
           src="/js/performance-utils.js"
           strategy="afterInteractive"
