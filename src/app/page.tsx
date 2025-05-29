@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowRight, Search, Star, Shield, Code, Paintbrush, Megaphone, Tractor, Server, Heart, BookOpen, Mail, PieChart, Camera, Globe, Building, Banknote } from 'lucide-react';
@@ -11,20 +11,16 @@ import { BorderBeamButton } from '@/components/ui/border-beam-button';
 import PartnersSection from '@/components/sections/PartnersSection';
 import { useCategories } from '@/hooks/useCategories';
 import { Subcategory, Category } from '@/hooks/useCategories';
-import { findBestCategoryMatch } from '@/lib/search/searchService';
 import { useAuth } from "@/hooks/useAuth";
 import { useUser } from "@/hooks/useUser";
 import { PUBLIC_ROUTES, AUTH_ROUTES } from "@/config/routes";
 import dynamic from 'next/dynamic';
 import { memo } from 'react';
-import { getCachedData, setCachedData, CACHE_EXPIRY } from '@/lib/optimizations';
-import { supabase } from '@/lib/supabase/client';
+import { getCachedData, setCachedData } from '@/lib/optimizations';
 import { PlaceholdersAndVanishInput } from '@/components/ui/PlaceholdersAndVanishInput';
 import { WobbleCard } from "@/components/ui/WobbleCard";
 import { GlowingEffect } from "@/components/ui/GlowingEffect";
-import { CURRENCY } from "@/lib/constants";
 import { BentoGridThirdDemo } from "@/components/ui/BentoGridThirdDemo";
-import { Metadata } from "next";
 import Image from "next/image";
 import SchemaOrg from "@/components/seo/SchemaOrg";
 import { Button } from "@/components/ui/button";
@@ -44,7 +40,7 @@ const HOMEPAGE_CACHE_KEY = 'homepage_data';
 // et ne pas impacter les performances de chargement initiales
 const WelcomeChatbotDynamic = dynamic(() => 
   import('@/components/ui/WelcomeChatbot').then(mod => mod.WelcomeChatbot),
-  { ssr: false }
+  { ssr: false, loading: () => null }
 );
 
 const TextRevealSectionDynamic = dynamic(() => 
@@ -54,7 +50,7 @@ const TextRevealSectionDynamic = dynamic(() =>
 
 const BorderBeamButtonDynamic = dynamic(() =>
   import('@/components/ui/border-beam-button').then(mod => mod.BorderBeamButton),
-  { ssr: true }
+  { ssr: true, loading: () => null }
 );
 
 const PartnersSectionDynamic = dynamic(() => 
@@ -67,6 +63,7 @@ const FastLCPTitle = memo(() => (
   <h1 
     className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 leading-tight bg-gradient-to-r from-vynal-accent-secondary to-vynal-accent-primary bg-clip-text text-transparent" 
     id="lcp-title"
+    style={{ contentVisibility: 'auto' }}
   >
     Trouvez des freelances qualifiés pour tous vos projets
   </h1>
@@ -307,43 +304,49 @@ export default function Home() {
                   src="/assets/partners/logo_free_money.webp" 
                   alt="Free Money" 
                   width={84}
-                  height={18}
+                  height={20}
                   className="h-4 md:h-5 w-auto object-contain grayscale hover:grayscale-0 transition-all duration-300" 
+                  priority={false}
                 />
                 <Image 
                   src="/assets/partners/logo_stripe.webp" 
                   alt="Stripe" 
                   width={84}
-                  height={18}
+                  height={20}
                   className="h-4 md:h-5 w-auto object-contain grayscale hover:grayscale-0 transition-all duration-300" 
+                  priority={false}
                 />
                 <Image 
                   src="/assets/partners/logo_wave_.webp" 
                   alt="Wave" 
                   width={84}
-                  height={18}
+                  height={20}
                   className="h-4 md:h-5 w-auto object-contain grayscale hover:grayscale-0 transition-all duration-300" 
+                  priority={false}
                 />
                 <Image 
                   src="/assets/partners/om_logo_.webp" 
                   alt="OM" 
                   width={84}
-                  height={18}
+                  height={20}
                   className="h-4 md:h-5 w-auto object-contain grayscale hover:grayscale-0 transition-all duration-300" 
+                  priority={false}
                 />
                 <Image 
                   src="/assets/partners/Google_.webp" 
                   alt="Google" 
                   width={84}
-                  height={18}
+                  height={20}
                   className="h-4 md:h-5 w-auto object-contain grayscale hover:grayscale-0 transition-all duration-300" 
+                  priority={false}
                 />
                 <Image 
                   src="/assets/partners/Logo-GitHub-Black.webp" 
                   alt="GitHub" 
                   width={84}
-                  height={18}
+                  height={20}
                   className="h-4 md:h-5 w-auto object-contain dark:invert grayscale hover:grayscale-0 transition-all duration-300" 
+                  priority={false}
                 />
               </div>
             </div>
@@ -481,8 +484,9 @@ export default function Home() {
                     <Image
                       src="/images/profil5.webp"
                       alt="Qualité garantie"
-                      width={400}
-                      height={250}
+                      width={320}
+                      height={200}
+                      quality={75}
                       className="w-full h-full object-cover object-[center_30%]"
                     />
                   </div>
