@@ -43,13 +43,6 @@ import {
   BellRing,
   Lock,
   AlertCircle,
-  BarChart3,
-  Zap,
-  Activity,
-  LineChart,
-  AlertTriangle,
-  Info,
-  CheckCircle2,
 } from "lucide-react";
 import {
   getCachedData,
@@ -59,26 +52,6 @@ import {
 } from "@/lib/optimizations";
 import { supabase } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
-
-// Interface pour les métriques de performance
-interface PerformanceMetrics {
-  cacheHitRate: number;
-  avgResponseTime: number;
-  errorRate: number;
-  totalRequests: number;
-  memoryUsage: number;
-  lastUpdated: string;
-}
-
-// Interface pour les alertes
-interface Alert {
-  id: string;
-  title: string;
-  description: string;
-  type: "error" | "warning" | "info";
-  timestamp: string;
-  status: "active" | "investigating" | "resolved";
-}
 
 // Interface pour les paramètres
 interface SystemSettings {
@@ -97,10 +70,6 @@ interface SystemSettings {
   twoFactorAuth: boolean;
   passwordExpiryDays: number;
   maxLoginAttempts: number;
-  alertNotificationsEnabled: boolean;
-  systemStatsCollection: boolean;
-  performanceMonitoring: boolean;
-  errorReporting: boolean;
 }
 
 export default function SettingsPage() {
@@ -135,48 +104,7 @@ export default function SettingsPage() {
   const [passwordExpiryDays, setPasswordExpiryDays] = useState(90);
   const [maxLoginAttempts, setMaxLoginAttempts] = useState(5);
 
-  // Nouveaux paramètres d'alertes
-  const [alertNotificationsEnabled, setAlertNotificationsEnabled] =
-    useState(true);
-  const [errorThreshold, setErrorThreshold] = useState(10);
-  const [warningThreshold, setWarningThreshold] = useState(5);
-  const [notificationEmails, setNotificationEmails] =
-    useState("alerts@vynal.com");
-
-  // Nouveaux paramètres de performance
-  const [systemStatsCollection, setSystemStatsCollection] = useState(true);
-  const [performanceMonitoring, setPerformanceMonitoring] = useState(true);
-  const [errorReporting, setErrorReporting] = useState(true);
-  const [cacheTimeout, setCacheTimeout] = useState(60);
-  const [maxCacheSize, setMaxCacheSize] = useState(100);
-
   const [loading, setLoading] = useState(true);
-
-  // État pour la gestion des rôles d'administrateur
-  const [adminSearch, setAdminSearch] = useState("");
-  const [foundUser, setFoundUser] = useState<any | null>(null);
-  const [admins, setAdmins] = useState<any[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [isPromoting, setIsPromoting] = useState(false);
-  const [isDemoting, setIsDemoting] = useState(false);
-  const [searchError, setSearchError] = useState("");
-
-  // État pour les métriques de performance
-  const [performanceMetrics, setPerformanceMetrics] =
-    useState<PerformanceMetrics>({
-      cacheHitRate: 0,
-      avgResponseTime: 0,
-      errorRate: 0,
-      totalRequests: 0,
-      memoryUsage: 0,
-      lastUpdated: "",
-    });
-  const [loadingMetrics, setLoadingMetrics] = useState(false);
-
-  // État pour les alertes
-  const [recentAlerts, setRecentAlerts] = useState<Alert[]>([]);
-  const [loadingAlerts, setLoadingAlerts] = useState(false);
-  const [sendingTestAlert, setSendingTestAlert] = useState(false);
 
   // Charger les paramètres depuis la base de données (simulé avec cache)
   const fetchSettings = useCallback(
@@ -207,21 +135,6 @@ export default function SettingsPage() {
             setTwoFactorAuth(cachedSettings.twoFactorAuth);
             setPasswordExpiryDays(cachedSettings.passwordExpiryDays);
             setMaxLoginAttempts(cachedSettings.maxLoginAttempts);
-            // Charger les nouveaux paramètres si disponibles
-            if (cachedSettings.alertNotificationsEnabled !== undefined) {
-              setAlertNotificationsEnabled(
-                cachedSettings.alertNotificationsEnabled,
-              );
-            }
-            if (cachedSettings.systemStatsCollection !== undefined) {
-              setSystemStatsCollection(cachedSettings.systemStatsCollection);
-            }
-            if (cachedSettings.performanceMonitoring !== undefined) {
-              setPerformanceMonitoring(cachedSettings.performanceMonitoring);
-            }
-            if (cachedSettings.errorReporting !== undefined) {
-              setErrorReporting(cachedSettings.errorReporting);
-            }
             setLoading(false);
             return;
           }
@@ -253,10 +166,6 @@ export default function SettingsPage() {
           twoFactorAuth,
           passwordExpiryDays,
           maxLoginAttempts,
-          alertNotificationsEnabled,
-          systemStatsCollection,
-          performanceMonitoring,
-          errorReporting,
         };
 
         setCachedData(CACHE_KEYS.ADMIN_SYSTEM_CONFIG, settings, {
@@ -290,290 +199,13 @@ export default function SettingsPage() {
       twoFactorAuth,
       passwordExpiryDays,
       maxLoginAttempts,
-      alertNotificationsEnabled,
-      systemStatsCollection,
-      performanceMonitoring,
-      errorReporting,
       toast,
     ],
   );
 
-  // Charger la liste des administrateurs
-  const fetchAdmins = useCallback(async () => {
-    try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id, username, full_name, email, avatar_url")
-        .eq("role", "admin")
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-
-      setAdmins(data || []);
-    } catch (error) {
-      console.error("Erreur lors du chargement des administrateurs:", error);
-      toast({
-        title: "Erreur",
-        description: "Impossible de charger la liste des administrateurs",
-        variant: "destructive",
-      });
-    }
-  }, [toast]);
-
-  // Rechercher un utilisateur
-  const searchUser = async () => {
-    if (!adminSearch.trim()) {
-      setSearchError("Veuillez entrer un email");
-      return;
-    }
-
-    setIsSearching(true);
-    setFoundUser(null);
-    setSearchError("");
-
-    try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id, username, full_name, email, role, avatar_url")
-        .ilike("email", `%${adminSearch.trim()}%`)
-        .single();
-
-      if (error) {
-        if (error.code === "PGRST116") {
-          setSearchError("Aucun utilisateur trouvé avec cet email");
-        } else {
-          throw error;
-        }
-      } else if (data) {
-        setFoundUser(data);
-      }
-    } catch (error) {
-      console.error("Erreur lors de la recherche d'utilisateur:", error);
-      setSearchError("Une erreur est survenue lors de la recherche");
-    } finally {
-      setIsSearching(false);
-    }
-  };
-
-  // Promouvoir un utilisateur en admin
-  const promoteToAdmin = async (userId: string) => {
-    setIsPromoting(true);
-    try {
-      const { error } = await supabase
-        .from("profiles")
-        .update({
-          role: "admin",
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", userId);
-
-      if (error) throw error;
-
-      toast({
-        title: "Succès",
-        description: "L'utilisateur a été promu au rôle d'administrateur",
-      });
-
-      // Rafraîchir la liste des admins
-      fetchAdmins();
-
-      // Mettre à jour l'utilisateur trouvé
-      if (foundUser && foundUser.id === userId) {
-        setFoundUser({
-          ...foundUser,
-          role: "admin",
-        });
-      }
-    } catch (error) {
-      console.error("Erreur lors de la promotion de l'utilisateur:", error);
-      toast({
-        title: "Erreur",
-        description: "Impossible de promouvoir l'utilisateur",
-        variant: "destructive",
-      });
-    } finally {
-      setIsPromoting(false);
-    }
-  };
-
-  // Rétrograder un administrateur
-  const demoteAdmin = async (userId: string) => {
-    setIsDemoting(true);
-    try {
-      const { error } = await supabase
-        .from("profiles")
-        .update({
-          role: "client",
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", userId);
-
-      if (error) throw error;
-
-      toast({
-        title: "Succès",
-        description: "L'administrateur a été rétrogradé",
-      });
-
-      // Rafraîchir la liste des admins
-      fetchAdmins();
-
-      // Mettre à jour l'utilisateur trouvé
-      if (foundUser && foundUser.id === userId) {
-        setFoundUser({
-          ...foundUser,
-          role: "client",
-        });
-      }
-    } catch (error) {
-      console.error("Erreur lors de la rétrogradation de l'admin:", error);
-      toast({
-        title: "Erreur",
-        description: "Impossible de rétrograder l'administrateur",
-        variant: "destructive",
-      });
-    } finally {
-      setIsDemoting(false);
-    }
-  };
-
-  // Charger les métriques de performance
-  const fetchPerformanceMetrics = useCallback(async () => {
-    try {
-      setLoadingMetrics(true);
-      // Simulation de chargement de métriques (dans un vrai cas, ce serait un appel API)
-      // En production, il faudrait implémenter une vraie API pour ces métriques
-
-      // Ici, pour la démonstration, on génère des valeurs aléatoires
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      const metrics: PerformanceMetrics = {
-        cacheHitRate: Math.floor(Math.random() * 30) + 70, // 70-100%
-        avgResponseTime: Math.floor(Math.random() * 200) + 50, // 50-250ms
-        errorRate: Math.random() * 2, // 0-2%
-        totalRequests: Math.floor(Math.random() * 10000) + 5000, // 5000-15000
-        memoryUsage: Math.floor(Math.random() * 30) + 20, // 20-50%
-        lastUpdated: new Date().toISOString(),
-      };
-
-      setPerformanceMetrics(metrics);
-    } catch (error) {
-      console.error("Erreur lors du chargement des métriques:", error);
-      toast({
-        title: "Erreur",
-        description: "Impossible de charger les métriques de performance",
-        variant: "destructive",
-      });
-    } finally {
-      setLoadingMetrics(false);
-    }
-  }, [toast]);
-
-  // Charger les alertes récentes
-  const fetchRecentAlerts = useCallback(async () => {
-    try {
-      setLoadingAlerts(true);
-
-      // Simulation de chargement des alertes (dans un vrai cas, ce serait un appel API)
-      await new Promise((resolve) => setTimeout(resolve, 800));
-
-      // Générer des alertes fictives pour la démonstration
-      const mockAlerts: Alert[] = [
-        {
-          id: "1",
-          title: "Erreur serveur",
-          description: "Erreur 500 détectée sur plusieurs requêtes API",
-          type: "error",
-          timestamp: new Date(Date.now() - 3600000).toISOString(), // 1 heure
-          status: "resolved",
-        },
-        {
-          id: "2",
-          title: "Taux d'erreur élevé",
-          description: "Le taux d'erreur des requêtes a dépassé le seuil de 2%",
-          type: "warning",
-          timestamp: new Date(Date.now() - 7200000).toISOString(), // 2 heures
-          status: "investigating",
-        },
-        {
-          id: "3",
-          title: "Performance dégradée",
-          description: "Temps de réponse moyen supérieur à 300ms",
-          type: "warning",
-          timestamp: new Date(Date.now() - 86400000).toISOString(), // 1 jour
-          status: "resolved",
-        },
-      ];
-
-      setRecentAlerts(mockAlerts);
-    } catch (error) {
-      console.error("Erreur lors du chargement des alertes:", error);
-      toast({
-        title: "Erreur",
-        description: "Impossible de charger les alertes récentes",
-        variant: "destructive",
-      });
-    } finally {
-      setLoadingAlerts(false);
-    }
-  }, [toast]);
-
-  // Envoyer une alerte test
-  const sendTestAlert = async () => {
-    try {
-      setSendingTestAlert(true);
-
-      // Simulation d'envoi d'alerte
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-
-      // Créer une nouvelle alerte de test
-      const newAlert: Alert = {
-        id: Math.random().toString(36).substring(7),
-        title: "Alerte de test",
-        description:
-          "Ceci est une alerte de test envoyée depuis le panneau d'administration",
-        type: "info",
-        timestamp: new Date().toISOString(),
-        status: "active",
-      };
-
-      // Ajouter l'alerte à la liste
-      setRecentAlerts([newAlert, ...recentAlerts]);
-
-      toast({
-        title: "Alerte test envoyée",
-        description:
-          "L'alerte de test a été envoyée avec succès aux destinataires configurés",
-      });
-    } catch (error) {
-      console.error("Erreur lors de l'envoi de l'alerte test:", error);
-      toast({
-        title: "Erreur",
-        description: "Impossible d'envoyer l'alerte test",
-        variant: "destructive",
-      });
-    } finally {
-      setSendingTestAlert(false);
-    }
-  };
-
-  // Vider le cache (simulation)
-  const clearCache = () => {
-    toast({
-      title: "Cache vidé",
-      description: "Le cache a été vidé avec succès",
-    });
-
-    // En production, il faudrait appeler une API pour vider le cache
-    fetchPerformanceMetrics();
-  };
-
   // Fonction pour rafraîchir les données
   const handleRefresh = () => {
     fetchSettings(true);
-    fetchAdmins();
-    fetchPerformanceMetrics();
-    fetchRecentAlerts();
     toast({
       title: "Actualisation",
       description: "Les paramètres ont été actualisés",
@@ -583,10 +215,7 @@ export default function SettingsPage() {
   // Charger les paramètres au démarrage
   useEffect(() => {
     fetchSettings();
-    fetchAdmins();
-    fetchPerformanceMetrics();
-    fetchRecentAlerts();
-  }, [fetchSettings, fetchAdmins, fetchPerformanceMetrics, fetchRecentAlerts]);
+  }, [fetchSettings]);
 
   // Fonction de sauvegarde (simulée)
   const saveSettings = (category: string) => {
@@ -610,10 +239,6 @@ export default function SettingsPage() {
         twoFactorAuth,
         passwordExpiryDays,
         maxLoginAttempts,
-        alertNotificationsEnabled,
-        systemStatsCollection,
-        performanceMonitoring,
-        errorReporting,
       };
 
       setCachedData(CACHE_KEYS.ADMIN_SYSTEM_CONFIG, settings, {
@@ -627,96 +252,6 @@ export default function SettingsPage() {
         description: `Paramètres ${category} enregistrés avec succès`,
       });
     }, 1000);
-  };
-
-  // Fonction utilitaire pour formatter les valeurs
-  const formatValue = (
-    value: number,
-    suffix: string = "",
-    decimals: number = 0,
-  ) => {
-    return `${value.toFixed(decimals)}${suffix}`;
-  };
-
-  // Fonction pour déterminer la couleur d'un indicateur selon sa valeur
-  const getMetricColor = (
-    value: number,
-    type: "cache" | "response" | "error",
-  ) => {
-    if (type === "cache") {
-      if (value >= 90) return "text-green-500";
-      if (value >= 70) return "text-amber-500";
-      return "text-red-500";
-    } else if (type === "response") {
-      if (value <= 100) return "text-green-500";
-      if (value <= 200) return "text-amber-500";
-      return "text-red-500";
-    } else if (type === "error") {
-      if (value <= 0.5) return "text-green-500";
-      if (value <= 1) return "text-amber-500";
-      return "text-red-500";
-    }
-    return "";
-  };
-
-  // Obtenir la classe de couleur pour le type d'alerte
-  const getAlertTypeColor = (type: string) => {
-    switch (type) {
-      case "error":
-        return "text-red-500 bg-red-50 dark:bg-red-900/10";
-      case "warning":
-        return "text-amber-500 bg-amber-50 dark:bg-amber-900/10";
-      case "info":
-        return "text-blue-500 bg-blue-50 dark:bg-blue-900/10";
-      default:
-        return "text-gray-500 bg-gray-50 dark:bg-gray-900/10";
-    }
-  };
-
-  // Obtenir la classe de couleur pour le statut d'alerte
-  const getAlertStatusColor = (status: string) => {
-    switch (status) {
-      case "active":
-        return "text-red-500";
-      case "investigating":
-        return "text-amber-500";
-      case "resolved":
-        return "text-green-500";
-      default:
-        return "text-gray-500";
-    }
-  };
-
-  // Obtenir l'icône pour le type d'alerte
-  const getAlertTypeIcon = (type: string) => {
-    switch (type) {
-      case "error":
-        return <AlertCircle className="h-3 w-3" />;
-      case "warning":
-        return <AlertTriangle className="h-3 w-3" />;
-      case "info":
-        return <Info className="h-3 w-3" />;
-      default:
-        return <HelpCircle className="h-3 w-3" />;
-    }
-  };
-
-  // Formatter la date relative
-  const formatRelativeTime = (timestamp: string) => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-
-    const diffMins = Math.floor(diffMs / 60000);
-    if (diffMins < 60)
-      return `Il y a ${diffMins} min${diffMins > 1 ? "s" : ""}`;
-
-    const diffHours = Math.floor(diffMs / 3600000);
-    if (diffHours < 24)
-      return `Il y a ${diffHours} h${diffHours > 1 ? "s" : ""}`;
-
-    const diffDays = Math.floor(diffMs / 86400000);
-    return `Il y a ${diffDays} jour${diffDays > 1 ? "s" : ""}`;
   };
 
   return (
@@ -778,20 +313,6 @@ export default function SettingsPage() {
           >
             <Shield className="h-3 w-3" />
             <span>Sécurité</span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="alerts"
-            className="flex items-center gap-1 text-xs text-slate-700 dark:text-vynal-text-secondary data-[state=active]:bg-white/30 dark:data-[state=active]:bg-slate-800/25"
-          >
-            <AlertCircle className="h-3 w-3" />
-            <span>Alertes</span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="performance"
-            className="flex items-center gap-1 text-xs text-slate-700 dark:text-vynal-text-secondary data-[state=active]:bg-white/30 dark:data-[state=active]:bg-slate-800/25"
-          >
-            <Activity className="h-3 w-3" />
-            <span>Performance</span>
           </TabsTrigger>
           <TabsTrigger
             value="admin-roles"
@@ -1186,12 +707,12 @@ export default function SettingsPage() {
 
         {/* Section des paramètres de sécurité */}
         <TabsContent value="security">
-          <Card className="bg-white/30 dark:bg-slate-900/30 border-slate-200 dark:border-slate-700/30 shadow-sm">
+          <Card>
             <CardHeader>
-              <CardTitle className="text-[9px] text-slate-800 dark:text-vynal-text-primary">
+              <CardTitle className="text-[9px]">
                 Paramètres de sécurité
               </CardTitle>
-              <CardDescription className="text-[9px] text-slate-600 dark:text-vynal-text-secondary">
+              <CardDescription className="text-[9px]">
                 Configurez les options de sécurité et d'authentification.
               </CardDescription>
             </CardHeader>
@@ -1199,10 +720,10 @@ export default function SettingsPage() {
               <div className="grid gap-3">
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <Label className="text-[9px] text-slate-700 dark:text-vynal-text-secondary">
+                    <Label className="text-[9px]">
                       Authentification à deux facteurs
                     </Label>
-                    <p className="text-[9px] text-slate-600 dark:text-vynal-text-secondary">
+                    <p className="text-[9px] text-gray-500 dark:text-vynal-text-secondary">
                       Exiger l'authentification à deux facteurs pour tous les
                       administrateurs
                     </p>
@@ -1210,17 +731,13 @@ export default function SettingsPage() {
                   <Switch
                     checked={twoFactorAuth}
                     onCheckedChange={setTwoFactorAuth}
-                    className="data-[state=checked]:bg-vynal-accent-primary"
                   />
                 </div>
 
-                <Separator className="bg-slate-200 dark:bg-slate-700/30" />
+                <Separator />
 
                 <div className="grid gap-2">
-                  <Label
-                    htmlFor="password-expiry"
-                    className="text-[9px] text-slate-700 dark:text-vynal-text-secondary"
-                  >
+                  <Label htmlFor="password-expiry" className="text-[9px]">
                     Expiration des mots de passe (jours)
                   </Label>
                   <Input
@@ -1231,18 +748,15 @@ export default function SettingsPage() {
                     onChange={(e) =>
                       setPasswordExpiryDays(Number(e.target.value))
                     }
-                    className="h-8 text-[9px] bg-white/40 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700/30 text-slate-700 dark:text-vynal-text-secondary"
+                    className="h-8 text-[9px]"
                   />
-                  <p className="text-[9px] text-slate-600 dark:text-vynal-text-secondary">
+                  <p className="text-[9px] text-gray-500 dark:text-vynal-text-secondary">
                     0 = pas d'expiration
                   </p>
                 </div>
 
                 <div className="grid gap-2">
-                  <Label
-                    htmlFor="login-attempts"
-                    className="text-[9px] text-slate-700 dark:text-vynal-text-secondary"
-                  >
+                  <Label htmlFor="login-attempts" className="text-[9px]">
                     Tentatives de connexion max.
                   </Label>
                   <Input
@@ -1253,43 +767,41 @@ export default function SettingsPage() {
                     onChange={(e) =>
                       setMaxLoginAttempts(Number(e.target.value))
                     }
-                    className="h-8 text-[9px] bg-white/40 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700/30 text-slate-700 dark:text-vynal-text-secondary"
+                    className="h-8 text-[9px]"
                   />
                 </div>
 
-                <Separator className="bg-slate-200 dark:bg-slate-700/30" />
+                <Separator />
 
                 <div className="space-y-2">
-                  <Label className="text-[9px] text-slate-700 dark:text-vynal-text-secondary">
-                    Actions de sécurité
-                  </Label>
+                  <Label className="text-[9px]">Actions de sécurité</Label>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button
                           variant="outline"
                           size="sm"
-                          className="justify-start text-xs text-slate-700 dark:text-vynal-text-secondary border-slate-200 dark:border-slate-700/30 hover:bg-slate-100 dark:hover:bg-slate-800/25"
+                          className="justify-start text-xs"
                         >
                           <RefreshCw className="h-3 w-3 mr-1" />
                           Réinitialiser les sessions
                         </Button>
                       </AlertDialogTrigger>
-                      <AlertDialogContent className="bg-white/30 dark:bg-slate-900/30 border-slate-200 dark:border-slate-700/30 backdrop-blur-sm">
+                      <AlertDialogContent>
                         <AlertDialogHeader>
-                          <AlertDialogTitle className="text-sm text-slate-800 dark:text-vynal-text-primary">
+                          <AlertDialogTitle className="text-sm">
                             Réinitialiser toutes les sessions ?
                           </AlertDialogTitle>
-                          <AlertDialogDescription className="text-xs text-slate-600 dark:text-vynal-text-secondary">
+                          <AlertDialogDescription className="text-xs">
                             Cette action déconnectera tous les utilisateurs. Ils
                             devront se reconnecter.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                          <AlertDialogCancel className="text-xs border-slate-200 dark:border-slate-700/30 hover:bg-slate-100 dark:hover:bg-slate-800/25 text-slate-700 dark:text-vynal-text-secondary">
+                          <AlertDialogCancel className="text-xs">
                             Annuler
                           </AlertDialogCancel>
-                          <AlertDialogAction className="text-xs bg-vynal-accent-primary hover:bg-vynal-accent-primary/90">
+                          <AlertDialogAction className="text-xs">
                             Continuer
                           </AlertDialogAction>
                         </AlertDialogFooter>
@@ -1301,28 +813,28 @@ export default function SettingsPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="justify-start text-xs text-slate-700 dark:text-vynal-text-secondary border-slate-200 dark:border-slate-700/30 hover:bg-slate-100 dark:hover:bg-slate-800/25"
+                          className="justify-start text-xs"
                         >
                           <Users className="h-3 w-3 mr-1" />
                           Débloquer les comptes
                         </Button>
                       </AlertDialogTrigger>
-                      <AlertDialogContent className="bg-white/30 dark:bg-slate-900/30 border-slate-200 dark:border-slate-700/30 backdrop-blur-sm">
+                      <AlertDialogContent>
                         <AlertDialogHeader>
-                          <AlertDialogTitle className="text-sm text-slate-800 dark:text-vynal-text-primary">
+                          <AlertDialogTitle className="text-sm">
                             Débloquer tous les comptes ?
                           </AlertDialogTitle>
-                          <AlertDialogDescription className="text-xs text-slate-600 dark:text-vynal-text-secondary">
+                          <AlertDialogDescription className="text-xs">
                             Cette action débloquera tous les comptes
                             utilisateurs verrouillés suite à de multiples
                             tentatives de connexion échouées.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                          <AlertDialogCancel className="text-xs border-slate-200 dark:border-slate-700/30 hover:bg-slate-100 dark:hover:bg-slate-800/25 text-slate-700 dark:text-vynal-text-secondary">
+                          <AlertDialogCancel className="text-xs">
                             Annuler
                           </AlertDialogCancel>
-                          <AlertDialogAction className="text-xs bg-vynal-accent-primary hover:bg-vynal-accent-primary/90">
+                          <AlertDialogAction className="text-xs">
                             Continuer
                           </AlertDialogAction>
                         </AlertDialogFooter>
@@ -1333,531 +845,13 @@ export default function SettingsPage() {
               </div>
             </CardContent>
             <CardFooter className="flex justify-between">
-              <div className="text-[9px] text-slate-600 dark:text-vynal-text-secondary">
+              <div className="text-[9px] text-gray-500 dark:text-vynal-text-secondary">
                 Dernière modification: 25/11/2023
               </div>
               <Button
                 onClick={() => saveSettings("security")}
                 size="sm"
-                className="text-xs bg-vynal-accent-primary hover:bg-vynal-accent-primary/90"
-              >
-                <Save className="h-3 w-3 mr-1" />
-                Enregistrer
-              </Button>
-            </CardFooter>
-          </Card>
-        </TabsContent>
-
-        {/* Nouvelle section des paramètres d'alertes */}
-        <TabsContent value="alerts">
-          <Card className="bg-white/30 dark:bg-slate-900/30 border-slate-200 dark:border-slate-700/30 shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-[9px] text-slate-800 dark:text-vynal-text-primary">
-                Paramètres des alertes système
-              </CardTitle>
-              <CardDescription className="text-[9px] text-slate-600 dark:text-vynal-text-secondary">
-                Configurez les paramètres d'alerte et de notification pour la
-                surveillance du système.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="grid gap-3">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label className="text-[9px] text-slate-700 dark:text-vynal-text-secondary">
-                      Notifications d'alertes
-                    </Label>
-                    <p className="text-[9px] text-slate-600 dark:text-vynal-text-secondary">
-                      Envoyer des notifications par email pour les alertes
-                      système
-                    </p>
-                  </div>
-                  <Switch
-                    checked={alertNotificationsEnabled}
-                    onCheckedChange={setAlertNotificationsEnabled}
-                    className="data-[state=checked]:bg-vynal-accent-primary"
-                  />
-                </div>
-
-                <Separator className="bg-slate-200 dark:bg-slate-700/30" />
-
-                <div className="grid gap-2">
-                  <Label
-                    htmlFor="error-threshold"
-                    className="text-[9px] text-slate-700 dark:text-vynal-text-secondary"
-                  >
-                    Seuil d'alerte erreur
-                  </Label>
-                  <Input
-                    id="error-threshold"
-                    type="number"
-                    min="1"
-                    value={errorThreshold}
-                    onChange={(e) => setErrorThreshold(Number(e.target.value))}
-                    className="h-8 text-[9px] bg-white/40 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700/30 text-slate-700 dark:text-vynal-text-secondary"
-                    disabled={!alertNotificationsEnabled}
-                  />
-                  <p className="text-[9px] text-slate-600 dark:text-vynal-text-secondary">
-                    Nombre d'erreurs avant déclenchement d'une alerte critique
-                  </p>
-                </div>
-
-                <div className="grid gap-2">
-                  <Label
-                    htmlFor="warning-threshold"
-                    className="text-[9px] text-slate-700 dark:text-vynal-text-secondary"
-                  >
-                    Seuil d'alerte avertissement
-                  </Label>
-                  <Input
-                    id="warning-threshold"
-                    type="number"
-                    min="1"
-                    value={warningThreshold}
-                    onChange={(e) =>
-                      setWarningThreshold(Number(e.target.value))
-                    }
-                    className="h-8 text-[9px] bg-white/40 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700/30 text-slate-700 dark:text-vynal-text-secondary"
-                    disabled={!alertNotificationsEnabled}
-                  />
-                </div>
-
-                <div className="grid gap-2">
-                  <Label
-                    htmlFor="notification-emails"
-                    className="text-[9px] text-slate-700 dark:text-vynal-text-secondary"
-                  >
-                    Emails de notification
-                  </Label>
-                  <Input
-                    id="notification-emails"
-                    type="text"
-                    value={notificationEmails}
-                    onChange={(e) => setNotificationEmails(e.target.value)}
-                    className="h-8 text-[9px] bg-white/40 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700/30 text-slate-700 dark:text-vynal-text-secondary"
-                    disabled={!alertNotificationsEnabled}
-                    placeholder="Emails séparés par des virgules"
-                  />
-                  <p className="text-[9px] text-slate-600 dark:text-vynal-text-secondary">
-                    Liste des adresses email qui recevront les alertes système
-                  </p>
-                </div>
-
-                <Separator className="bg-slate-200 dark:bg-slate-700/30" />
-
-                {/* Historique des alertes récentes */}
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <Label className="text-[9px] text-slate-700 dark:text-vynal-text-secondary">
-                      Alertes récentes
-                    </Label>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 text-[9px] flex items-center gap-1 text-slate-700 dark:text-vynal-text-secondary hover:bg-slate-100 dark:hover:bg-slate-800/25"
-                      onClick={fetchRecentAlerts}
-                      disabled={loadingAlerts}
-                    >
-                      <RefreshCw
-                        className={`h-3 w-3 ${loadingAlerts ? "animate-spin" : ""}`}
-                      />
-                      {loadingAlerts ? "Chargement..." : "Actualiser"}
-                    </Button>
-                  </div>
-
-                  <div className="space-y-2 max-h-60 overflow-auto">
-                    {recentAlerts.length === 0 ? (
-                      <p className="text-[9px] text-slate-600 dark:text-vynal-text-secondary py-2 text-center">
-                        Aucune alerte récente.
-                      </p>
-                    ) : (
-                      recentAlerts.map((alert) => (
-                        <div
-                          key={alert.id}
-                          className={`rounded-md p-2 ${getAlertTypeColor(alert.type)}`}
-                        >
-                          <div className="flex items-start gap-2">
-                            <div
-                              className={`mt-0.5 ${alert.type === "error" ? "text-red-500" : alert.type === "warning" ? "text-amber-500" : "text-blue-500"}`}
-                            >
-                              {getAlertTypeIcon(alert.type)}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex justify-between items-start">
-                                <p className="text-[9px] font-medium truncate">
-                                  {alert.title}
-                                </p>
-                                <span className="text-[9px] ml-2 shrink-0">
-                                  {formatRelativeTime(alert.timestamp)}
-                                </span>
-                              </div>
-                              <p className="text-[9px] text-slate-600 dark:text-gray-300 line-clamp-2">
-                                {alert.description}
-                              </p>
-                              <div className="flex items-center mt-1">
-                                <span
-                                  className={`text-[9px] ${getAlertStatusColor(alert.status)}`}
-                                >
-                                  {alert.status.charAt(0).toUpperCase() +
-                                    alert.status.slice(1)}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-
-                <Separator className="bg-slate-200 dark:bg-slate-700/30" />
-
-                <div className="space-y-2">
-                  <Label className="text-[9px] text-slate-700 dark:text-vynal-text-secondary">
-                    Actions d'alertes
-                  </Label>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="justify-start text-xs text-slate-700 dark:text-vynal-text-secondary border-slate-200 dark:border-slate-700/30 hover:bg-slate-100 dark:hover:bg-slate-800/25"
-                      disabled={!alertNotificationsEnabled || sendingTestAlert}
-                      onClick={sendTestAlert}
-                    >
-                      {sendingTestAlert ? (
-                        <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
-                      ) : (
-                        <Bell className="h-3 w-3 mr-1" />
-                      )}
-                      {sendingTestAlert
-                        ? "Envoi en cours..."
-                        : "Envoyer alerte test"}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="justify-start text-xs text-slate-700 dark:text-vynal-text-secondary border-slate-200 dark:border-slate-700/30 hover:bg-slate-100 dark:hover:bg-slate-800/25"
-                    >
-                      <BarChart3 className="h-3 w-3 mr-1" />
-                      Voir statistiques d'alertes
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-            <CardFooter className="flex justify-between">
-              <div className="text-[9px] text-slate-600 dark:text-vynal-text-secondary">
-                Dernière alerte:{" "}
-                {recentAlerts.length > 0
-                  ? formatRelativeTime(recentAlerts[0].timestamp)
-                  : "Jamais"}
-              </div>
-              <Button
-                onClick={() => saveSettings("alerts")}
-                size="sm"
-                className="text-xs bg-vynal-accent-primary hover:bg-vynal-accent-primary/90"
-              >
-                <Save className="h-3 w-3 mr-1" />
-                Enregistrer
-              </Button>
-            </CardFooter>
-          </Card>
-        </TabsContent>
-
-        {/* Nouvelle section des paramètres de performance */}
-        <TabsContent value="performance">
-          <Card className="bg-white/30 dark:bg-slate-900/30 border-slate-200 dark:border-slate-700/30 shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-[9px] text-slate-800 dark:text-vynal-text-primary">
-                Paramètres de performance
-              </CardTitle>
-              <CardDescription className="text-[9px] text-slate-600 dark:text-vynal-text-secondary">
-                Configurez les paramètres de performance et de surveillance du
-                système.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="grid gap-3">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label className="text-[9px] text-slate-700 dark:text-vynal-text-secondary">
-                      Collecte de statistiques système
-                    </Label>
-                    <p className="text-[9px] text-slate-600 dark:text-vynal-text-secondary">
-                      Collecter des statistiques sur l'utilisation du système
-                    </p>
-                  </div>
-                  <Switch
-                    checked={systemStatsCollection}
-                    onCheckedChange={setSystemStatsCollection}
-                    className="data-[state=checked]:bg-vynal-accent-primary"
-                  />
-                </div>
-
-                <Separator className="bg-slate-200 dark:bg-slate-700/30" />
-
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label className="text-[9px] text-slate-700 dark:text-vynal-text-secondary">
-                      Surveillance des performances
-                    </Label>
-                    <p className="text-[9px] text-slate-600 dark:text-vynal-text-secondary">
-                      Surveiller les performances des requêtes et des pages
-                    </p>
-                  </div>
-                  <Switch
-                    checked={performanceMonitoring}
-                    onCheckedChange={setPerformanceMonitoring}
-                    className="data-[state=checked]:bg-vynal-accent-primary"
-                  />
-                </div>
-
-                <Separator className="bg-slate-200 dark:bg-slate-700/30" />
-
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label className="text-[9px] text-slate-700 dark:text-vynal-text-secondary">
-                      Rapport d'erreurs
-                    </Label>
-                    <p className="text-[9px] text-slate-600 dark:text-vynal-text-secondary">
-                      Signaler automatiquement les erreurs critiques
-                    </p>
-                  </div>
-                  <Switch
-                    checked={errorReporting}
-                    onCheckedChange={setErrorReporting}
-                    className="data-[state=checked]:bg-vynal-accent-primary"
-                  />
-                </div>
-
-                <Separator className="bg-slate-200 dark:bg-slate-700/30" />
-
-                <div className="grid gap-2">
-                  <Label
-                    htmlFor="cache-timeout"
-                    className="text-[9px] text-slate-700 dark:text-vynal-text-secondary"
-                  >
-                    Durée du cache (minutes)
-                  </Label>
-                  <Input
-                    id="cache-timeout"
-                    type="number"
-                    min="1"
-                    value={cacheTimeout}
-                    onChange={(e) => setCacheTimeout(Number(e.target.value))}
-                    className="h-8 text-[9px] bg-white/40 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700/30 text-slate-700 dark:text-vynal-text-secondary"
-                  />
-                  <p className="text-[9px] text-slate-600 dark:text-vynal-text-secondary">
-                    Durée de conservation des données en cache (minutes)
-                  </p>
-                </div>
-
-                <div className="grid gap-2">
-                  <Label
-                    htmlFor="max-cache-size"
-                    className="text-[9px] text-slate-700 dark:text-vynal-text-secondary"
-                  >
-                    Taille max. du cache (MB)
-                  </Label>
-                  <Input
-                    id="max-cache-size"
-                    type="number"
-                    min="10"
-                    value={maxCacheSize}
-                    onChange={(e) => setMaxCacheSize(Number(e.target.value))}
-                    className="h-8 text-[9px] bg-white/40 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700/30 text-slate-700 dark:text-vynal-text-secondary"
-                  />
-                </div>
-
-                {/* Ajout des métriques actuelles */}
-                <Separator className="bg-slate-200 dark:bg-slate-700/30" />
-
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <Label className="text-[9px] text-slate-700 dark:text-vynal-text-secondary">
-                      Métriques de performance actuelles
-                    </Label>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 text-[9px] flex items-center gap-1 text-slate-700 dark:text-vynal-text-secondary hover:bg-slate-100 dark:hover:bg-slate-800/25"
-                      onClick={fetchPerformanceMetrics}
-                      disabled={loadingMetrics}
-                    >
-                      <RefreshCw
-                        className={`h-3 w-3 ${loadingMetrics ? "animate-spin" : ""}`}
-                      />
-                      {loadingMetrics ? "Chargement..." : "Actualiser"}
-                    </Button>
-                  </div>
-
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                    <div className="bg-white/40 dark:bg-slate-800/40 p-2 rounded-md border border-slate-200 dark:border-slate-700/30">
-                      <div className="flex justify-between items-center">
-                        <span className="text-[9px] text-slate-600 dark:text-vynal-text-secondary">
-                          Taux de cache
-                        </span>
-                        <span
-                          className={`text-[9px] font-semibold ${getMetricColor(performanceMetrics.cacheHitRate, "cache")}`}
-                        >
-                          {formatValue(performanceMetrics.cacheHitRate, "%")}
-                        </span>
-                      </div>
-                      <div className="w-full h-1 bg-slate-200 dark:bg-slate-700/50 rounded-full mt-1">
-                        <div
-                          className={`h-1 rounded-full ${performanceMetrics.cacheHitRate >= 90 ? "bg-green-500" : performanceMetrics.cacheHitRate >= 70 ? "bg-amber-500" : "bg-red-500"}`}
-                          style={{
-                            width: `${performanceMetrics.cacheHitRate}%`,
-                          }}
-                        ></div>
-                      </div>
-                    </div>
-
-                    <div className="bg-white/40 dark:bg-slate-800/40 p-2 rounded-md border border-slate-200 dark:border-slate-700/30">
-                      <div className="flex justify-between items-center">
-                        <span className="text-[9px] text-slate-600 dark:text-vynal-text-secondary">
-                          Temps de réponse
-                        </span>
-                        <span
-                          className={`text-[9px] font-semibold ${getMetricColor(performanceMetrics.avgResponseTime, "response")}`}
-                        >
-                          {formatValue(
-                            performanceMetrics.avgResponseTime,
-                            "ms",
-                          )}
-                        </span>
-                      </div>
-                      <div className="w-full h-1 bg-slate-200 dark:bg-slate-700/50 rounded-full mt-1">
-                        <div
-                          className={`h-1 rounded-full ${performanceMetrics.avgResponseTime <= 100 ? "bg-green-500" : performanceMetrics.avgResponseTime <= 200 ? "bg-amber-500" : "bg-red-500"}`}
-                          style={{
-                            width: `${Math.min(100, performanceMetrics.avgResponseTime / 3)}%`,
-                          }}
-                        ></div>
-                      </div>
-                    </div>
-
-                    <div className="bg-white/40 dark:bg-slate-800/40 p-2 rounded-md border border-slate-200 dark:border-slate-700/30">
-                      <div className="flex justify-between items-center">
-                        <span className="text-[9px] text-slate-600 dark:text-vynal-text-secondary">
-                          Taux d'erreur
-                        </span>
-                        <span
-                          className={`text-[9px] font-semibold ${getMetricColor(performanceMetrics.errorRate, "error")}`}
-                        >
-                          {formatValue(performanceMetrics.errorRate, "%", 2)}
-                        </span>
-                      </div>
-                      <div className="w-full h-1 bg-slate-200 dark:bg-slate-700/50 rounded-full mt-1">
-                        <div
-                          className={`h-1 rounded-full ${performanceMetrics.errorRate <= 0.5 ? "bg-green-500" : performanceMetrics.errorRate <= 1 ? "bg-amber-500" : "bg-red-500"}`}
-                          style={{
-                            width: `${Math.min(100, performanceMetrics.errorRate * 50)}%`,
-                          }}
-                        ></div>
-                      </div>
-                    </div>
-
-                    <div className="bg-white/40 dark:bg-slate-800/40 p-2 rounded-md border border-slate-200 dark:border-slate-700/30">
-                      <div className="flex justify-between items-center">
-                        <span className="text-[9px] text-slate-600 dark:text-vynal-text-secondary">
-                          Requêtes
-                        </span>
-                        <span className="text-[9px] font-semibold text-slate-700 dark:text-vynal-text-primary">
-                          {performanceMetrics.totalRequests.toLocaleString()}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="bg-white/40 dark:bg-slate-800/40 p-2 rounded-md border border-slate-200 dark:border-slate-700/30">
-                      <div className="flex justify-between items-center">
-                        <span className="text-[9px] text-slate-600 dark:text-vynal-text-secondary">
-                          Mémoire
-                        </span>
-                        <span className="text-[9px] font-semibold text-slate-700 dark:text-vynal-text-primary">
-                          {formatValue(performanceMetrics.memoryUsage, "%")}
-                        </span>
-                      </div>
-                      <div className="w-full h-1 bg-slate-200 dark:bg-slate-700/50 rounded-full mt-1">
-                        <div
-                          className={`h-1 rounded-full ${performanceMetrics.memoryUsage <= 50 ? "bg-green-500" : performanceMetrics.memoryUsage <= 75 ? "bg-amber-500" : "bg-red-500"}`}
-                          style={{
-                            width: `${performanceMetrics.memoryUsage}%`,
-                          }}
-                        ></div>
-                      </div>
-                    </div>
-
-                    <div className="bg-white/40 dark:bg-slate-800/40 p-2 rounded-md border border-slate-200 dark:border-slate-700/30">
-                      <div className="flex flex-col">
-                        <span className="text-[9px] text-slate-600 dark:text-vynal-text-secondary">
-                          Dernière mise à jour
-                        </span>
-                        <span className="text-[9px] font-semibold text-slate-700 dark:text-vynal-text-primary">
-                          {performanceMetrics.lastUpdated
-                            ? new Date(
-                                performanceMetrics.lastUpdated,
-                              ).toLocaleTimeString()
-                            : "-"}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <Separator className="bg-slate-200 dark:bg-slate-700/30" />
-
-                <div className="space-y-2">
-                  <Label className="text-[9px] text-slate-700 dark:text-vynal-text-secondary">
-                    Actions de performance
-                  </Label>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="justify-start text-xs text-slate-700 dark:text-vynal-text-secondary border-slate-200 dark:border-slate-700/30 hover:bg-slate-100 dark:hover:bg-slate-800/25"
-                      onClick={clearCache}
-                    >
-                      <Zap className="h-3 w-3 mr-1" />
-                      Vider tous les caches
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="justify-start text-xs text-slate-700 dark:text-vynal-text-secondary border-slate-200 dark:border-slate-700/30 hover:bg-slate-100 dark:hover:bg-slate-800/25"
-                    >
-                      <LineChart className="h-3 w-3 mr-1" />
-                      Voir rapport de performance
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="justify-start text-xs text-slate-700 dark:text-vynal-text-secondary border-slate-200 dark:border-slate-700/30 hover:bg-slate-100 dark:hover:bg-slate-800/25"
-                    >
-                      <FileText className="h-3 w-3 mr-1" />
-                      Télécharger les logs
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-            <CardFooter className="flex justify-between">
-              <div className="text-[9px] text-slate-600 dark:text-vynal-text-secondary">
-                Performance actuelle:{" "}
-                {performanceMetrics.avgResponseTime <= 100 &&
-                performanceMetrics.cacheHitRate >= 90 &&
-                performanceMetrics.errorRate <= 0.5
-                  ? "Excellente"
-                  : performanceMetrics.avgResponseTime <= 200 &&
-                      performanceMetrics.cacheHitRate >= 70 &&
-                      performanceMetrics.errorRate <= 1
-                    ? "Bonne"
-                    : "À améliorer"}
-              </div>
-              <Button
-                onClick={() => saveSettings("performance")}
-                size="sm"
-                className="text-xs bg-vynal-accent-primary hover:bg-vynal-accent-primary/90"
+                className="text-xs"
               >
                 <Save className="h-3 w-3 mr-1" />
                 Enregistrer
@@ -1868,12 +862,12 @@ export default function SettingsPage() {
 
         {/* Section des paramètres de gestion des rôles */}
         <TabsContent value="admin-roles">
-          <Card className="bg-white/30 dark:bg-slate-900/30 border-slate-200 dark:border-slate-700/30 shadow-sm">
+          <Card>
             <CardHeader>
-              <CardTitle className="text-[9px] text-slate-800 dark:text-vynal-text-primary">
+              <CardTitle className="text-[9px]">
                 Gestion des Rôles Administrateur
               </CardTitle>
-              <CardDescription className="text-[9px] text-slate-600 dark:text-vynal-text-secondary">
+              <CardDescription className="text-[9px]">
                 Promouvez ou rétrogradez les utilisateurs au rôle
                 d'administrateur.
               </CardDescription>
@@ -1881,10 +875,7 @@ export default function SettingsPage() {
             <CardContent className="space-y-4">
               <div className="space-y-3">
                 <div className="space-y-2">
-                  <Label
-                    htmlFor="user-email"
-                    className="text-[9px] text-slate-700 dark:text-vynal-text-secondary"
-                  >
+                  <Label htmlFor="user-email" className="text-[9px]">
                     Email de l'utilisateur
                   </Label>
                   <div className="flex gap-2">
@@ -1892,142 +883,79 @@ export default function SettingsPage() {
                       id="user-email"
                       type="email"
                       placeholder="email@exemple.com"
-                      className="flex-1 h-8 text-[9px] bg-white/40 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700/30 text-slate-700 dark:text-vynal-text-secondary"
-                      value={adminSearch}
-                      onChange={(e) => setAdminSearch(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          searchUser();
-                        }
-                      }}
+                      className="flex-1 h-8 text-[9px]"
                     />
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      className="text-xs bg-slate-200 dark:bg-slate-700/50 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-vynal-text-secondary"
-                      onClick={searchUser}
-                      disabled={isSearching}
-                    >
-                      {isSearching ? (
-                        <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
-                      ) : (
-                        "Rechercher"
-                      )}
+                    <Button variant="secondary" size="sm" className="text-xs">
+                      Rechercher
                     </Button>
                   </div>
-                  {searchError && (
-                    <p className="text-[9px] text-red-500 mt-1">
-                      {searchError}
-                    </p>
-                  )}
                 </div>
 
-                {foundUser && (
-                  <div className="rounded-md border border-slate-200 dark:border-slate-700/30 bg-white/40 dark:bg-slate-800/40 p-3">
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-1">
-                        <p className="font-medium text-[9px] text-slate-800 dark:text-vynal-text-primary">
-                          Utilisateur trouvé
-                        </p>
-                        <div className="text-[9px] text-slate-600 dark:text-vynal-text-secondary">
-                          <p>
-                            Nom:{" "}
-                            {foundUser.full_name ||
-                              foundUser.username ||
-                              "Non défini"}
-                          </p>
-                          <p>Email: {foundUser.email}</p>
-                          <p>Rôle actuel: {foundUser.role}</p>
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        {foundUser.role !== "admin" ? (
-                          <Button
-                            size="sm"
-                            className="text-xs bg-vynal-accent-primary hover:bg-vynal-accent-primary/90"
-                            onClick={() => promoteToAdmin(foundUser.id)}
-                            disabled={isPromoting}
-                          >
-                            {isPromoting ? (
-                              <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
-                            ) : (
-                              "Promouvoir en admin"
-                            )}
-                          </Button>
-                        ) : (
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            className="text-xs"
-                            onClick={() => demoteAdmin(foundUser.id)}
-                            disabled={isDemoting}
-                          >
-                            {isDemoting ? (
-                              <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
-                            ) : (
-                              "Rétrograder"
-                            )}
-                          </Button>
-                        )}
+                <div className="rounded-md border p-3">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-1">
+                      <p className="font-medium text-[9px]">
+                        Utilisateur trouvé
+                      </p>
+                      <div className="text-[9px] text-gray-500 dark:text-vynal-text-secondary">
+                        <p>Nom: Jean Dupont</p>
+                        <p>Email: jean.dupont@exemple.com</p>
+                        <p>Rôle actuel: Utilisateur</p>
                       </div>
                     </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" className="text-xs">
+                        Promouvoir en admin
+                      </Button>
+                      <Button
+                        variant="outline"
+                        disabled
+                        size="sm"
+                        className="text-xs"
+                      >
+                        Rétrograder
+                      </Button>
+                    </div>
                   </div>
-                )}
+                </div>
 
-                <Separator className="bg-slate-200 dark:bg-slate-700/30" />
+                <Separator />
 
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <p className="font-medium text-[9px] text-slate-800 dark:text-vynal-text-primary">
+                    <p className="font-medium text-[9px]">
                       Liste des administrateurs actuels
                     </p>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-xs text-slate-700 dark:text-vynal-text-secondary border-slate-200 dark:border-slate-700/30 hover:bg-slate-100 dark:hover:bg-slate-800/25"
-                      onClick={fetchAdmins}
-                    >
+                    <Button variant="outline" size="sm" className="text-xs">
                       Actualiser
                     </Button>
                   </div>
 
                   <div className="space-y-2">
-                    {admins.length === 0 ? (
-                      <p className="text-[9px] text-slate-600 dark:text-vynal-text-secondary py-2 text-center">
-                        Aucun administrateur trouvé.
-                      </p>
-                    ) : (
-                      admins.map((admin) => (
-                        <div
-                          key={admin.id}
-                          className="rounded-md border border-slate-200 dark:border-slate-700/30 bg-white/40 dark:bg-slate-800/40 p-3"
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-2">
-                              <Users className="h-3 w-3 text-slate-600 dark:text-vynal-text-secondary" />
-                              <div>
-                                <p className="font-medium text-[9px] text-slate-800 dark:text-vynal-text-primary">
-                                  {admin.full_name || admin.username || "Admin"}
-                                </p>
-                                <p className="text-[9px] text-slate-600 dark:text-vynal-text-secondary">
-                                  {admin.email}
-                                </p>
-                              </div>
+                    {[1, 2].map((item) => (
+                      <div key={item} className="rounded-md border p-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <Users className="h-3 w-3 text-gray-500 dark:text-vynal-text-secondary" />
+                            <div>
+                              <p className="font-medium text-[9px]">
+                                Admin {item}
+                              </p>
+                              <p className="text-[9px] text-gray-500 dark:text-vynal-text-secondary">
+                                admin{item}@vynal.com
+                              </p>
                             </div>
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              className="text-xs"
-                              onClick={() => demoteAdmin(admin.id)}
-                              disabled={isDemoting}
-                            >
-                              Rétrograder
-                            </Button>
                           </div>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            className="text-xs"
+                          >
+                            Rétrograder
+                          </Button>
                         </div>
-                      ))
-                    )}
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>

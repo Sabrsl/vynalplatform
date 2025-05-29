@@ -192,29 +192,6 @@ async function handlePaymentIntentSucceeded(paymentIntent: any) {
       return;
     }
 
-    // Vérifier si ce paiement a déjà été traité
-    const { data: alreadyProcessedPayment, error: paymentCheckError } =
-      await supabase
-        .from("payments")
-        .select("id, status, order_id")
-        .eq("payment_intent_id", paymentIntent.id)
-        .eq("status", "paid")
-        .limit(1);
-
-    if (paymentCheckError) {
-      console.error(
-        "Erreur lors de la vérification des paiements existants:",
-        paymentCheckError,
-      );
-    } else if (alreadyProcessedPayment && alreadyProcessedPayment.length > 0) {
-      console.log(
-        `⚠️ Le paiement ${paymentIntent.id} a déjà été traité (${alreadyProcessedPayment[0].id}). Webhook ignoré.`,
-      );
-
-      // Si le paiement existe déjà et a le statut 'paid', on évite de le traiter à nouveau
-      return;
-    }
-
     // Récupérer les informations du service pour obtenir le prix correct
     const { data: serviceData, error: serviceError } = await supabase
       .from("services")
@@ -274,9 +251,9 @@ async function handlePaymentIntentSucceeded(paymentIntent: any) {
         .from("payments")
         .select("id, status, order_id")
         .eq("payment_intent_id", paymentIntent.id)
-        .limit(1);
+        .maybeSingle();
 
-    if (existingPaymentError) {
+    if (existingPaymentError && existingPaymentError.code !== "PGRST116") {
       console.error(
         "Erreur lors de la vérification du paiement existant:",
         existingPaymentError,
@@ -284,15 +261,12 @@ async function handlePaymentIntentSucceeded(paymentIntent: any) {
       return;
     }
 
-    let orderId =
-      existingPayment && existingPayment.length > 0
-        ? existingPayment[0].order_id
-        : existingOrderId;
+    let orderId = existingPayment?.order_id || existingOrderId;
     let orderNumber = "";
 
     // Si le paiement existe, mettre à jour son statut et la commande associée
-    if (existingPayment && existingPayment.length > 0) {
-      if (existingPayment[0].status !== "paid") {
+    if (existingPayment) {
+      if (existingPayment.status !== "paid") {
         // Mettre à jour le statut du paiement avec informations supplémentaires
         await supabase
           .from("payments")
@@ -312,7 +286,7 @@ async function handlePaymentIntentSucceeded(paymentIntent: any) {
             }),
             updated_at: new Date().toISOString(),
           })
-          .eq("id", existingPayment[0].id);
+          .eq("id", existingPayment.id);
 
         // Mettre à jour le statut de la commande si elle existe
         if (orderId) {

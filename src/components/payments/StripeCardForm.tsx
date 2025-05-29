@@ -226,158 +226,17 @@ function StripeCardFormContent({
         throw new Error("Élément de carte non disponible");
       }
 
-      // Vérifier l'état du PaymentIntent avant confirmation
-      try {
-        const paymentIntentStatus =
-          await stripe.retrievePaymentIntent(clientSecret);
-
-        // Si le paiement est déjà réussi ou en cours de traitement, informer l'utilisateur
-        if (
-          paymentIntentStatus.paymentIntent &&
-          (paymentIntentStatus.paymentIntent.status === "succeeded" ||
-            paymentIntentStatus.paymentIntent.status === "processing")
-        ) {
-          console.log(
-            "PaymentIntent déjà traité, statut:",
-            paymentIntentStatus.paymentIntent.status,
-          );
-
-          // Le paiement a déjà été effectué, on notifie le succès sans reconfirmer
-          const paymentData = {
-            ...paymentIntentStatus.paymentIntent,
-            serviceId, // Ajout du serviceId pour lier correctement le paiement au service
-            provider: "stripe",
-            amount: amountInEur, // Montant en EUR
-            originalAmount: normalizedAmount, // Montant original en XOF
-            originalCurrency: "XOF", // Devise originale toujours XOF
-            userCurrency: userCurrency.code, // Devise affichée à l'utilisateur
-            amountInUserCurrency: amountInUserCurrency, // Montant dans la devise de l'utilisateur
-            wasNormalized: wasNormalized, // Indique si une normalisation a été appliquée
-          };
-
-          // Appel manuel au webhook pour s'assurer que le paiement est enregistré dans la base
-          try {
-            const manualWebhookResponse = await fetch(
-              "/api/stripe/manual-webhook",
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                  paymentIntentId: paymentIntentStatus.paymentIntent.id,
-                }),
-              },
-            );
-
-            if (!manualWebhookResponse.ok) {
-              console.warn(
-                "Échec de l'appel au webhook manuel mais le paiement est déjà validé",
-              );
-            }
-          } catch (webhookError) {
-            console.warn(
-              "Erreur du webhook manuel mais le paiement est déjà validé:",
-              webhookError,
-            );
-          }
-
-          onSuccess(paymentData);
-          return;
-        }
-      } catch (statusError) {
-        console.warn(
-          "Impossible de vérifier le statut du PaymentIntent:",
-          statusError,
-        );
-        // On continue avec la confirmation normale
-      }
-
       // Confirmation du paiement avec Stripe
       const result = await stripe.confirmCardPayment(clientSecret, {
         payment_method: {
           card: cardElement,
         },
-        // Ne pas utiliser l'option redirect qui n'est pas supportée ici
       });
 
       const { error, paymentIntent } = result;
 
       // Gestion des erreurs
       if (error) {
-        // Si erreur de type "payment_intent_unexpected_state", c'est que le paiement a déjà été traité
-        if (
-          error.type === "invalid_request_error" &&
-          error.code === "payment_intent_unexpected_state"
-        ) {
-          console.log("Erreur payment_intent_unexpected_state détectée");
-
-          // Tenter de récupérer l'état actuel du PaymentIntent
-          try {
-            const paymentIntentStatus =
-              await stripe.retrievePaymentIntent(clientSecret);
-
-            console.log(
-              "État actuel du PaymentIntent:",
-              paymentIntentStatus.paymentIntent?.status,
-            );
-
-            if (
-              paymentIntentStatus.paymentIntent &&
-              (paymentIntentStatus.paymentIntent.status === "succeeded" ||
-                paymentIntentStatus.paymentIntent.status === "processing")
-            ) {
-              // Le paiement a réussi mais l'API a retourné une erreur de confirmation
-              const paymentData = {
-                ...paymentIntentStatus.paymentIntent,
-                serviceId,
-                provider: "stripe",
-                amount: amountInEur,
-                originalAmount: normalizedAmount,
-                originalCurrency: "XOF",
-                userCurrency: userCurrency.code,
-                amountInUserCurrency: amountInUserCurrency,
-                wasNormalized: wasNormalized,
-              };
-
-              // Appel manuel au webhook pour s'assurer que le paiement est enregistré dans la base
-              try {
-                const manualWebhookResponse = await fetch(
-                  "/api/stripe/manual-webhook",
-                  {
-                    method: "POST",
-                    headers: {
-                      "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({
-                      paymentIntentId: paymentIntentStatus.paymentIntent.id,
-                    }),
-                  },
-                );
-
-                if (!manualWebhookResponse.ok) {
-                  console.warn(
-                    "Échec de l'appel au webhook manuel mais le paiement est déjà validé",
-                  );
-                }
-              } catch (webhookError) {
-                console.warn(
-                  "Erreur du webhook manuel mais le paiement est déjà validé:",
-                  webhookError,
-                );
-              }
-
-              onSuccess(paymentData);
-              return;
-            }
-          } catch (retrieveError) {
-            console.error(
-              "Erreur lors de la récupération du PaymentIntent:",
-              retrieveError,
-            );
-          }
-        }
-
         setCardError(error.message || "Erreur lors du traitement du paiement");
         onError(error);
       } else if (paymentIntent) {
@@ -465,7 +324,6 @@ function StripeCardFormContent({
       onSubmit={handleSubmit}
       className="space-y-5"
       id="stripe-payment-form"
-      data-elements="true"
     >
       {/* Notification sur la devise utilisée pour le paiement */}
       <PaymentCurrencyNotice amount={amount} compact useFixedAmount={false} />

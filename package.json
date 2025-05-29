@@ -1,6 +1,6 @@
 {
   "name": "vynal-platform",
-  "version": "0.1.195",
+  "version": "0.1.184",
   "private": true,
   "scripts": {
     "dev": "cross-env NODE_OPTIONS='--max-old-space-size=4096' NODE_ENV=development next dev",
@@ -46,7 +46,7 @@
     "@radix-ui/react-toast": "^1.2.7",
     "@radix-ui/react-tooltip": "^1.2.4",
     "@stripe/react-stripe-js": "^3.7.0",
-    "@stripe/stripe-js": "^7.3.1",
+    "@stripe/stripe-js": "^7.3.0",
     "@supabase/auth-helpers-nextjs": "^0.10.0",
     "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.49.4",
@@ -94,7 +94,7 @@
     "react-window-infinite-loader": "^1.0.10",
     "sanitize-html": "^2.17.0",
     "sonner": "^2.0.3",
-    "stripe": "^18.1.1",
+    "stripe": "^18.1.0",
     "tailwind-merge": "^2.6.0",
     "tailwind-scrollbar-hide": "^2.0.0",
     "tailwindcss-animate": "^1.0.7",

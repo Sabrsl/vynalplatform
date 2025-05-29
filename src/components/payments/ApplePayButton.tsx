@@ -97,11 +97,11 @@ function ApplePayButtonInternal({
 
       try {
         // Confirmer le paiement avec Stripe
-        const result = await stripe.confirmCardPayment(clientSecret, {
-          payment_method: ev.paymentMethod.id,
-        });
-
-        const { error, paymentIntent } = result;
+        const { error, paymentIntent } = await stripe.confirmCardPayment(
+          clientSecret,
+          { payment_method: ev.paymentMethod.id },
+          { handleActions: false },
+        );
 
         if (error) {
           // Informer Apple Pay que le paiement a échoué
