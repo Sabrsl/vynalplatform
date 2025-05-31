@@ -1,5 +1,6 @@
 import { Metadata } from "next";
 import Link from "next/link";
+import Script from "next/script";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { MessageSquare, Search } from "lucide-react";
@@ -159,152 +160,216 @@ const FaqSearchbar = () => (
 
 // Page FAQ principale
 export default function FAQPage() {
+  // Création du schéma JSON-LD pour la FAQ
+  const faqJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      // Compte
+      ...accountItems.map(item => ({
+        "@type": "Question",
+        "name": item.question,
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": item.answer
+        }
+      })),
+      // Paiement
+      ...paymentItems.map(item => ({
+        "@type": "Question",
+        "name": item.question,
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": item.answer
+        }
+      })),
+      // Commandes
+      ...orderItems.map(item => ({
+        "@type": "Question",
+        "name": item.question,
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": item.answer
+        }
+      })),
+      // Freelance
+      ...freelanceItems.map(item => ({
+        "@type": "Question",
+        "name": item.question,
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": item.answer
+        }
+      })),
+      // Technique
+      ...technicalItems.map(item => ({
+        "@type": "Question",
+        "name": item.question,
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": item.answer
+        }
+      }))
+    ]
+  };
+
   return (
-    <div className="min-h-screen bg-vynal-purple-dark">
-      {/* En-tête décoratif */}
-      <div className="absolute top-0 left-0 right-0 h-64 bg-gradient-to-b from-vynal-purple-dark to-vynal-purple-darkest -z-10 overflow-hidden">
-        <div className="absolute inset-0 bg-[url('/img/grid-pattern.svg')] bg-center opacity-0 dark:opacity-10"></div>
-        <div className="absolute -top-24 -right-24 w-96 h-96 bg-vynal-accent-secondary/20 rounded-full blur-3xl"></div>
-        <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-vynal-accent-primary/20 rounded-full blur-3xl"></div>
+    <>
+      {/* Script JSON-LD pour les données structurées FAQ */}
+      <Script
+        id="faq-jsonld"
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(faqJsonLd)
+        }}
+      />
+      
+      <div className="min-h-screen bg-vynal-purple-dark">
+        {/* En-tête décoratif */}
+        <div className="absolute top-0 left-0 right-0 h-64 bg-gradient-to-b from-vynal-purple-dark to-vynal-purple-darkest -z-10 overflow-hidden">
+          <div className="absolute inset-0 bg-[url('/img/grid-pattern.svg')] bg-center opacity-0 dark:opacity-10"></div>
+          <div className="absolute -top-24 -right-24 w-96 h-96 bg-vynal-accent-secondary/20 rounded-full blur-3xl"></div>
+          <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-vynal-accent-primary/20 rounded-full blur-3xl"></div>
+        </div>
+
+        <div className="container mx-auto px-4 py-12 relative">
+          {/* Hero Section */}
+          <div className="mb-12 text-center">
+            <h1 className="text-4xl md:text-5xl font-bold text-vynal-text-primary mb-6">
+              Questions fréquemment posées
+            </h1>
+            <p className="mt-4 text-lg text-vynal-text-secondary max-w-3xl mx-auto">
+              Consultez notre FAQ pour trouver des réponses à vos questions sur l'utilisation de Vynal Platform.
+            </p>
+          </div>
+
+          {/* Recherche - Version non interactive côté serveur */}
+          <div className="max-w-2xl mx-auto mb-16">
+            <FaqSearchbar />
+          </div>
+
+          {/* Catégories */}
+          <div className="mb-16">
+            <div className="flex flex-wrap justify-center gap-3">
+              <div className="px-6 py-2 bg-vynal-accent-primary text-vynal-purple-dark font-medium rounded-full text-sm">
+                Toutes les questions
+              </div>
+              <div className="px-6 py-2 bg-vynal-purple-secondary/20 text-vynal-text-primary font-medium rounded-full text-sm">
+                Inscription et compte
+              </div>
+              <div className="px-6 py-2 bg-vynal-purple-secondary/20 text-vynal-text-primary font-medium rounded-full text-sm">
+                Paiements
+              </div>
+              <div className="px-6 py-2 bg-vynal-purple-secondary/20 text-vynal-text-primary font-medium rounded-full text-sm">
+                Commandes
+              </div>
+              <div className="px-6 py-2 bg-vynal-purple-secondary/20 text-vynal-text-primary font-medium rounded-full text-sm">
+                Freelances
+              </div>
+              <div className="px-6 py-2 bg-vynal-purple-secondary/20 text-vynal-text-primary font-medium rounded-full text-sm">
+                Problèmes techniques
+              </div>
+            </div>
+          </div>
+
+          {/* FAQ Sections */}
+          <div className="max-w-4xl mx-auto">
+            {/* Section Inscription et Compte */}
+            <div className="mb-12">
+              <h2 className="text-2xl font-bold text-vynal-text-primary mb-6 pb-2 border-b border-vynal-purple-secondary/30">
+                Inscription et compte
+              </h2>
+
+              <Card className="bg-vynal-purple-dark/90 border-vynal-purple-secondary/30 rounded-xl overflow-hidden shadow-lg shadow-vynal-accent-secondary/20 backdrop-blur-sm">
+                <CardContent className="p-0">
+                  <FAQAccordion items={accountItems} />
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Section Paiements */}
+            <div className="mb-12">
+              <h2 className="text-2xl font-bold text-vynal-text-primary mb-6 pb-2 border-b border-vynal-purple-secondary/30">
+                Paiements et facturation
+              </h2>
+
+              <Card className="bg-vynal-purple-dark/90 border-vynal-purple-secondary/30 rounded-xl overflow-hidden shadow-lg shadow-vynal-accent-secondary/20 backdrop-blur-sm">
+                <CardContent className="p-0">
+                  <FAQAccordion items={paymentItems} />
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Section Commandes */}
+            <div className="mb-12">
+              <h2 className="text-2xl font-bold text-vynal-text-primary mb-6 pb-2 border-b border-vynal-purple-secondary/30">
+                Commandes et livraisons
+              </h2>
+
+              <Card className="bg-vynal-purple-dark/90 border-vynal-purple-secondary/30 rounded-xl overflow-hidden shadow-lg shadow-vynal-accent-secondary/20 backdrop-blur-sm">
+                <CardContent className="p-0">
+                  <FAQAccordion items={orderItems} />
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Section Freelances */}
+            <div className="mb-12">
+              <h2 className="text-2xl font-bold text-vynal-text-primary mb-6 pb-2 border-b border-vynal-purple-secondary/30">
+                Pour les freelances
+              </h2>
+
+              <Card className="bg-vynal-purple-dark/90 border-vynal-purple-secondary/30 rounded-xl overflow-hidden shadow-lg shadow-vynal-accent-secondary/20 backdrop-blur-sm">
+                <CardContent className="p-0">
+                  <FAQAccordion items={freelanceItems} />
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Section Problèmes techniques */}
+            <div className="mb-12">
+              <h2 className="text-2xl font-bold text-vynal-text-primary mb-6 pb-2 border-b border-vynal-purple-secondary/30">
+                Problèmes techniques et support
+              </h2>
+
+              <Card className="bg-vynal-purple-dark/90 border-vynal-purple-secondary/30 rounded-xl overflow-hidden shadow-lg shadow-vynal-accent-secondary/20 backdrop-blur-sm">
+                <CardContent className="p-0">
+                  <FAQAccordion items={technicalItems} />
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+          {/* Contact Support */}
+          <div className="mt-20 max-w-3xl mx-auto">
+            <div className="relative">
+              <div className="absolute -inset-4 bg-gradient-to-r from-vynal-accent-primary/20 to-vynal-accent-secondary/20 rounded-2xl blur-xl opacity-70"></div>
+              <Card className="bg-vynal-purple-dark/90 border-vynal-purple-secondary/30 rounded-xl overflow-hidden shadow-lg shadow-vynal-accent-secondary/20 backdrop-blur-sm relative">
+                <CardContent className="p-8 text-center">
+                  <h2 className="text-2xl font-bold text-vynal-text-primary mb-4">
+                    Vous n'avez pas trouvé la réponse à votre question ?
+                  </h2>
+                  <p className="text-vynal-text-secondary mb-6 max-w-xl mx-auto">
+                    Notre équipe de support est disponible pour vous aider. N'hésitez pas à nous contacter directement.
+                  </p>
+                  <div className="flex flex-col sm:flex-row justify-center gap-4">
+                    <Link href="/contact">
+                      <Button className="bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-vynal-purple-dark">
+                        <MessageSquare className="mr-2 h-4 w-4" /> Contacter le support
+                      </Button>
+                    </Link>
+                    <Link href="/contact">
+                      <Button variant="outline" className="border-vynal-purple-secondary/50 text-vynal-text-primary hover:bg-vynal-purple-secondary/20">
+                        Voir la page contact
+                      </Button>
+                    </Link>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </div>
       </div>
-
-      <div className="container mx-auto px-4 py-12 relative">
-        {/* Hero Section */}
-        <div className="mb-12 text-center">
-          <h1 className="text-4xl md:text-5xl font-bold text-vynal-text-primary mb-6">
-            Questions fréquemment posées
-          </h1>
-          <p className="mt-4 text-lg text-vynal-text-secondary max-w-3xl mx-auto">
-            Consultez notre FAQ pour trouver des réponses à vos questions sur l'utilisation de Vynal Platform.
-          </p>
-        </div>
-
-        {/* Recherche - Version non interactive côté serveur */}
-        <div className="max-w-2xl mx-auto mb-16">
-          <FaqSearchbar />
-        </div>
-
-        {/* Catégories */}
-        <div className="mb-16">
-          <div className="flex flex-wrap justify-center gap-3">
-            <div className="px-6 py-2 bg-vynal-accent-primary text-vynal-purple-dark font-medium rounded-full text-sm">
-              Toutes les questions
-            </div>
-            <div className="px-6 py-2 bg-vynal-purple-secondary/20 text-vynal-text-primary font-medium rounded-full text-sm">
-              Inscription et compte
-            </div>
-            <div className="px-6 py-2 bg-vynal-purple-secondary/20 text-vynal-text-primary font-medium rounded-full text-sm">
-              Paiements
-            </div>
-            <div className="px-6 py-2 bg-vynal-purple-secondary/20 text-vynal-text-primary font-medium rounded-full text-sm">
-              Commandes
-            </div>
-            <div className="px-6 py-2 bg-vynal-purple-secondary/20 text-vynal-text-primary font-medium rounded-full text-sm">
-              Freelances
-            </div>
-            <div className="px-6 py-2 bg-vynal-purple-secondary/20 text-vynal-text-primary font-medium rounded-full text-sm">
-              Problèmes techniques
-            </div>
-          </div>
-        </div>
-
-        {/* FAQ Sections */}
-        <div className="max-w-4xl mx-auto">
-          {/* Section Inscription et Compte */}
-          <div className="mb-12">
-            <h2 className="text-2xl font-bold text-vynal-text-primary mb-6 pb-2 border-b border-vynal-purple-secondary/30">
-              Inscription et compte
-            </h2>
-
-            <Card className="bg-vynal-purple-dark/90 border-vynal-purple-secondary/30 rounded-xl overflow-hidden shadow-lg shadow-vynal-accent-secondary/20 backdrop-blur-sm">
-              <CardContent className="p-0">
-                <FAQAccordion items={accountItems} />
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Section Paiements */}
-          <div className="mb-12">
-            <h2 className="text-2xl font-bold text-vynal-text-primary mb-6 pb-2 border-b border-vynal-purple-secondary/30">
-              Paiements et facturation
-            </h2>
-
-            <Card className="bg-vynal-purple-dark/90 border-vynal-purple-secondary/30 rounded-xl overflow-hidden shadow-lg shadow-vynal-accent-secondary/20 backdrop-blur-sm">
-              <CardContent className="p-0">
-                <FAQAccordion items={paymentItems} />
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Section Commandes */}
-          <div className="mb-12">
-            <h2 className="text-2xl font-bold text-vynal-text-primary mb-6 pb-2 border-b border-vynal-purple-secondary/30">
-              Commandes et livraisons
-            </h2>
-
-            <Card className="bg-vynal-purple-dark/90 border-vynal-purple-secondary/30 rounded-xl overflow-hidden shadow-lg shadow-vynal-accent-secondary/20 backdrop-blur-sm">
-              <CardContent className="p-0">
-                <FAQAccordion items={orderItems} />
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Section Freelances */}
-          <div className="mb-12">
-            <h2 className="text-2xl font-bold text-vynal-text-primary mb-6 pb-2 border-b border-vynal-purple-secondary/30">
-              Pour les freelances
-            </h2>
-
-            <Card className="bg-vynal-purple-dark/90 border-vynal-purple-secondary/30 rounded-xl overflow-hidden shadow-lg shadow-vynal-accent-secondary/20 backdrop-blur-sm">
-              <CardContent className="p-0">
-                <FAQAccordion items={freelanceItems} />
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Section Problèmes techniques */}
-          <div className="mb-12">
-            <h2 className="text-2xl font-bold text-vynal-text-primary mb-6 pb-2 border-b border-vynal-purple-secondary/30">
-              Problèmes techniques et support
-            </h2>
-
-            <Card className="bg-vynal-purple-dark/90 border-vynal-purple-secondary/30 rounded-xl overflow-hidden shadow-lg shadow-vynal-accent-secondary/20 backdrop-blur-sm">
-              <CardContent className="p-0">
-                <FAQAccordion items={technicalItems} />
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-
-        {/* Contact Support */}
-        <div className="mt-20 max-w-3xl mx-auto">
-          <div className="relative">
-            <div className="absolute -inset-4 bg-gradient-to-r from-vynal-accent-primary/20 to-vynal-accent-secondary/20 rounded-2xl blur-xl opacity-70"></div>
-            <Card className="bg-vynal-purple-dark/90 border-vynal-purple-secondary/30 rounded-xl overflow-hidden shadow-lg shadow-vynal-accent-secondary/20 backdrop-blur-sm relative">
-              <CardContent className="p-8 text-center">
-                <h2 className="text-2xl font-bold text-vynal-text-primary mb-4">
-                  Vous n'avez pas trouvé la réponse à votre question ?
-                </h2>
-                <p className="text-vynal-text-secondary mb-6 max-w-xl mx-auto">
-                  Notre équipe de support est disponible pour vous aider. N'hésitez pas à nous contacter directement.
-                </p>
-                <div className="flex flex-col sm:flex-row justify-center gap-4">
-                  <Link href="/contact">
-                    <Button className="bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-vynal-purple-dark">
-                      <MessageSquare className="mr-2 h-4 w-4" /> Contacter le support
-                    </Button>
-                  </Link>
-                  <Link href="/contact">
-                    <Button variant="outline" className="border-vynal-purple-secondary/50 text-vynal-text-primary hover:bg-vynal-purple-secondary/20">
-                      Voir la page contact
-                    </Button>
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </div>
-    </div>
+    </>
   );
 } 
