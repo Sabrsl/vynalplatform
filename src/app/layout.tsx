@@ -284,9 +284,12 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: JSON.stringify({
               "@context": "https://schema.org",
-              "@type": "Service",
+              "@type": "WebApplication",
               "name": "Vynal Platform",
               "description": "La première marketplace de services numériques en Afrique",
+              "applicationCategory": "Marketplace",
+              "operatingSystem": "Web",
+              "url": "https://vynalplatform.com",
               "provider": {
                 "@type": "Organization",
                 "name": "Vynal Platform",
@@ -296,27 +299,12 @@ export default function RootLayout({
                 "@type": "Continent",
                 "name": "Africa"
               },
-              "serviceType": "Digital Services Marketplace",
-              "review": {
-                "@type": "Review",
-                "reviewRating": {
-                  "@type": "AggregateRating",
-                  "ratingValue": "4.8",
-                  "reviewCount": "1250",
-                  "bestRating": "5",
-                  "worstRating": "1"
-                },
-                "itemReviewed": {
-                  "@type": "Service",
-                  "name": "Vynal Platform",
-                  "description": "La première marketplace de services numériques en Afrique"
-                }
-              },
-              "offers": {
-                "@type": "Offer",
-                "availability": "https://schema.org/InStock",
-                "price": "0",
-                "priceCurrency": "XOF"
+              "aggregateRating": {
+                "@type": "AggregateRating",
+                "ratingValue": "4.8",
+                "reviewCount": "1250",
+                "bestRating": "5",
+                "worstRating": "1"
               }
             })
           }}
