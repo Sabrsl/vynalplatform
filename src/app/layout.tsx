@@ -157,6 +157,13 @@ export const metadata: Metadata = {
       "Trouvez des freelances qualifiés pour tous vos projets digitaux",
     siteName: "Vynal Platform",
   },
+  twitter: {
+    card: "summary_large_image",
+    title: "Vynal - Plateforme de services numériques",
+    description: "Trouvez des freelances qualifiés pour tous vos projets digitaux",
+    site: "@vynalplatform",
+    images: ["https://vynalplatform.com/og-image.jpg"],
+  },
 };
 
 // Styles critiques pour le LCP - extraits pour éviter les problèmes d'hydratation
@@ -202,6 +209,17 @@ export default function RootLayout({
   return (
     <html lang="fr" suppressHydrationWarning className="overflow-x-hidden">
       <head>
+        {/* Meta tags essentiels */}
+        <meta charSet="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+        <meta httpEquiv="Content-Language" content="fr" />
+
+        {/* Styles critiques pour le LCP */}
+        <style
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{ __html: criticalStyles }}
+        />
+
         {/* Préconnexions pour accélérer le chargement des ressources externes */}
         <link
           rel="preconnect"
@@ -220,33 +238,39 @@ export default function RootLayout({
           content="/favicon/browserconfig.xml"
         />
 
-        {/* Gestion des safe-area-inset pour les appareils mobiles */}
-        <meta
-          name="viewport"
-          content="width=device-width, initial-scale=1, viewport-fit=cover"
-        />
-
         {/* Meta tags additionnels pour les moteurs de recherche */}
-        <link rel="icon" href="/favicon/favicon.ico?v=2" />
+        <link rel="icon" href="/favicon.ico" />
         <link
           rel="icon"
-          type="image/png"
+          type="image/x-icon"
           sizes="16x16"
-          href="/favicon/favicon-16x16.png?v=2"
+          href="/favicon-16x16.ico"
         />
         <link
           rel="icon"
-          type="image/png"
+          type="image/x-icon"
           sizes="32x32"
-          href="/favicon/favicon-32x32.png?v=2"
+          href="/favicon-32x32.ico"
         />
         <link
           rel="icon"
-          type="image/png"
+          type="image/x-icon"
           sizes="48x48"
-          href="/favicon/android-icon-48x48.png?v=2"
+          href="/favicon-48x48.ico"
         />
-        <link rel="shortcut icon" href="/favicon/favicon.ico?v=2" />
+        <link
+          rel="icon"
+          type="image/x-icon"
+          sizes="64x64"
+          href="/favicon-64x64.ico"
+        />
+        <link
+          rel="icon"
+          type="image/x-icon"
+          sizes="128x128"
+          href="/favicon-128x128.ico"
+        />
+        <link rel="shortcut icon" href="/favicon.ico" />
         <link
           rel="apple-touch-icon"
           sizes="180x180"
@@ -327,12 +351,6 @@ export default function RootLayout({
           fetchPriority="low"
         />
 
-        {/* Style critique pour le LCP chargé inline */}
-        <style
-          suppressHydrationWarning
-          dangerouslySetInnerHTML={{ __html: criticalStyles }}
-        />
-
         {/* CSS performance - chargé de façon non-bloquante */}
         <link
           rel="stylesheet"
@@ -354,18 +372,21 @@ export default function RootLayout({
       </head>
       <body
         className={`${poppins.variable} font-poppins transition-colors duration-300`}
+        role="document"
+        itemScope
+        itemType="https://schema.org/WebPage"
       >
         <Providers>
           <ScrollRestoration />
           <Suspense fallback={<Loading />}>
-            <MainLayout>{children}</MainLayout>
+            <MainLayout>
+              {children}
+            </MainLayout>
           </Suspense>
           <div
             id="navigation-progress-indicator"
             className="fixed top-0 left-0 w-full h-1 bg-gradient-to-r from-vynal-purple-primary via-vynal-accent-primary to-vynal-purple-primary bg-size-200 animate-gradient-x z-50 hidden"
           />
-
-          {/* Système de détection des mises à jour */}
           <VersionChecker checkInterval={2 * 60 * 1000} />
         </Providers>
 

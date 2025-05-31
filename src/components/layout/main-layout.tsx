@@ -86,7 +86,7 @@ const StandardLayout = memo(({
     isFullWidth ? 'max-w-full' : 'max-w-screen-2xl mx-auto'
   }`}>
     {!shouldHideHeader && <HeaderComponent />}
-    <main className="flex-grow">
+    <main className="flex-grow" role="main" itemScope itemType="https://schema.org/SiteNavigationElement">
       {children}
     </main>
     {!shouldHideFooter && <FooterComponent />}
