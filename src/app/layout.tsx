@@ -49,15 +49,10 @@ export const metadata: Metadata = {
   ),
   icons: {
     icon: [
-      { url: "/favicon_vynalplatform.ico" },
-      { url: "/favicon/favicon-16x16.png", sizes: "16x16", type: "image/png" },
-      { url: "/favicon/favicon-32x32.png", sizes: "32x32", type: "image/png" },
-      { url: "/favicon/favicon-96x96.png", sizes: "96x96", type: "image/png" },
-      {
-        url: "/favicon/favicon-192x192.png",
-        sizes: "192x192",
-        type: "image/png",
-      },
+      { url: "/favicon.ico" },
+      { url: "/favicon-16x16.ico", sizes: "16x16", type: "image/x-icon" },
+      { url: "/favicon-32x32.ico", sizes: "32x32", type: "image/x-icon" },
+      { url: "/favicon-48x48.ico", sizes: "48x48", type: "image/x-icon" },
     ],
     apple: [
       { url: "/favicon/apple-icon.png" },
@@ -107,7 +102,7 @@ export const metadata: Metadata = {
         type: "image/png",
       },
     ],
-    shortcut: "/favicon_vynalplatform.ico",
+    shortcut: "/favicon.ico",
     other: [
       {
         url: "/favicon/android-icon-192x192.png",
@@ -221,29 +216,29 @@ export default function RootLayout({
         />
 
         {/* Meta tags additionnels pour les moteurs de recherche */}
-        <link rel="icon" href="/favicon/favicon.ico?v=2" />
+        <link rel="icon" href="/favicon.ico" />
         <link
           rel="icon"
-          type="image/png"
+          type="image/x-icon"
           sizes="16x16"
-          href="/favicon/favicon-16x16.png?v=2"
+          href="/favicon-16x16.ico"
         />
         <link
           rel="icon"
-          type="image/png"
+          type="image/x-icon"
           sizes="32x32"
-          href="/favicon/favicon-32x32.png?v=2"
+          href="/favicon-32x32.ico"
         />
         <link
           rel="icon"
-          type="image/png"
+          type="image/x-icon"
           sizes="48x48"
-          href="/favicon/android-icon-48x48.png?v=2"
+          href="/favicon-48x48.ico"
         />
-        <link rel="shortcut icon" href="/favicon/favicon.ico?v=2" />
+        <link rel="shortcut icon" href="/favicon.ico" />
 
         {/* Google favicon */}
-        <link rel="manifest" href="/favicon/manifest.json?v=2" />
+        <link rel="manifest" href="/site.webmanifest" />
 
         {/* Configuration simple avec couleur rose fixe et fallbacks complets */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
