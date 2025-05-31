@@ -272,6 +272,13 @@ export default function RootLayout({
                 "@type": "Offer",
                 "price": "0",
                 "priceCurrency": "XOF"
+              },
+              "aggregateRating": {
+                "@type": "AggregateRating",
+                "ratingValue": "4.8",
+                "reviewCount": "1250",
+                "bestRating": "5",
+                "worstRating": "1"
               }
             })
           }}
@@ -305,6 +312,12 @@ export default function RootLayout({
                 "reviewCount": "1250",
                 "bestRating": "5",
                 "worstRating": "1"
+              },
+              "offers": {
+                "@type": "Offer",
+                "price": "0",
+                "priceCurrency": "XOF",
+                "availability": "https://schema.org/InStock"
               }
             })
           }}
