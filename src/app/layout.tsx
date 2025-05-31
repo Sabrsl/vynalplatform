@@ -224,13 +224,6 @@ export default function RootLayout({
               "name": "Vynal Platform",
               "url": "https://vynalplatform.com",
               "description": "La première marketplace de services numériques en Afrique",
-              "aggregateRating": {
-                "@type": "AggregateRating",
-                "ratingValue": "4.8",
-                "reviewCount": "1250",
-                "bestRating": "5",
-                "worstRating": "1"
-              },
               "potentialAction": {
                 "@type": "SearchAction",
                 "target": "https://vynalplatform.com/search?q={search_term_string}",
@@ -250,13 +243,6 @@ export default function RootLayout({
               "name": "Vynal Platform",
               "url": "https://vynalplatform.com",
               "logo": "https://vynalplatform.com/favicon/android-icon-192x192.png",
-              "aggregateRating": {
-                "@type": "AggregateRating",
-                "ratingValue": "4.8",
-                "reviewCount": "1250",
-                "bestRating": "5",
-                "worstRating": "1"
-              },
               "sameAs": [
                 "https://twitter.com/vynalplatform",
                 "https://www.linkedin.com/company/vynal-platform",
@@ -282,17 +268,31 @@ export default function RootLayout({
               "name": "Vynal Platform",
               "applicationCategory": "BusinessApplication",
               "operatingSystem": "Web",
+              "offers": {
+                "@type": "Offer",
+                "price": "0",
+                "priceCurrency": "XOF"
+              }
+            })
+          }}
+        />
+
+        <Script
+          id="ld-json-review"
+          type="application/ld+json"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "Service",
+              "name": "Vynal Platform",
+              "description": "La première marketplace de services numériques en Afrique",
               "aggregateRating": {
                 "@type": "AggregateRating",
                 "ratingValue": "4.8",
                 "reviewCount": "1250",
                 "bestRating": "5",
                 "worstRating": "1"
-              },
-              "offers": {
-                "@type": "Offer",
-                "price": "0",
-                "priceCurrency": "XOF"
               }
             })
           }}
