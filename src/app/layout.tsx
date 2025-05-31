@@ -221,24 +221,29 @@ export default function RootLayout({
         />
 
         {/* Meta tags additionnels pour les moteurs de recherche */}
-        <link rel="icon" href="/favicon/favicon.ico" />
-        <link
-          rel="icon"
-          type="image/png"
-          sizes="32x32"
-          href="/favicon/favicon-32x32.png"
-        />
+        <link rel="icon" href="/favicon/favicon.ico?v=2" />
         <link
           rel="icon"
           type="image/png"
           sizes="16x16"
-          href="/favicon/favicon-16x16.png"
+          href="/favicon/favicon-16x16.png?v=2"
         />
-        <link rel="shortcut icon" href="/favicon/favicon.ico" />
+        <link
+          rel="icon"
+          type="image/png"
+          sizes="32x32"
+          href="/favicon/favicon-32x32.png?v=2"
+        />
+        <link
+          rel="icon"
+          type="image/png"
+          sizes="48x48"
+          href="/favicon/android-icon-48x48.png?v=2"
+        />
+        <link rel="shortcut icon" href="/favicon/favicon.ico?v=2" />
 
         {/* Google favicon */}
-        <link rel="icon" type="image/png" sizes="48x48" href="/favicon/android-icon-48x48.png" />
-        <link rel="manifest" href="/favicon/manifest.json" />
+        <link rel="manifest" href="/favicon/manifest.json?v=2" />
 
         {/* Configuration simple avec couleur rose fixe et fallbacks complets */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
