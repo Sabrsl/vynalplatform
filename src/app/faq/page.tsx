@@ -232,41 +232,41 @@ export default function FAQPage() {
           <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-vynal-accent-primary/20 rounded-full blur-3xl"></div>
         </div>
 
-        <div className="container mx-auto px-4 py-12 relative">
+        <div className="container mx-auto px-4 py-8 relative">
           {/* Hero Section */}
-          <div className="mb-12 text-center">
-            <h1 className="text-4xl md:text-5xl font-bold text-vynal-text-primary mb-6">
+          <div className="mb-8 text-center">
+            <h1 className="text-2xl md:text-3xl font-bold text-vynal-text-primary mb-3">
               Questions fréquemment posées
             </h1>
-            <p className="mt-4 text-lg text-vynal-text-secondary max-w-3xl mx-auto">
+            <p className="mt-3 text-sm text-vynal-text-secondary max-w-3xl mx-auto">
               Consultez notre FAQ pour trouver des réponses à vos questions sur l'utilisation de Vynal Platform.
             </p>
           </div>
 
           {/* Recherche - Version non interactive côté serveur */}
-          <div className="max-w-2xl mx-auto mb-16">
+          <div className="max-w-2xl mx-auto mb-8">
             <FaqSearchbar />
           </div>
 
           {/* Catégories */}
-          <div className="mb-16">
-            <div className="flex flex-wrap justify-center gap-3">
-              <div className="px-6 py-2 bg-vynal-accent-primary text-vynal-purple-dark font-medium rounded-full text-sm">
+          <div className="mb-8">
+            <div className="flex flex-wrap justify-center gap-2">
+              <div className="px-4 py-1.5 bg-vynal-accent-primary text-vynal-purple-dark font-medium rounded-full text-xs">
                 Toutes les questions
               </div>
-              <div className="px-6 py-2 bg-vynal-purple-secondary/20 text-vynal-text-primary font-medium rounded-full text-sm">
+              <div className="px-4 py-1.5 bg-vynal-purple-secondary/20 text-vynal-text-primary font-medium rounded-full text-xs">
                 Inscription et compte
               </div>
-              <div className="px-6 py-2 bg-vynal-purple-secondary/20 text-vynal-text-primary font-medium rounded-full text-sm">
+              <div className="px-4 py-1.5 bg-vynal-purple-secondary/20 text-vynal-text-primary font-medium rounded-full text-xs">
                 Paiements
               </div>
-              <div className="px-6 py-2 bg-vynal-purple-secondary/20 text-vynal-text-primary font-medium rounded-full text-sm">
+              <div className="px-4 py-1.5 bg-vynal-purple-secondary/20 text-vynal-text-primary font-medium rounded-full text-xs">
                 Commandes
               </div>
-              <div className="px-6 py-2 bg-vynal-purple-secondary/20 text-vynal-text-primary font-medium rounded-full text-sm">
+              <div className="px-4 py-1.5 bg-vynal-purple-secondary/20 text-vynal-text-primary font-medium rounded-full text-xs">
                 Freelances
               </div>
-              <div className="px-6 py-2 bg-vynal-purple-secondary/20 text-vynal-text-primary font-medium rounded-full text-sm">
+              <div className="px-4 py-1.5 bg-vynal-purple-secondary/20 text-vynal-text-primary font-medium rounded-full text-xs">
                 Problèmes techniques
               </div>
             </div>
@@ -275,8 +275,8 @@ export default function FAQPage() {
           {/* FAQ Sections */}
           <div className="max-w-4xl mx-auto">
             {/* Section Inscription et Compte */}
-            <div className="mb-12">
-              <h2 className="text-2xl font-bold text-vynal-text-primary mb-6 pb-2 border-b border-vynal-purple-secondary/30">
+            <div className="mb-6">
+              <h2 className="text-lg font-bold text-vynal-text-primary mb-3 pb-2 border-b border-vynal-purple-secondary/30">
                 Inscription et compte
               </h2>
 
@@ -288,8 +288,8 @@ export default function FAQPage() {
             </div>
 
             {/* Section Paiements */}
-            <div className="mb-12">
-              <h2 className="text-2xl font-bold text-vynal-text-primary mb-6 pb-2 border-b border-vynal-purple-secondary/30">
+            <div className="mb-6">
+              <h2 className="text-lg font-bold text-vynal-text-primary mb-3 pb-2 border-b border-vynal-purple-secondary/30">
                 Paiements et facturation
               </h2>
 
@@ -301,8 +301,8 @@ export default function FAQPage() {
             </div>
 
             {/* Section Commandes */}
-            <div className="mb-12">
-              <h2 className="text-2xl font-bold text-vynal-text-primary mb-6 pb-2 border-b border-vynal-purple-secondary/30">
+            <div className="mb-6">
+              <h2 className="text-lg font-bold text-vynal-text-primary mb-3 pb-2 border-b border-vynal-purple-secondary/30">
                 Commandes et livraisons
               </h2>
 
@@ -314,8 +314,8 @@ export default function FAQPage() {
             </div>
 
             {/* Section Freelances */}
-            <div className="mb-12">
-              <h2 className="text-2xl font-bold text-vynal-text-primary mb-6 pb-2 border-b border-vynal-purple-secondary/30">
+            <div className="mb-6">
+              <h2 className="text-lg font-bold text-vynal-text-primary mb-3 pb-2 border-b border-vynal-purple-secondary/30">
                 Pour les freelances
               </h2>
 
@@ -327,8 +327,8 @@ export default function FAQPage() {
             </div>
 
             {/* Section Problèmes techniques */}
-            <div className="mb-12">
-              <h2 className="text-2xl font-bold text-vynal-text-primary mb-6 pb-2 border-b border-vynal-purple-secondary/30">
+            <div className="mb-6">
+              <h2 className="text-lg font-bold text-vynal-text-primary mb-3 pb-2 border-b border-vynal-purple-secondary/30">
                 Problèmes techniques et support
               </h2>
 
@@ -341,25 +341,25 @@ export default function FAQPage() {
           </div>
 
           {/* Contact Support */}
-          <div className="mt-20 max-w-3xl mx-auto">
+          <div className="mt-12 max-w-3xl mx-auto">
             <div className="relative">
               <div className="absolute -inset-4 bg-gradient-to-r from-vynal-accent-primary/20 to-vynal-accent-secondary/20 rounded-2xl blur-xl opacity-70"></div>
               <Card className="bg-vynal-purple-dark/90 border-vynal-purple-secondary/30 rounded-xl overflow-hidden shadow-lg shadow-vynal-accent-secondary/20 backdrop-blur-sm relative">
-                <CardContent className="p-8 text-center">
-                  <h2 className="text-2xl font-bold text-vynal-text-primary mb-4">
+                <CardContent className="p-4 text-center">
+                  <h2 className="text-lg font-bold text-vynal-text-primary mb-2">
                     Vous n'avez pas trouvé la réponse à votre question ?
                   </h2>
-                  <p className="text-vynal-text-secondary mb-6 max-w-xl mx-auto">
+                  <p className="text-xs text-vynal-text-secondary mb-3 max-w-xl mx-auto">
                     Notre équipe de support est disponible pour vous aider. N'hésitez pas à nous contacter directement.
                   </p>
-                  <div className="flex flex-col sm:flex-row justify-center gap-4">
+                  <div className="flex flex-col sm:flex-row justify-center gap-2">
                     <Link href="/contact">
-                      <Button className="bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-vynal-purple-dark">
-                        <MessageSquare className="mr-2 h-4 w-4" /> Contacter le support
+                      <Button className="bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-vynal-purple-dark text-xs">
+                        <MessageSquare className="mr-2 h-3 w-3" /> Contacter le support
                       </Button>
                     </Link>
                     <Link href="/contact">
-                      <Button variant="outline" className="border-vynal-purple-secondary/50 text-vynal-text-primary hover:bg-vynal-purple-secondary/20">
+                      <Button variant="outline" className="border-slate-200 text-slate-700 hover:bg-slate-100 text-xs">
                         Voir la page contact
                       </Button>
                     </Link>
