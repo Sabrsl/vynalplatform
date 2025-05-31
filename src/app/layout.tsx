@@ -287,12 +287,36 @@ export default function RootLayout({
               "@type": "Service",
               "name": "Vynal Platform",
               "description": "La première marketplace de services numériques en Afrique",
-              "aggregateRating": {
-                "@type": "AggregateRating",
-                "ratingValue": "4.8",
-                "reviewCount": "1250",
-                "bestRating": "5",
-                "worstRating": "1"
+              "provider": {
+                "@type": "Organization",
+                "name": "Vynal Platform",
+                "url": "https://vynalplatform.com"
+              },
+              "areaServed": {
+                "@type": "Continent",
+                "name": "Africa"
+              },
+              "serviceType": "Digital Services Marketplace",
+              "review": {
+                "@type": "Review",
+                "reviewRating": {
+                  "@type": "AggregateRating",
+                  "ratingValue": "4.8",
+                  "reviewCount": "1250",
+                  "bestRating": "5",
+                  "worstRating": "1"
+                },
+                "itemReviewed": {
+                  "@type": "Service",
+                  "name": "Vynal Platform",
+                  "description": "La première marketplace de services numériques en Afrique"
+                }
+              },
+              "offers": {
+                "@type": "Offer",
+                "availability": "https://schema.org/InStock",
+                "price": "0",
+                "priceCurrency": "XOF"
               }
             })
           }}
