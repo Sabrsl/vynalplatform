@@ -167,6 +167,7 @@ const MobileMenuHeader = memo(({
         size="icon"
         onClick={onClose}
         className="text-slate-500 hover:text-slate-700 dark:text-vynal-text-secondary dark:hover:text-vynal-text-primary"
+        aria-label="Fermer le menu"
       >
         <X className="h-4 w-4" />
       </Button>
@@ -425,6 +426,7 @@ const AuthenticatedMenuContent = memo(({
           variant="ghost" 
           className="w-full justify-start py-2 text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-900/10"
           onClick={handleSignOut}
+          aria-label="Se déconnecter"
         >
           <LogOut className="h-4 w-4 mr-2" />
           <span className="text-xs">Déconnexion</span>
@@ -472,6 +474,7 @@ const UnauthenticatedMenuContent = memo(({
           variant="default" 
           className="w-full py-2 h-auto text-sm relative overflow-hidden bg-gradient-to-r from-vynal-accent-primary to-vynal-accent-secondary hover:from-vynal-accent-primary/95 hover:to-vynal-accent-secondary/95 shadow hover:shadow-md transition-all text-slate-800 dark:text-white"
           onClick={() => navigateAndClose(AUTH_ROUTES.LOGIN)}
+          aria-label="Se connecter à votre compte"
         >
           <div className="absolute inset-0 bg-white/5 rounded-full w-full h-full transform scale-0 hover:scale-100 transition-transform duration-300"></div>
           <UserIcon className="h-3.5 w-3.5 mr-2" />
@@ -482,6 +485,7 @@ const UnauthenticatedMenuContent = memo(({
           variant="outline" 
           className="w-full py-2 h-auto text-sm border-slate-200 dark:border-vynal-purple-secondary/20 hover:border-vynal-accent-primary/40 hover:bg-slate-50 dark:hover:bg-vynal-purple-secondary/5 transition-colors text-slate-700 dark:text-vynal-text-secondary"
           onClick={() => navigateAndClose(AUTH_ROUTES.REGISTER)}
+          aria-label="Créer un nouveau compte"
         >
           <UserPlus className="h-3.5 w-3.5 mr-2 text-slate-700 dark:text-vynal-text-secondary" />
           <span>S'inscrire</span>
@@ -497,6 +501,7 @@ const UnauthenticatedMenuContent = memo(({
               variant="ghost" 
               className="flex flex-col items-center py-3 px-2 text-xs group hover:bg-vynal-purple-secondary/5 transition-colors rounded-lg h-auto"
               onClick={() => navigateAndClose("/talents")}
+              aria-label="Explorer les talents"
             >
               <div className="mb-1 h-7 w-7 rounded-full bg-vynal-purple-secondary/10 flex items-center justify-center group-hover:bg-vynal-purple-secondary/20 transition-colors">
                 <Users className="h-3 w-3 text-vynal-accent-primary" />
@@ -508,6 +513,7 @@ const UnauthenticatedMenuContent = memo(({
               variant="ghost" 
               className="flex flex-col items-center py-3 px-2 text-xs group hover:bg-vynal-purple-secondary/5 transition-colors rounded-lg h-auto"
               onClick={() => navigateAndClose(PUBLIC_ROUTES.SERVICES)}
+              aria-label="Explorer les services"
             >
               <div className="mb-1 h-7 w-7 rounded-full bg-vynal-purple-secondary/10 flex items-center justify-center group-hover:bg-vynal-purple-secondary/20 transition-colors">
                 <Briefcase className="h-3 w-3 text-vynal-accent-primary" />
@@ -527,6 +533,7 @@ const UnauthenticatedMenuContent = memo(({
               size="sm"
               className="h-8 w-8 p-0 rounded-full flex items-center justify-center text-slate-600 dark:text-vynal-text-secondary/70 hover:text-vynal-accent-primary"
               onClick={() => navigateAndClose(PUBLIC_ROUTES.ABOUT)}
+              aria-label="À propos de Vynal"
             >
               <MessageCircle className="h-3.5 w-3.5" />
             </Button>
@@ -535,6 +542,7 @@ const UnauthenticatedMenuContent = memo(({
               size="sm"
               className="h-8 w-8 p-0 rounded-full flex items-center justify-center text-slate-600 dark:text-vynal-text-secondary/70 hover:text-vynal-accent-primary"
               onClick={() => navigateAndClose(PUBLIC_ROUTES.CONTACT)}
+              aria-label="Contacter le support"
             >
               <HelpCircle className="h-3.5 w-3.5" />
             </Button>
@@ -558,7 +566,7 @@ interface MobileMenuProps {
 }
 
 export default function MobileMenu({ isOpen, onClose, user, activePath, setActivePath, isNavigating }: MobileMenuProps) {
-  const { theme } = useTheme();
+  const { theme, setTheme } = useTheme();
   const auth = useAuth();
   const { logout } = useLogout();
   const userProfile = useUser();
@@ -751,6 +759,27 @@ export default function MobileMenu({ isOpen, onClose, user, activePath, setActiv
   // Déterminer l'état du menu à afficher
   const isLoading = auth.loading || userProfile.loading || (user && !roleVerified);
   
+  // Fonction pour basculer entre les thèmes
+  const handleThemeToggle = useCallback(() => {
+    setTheme(isDark ? 'light' : 'dark');
+  }, [setTheme, isDark]);
+
+  // Fonction pour la déconnexion
+  const handleLogout = useCallback(() => {
+    NavigationLoadingState.setIsNavigating(true);
+    onClose();
+    
+    // Utiliser la fonction de déconnexion centralisée avec gestion d'erreur
+    import('@/lib/auth').then(m => m.signOut())
+      .catch(error => {
+        console.error("Erreur lors de la déconnexion depuis le menu mobile:", error);
+        // Redirection de secours en cas d'erreur
+        setTimeout(() => {
+          window.location.href = '/?nocache=' + Date.now();
+        }, 500);
+      });
+  }, [onClose]);
+
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
       <SheetContent side="left" className={`w-[280px] p-0 ${isDark ? 'bg-vynal-purple-dark border-vynal-purple-secondary/20' : 'bg-white'}`}>

@@ -87,7 +87,8 @@ export function OrderButton({
         disabled={disabled || authLoading || isLoading}
         onClick={handleOpen}
         type="button"
-        aria-label="Commander ce service"
+        aria-label={isLoading ? "Chargement de la commande..." : `Commander ce service${price ? ` pour ${price}€` : ''}`}
+        aria-busy={isLoading}
       >
         {isLoading ? (
           <span className="flex items-center justify-center">

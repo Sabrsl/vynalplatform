@@ -196,11 +196,14 @@ export default function VendorProfileByIdPage() {
                   {vendor.avatar_url ? (
                     <Image 
                       src={vendor.avatar_url}
-                      alt={vendorName}
+                      alt={`Photo de profil de ${vendorName} - ${vendor.specialty || 'Freelance'}`}
                       className="w-24 h-24 rounded-full object-cover border border-slate-200 dark:border-slate-700/30"
                       width={96}
                       height={96}
-                      unoptimized
+                      priority
+                      decoding="async"
+                      sizes="(max-width: 768px) 96px, 96px"
+                      quality={85}
                     />
                   ) : (
                     <UserCircle className="w-24 h-24 text-slate-300 dark:text-slate-600" />

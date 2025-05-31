@@ -139,8 +139,13 @@ function TalentCard({
           >
             <AvatarImage
               src={!avatarError ? talent.avatar_url : undefined}
-              alt={displayName}
+              alt={`Photo de profil de ${displayName} - ${displayTitle}`}
               onError={handleAvatarError}
+              width={56}
+              height={56}
+              loading={isPriority ? "eager" : "lazy"}
+              decoding="async"
+              sizes="(max-width: 768px) 56px, 56px"
             />
             <AvatarFallback className="text-lg bg-vynal-accent-primary/20 dark:bg-vynal-accent-primary/10 text-vynal-accent-primary">
               {initials}

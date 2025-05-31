@@ -156,6 +156,7 @@ export function OrderMessageForm({ orderId, orderDetails, onMessageSent }: Order
             size="sm" 
             className="h-6 w-6 p-0" 
             onClick={removeAttachment}
+            aria-label={`Supprimer la pièce jointe ${attachment.name}`}
           >
             <X className="h-4 w-4" />
           </Button>
@@ -170,6 +171,7 @@ export function OrderMessageForm({ orderId, orderDetails, onMessageSent }: Order
           onClick={() => fileInputRef.current?.click()}
           className="rounded-full h-9 w-9 flex-shrink-0"
           disabled={isLoading}
+          aria-label="Joindre un fichier"
         >
           <Paperclip className="h-5 w-5" />
         </Button>
@@ -189,6 +191,7 @@ export function OrderMessageForm({ orderId, orderDetails, onMessageSent }: Order
           onClick={handleSendMessage}
           className="rounded-full h-9 w-9 bg-indigo-600 hover:bg-indigo-700 flex-shrink-0"
           disabled={isLoading || (!message.trim() && !attachment)}
+          aria-label={isLoading ? "Envoi en cours..." : "Envoyer le message"}
         >
           {isLoading ? (
             <Loader2 className="h-5 w-5 animate-spin" />

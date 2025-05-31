@@ -325,6 +325,7 @@ const ServiceImageGallery: React.FC<ServiceImageGalleryProps> = ({
               quality={90}
               onLoad={handleImageLoad}
               onError={handleImageError}
+              decoding="async"
             />
           )}
         </div>
@@ -369,11 +370,12 @@ const ServiceImageGallery: React.FC<ServiceImageGalleryProps> = ({
               >
                 <Image 
                   src={image} 
-                  alt=""
+                  alt={`Miniature ${index + 1} de ${altText}`}
                   className="object-cover"
                   width={64}
                   height={64}
                   quality={50}
+                  decoding="async"
                 />
               </button>
             ))}
@@ -417,12 +419,13 @@ const ServiceImageGallery: React.FC<ServiceImageGalleryProps> = ({
               >
                 <Image 
                   src={image} 
-                  alt=""
+                  alt={`Miniature ${index + 1} de ${altText}`}
                   className="object-cover"
                   width={56}
                   height={56}
                   quality={40}
                   loading="lazy"
+                  decoding="async"
                 />
               </button>
             ))}
@@ -459,6 +462,7 @@ const ServiceImageGallery: React.FC<ServiceImageGalleryProps> = ({
               priority={state.currentIndex === 0}
               onLoad={handleImageLoad}
               onError={handleImageError}
+              decoding="async"
             />
           )}
           
@@ -529,12 +533,13 @@ const ServiceImageGallery: React.FC<ServiceImageGalleryProps> = ({
             >
               <Image 
                 src={image} 
-                alt=""
+                alt={`Miniature ${index + 1} de ${altText}`}
                 className="object-cover"
                 width={48}
                 height={48}
                 quality={40}
                 loading="lazy"
+                decoding="async"
               />
             </button>
           ))}

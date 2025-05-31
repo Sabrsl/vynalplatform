@@ -87,10 +87,16 @@ const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
         styles.background,
         className
       )}
+      role="alert"
+      aria-live="polite"
     >
       <div className="absolute top-0 right-0 p-2">
         {onClose && (
-          <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
+          <button 
+            onClick={onClose} 
+            className="text-gray-400 hover:text-white transition-colors"
+            aria-label="Fermer la notification"
+          >
             <X className="w-4 h-4" />
           </button>
         )}
@@ -133,6 +139,7 @@ const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
                     "border-slate-700 bg-slate-800 text-white text-xs h-8 px-3",
                     styles.buttonHover
                   )}
+                  aria-label={primaryActionLabel}
                 >
                   {primaryActionLabel}
                 </Button>
@@ -143,6 +150,7 @@ const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
                   variant="outline"
                   onClick={onSecondaryAction}
                   className="border-slate-700 bg-slate-800 text-white text-xs h-8 px-3 hover:bg-slate-700"
+                  aria-label={secondaryActionLabel}
                 >
                   {secondaryActionLabel}
                 </Button>

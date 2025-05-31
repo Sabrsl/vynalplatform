@@ -174,7 +174,7 @@ const ServiceListItem = memo<ServiceListItemProps>(({
               {!hasError('main') && mainImage ? (
                 <Image
                   src={mainImage}
-                  alt={service.title}
+                  alt={`Miniature du service ${service.title}`}
                   className="object-cover w-full h-full"
                   width={112}
                   height={112}
@@ -182,6 +182,7 @@ const ServiceListItem = memo<ServiceListItemProps>(({
                   priority={isPriority}
                   loading={isPriority ? 'eager' : 'lazy'}
                   sizes="(max-width: 640px) 80px, 112px"
+                  decoding="async"
                 />
               ) : (
                 <div className="flex items-center justify-center w-full h-full bg-white/20 dark:bg-slate-800/25">

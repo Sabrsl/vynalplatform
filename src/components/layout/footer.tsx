@@ -160,6 +160,7 @@ const ContactInfo = memo(() => {
         <a
           href={`mailto:${CONTACT_EMAIL}`}
           className="text-[10px] text-gray-400 dark:text-vynal-text-secondary hover:text-gray-600 dark:hover:text-gray-600 transition-colors whitespace-nowrap"
+          aria-label={`Envoyer un email à ${CONTACT_EMAIL}`}
         >
           {CONTACT_EMAIL}
         </a>
@@ -176,6 +177,7 @@ const ContactInfo = memo(() => {
               animate={{ opacity: 1, width: "auto" }}
               exit={{ opacity: 0, width: 0 }}
               transition={{ duration: 0.2 }}
+              aria-label={isCopied ? "Email copié" : "Copier l'adresse email"}
             >
               {isCopied ? (
                 <>
@@ -269,6 +271,7 @@ const LinkGroup = memo(({ section }: { section: (typeof FOOTER_LINKS)[0] }) => {
             <Link
               href={link.href}
               className="text-[10px] text-gray-400 hover:text-gray-600 dark:text-vynal-text-secondary dark:hover:text-gray-600 transition-colors block py-0.5"
+              aria-label={`Accéder à ${link.name}`}
             >
               {link.name}
             </Link>
@@ -374,7 +377,11 @@ const CurrencySelector = memo(() => {
         />
         Devise:
       </div>
-      <Select value={selectedCurrency} onValueChange={handleCurrencyChange}>
+      <Select
+        value={selectedCurrency}
+        onValueChange={handleCurrencyChange}
+        aria-label="Sélectionner une devise"
+      >
         <SelectTrigger className="h-6 px-2 min-w-[90px] max-w-[115px] sm:max-w-none text-[10px] bg-transparent border-gray-800 dark:border-vynal-purple-secondary/30 text-gray-400 dark:text-vynal-text-secondary overflow-hidden [&_span]:!text-gray-400 [&_div]:!text-gray-400 [&_.flex]:!text-gray-400 [&_*]:!text-gray-400 dark:[&_*]:!text-vynal-text-secondary">
           <SelectValue>
             <div className="flex items-center gap-1 truncate">

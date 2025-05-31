@@ -168,6 +168,7 @@ export function DialogComponent({
           variant="ghost"
           className="text-vynal-text-primary hover:text-vynal-accent-primary hover:bg-vynal-purple-secondary/20"
           disabled={loading}
+          aria-label="Fermer la boîte de dialogue"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
           Fermer
@@ -177,6 +178,8 @@ export function DialogComponent({
           onClick={onClose}
           className="bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-vynal-purple-dark"
           disabled={loading}
+          aria-label={loading ? "Traitement en cours..." : "Fermer la boîte de dialogue"}
+          aria-busy={loading}
         >
           {loading ? (
             <>

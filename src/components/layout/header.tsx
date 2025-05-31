@@ -113,6 +113,8 @@ const NavButton = memo(
         } rounded-lg hover:bg-vynal-purple-100/60 hover:text-vynal-purple-600 dark:hover:bg-vynal-purple-secondary/20 dark:hover:text-vynal-accent-primary`}
         onClick={() => onClick(item.href)}
         disabled={isNavigating}
+        aria-label={`Naviguer vers ${item.name}`}
+        aria-current={isActive(item.href) ? "page" : undefined}
       >
         {isNavigating ? (
           <Loader className="h-3.5 w-3.5" strokeWidth={2.5} />
@@ -1271,7 +1273,7 @@ function Header() {
                     <motion.button
                       onClick={toggleTheme}
                       className="w-8 h-8 flex items-center justify-center rounded-full bg-transparent hover:bg-gray-200/20 dark:hover:bg-vynal-purple-secondary/40 transition-all focus:outline-none !ring-0 !ring-offset-0"
-                      aria-label="Changer de thème"
+                      aria-label={isDark ? "Passer au thème clair" : "Passer au thème sombre"}
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.9 }}
                     >
@@ -1312,7 +1314,7 @@ function Header() {
                     <motion.button
                       onClick={toggleTheme}
                       className="w-8 h-8 flex items-center justify-center rounded-full bg-transparent hover:bg-gray-200/20 dark:hover:bg-vynal-purple-secondary/40 transition-all focus:outline-none !ring-0 !ring-offset-0"
-                      aria-label="Changer de thème"
+                      aria-label={isDark ? "Passer au thème clair" : "Passer au thème sombre"}
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.9 }}
                     >
@@ -1362,7 +1364,7 @@ function Header() {
                     <motion.button
                       onClick={toggleTheme}
                       className="w-8 h-8 flex items-center justify-center rounded-full bg-transparent hover:bg-gray-200/20 dark:hover:bg-vynal-purple-secondary/40 transition-all focus:outline-none !ring-0 !ring-offset-0"
-                      aria-label="Changer de thème"
+                      aria-label={isDark ? "Passer au thème clair" : "Passer au thème sombre"}
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.9 }}
                     >

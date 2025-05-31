@@ -68,7 +68,7 @@ const ServiceImage = memo(({
       <div className="relative w-full h-full">
         <Image 
           src={image} 
-          alt={title || "Service"} 
+          alt={`Image de couverture du service ${title}`} 
           className="object-cover object-center transition-transform duration-300 group-hover:scale-105"
           onError={onError}
           fill
@@ -76,6 +76,7 @@ const ServiceImage = memo(({
           priority={isPriority}
           quality={60}
           loading={isPriority ? "eager" : "lazy"}
+          decoding="async"
         />
       </div>
     ) : (

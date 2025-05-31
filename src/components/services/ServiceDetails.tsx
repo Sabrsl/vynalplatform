@@ -368,7 +368,7 @@ const ServiceDetails: React.FC<ServiceDetailsProps> = ({
                       >
                         <Image 
                           src={img} 
-                          alt={`Image ${index + 1} du service`} 
+                          alt={`Image ${index + 1} du service ${service.title}`} 
                           className="w-full h-full object-cover"
                           width={500}
                           height={300}
@@ -376,6 +376,7 @@ const ServiceDetails: React.FC<ServiceDetailsProps> = ({
                           loading={index < 4 ? "eager" : "lazy"}
                           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 33vw, 25vw"
                           priority={index === 0}
+                          decoding="async"
                           onError={(e) => {
                             e.currentTarget.src = 'data:image/svg+xml;charset=UTF-8,%3Csvg xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22 viewBox%3D%220 0 24 24%22 width%3D%2224%22 height%3D%2224%22%3E%3Cpath fill%3D%22%23ccc%22 d%3D%22M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z%22%3E%3C%2Fpath%3E%3C%2Fsvg%3E';
                             e.currentTarget.classList.add('error-image');

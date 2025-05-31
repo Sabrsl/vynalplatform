@@ -36,11 +36,12 @@ export function ServiceSummary({ service }: ServiceSummaryProps) {
         <div className="relative h-48 w-full">
           <Image
             src={service.image_url}
-            alt={service.title}
+            alt={`Image de couverture du service ${service.title}`}
             fill
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             className="object-cover"
             priority={true}
+            decoding="async"
           />
           {service.category && (
             <div className="absolute top-2 left-2">

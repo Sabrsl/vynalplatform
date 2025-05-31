@@ -206,6 +206,10 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                     height={300}
                     style={{ maxHeight: '240px' }}
                     unoptimized={attachmentUrl.startsWith('data:')}
+                    decoding="async"
+                    loading="lazy"
+                    quality={85}
+                    sizes="(max-width: 768px) 65vw, 50vw"
                   />
                 </div>
               ) : (
@@ -214,6 +218,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="flex items-center p-1.5 rounded-md bg-black/10 hover:bg-black/20 dark:bg-white/10 dark:hover:bg-white/20 transition-colors"
+                  aria-label={`Télécharger le fichier ${attachmentName}`}
                 >
                   <FileIcon 
                     fileName={attachmentName} 
@@ -239,7 +244,12 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <span className="text-gray-500 dark:text-gray-400 text-[10px]">
+                  <span 
+                    className="text-gray-500 dark:text-gray-400 text-[10px]"
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Message envoyé le ${formattedDate}`}
+                  >
                     {formattedTime}
                   </span>
                 </TooltipTrigger>

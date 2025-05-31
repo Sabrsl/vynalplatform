@@ -114,6 +114,7 @@ const NewConversationDialog: React.FC<NewConversationDialogProps> = ({
           size="icon"
           className={`shadow-sm hover:shadow-md transition-all duration-200 ${className}`}
           title="Nouvelle conversation"
+          aria-label="Démarrer une nouvelle conversation"
         >
           <Plus className="h-4 w-4" />
         </Button>
@@ -153,6 +154,7 @@ const NewConversationDialog: React.FC<NewConversationDialogProps> = ({
                   size="sm" 
                   className="absolute right-1 top-1/2 transform -translate-y-1/2 text-vynal-purple-light hover:text-white hover:bg-vynal-purple-dark/30"
                   disabled={isSearching}
+                  aria-label={isSearching ? "Recherche en cours..." : "Rechercher un utilisateur"}
                 >
                   {isSearching ? <Loader size="xs" variant="primary" /> : "Rechercher"}
                 </Button>
@@ -223,6 +225,7 @@ const NewConversationDialog: React.FC<NewConversationDialogProps> = ({
                   size="sm" 
                   className="text-vynal-purple-light hover:text-white hover:bg-vynal-purple-mid/20"
                   onClick={handleClearSelectedUser}
+                  aria-label="Changer l'utilisateur sélectionné"
                 >
                   Changer
                 </Button>
@@ -242,7 +245,13 @@ const NewConversationDialog: React.FC<NewConversationDialogProps> = ({
         
         <div className="flex justify-end space-x-2">
           <DialogClose asChild>
-            <Button variant="outline" className="border-vynal-purple-light/50 text-vynal-purple-light hover:bg-vynal-purple-dark/20">Annuler</Button>
+            <Button 
+              variant="outline" 
+              className="border-vynal-purple-light/50 text-vynal-purple-light hover:bg-vynal-purple-dark/20"
+              aria-label="Annuler la création de conversation"
+            >
+              Annuler
+            </Button>
           </DialogClose>
           
           {selectedUser && (
@@ -250,6 +259,7 @@ const NewConversationDialog: React.FC<NewConversationDialogProps> = ({
               onClick={handleSendMessage} 
               disabled={isLoading || message.trim() === ''}
               className="bg-gradient-to-r from-vynal-purple-light to-vynal-purple-mid hover:from-vynal-purple-mid hover:to-vynal-purple-dark"
+              aria-label={isLoading ? "Envoi du message en cours..." : "Envoyer le message initial"}
             >
               {isLoading ? (
                 <Loader size="xs" variant="primary" className="mr-2" />

@@ -160,7 +160,7 @@ const NavigationBar = React.memo(
     handleSearch: (query: string) => void;
   }) => {
     return (
-      <section className="bg-gray-50 dark:bg-vynal-purple-dark/90 border-t border-gray-200 dark:border-vynal-purple-secondary/30 sticky top-0 z-10">
+      <section className="bg-gray-50 dark:bg-vynal-purple-dark/90 border-t border-gray-200 dark:border-vynal-purple-secondary/30 sticky top-0 z-10" role="navigation" aria-label="Navigation des services">
         <div className="container mx-auto px-4 sm:px-6 lg:px-16 py-3">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
             <BreadcrumbTrail
@@ -200,11 +200,12 @@ const NavigationBar = React.memo(
                   hover:border-slate-300 dark:hover:border-slate-700/40
                   rounded-lg shadow-sm backdrop-blur-sm
                   transition-all duration-200"
+                  aria-label={viewMode === "grid" ? "Passer en vue liste" : "Passer en vue grille"}
                 >
                   {viewMode === "grid" ? (
-                    <List className="h-5 w-5" />
+                    <List className="h-5 w-5" aria-hidden="true" />
                   ) : (
-                    <LayoutGrid className="h-5 w-5" />
+                    <LayoutGrid className="h-5 w-5" aria-hidden="true" />
                   )}
                 </Button>
               </QuickTooltip>
@@ -241,103 +242,55 @@ const ResultsHeader = React.memo(
     sortMethod: string;
     onSortChange: (method: string) => void;
   }) => (
-    <div className="flex flex-col justify-between mb-4 sm:mb-6 gap-1 sm:gap-2">
+    <div className="flex flex-col justify-between mb-4 sm:mb-6 gap-1 sm:gap-2" role="region" aria-label="Résultats de recherche">
       <div>
         <div className="flex items-center justify-between">
           <h2 className="text-base sm:text-lg text-slate-800 dark:text-vynal-text-primary font-medium">
             {searchQuery
               ? `Résultats pour "${searchQuery}"`
               : activeSubcategory
-                ? `Services de ${activeSubcategory.name}`
+                ? activeSubcategory.name
                 : activeCategory
-                  ? `Services de ${activeCategory.name}`
+                  ? activeCategory.name
                   : "Tous les services"}
           </h2>
-          {/* Bouton de changement de vue - visible uniquement sur mobile */}
-          <div className="md:hidden">
+          <div className="flex items-center gap-2">
+            <select
+              value={sortMethod}
+              onChange={(e) => onSortChange(e.target.value)}
+              className="text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1"
+              aria-label="Trier les résultats par"
+            >
+              <option value="newest">Plus récents</option>
+              <option value="price_asc">Prix croissant</option>
+              <option value="price_desc">Prix décroissant</option>
+              <option value="popular">Popularité</option>
+            </select>
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7"
               onClick={() => setViewMode(viewMode === "grid" ? "list" : "grid")}
+              className="h-8 w-8 md:hidden
+              bg-white/30 dark:bg-slate-900/30
+              border border-slate-200 dark:border-slate-700/30
+              text-slate-700 dark:text-vynal-text-primary
+              hover:bg-white/40 dark:hover:bg-slate-900/40
+              hover:border-slate-300 dark:hover:border-slate-700/40
+              rounded-lg shadow-sm backdrop-blur-sm
+              transition-all duration-200"
+              aria-label={viewMode === "grid" ? "Passer en vue liste" : "Passer en vue grille"}
             >
               {viewMode === "grid" ? (
-                <List className="h-4 w-4" />
+                <List className="h-5 w-5" aria-hidden="true" />
               ) : (
-                <LayoutGrid className="h-4 w-4" />
+                <LayoutGrid className="h-5 w-5" aria-hidden="true" />
               )}
             </Button>
           </div>
         </div>
-        <p className="text-[10px] sm:text-sm text-slate-600 dark:text-vynal-text-secondary mt-0.5">
-          {totalCount} services disponibles
-          {currentPage > 1 ? ` • Page ${currentPage} sur ${totalPages}` : ""}
+        <p className="text-sm text-slate-500 dark:text-vynal-text-secondary">
+          {totalCount} {totalCount === 1 ? "service trouvé" : "services trouvés"}
         </p>
-
-        {/* Options de tri */}
-        <div className="flex items-center gap-2 mt-3">
-          <span className="text-[10px] sm:text-xs text-slate-600 dark:text-vynal-text-secondary">
-            Trier par:
-          </span>
-          <div className="flex flex-wrap gap-1">
-            <Button
-              variant={sortMethod === "smart" ? "default" : "outline"}
-              size="sm"
-              onClick={() => onSortChange("smart")}
-              className={`h-6 text-[10px] sm:text-xs px-1.5 sm:px-2 font-normal
-              ${
-                sortMethod === "smart"
-                  ? "bg-[#FF66B2]/30 text-[#FF66B2] border-[#FF66B2]/50 hover:bg-[#FF66B2]/35 hover:border-[#FF66B2]/60 dark:bg-[#FF66B2]/10 dark:text-[#FF66B2]/90 dark:border-[#FF66B2]/30 dark:hover:bg-[#FF66B2]/20 dark:hover:border-[#FF66B2]/40"
-                  : "bg-white/30 text-slate-700 border-slate-200 hover:bg-white/40 hover:border-slate-300 dark:bg-slate-900/30 dark:text-vynal-text-primary dark:border-slate-700/30 dark:hover:bg-slate-900/40 dark:hover:border-slate-700/40"
-              }
-              transition-all duration-200 backdrop-blur-sm rounded-lg shadow-sm`}
-            >
-              Pertinence
-            </Button>
-            <Button
-              variant={sortMethod === "recent" ? "default" : "outline"}
-              size="sm"
-              onClick={() => onSortChange("recent")}
-              className={`h-6 text-[10px] sm:text-xs px-1.5 sm:px-2 font-normal
-              ${
-                sortMethod === "recent"
-                  ? "bg-[#FF66B2]/30 text-[#FF66B2] border-[#FF66B2]/50 hover:bg-[#FF66B2]/35 hover:border-[#FF66B2]/60 dark:bg-[#FF66B2]/10 dark:text-[#FF66B2]/90 dark:border-[#FF66B2]/30 dark:hover:bg-[#FF66B2]/20 dark:hover:border-[#FF66B2]/40"
-                  : "bg-white/30 text-slate-700 border-slate-200 hover:bg-white/40 hover:border-slate-300 dark:bg-slate-900/30 dark:text-vynal-text-primary dark:border-slate-700/30 dark:hover:bg-slate-900/40 dark:hover:border-slate-700/40"
-              }
-              transition-all duration-200 backdrop-blur-sm rounded-lg shadow-sm`}
-            >
-              Récents
-            </Button>
-            <Button
-              variant={sortMethod === "price_asc" ? "default" : "outline"}
-              size="sm"
-              onClick={() => onSortChange("price_asc")}
-              className={`h-6 text-[10px] sm:text-xs px-1.5 sm:px-2 font-normal
-              ${
-                sortMethod === "price_asc"
-                  ? "bg-[#FF66B2]/30 text-[#FF66B2] border-[#FF66B2]/50 hover:bg-[#FF66B2]/35 hover:border-[#FF66B2]/60 dark:bg-[#FF66B2]/10 dark:text-[#FF66B2]/90 dark:border-[#FF66B2]/30 dark:hover:bg-[#FF66B2]/20 dark:hover:border-[#FF66B2]/40"
-                  : "bg-white/30 text-slate-700 border-slate-200 hover:bg-white/40 hover:border-slate-300 dark:bg-slate-900/30 dark:text-vynal-text-primary dark:border-slate-700/30 dark:hover:bg-slate-900/40 dark:hover:border-slate-700/40"
-              }
-              transition-all duration-200 backdrop-blur-sm rounded-lg shadow-sm`}
-            >
-              Prix croissant
-            </Button>
-            <Button
-              variant={sortMethod === "price_desc" ? "default" : "outline"}
-              size="sm"
-              onClick={() => onSortChange("price_desc")}
-              className={`h-6 text-[10px] sm:text-xs px-1.5 sm:px-2 font-normal
-              ${
-                sortMethod === "price_desc"
-                  ? "bg-[#FF66B2]/30 text-[#FF66B2] border-[#FF66B2]/50 hover:bg-[#FF66B2]/35 hover:border-[#FF66B2]/60 dark:bg-[#FF66B2]/10 dark:text-[#FF66B2]/90 dark:border-[#FF66B2]/30 dark:hover:bg-[#FF66B2]/20 dark:hover:border-[#FF66B2]/40"
-                  : "bg-white/30 text-slate-700 border-slate-200 hover:bg-white/40 hover:border-slate-300 dark:bg-slate-900/30 dark:text-vynal-text-primary dark:border-slate-700/30 dark:hover:bg-slate-900/40 dark:hover:border-slate-700/40"
-              }
-              transition-all duration-200 backdrop-blur-sm rounded-lg shadow-sm`}
-            >
-              Prix décroissant
-            </Button>
-          </div>
-        </div>
       </div>
     </div>
   ),

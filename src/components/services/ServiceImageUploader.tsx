@@ -278,9 +278,10 @@ const ServiceImageUploader: React.FC<ServiceImageUploaderProps> = ({
             <div key={index} className="relative group aspect-[3/2]">
               <Image
                 src={image}
-                alt={`Image ${index + 1}`}
+                alt={`Image ${index + 1} du service - ${image.includes('.webp') ? 'Format WebP optimisé' : 'Image standard'}`}
                 fill
                 className="object-cover rounded-lg"
+                decoding="async"
               />
               <button
                 type="button"

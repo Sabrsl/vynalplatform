@@ -249,13 +249,14 @@ export default function Home() {
           
           {/* Barre de recherche */}
           <div className="relative w-full max-w-xl mx-auto">
-            <form onSubmit={handleSearch} className="relative">
+            <form onSubmit={handleSearch} className="relative" role="search" aria-label="Recherche de services">
               <div className="relative">
                 <input
                   type="text"
                   className="w-full py-3 pl-5 pr-14 rounded-full bg-white/40 dark:bg-slate-800/40 text-slate-800 dark:text-white border-2 border-slate-300 dark:border-slate-700/30 shadow-md focus:ring-2 focus:ring-vynal-accent-primary/30 dark:focus:ring-vynal-accent-primary/40 outline-none transition-all text-sm placeholder:text-slate-500 placeholder:text-[10px] xs:placeholder:text-xs sm:placeholder:text-sm"
                   placeholder={mobilePlaceholder}
                   onChange={(e) => setSearchQuery(e.target.value)}
+                  aria-label="Rechercher un service"
                 />
                 <GlowingEffect disabled={isMobile} spread={30} variant="default" borderWidth={2} />
                 <button
@@ -263,7 +264,7 @@ export default function Home() {
                   className="absolute right-2 top-1/2 -translate-y-1/2 bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-white p-2 rounded-full transition-all"
                   aria-label="Rechercher"
                 >
-                  <Search className="h-4 w-4" />
+                  <Search className="h-4 w-4" aria-hidden="true" />
                 </button>
               </div>
             </form>
@@ -275,38 +276,43 @@ export default function Home() {
               <div className="flex items-center justify-center space-x-6 md:space-x-8 mx-auto">
                 <Image 
                   src="/assets/partners/logo_free_money.webp" 
-                  alt="Free Money" 
+                  alt="Logo Free Money - Partenaire de paiement" 
                   width={84}
                   height={18}
-                  className="h-4 md:h-5 w-auto object-contain grayscale hover:grayscale-0 transition-all duration-300" 
+                  className="h-4 md:h-5 w-auto object-contain grayscale hover:grayscale-0 transition-all duration-300"
+                  decoding="async"
                 />
                 <Image 
                   src="/assets/partners/logo_stripe.webp" 
-                  alt="Stripe" 
+                  alt="Logo Stripe - Partenaire de paiement" 
                   width={84}
                   height={18}
-                  className="h-4 md:h-5 w-auto object-contain grayscale hover:grayscale-0 transition-all duration-300" 
+                  className="h-4 md:h-5 w-auto object-contain grayscale hover:grayscale-0 transition-all duration-300"
+                  decoding="async"
                 />
                 <Image 
                   src="/assets/partners/logo_wave_.webp" 
-                  alt="Wave" 
+                  alt="Logo Wave - Partenaire de paiement" 
                   width={84}
                   height={18}
-                  className="h-4 md:h-5 w-auto object-contain grayscale hover:grayscale-0 transition-all duration-300" 
+                  className="h-4 md:h-5 w-auto object-contain grayscale hover:grayscale-0 transition-all duration-300"
+                  decoding="async"
                 />
                 <Image 
                   src="/assets/partners/om_logo_.webp" 
-                  alt="OM" 
+                  alt="Logo Orange Money - Partenaire de paiement" 
                   width={84}
                   height={18}
-                  className="h-4 md:h-5 w-auto object-contain grayscale hover:grayscale-0 transition-all duration-300" 
+                  className="h-4 md:h-5 w-auto object-contain grayscale hover:grayscale-0 transition-all duration-300"
+                  decoding="async"
                 />
                 <Image 
                   src="/assets/partners/Google_.webp" 
-                  alt="Google" 
+                  alt="Logo Google - Partenaire de paiement" 
                   width={84}
                   height={18}
-                  className="h-4 md:h-5 w-auto object-contain grayscale hover:grayscale-0 transition-all duration-300" 
+                  className="h-4 md:h-5 w-auto object-contain grayscale hover:grayscale-0 transition-all duration-300"
+                  decoding="async"
                 />
                 <Image 
                   src="/assets/partners/Logo-GitHub-Black.webp" 
@@ -323,9 +329,9 @@ export default function Home() {
 
 
       {/* Catégories de services Section */}
-      <section className="py-10 md:py-16 bg-gradient-to-b from-white to-slate-50 dark:from-vynal-purple-dark dark:to-vynal-purple-darkest">
+      <section className="py-10 md:py-16 bg-gradient-to-b from-white to-slate-50 dark:from-vynal-purple-dark dark:to-vynal-purple-darkest" aria-labelledby="categories-title">
         <div className="container mx-auto px-4">
-          <h2 className="text-2xl md:text-3xl font-bold text-center mb-8 text-slate-800 dark:bg-gradient-to-r dark:from-vynal-accent-primary dark:to-vynal-accent-secondary dark:bg-clip-text dark:text-transparent">
+          <h2 id="categories-title" className="text-2xl md:text-3xl font-bold text-center mb-8 text-slate-800 dark:bg-gradient-to-r dark:from-vynal-accent-primary dark:to-vynal-accent-secondary dark:bg-clip-text dark:text-transparent">
             Accédez facilement aux talents selon leurs spécialités
           </h2>
           
@@ -375,9 +381,10 @@ export default function Home() {
                         shadow-sm hover:shadow-md 
                         hover:border-vynal-accent-primary/40 dark:hover:border-vynal-accent-primary/40 
                         hover:-translate-y-1 transition-all duration-200 group ${hideOnDesktop}`}
+                      aria-label={`Voir les services de ${cat.name}`}
                     >
                       <div className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center rounded-full bg-vynal-accent-10 dark:bg-vynal-accent-10 border border-vynal-accent-primary/20 dark:border-vynal-accent-primary/20 mb-2 md:mb-3 text-vynal-accent-primary group-hover:bg-vynal-accent-20 dark:group-hover:bg-vynal-accent-20 group-hover:border-vynal-accent-primary/30 dark:group-hover:border-vynal-accent-primary/40 transition-all duration-200">
-                        <Icon className="w-5 h-5 md:w-6 md:h-6 stroke-[1.5]" />
+                        <Icon className="w-5 h-5 md:w-6 md:h-6 stroke-[1.5]" aria-hidden="true" />
                       </div>
                       <span className="text-xs md:text-sm font-medium text-center text-slate-600 dark:text-vynal-text-secondary leading-tight">
                         {cat.name.split(' & ')[0]}
@@ -397,9 +404,10 @@ export default function Home() {
                 dark:bg-vynal-accent-primary/10 dark:hover:bg-vynal-accent-primary/20
                 text-vynal-accent-primary font-medium text-xs
                 transition-all duration-200 hover:-translate-y-0.5"
+              aria-label="Voir tous les services disponibles"
             >
               Voir tous les services
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                 <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
               </svg>
             </Link>
@@ -408,9 +416,9 @@ export default function Home() {
       </section>
 
       {/* Bento Grid Section */}
-      <section className="py-16 md:py-24 bg-gradient-to-b from-slate-50 to-white dark:from-vynal-purple-darkest dark:to-vynal-purple-dark">
+      <section className="py-16 md:py-24 bg-gradient-to-b from-slate-50 to-white dark:from-vynal-purple-darkest dark:to-vynal-purple-dark" aria-labelledby="how-it-works-title">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-16 text-slate-800 dark:bg-gradient-to-r dark:from-vynal-accent-primary dark:to-vynal-accent-secondary dark:bg-clip-text dark:text-transparent">
+          <h2 id="how-it-works-title" className="text-3xl font-bold text-center mb-16 text-slate-800 dark:bg-gradient-to-r dark:from-vynal-accent-primary dark:to-vynal-accent-secondary dark:bg-clip-text dark:text-transparent">
             Comment ça marche ?
           </h2>
           <BentoGridThirdDemo />
@@ -450,11 +458,14 @@ export default function Home() {
                   <div className="overflow-hidden rounded-xl bg-gray-200 dark:bg-gray-800 flex items-center justify-center h-[250px]">
                     <Image
                       src="/images/profil5.webp"
-                      alt="Qualité garantie"
+                      alt="Freelance professionnel travaillant sur un projet - Vynal Platform"
                       width={320}
                       height={200}
                       quality={75}
                       className="w-full h-full object-cover object-[center_30%]"
+                      decoding="async"
+                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                      priority={true}
                     />
                   </div>
                 </div>

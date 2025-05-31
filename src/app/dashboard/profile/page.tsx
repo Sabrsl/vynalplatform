@@ -293,10 +293,14 @@ export default function ProfilePage() {
               {localProfile.avatar_url ? (
                 <Image 
                   src={localProfile.avatar_url}
-                  alt="Avatar"
+                  alt={`Photo de profil de ${localProfile.full_name || localProfile.username || 'utilisateur'}`}
                   width={128}
                   height={128}
                   className="w-32 h-32 rounded-full object-cover border-4 border-white dark:border-vynal-purple-dark/90 shadow-md"
+                  priority
+                  decoding="async"
+                  sizes="(max-width: 768px) 128px, 128px"
+                  quality={85}
                 />
               ) : (
                   <div className="w-32 h-32 rounded-full bg-white dark:bg-vynal-purple-dark flex items-center justify-center border-4 border-white dark:border-vynal-purple-dark/90 shadow-md">
@@ -312,7 +316,8 @@ export default function ProfilePage() {
                   
               <label 
                 htmlFor="avatar-upload" 
-                    className="bg-vynal-accent-primary dark:bg-vynal-accent-primary p-2 rounded-full cursor-pointer text-white hover:bg-vynal-accent-secondary dark:hover:bg-vynal-accent-secondary transition-colors shadow-sm"
+                className="bg-vynal-accent-primary dark:bg-vynal-accent-primary p-2 rounded-full cursor-pointer text-white hover:bg-vynal-accent-secondary dark:hover:bg-vynal-accent-secondary transition-colors shadow-sm"
+                aria-label="Télécharger une nouvelle photo de profil"
               >
                     {uploading ? (
                       <Loader size="md" variant="secondary" />
@@ -543,6 +548,7 @@ export default function ProfilePage() {
                     type="submit" 
                     disabled={saving}
                     className="bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-white"
+                    aria-label={saving ? "Enregistrement en cours..." : "Enregistrer les modifications du profil"}
                   >
                   {saving ? (
                     <div className="flex items-center">
