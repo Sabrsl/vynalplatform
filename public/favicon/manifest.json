@@ -9,6 +9,16 @@
    "density": "0.75"
   },
   {
+   "src": "/favicon/favicon-16x16.png",
+   "sizes": "16x16",
+   "type": "image/png"
+  },
+  {
+   "src": "/favicon/favicon-32x32.png",
+   "sizes": "32x32",
+   "type": "image/png"
+  },
+  {
    "src": "/favicon/android-icon-48x48.png",
    "sizes": "48x48",
    "type": "image/png",
@@ -45,7 +55,7 @@
    "density": "5.0"
   }
  ],
- "theme_color": "#FF66B2",
+ "theme_color": "#6554AF",
  "background_color": "#ffffff",
  "display": "standalone",
  "orientation": "portrait",
