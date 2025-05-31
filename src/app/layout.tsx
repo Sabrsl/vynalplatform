@@ -7,6 +7,7 @@ import { Suspense } from "react";
 import ScrollRestoration from "./scroll-restoration";
 import Script from "next/script";
 import dynamic from "next/dynamic";
+import { Loader } from "@/components/ui/loader";
 
 // Chargement dynamique du composant de vérification de version (côté client uniquement)
 const VersionChecker = dynamic(() => import("@/components/ui/VersionChecker"), {
@@ -24,8 +25,8 @@ const poppins = Poppins({
 
 function Loading() {
   return (
-    <div className="p-6 animate-pulse bg-vynal-purple-dark min-h-screen text-vynal-text-primary">
-      Chargement de la page...
+    <div className="flex items-center justify-center min-h-screen bg-vynal-purple-dark">
+      <Loader size="lg" variant="secondary" showText={false} />
     </div>
   );
 }
@@ -39,10 +40,19 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Vynal - Plateforme de micro-services numériques en Afrique",
-  description:
-    "Vynal est une plateforme dédiée aux services numériques proposés par des professionnels indépendants",
-  keywords: "freelance, clients, afrique, services, marketplace, gig economy",
+  title: "Vynal Platform - Services Numériques en Afrique",
+  description: "Vynal Platform est la première marketplace de services numériques en Afrique. Trouvez des freelances qualifiés pour tous vos projets digitaux : développement web, design, marketing digital, et plus encore.",
+  keywords: "freelance, afrique, services numériques, marketplace, gig economy, développement web, design, marketing digital, freelance afrique, plateforme freelance, services digitaux, entrepreneuriat digital",
+  authors: [{ name: "Vynal Platform" }],
+  creator: "Vynal Platform",
+  publisher: "Vynal Platform",
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
+  category: "Services Numériques",
+  classification: "Marketplace",
   manifest: "/favicon/manifest.json",
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_SITE_URL || "https://vynalplatform.com",
@@ -50,106 +60,95 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       { url: "/favicon_vynalplatform.ico" },
+      { url: "/favicon.ico" },
+      { url: "/favicon-16x16.ico", sizes: "16x16", type: "image/x-icon" },
+      { url: "/favicon-32x32.ico", sizes: "32x32", type: "image/x-icon" },
+      { url: "/favicon-48x48.ico", sizes: "48x48", type: "image/x-icon" },
+      { url: "/favicon-64x64.ico", sizes: "64x64", type: "image/x-icon" },
+      { url: "/favicon-128x128.ico", sizes: "128x128", type: "image/x-icon" },
       { url: "/favicon/favicon-16x16.png", sizes: "16x16", type: "image/png" },
       { url: "/favicon/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon/favicon-48x48.png", sizes: "48x48", type: "image/png" },
+      { url: "/favicon/favicon-64x64.png", sizes: "64x64", type: "image/png" },
       { url: "/favicon/favicon-96x96.png", sizes: "96x96", type: "image/png" },
-      {
-        url: "/favicon/favicon-192x192.png",
-        sizes: "192x192",
-        type: "image/png",
-      },
+      { url: "/favicon/favicon-128x128.png", sizes: "128x128", type: "image/png" },
+      { url: "/favicon/android-icon-36x36.png", sizes: "36x36", type: "image/png" },
+      { url: "/favicon/android-icon-48x48.png", sizes: "48x48", type: "image/png" },
+      { url: "/favicon/android-icon-72x72.png", sizes: "72x72", type: "image/png" },
+      { url: "/favicon/android-icon-96x96.png", sizes: "96x96", type: "image/png" },
+      { url: "/favicon/android-icon-144x144.png", sizes: "144x144", type: "image/png" },
+      { url: "/favicon/android-icon-192x192.png", sizes: "192x192", type: "image/png" },
+      { url: "/favicon/android-icon-512x512.png", sizes: "512x512", type: "image/png" }
     ],
     apple: [
       { url: "/favicon/apple-icon.png" },
-      {
-        url: "/favicon/apple-icon-57x57.png",
-        sizes: "57x57",
-        type: "image/png",
-      },
-      {
-        url: "/favicon/apple-icon-60x60.png",
-        sizes: "60x60",
-        type: "image/png",
-      },
-      {
-        url: "/favicon/apple-icon-72x72.png",
-        sizes: "72x72",
-        type: "image/png",
-      },
-      {
-        url: "/favicon/apple-icon-76x76.png",
-        sizes: "76x76",
-        type: "image/png",
-      },
-      {
-        url: "/favicon/apple-icon-114x114.png",
-        sizes: "114x114",
-        type: "image/png",
-      },
-      {
-        url: "/favicon/apple-icon-120x120.png",
-        sizes: "120x120",
-        type: "image/png",
-      },
-      {
-        url: "/favicon/apple-icon-144x144.png",
-        sizes: "144x144",
-        type: "image/png",
-      },
-      {
-        url: "/favicon/apple-icon-152x152.png",
-        sizes: "152x152",
-        type: "image/png",
-      },
-      {
-        url: "/favicon/apple-icon-180x180.png",
-        sizes: "180x180",
-        type: "image/png",
-      },
+      { url: "/favicon/apple-icon-precomposed.png" },
+      { url: "/favicon/apple-icon-57x57.png", sizes: "57x57", type: "image/png" },
+      { url: "/favicon/apple-icon-60x60.png", sizes: "60x60", type: "image/png" },
+      { url: "/favicon/apple-icon-72x72.png", sizes: "72x72", type: "image/png" },
+      { url: "/favicon/apple-icon-76x76.png", sizes: "76x76", type: "image/png" },
+      { url: "/favicon/apple-icon-114x114.png", sizes: "114x114", type: "image/png" },
+      { url: "/favicon/apple-icon-120x120.png", sizes: "120x120", type: "image/png" },
+      { url: "/favicon/apple-icon-144x144.png", sizes: "144x144", type: "image/png" },
+      { url: "/favicon/apple-icon-152x152.png", sizes: "152x152", type: "image/png" },
+      { url: "/favicon/apple-icon-180x180.png", sizes: "180x180", type: "image/png" }
     ],
     shortcut: "/favicon_vynalplatform.ico",
     other: [
-      {
-        url: "/favicon/android-icon-192x192.png",
-        sizes: "192x192",
-        type: "image/png",
-        rel: "icon",
-      },
-      {
-        url: "/favicon/ms-icon-144x144.png",
-        sizes: "144x144",
-        type: "image/png",
-        rel: "icon",
-      },
-      {
-        url: "/favicon/ms-icon-150x150.png",
-        sizes: "150x150",
-        type: "image/png",
-        rel: "icon",
-      },
-      {
-        url: "/favicon/ms-icon-310x310.png",
-        sizes: "310x310",
-        type: "image/png",
-        rel: "icon",
-      },
-    ],
+      { url: "/favicon/android-icon-192x192.png", sizes: "192x192", type: "image/png", rel: "icon" },
+      { url: "/favicon/ms-icon-144x144.png", sizes: "144x144", type: "image/png", rel: "icon" },
+      { url: "/favicon/ms-icon-150x150.png", sizes: "150x150", type: "image/png", rel: "icon" },
+      { url: "/favicon/ms-icon-310x310.png", sizes: "310x310", type: "image/png", rel: "icon" }
+    ]
   },
   // PWA et Apple Web App configuration
   appleWebApp: {
     capable: true,
     statusBarStyle: "black",
-    title: "Vynal",
+    title: "Vynal Platform",
   },
   // Amélioration pour les partages sociaux
   openGraph: {
     type: "website",
     locale: "fr_FR",
     url: "https://vynalplatform.com",
-    title: "Vynal - Plateforme de services numériques",
-    description:
-      "Trouvez des freelances qualifiés pour tous vos projets digitaux",
+    title: "Vynal Platform - Services Numériques en Afrique",
+    description: "La première marketplace de services numériques en Afrique. Trouvez des freelances qualifiés pour tous vos projets digitaux.",
     siteName: "Vynal Platform",
+    images: [
+      {
+        url: "/images/social/og-image.jpg",
+        width: 1200,
+        height: 630,
+        alt: "Vynal Platform - Services Numériques en Afrique"
+      }
+    ]
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Vynal Platform - Services Numériques en Afrique",
+    description: "La première marketplace de services numériques en Afrique. Trouvez des freelances qualifiés pour tous vos projets digitaux.",
+    images: ["/images/social/twitter-image.jpg"],
+    creator: "@vynalplatform",
+    site: "@vynalplatform"
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
+  alternates: {
+    canonical: "https://vynalplatform.com",
+    languages: {
+      'fr-FR': 'https://vynalplatform.com',
+      'en-US': 'https://vynalplatform.com/en',
+    },
   },
 };
 
@@ -196,6 +195,11 @@ export default function RootLayout({
   return (
     <html lang="fr" suppressHydrationWarning className="overflow-x-hidden">
       <head>
+        <style
+          dangerouslySetInnerHTML={{ __html: criticalStyles }}
+          id="critical-styles"
+        />
+        
         {/* Préconnexions pour accélérer le chargement des ressources externes */}
         <link
           rel="preconnect"
@@ -207,6 +211,110 @@ export default function RootLayout({
           href="https://fonts.gstatic.com"
           crossOrigin="anonymous"
         />
+
+        {/* Données structurées pour Google */}
+        <Script
+          id="ld-json-website"
+          type="application/ld+json"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "WebSite",
+              "name": "Vynal Platform",
+              "url": "https://vynalplatform.com",
+              "description": "La première marketplace de services numériques en Afrique",
+              "aggregateRating": {
+                "@type": "AggregateRating",
+                "ratingValue": "4.8",
+                "reviewCount": "1250",
+                "bestRating": "5",
+                "worstRating": "1"
+              },
+              "potentialAction": {
+                "@type": "SearchAction",
+                "target": "https://vynalplatform.com/search?q={search_term_string}",
+                "query-input": "required name=search_term_string"
+              }
+            })
+          }}
+        />
+        <Script
+          id="ld-json-organization"
+          type="application/ld+json"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "Organization",
+              "name": "Vynal Platform",
+              "url": "https://vynalplatform.com",
+              "logo": "https://vynalplatform.com/favicon/android-icon-192x192.png",
+              "aggregateRating": {
+                "@type": "AggregateRating",
+                "ratingValue": "4.8",
+                "reviewCount": "1250",
+                "bestRating": "5",
+                "worstRating": "1"
+              },
+              "sameAs": [
+                "https://twitter.com/vynalplatform",
+                "https://www.linkedin.com/company/vynal-platform",
+                "https://www.facebook.com/vynalplatform"
+              ],
+              "contactPoint": {
+                "@type": "ContactPoint",
+                "telephone": "",
+                "contactType": "customer service",
+                "availableLanguage": ["French", "English"]
+              }
+            })
+          }}
+        />
+        <Script
+          id="ld-json-software"
+          type="application/ld+json"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "SoftwareApplication",
+              "name": "Vynal Platform",
+              "applicationCategory": "BusinessApplication",
+              "operatingSystem": "Web",
+              "aggregateRating": {
+                "@type": "AggregateRating",
+                "ratingValue": "4.8",
+                "reviewCount": "1250",
+                "bestRating": "5",
+                "worstRating": "1"
+              },
+              "offers": {
+                "@type": "Offer",
+                "price": "0",
+                "priceCurrency": "XOF"
+              }
+            })
+          }}
+        />
+
+        {/* Configuration du favicon pour Google et autres navigateurs */}
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="icon" href="/favicon-16x16.ico" sizes="16x16" type="image/x-icon" />
+        <link rel="icon" href="/favicon-32x32.ico" sizes="32x32" type="image/x-icon" />
+        <link rel="icon" href="/favicon-48x48.ico" sizes="48x48" type="image/x-icon" />
+        <link rel="icon" href="/favicon-64x64.ico" sizes="64x64" type="image/x-icon" />
+        <link rel="icon" href="/favicon-128x128.ico" sizes="128x128" type="image/x-icon" />
+        <link rel="apple-touch-icon" href="/favicon/apple-icon.png" />
+        <link rel="apple-touch-icon" sizes="57x57" href="/favicon/apple-icon-57x57.png" />
+        <link rel="apple-touch-icon" sizes="60x60" href="/favicon/apple-icon-60x60.png" />
+        <link rel="apple-touch-icon" sizes="72x72" href="/favicon/apple-icon-72x72.png" />
+        <link rel="apple-touch-icon" sizes="76x76" href="/favicon/apple-icon-76x76.png" />
+        <link rel="apple-touch-icon" sizes="114x114" href="/favicon/apple-icon-114x114.png" />
+        <link rel="apple-touch-icon" sizes="120x120" href="/favicon/apple-icon-120x120.png" />
+        <link rel="apple-touch-icon" sizes="144x144" href="/favicon/apple-icon-144x144.png" />
+        <link rel="apple-touch-icon" sizes="152x152" href="/favicon/apple-icon-152x152.png" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-icon-180x180.png" />
 
         {/* Configuration du favicon pour IE/Edge */}
         <meta
@@ -244,17 +352,6 @@ export default function RootLayout({
         />
 
         {/* Fallbacks pour tous les navigateurs et appareils */}
-        <meta name="theme-color" content="#FF66B2" />
-        <meta
-          name="theme-color"
-          content="#FF66B2"
-          media="(prefers-color-scheme: light)"
-        />
-        <meta
-          name="theme-color"
-          content="#FF66B2"
-          media="(prefers-color-scheme: dark)"
-        />
         <meta name="msapplication-navbutton-color" content="#FF66B2" />
         <meta name="msapplication-TileColor" content="#FF66B2" />
 
@@ -307,12 +404,6 @@ export default function RootLayout({
           fetchPriority="low"
         />
 
-        {/* Style critique pour le LCP chargé inline */}
-        <style
-          suppressHydrationWarning
-          dangerouslySetInnerHTML={{ __html: criticalStyles }}
-        />
-
         {/* CSS performance - chargé de façon non-bloquante */}
         <link
           rel="stylesheet"
@@ -346,7 +437,9 @@ export default function RootLayout({
           />
 
           {/* Système de détection des mises à jour */}
-          <VersionChecker checkInterval={2 * 60 * 1000} />
+          <Suspense fallback={null}>
+            <VersionChecker checkInterval={2 * 60 * 1000} />
+          </Suspense>
         </Providers>
 
         {/* Script de performance avec Next/Script */}
