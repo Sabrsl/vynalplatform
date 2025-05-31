@@ -247,6 +247,11 @@ export default function RootLayout({
           href="/favicon/android-icon-48x48.png?v=2"
         />
         <link rel="shortcut icon" href="/favicon/favicon.ico?v=2" />
+        <link
+          rel="apple-touch-icon"
+          sizes="180x180"
+          href="/favicon/apple-icon-180x180.png?v=2"
+        />
 
         {/* Google favicon */}
         <link rel="manifest" href="/favicon/manifest.json?v=2" />
