@@ -5,10 +5,11 @@
 
 import { supabase } from "../supabase/client";
 import { sendTemplateEmail } from "../email";
-import { APP_CONFIG } from "../constants";
+import { APP_CONFIG, APP_URLS } from "../constants";
 import { NotificationType } from "@/types/supabase/notifications.types";
 import type { Notification } from "@/types/supabase/notifications.types";
 import type { Database } from "@/types/database";
+import { FREELANCE_ROUTES, CLIENT_ROUTES } from "@/config/routes";
 
 // Définition des types de notification qui déclenchent des emails
 export const EMAIL_NOTIFICATION_TYPES = {
@@ -340,6 +341,14 @@ export async function processNotification(notification: Notification) {
         subject: "Nouveau message sur Vynal Platform",
       };
 
+      // Générer le lien de redirection approprié
+      const messageLink = isFreelance
+        ? `${FREELANCE_ROUTES.MESSAGES}?conversation=${notification.conversation_id}`
+        : `${CLIENT_ROUTES.MESSAGES}?conversation=${notification.conversation_id}`;
+
+      // Ajouter le lien à la base URL
+      context.messageLink = `${APP_URLS.baseUrl}${messageLink}`;
+
       console.log(
         `[NotificationWorker] Template sélectionné pour ${context.role}: ${emailConfig.template}`,
       );
@@ -376,52 +385,12 @@ export async function processNotification(notification: Notification) {
               context.freelanceName = contentObj.senderName;
             }
           }
-
-          // Extraire le contenu à partir de metadata si disponible
-          if (contentObj.metadata && typeof contentObj.metadata === "string") {
-            try {
-              const metadata = JSON.parse(contentObj.metadata);
-              if (metadata.sender_name && !context.senderName) {
-                context.senderName = metadata.sender_name;
-                // Assigner selon le rôle
-                if (isFreelance) {
-                  context.clientName = metadata.sender_name;
-                } else {
-                  context.freelanceName = metadata.sender_name;
-                }
-              }
-            } catch (e) {
-              console.error(
-                `[NotificationWorker] Erreur lors du parsing de metadata:`,
-                e,
-              );
-            }
-          }
-        } catch (e) {
-          // Si ce n'est pas un JSON valide, utiliser le contenu brut comme prévisualisation
-          console.log(
-            `[NotificationWorker] Traitement du contenu comme format "nom: message"`,
+        } catch (error) {
+          console.error(
+            `[NotificationWorker] Erreur lors du traitement du contenu:`,
+            error,
           );
-          const parts = notification.content.split(":");
-          if (parts.length > 1) {
-            context.senderName = parts[0].trim();
-            context.messagePreview = parts.slice(1).join(":").trim();
-
-            // Assigner correctement selon le rôle
-            if (isFreelance) {
-              context.clientName = context.senderName;
-            } else {
-              context.freelanceName = context.senderName;
-            }
-          } else {
-            context.messagePreview = notification.content;
-          }
         }
-      }
-
-      // S'assurer que l'URL du message est correcte
-      if (notification.conversation_id) {
-        context.messageLink = `https://vynalplatform.com/messages?conversation=${notification.conversation_id}`;
       }
 
       // Vérifier que toutes les variables nécessaires sont présentes
