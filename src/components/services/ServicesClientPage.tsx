@@ -192,6 +192,13 @@ const NavigationBar = React.memo(
                   onClick={() =>
                     setViewMode(viewMode === "grid" ? "list" : "grid")
                   }
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setViewMode(viewMode === "grid" ? "list" : "grid");
+                    }
+                  }}
+                  tabIndex={0}
                   className="h-8 w-8 hidden md:block
                   bg-white/30 dark:bg-slate-900/30
                   border border-slate-200 dark:border-slate-700/30
@@ -199,8 +206,12 @@ const NavigationBar = React.memo(
                   hover:bg-white/40 dark:hover:bg-slate-900/40
                   hover:border-slate-300 dark:hover:border-slate-700/40
                   rounded-lg shadow-sm backdrop-blur-sm
-                  transition-all duration-200"
+                  transition-all duration-200
+                  focus:outline-none focus-visible:ring-2 focus-visible:ring-vynal-accent-primary/70 focus-visible:ring-offset-2"
                   aria-label={viewMode === "grid" ? "Passer en vue liste" : "Passer en vue grille"}
+                  aria-pressed={false}
+                  role="switch"
+                  aria-checked={viewMode === "list"}
                 >
                   {viewMode === "grid" ? (
                     <List className="h-5 w-5" aria-hidden="true" />
@@ -258,8 +269,10 @@ const ResultsHeader = React.memo(
             <select
               value={sortMethod}
               onChange={(e) => onSortChange(e.target.value)}
-              className="text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1"
+              className="text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-vynal-accent-primary/70 focus-visible:ring-offset-2"
               aria-label="Trier les résultats par"
+              role="combobox"
+              aria-expanded="false"
             >
               <option value="newest">Plus récents</option>
               <option value="price_asc">Prix croissant</option>
@@ -270,6 +283,13 @@ const ResultsHeader = React.memo(
               variant="ghost"
               size="icon"
               onClick={() => setViewMode(viewMode === "grid" ? "list" : "grid")}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setViewMode(viewMode === "grid" ? "list" : "grid");
+                }
+              }}
+              tabIndex={0}
               className="h-8 w-8 md:hidden
               bg-white/30 dark:bg-slate-900/30
               border border-slate-200 dark:border-slate-700/30
@@ -277,8 +297,12 @@ const ResultsHeader = React.memo(
               hover:bg-white/40 dark:hover:bg-slate-900/40
               hover:border-slate-300 dark:hover:border-slate-700/40
               rounded-lg shadow-sm backdrop-blur-sm
-              transition-all duration-200"
+              transition-all duration-200
+              focus:outline-none focus-visible:ring-2 focus-visible:ring-vynal-accent-primary/70 focus-visible:ring-offset-2"
               aria-label={viewMode === "grid" ? "Passer en vue liste" : "Passer en vue grille"}
+              aria-pressed={false}
+              role="switch"
+              aria-checked={viewMode === "list"}
             >
               {viewMode === "grid" ? (
                 <List className="h-5 w-5" aria-hidden="true" />
@@ -344,6 +368,8 @@ const VirtualizedGrid = memo(
       <div className="w-full">
         <div
           className={`grid grid-cols-1 ${viewMode === "grid" ? "sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" : ""} gap-6`}
+          aria-live="polite"
+          aria-atomic="true"
         >
           {services.map((service, index) => (
             <div key={service.id} data-service-id={service.id}>
@@ -365,12 +391,19 @@ const VirtualizedGrid = memo(
             className="w-full flex justify-center items-center py-8"
           >
             {isNextPageLoading ? (
-              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-500"></div>
+              <div 
+                className="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-500"
+                role="status"
+                aria-label="Chargement en cours"
+              >
+                <span className="sr-only">Chargement...</span>
+              </div>
             ) : (
               <Button
                 variant="ghost"
-                className="text-indigo-500"
+                className="text-indigo-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-vynal-accent-primary/70 focus-visible:ring-offset-2"
                 onClick={loadNextPage}
+                aria-label="Charger plus de services"
               >
                 Charger plus
               </Button>
@@ -800,129 +833,158 @@ export default function ServicesClientPage({
 
     // Mise à jour de l'URL
     router.replace("/services", { scroll: false });
+    
+    // Annonce pour les lecteurs d'écran
+    const announcement = document.createElement('div');
+    announcement.setAttribute('aria-live', 'assertive');
+    announcement.className = 'sr-only';
+    announcement.textContent = 'Filtres réinitialisés. Affichage de tous les services.';
+    document.body.appendChild(announcement);
+    
+    // Supprimer l'annonce après lecture
+    setTimeout(() => {
+      document.body.removeChild(announcement);
+    }, 1000);
+    
   }, [router]);
 
   return (
-    <div className="min-h-screen bg-white dark:bg-vynal-purple-darkest">
-      {/* Barre de catégories défilables placée juste avant la barre de navigation */}
-      <div className="relative py-1 sm:py-1.5 bg-slate-50 dark:bg-vynal-purple-dark border-b border-gray-100 dark:border-vynal-purple-secondary/20">
-        <div className="container mx-auto">
-          <HorizontalCategoriesScroll
-            categories={sortedCategories}
-            selectedCategory={selectedCategory}
-            getSubcategoriesCount={getSubcategoriesCount}
-            className="bg-transparent"
-          />
+    <>
+      <h1 className="sr-only">Services Freelance | Vynal Platform</h1>
+      <div className="min-h-screen bg-white/30 dark:bg-slate-900/30">
+        {/* Barre de catégories défilables placée juste avant la barre de navigation */}
+        <div className="relative py-1 sm:py-1.5 bg-slate-50 dark:bg-vynal-purple-dark border-b border-gray-100 dark:border-vynal-purple-secondary/20">
+          <div className="container mx-auto">
+            <HorizontalCategoriesScroll
+              categories={sortedCategories}
+              selectedCategory={selectedCategory}
+              getSubcategoriesCount={getSubcategoriesCount}
+              className="bg-transparent"
+            />
+          </div>
         </div>
-      </div>
 
-      <NavigationBar
-        activeCategory={activeCategory}
-        activeSubcategory={activeSubcategory}
-        viewMode={viewMode}
-        setViewMode={setViewMode}
-        handleSearch={handleSearch}
-      />
-
-      <main
-        className="container mx-auto px-3 sm:px-4 md:px-6 lg:px-16 py-4 sm:py-5 md:py-6"
-        id="services-results"
-      >
-        {/* Sous-catégories si une catégorie est sélectionnée */}
-        {selectedCategory && activeSubcategories.length > 0 && (
-          <SubcategoriesGrid
-            subcategories={activeSubcategories}
-            selectedSubcategory={selectedSubcategory}
-            onSelectSubcategory={handleSelectSubcategory}
-            className="mb-6"
-          />
-        )}
-
-        {/* En-tête des résultats */}
-        <ResultsHeader
-          searchQuery={searchQuery}
-          activeSubcategory={activeSubcategory}
+        <NavigationBar
           activeCategory={activeCategory}
-          totalCount={totalServices}
-          currentPage={currentPage}
-          totalPages={totalPages}
+          activeSubcategory={activeSubcategory}
           viewMode={viewMode}
           setViewMode={setViewMode}
-          sortMethod={sortMethod}
-          onSortChange={handleSortChange}
+          handleSearch={handleSearch}
         />
 
-        {/* Affichage des services */}
-        {totalServices === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-center bg-white/30 dark:bg-slate-900/30 rounded-lg border border-slate-200 dark:border-slate-700/30 backdrop-blur-sm">
-            <AlertCircle className="h-12 w-12 text-vynal-accent-primary mb-4" />
-            <h3 className="text-sm font-semibold text-slate-800 dark:text-vynal-text-primary mb-2">
-              Aucun service trouvé
-            </h3>
-            <p className="text-xs text-slate-600 dark:text-vynal-text-secondary max-w-md mb-6">
-              {searchQuery
-                ? `Nous n'avons trouvé aucun service correspondant à "${searchQuery}"`
-                : selectedSubcategory
-                  ? `Aucun service disponible dans cette sous-catégorie pour le moment`
-                  : selectedCategory
-                    ? `Aucun service disponible dans cette catégorie pour le moment`
-                    : `Aucun service disponible pour le moment`}
-            </p>
-            <Button
-              variant="outline"
-              onClick={handleResetFilters}
-              className="text-xs text-slate-700 dark:text-vynal-text-primary hover:bg-slate-100 dark:hover:bg-slate-800/40 transition-all duration-200"
-            >
-              Afficher tous les services
-            </Button>
-          </div>
-        ) : viewMode === "list" ? (
-          // Affichage en mode liste
-          <div className="w-full">
-            {/* Squelette de chargement pendant le chargement initial */}
-            {isLoadingMore && paginatedServices.length === 0 ? (
-              <ServiceListSkeleton count={5} />
-            ) : (
-              <ServicesList
-                services={paginatedServices}
-                isPriority={true}
-                showStatusBadge={false}
+        <main
+          className="container mx-auto px-3 sm:px-4 md:px-6 lg:px-16 py-4 sm:py-5 md:py-6"
+          id="services-results"
+        >
+          {/* Sous-catégories si une catégorie est sélectionnée */}
+          {selectedCategory && activeSubcategories.length > 0 && activeCategory && (
+            <>
+              <h2 className="text-xl font-semibold text-slate-800 dark:text-vynal-text-primary mb-4">
+                {activeCategory?.name ?? 'Services'}
+              </h2>
+              <h3 className="text-lg font-medium text-slate-700 dark:text-vynal-text-secondary mb-3">
+                Sous-catégories
+              </h3>
+              <SubcategoriesGrid
+                subcategories={activeSubcategories}
+                selectedSubcategory={selectedSubcategory}
+                onSelectSubcategory={handleSelectSubcategory}
+                className="mb-6"
               />
-            )}
+            </>
+          )}
 
-            {/* Indicateur de chargement pour "charger plus" */}
-            {(hasMorePages || isLoadingMore) && (
-              <div className="w-full flex justify-center items-center py-8 mt-4">
-                {isLoadingMore ? (
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-500"></div>
-                ) : (
-                  <Button
-                    variant="ghost"
-                    className="text-indigo-500"
-                    onClick={loadMoreServices}
-                  >
-                    Charger plus
-                  </Button>
-                )}
-              </div>
-            )}
-          </div>
-        ) : (
-          // Affichage en mode grille (par défaut)
-          <VirtualizedGrid
-            services={paginatedServices}
-            hasNextPage={hasMorePages}
-            isNextPageLoading={isLoadingMore}
-            loadNextPage={loadMoreServices}
+          {/* En-tête des résultats */}
+          <ResultsHeader
+            searchQuery={searchQuery}
+            activeSubcategory={activeSubcategory}
+            activeCategory={activeCategory}
+            totalCount={totalServices}
+            currentPage={currentPage}
+            totalPages={totalPages}
             viewMode={viewMode}
+            setViewMode={setViewMode}
+            sortMethod={sortMethod}
+            onSortChange={handleSortChange}
           />
-        )}
-      </main>
 
-      {/* Section des statistiques chargée de façon différée */}
-      <Suspense fallback={null}>
-        <StatsSection statsData={STATS_DATA} />
-      </Suspense>
-    </div>
+          {/* Affichage des services */}
+          {totalServices === 0 ? (
+            <div 
+              className="flex flex-col items-center justify-center py-16 text-center bg-white/30 dark:bg-slate-900/30 rounded-lg border border-slate-200 dark:border-slate-700/30 backdrop-blur-sm"
+              role="status"
+              aria-live="polite"
+            >
+              <AlertCircle className="h-12 w-12 text-vynal-accent-primary mb-4" aria-hidden="true" />
+              <h3 className="text-sm font-semibold text-slate-800 dark:text-vynal-text-primary mb-2">
+                Aucun service trouvé
+              </h3>
+              <p className="text-xs text-slate-600 dark:text-vynal-text-secondary max-w-md mb-6">
+                {searchQuery
+                  ? `Nous n'avons trouvé aucun service correspondant à "${searchQuery}"`
+                  : selectedSubcategory
+                    ? `Aucun service disponible dans cette sous-catégorie pour le moment`
+                    : selectedCategory
+                      ? `Aucun service disponible dans cette catégorie pour le moment`
+                      : `Aucun service disponible pour le moment`}
+              </p>
+              <Button
+                variant="outline"
+                onClick={handleResetFilters}
+                className="text-xs text-slate-700 dark:text-vynal-text-primary hover:bg-slate-100 dark:hover:bg-slate-800/40 transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-vynal-accent-primary/70 focus-visible:ring-offset-2"
+                aria-label="Réinitialiser les filtres et afficher tous les services"
+              >
+                Afficher tous les services
+              </Button>
+            </div>
+          ) : viewMode === "list" ? (
+            // Affichage en mode liste
+            <div className="w-full">
+              {/* Squelette de chargement pendant le chargement initial */}
+              {isLoadingMore && paginatedServices.length === 0 ? (
+                <ServiceListSkeleton count={5} />
+              ) : (
+                <ServicesList
+                  services={paginatedServices}
+                  isPriority={true}
+                  showStatusBadge={false}
+                />
+              )}
+
+              {/* Indicateur de chargement pour "charger plus" */}
+              {(hasMorePages || isLoadingMore) && (
+                <div className="w-full flex justify-center items-center py-8 mt-4">
+                  {isLoadingMore ? (
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-500"></div>
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      className="text-indigo-500"
+                      onClick={loadMoreServices}
+                    >
+                      Charger plus
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : (
+            // Affichage en mode grille (par défaut)
+            <VirtualizedGrid
+              services={paginatedServices}
+              hasNextPage={hasMorePages}
+              isNextPageLoading={isLoadingMore}
+              loadNextPage={loadMoreServices}
+              viewMode={viewMode}
+            />
+          )}
+        </main>
+
+        {/* Section des statistiques chargée de façon différée */}
+        <Suspense fallback={null}>
+          <StatsSection statsData={STATS_DATA} />
+        </Suspense>
+      </div>
+    </>
   );
 }

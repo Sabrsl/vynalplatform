@@ -39,6 +39,10 @@ export const viewport: Viewport = {
   themeColor: "#FF66B2", // Rose fixe pour tous les modes
 };
 
+// Récupérer le code de vérification Google
+const googleVerification = process.env.NEXT_PUBLIC_GOOGLE_VERIFICATION || '';
+
+// Utiliser les métadonnées partagées avec quelques ajouts spécifiques
 export const metadata: Metadata = {
   title: "Vynal Platform - Services Numériques en Afrique",
   description: "Vynal Platform est la première marketplace de services numériques en Afrique. Trouvez des freelances qualifiés pour tous vos projets digitaux : développement web, design, marketing digital, et plus encore.",
@@ -150,6 +154,15 @@ export const metadata: Metadata = {
       'en-US': 'https://vynalplatform.com/en',
     },
   },
+  // Ajouter la vérification Google uniquement si la variable est définie
+  ...(googleVerification ? {
+    verification: {
+      google: googleVerification,
+    },
+    other: {
+      'google-site-verification': googleVerification,
+    }
+  } : {})
 };
 
 // Styles critiques pour le LCP - extraits pour éviter les problèmes d'hydratation

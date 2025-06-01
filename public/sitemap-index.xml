@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <sitemap>
+    <loc>https://vynalplatform.com/sitemap.xml</loc>
+    <lastmod>2025-06-01T01:02:56.474Z</lastmod>
+  </sitemap>
+  <sitemap>
+    <loc>https://vynalplatform.com/sitemap-services.xml</loc>
+    <lastmod>2025-06-01T01:02:56.474Z</lastmod>
+  </sitemap>
+  <sitemap>
+    <loc>https://vynalplatform.com/sitemap-freelancers.xml</loc>
+    <lastmod>2025-06-01T01:02:56.474Z</lastmod>
+  </sitemap>
+  <sitemap>
+    <loc>https://vynalplatform.com/sitemap-blog.xml</loc>
+    <lastmod>2025-06-01T01:02:56.474Z</lastmod>
+  </sitemap>
+  <sitemap>
+    <loc>https://vynalplatform.com/sitemap-locations.xml</loc>
+    <lastmod>2025-06-01T01:02:56.474Z</lastmod>
+  </sitemap>
+</sitemapindex>

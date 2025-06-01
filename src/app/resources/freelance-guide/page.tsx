@@ -58,6 +58,9 @@ export default function FreelanceGuidePage() {
                 height={400}
                 className="rounded-xl shadow-lg shadow-vynal-purple-darkest/30 w-full h-auto"
                 priority
+                decoding="async"
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 600px"
+                quality={75}
               />
             </div>
           </div>
@@ -435,6 +438,10 @@ export default function FreelanceGuidePage() {
                       width={300}
                       height={300}
                       className="rounded-xl shadow-lg shadow-vynal-purple-darkest/30"
+                      loading="lazy"
+                      decoding="async"
+                      sizes="(max-width: 768px) 100vw, 300px"
+                      quality={75}
                     />
                   </div>
                 </div>

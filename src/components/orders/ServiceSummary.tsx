@@ -41,6 +41,7 @@ export function ServiceSummary({ service }: ServiceSummaryProps) {
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             className="object-cover"
             priority={true}
+            loading="lazy"
             decoding="async"
           />
           {service.category && (
@@ -73,6 +74,10 @@ export function ServiceSummary({ service }: ServiceSummaryProps) {
                       }
                       fill
                       className="object-cover"
+                      sizes="24px"
+                      quality={75}
+                      loading="lazy"
+                      decoding="async"
                     />
                   ) : (
                     <div className="h-full w-full bg-white/50 dark:bg-slate-800/25 flex items-center justify-center text-xs text-slate-800 dark:text-vynal-text-secondary">

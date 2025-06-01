@@ -96,6 +96,10 @@ const ProfileAvatar = memo(({
           width={128}
           height={128}
           className="w-32 h-32 rounded-full object-cover border-4 border-white dark:border-vynal-purple-dark/90 shadow-md"
+          loading="lazy"
+          decoding="async"
+          sizes="(max-width: 768px) 128px, 128px"
+          quality={85}
         />
       ) : (
         <div className="w-32 h-32 rounded-full bg-white dark:bg-vynal-purple-dark flex items-center justify-center border-4 border-white dark:border-vynal-purple-dark/90 shadow-md">

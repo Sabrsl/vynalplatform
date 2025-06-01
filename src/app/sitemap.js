@@ -1,16 +1,17 @@
 import { getServicesForSitemap } from './services/sitemap';
 
-// Marquer cette route comme dynamique
+// Marquer cette route comme dynamique pour assurer la fraîcheur du contenu
 export const dynamic = 'force-dynamic';
+export const revalidate = 86400; // Revalider quotidiennement
 
 export default async function sitemap() {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://vynalplatform.com';
-  const currentDate = new Date();
+  const currentDate = new Date().toISOString();
   
   // Routes principales - contenu dynamique
   const mainRoutes = [
     {
-      url: `${baseUrl}`,
+      url: `${baseUrl}/`,
       lastModified: currentDate,
       changeFrequency: 'daily',
       priority: 1.0
@@ -75,7 +76,7 @@ export default async function sitemap() {
     const services = await getServicesForSitemap();
     serviceRoutes = services.map(service => ({
       url: `${baseUrl}/services/${service.slug}`,
-      lastModified: new Date(service.updatedAt || service.createdAt),
+      lastModified: new Date(service.updatedAt || service.createdAt).toISOString(),
       changeFrequency: 'weekly',
       priority: 0.7
     }));
@@ -84,11 +85,14 @@ export default async function sitemap() {
     // En cas d'erreur, on continue avec un sitemap partiel
   }
   
-  return [
+  // Fusionner toutes les routes
+  const allRoutes = [
     ...mainRoutes,
     ...infoRoutes, 
     ...supportRoutes,
     ...legalRoutes,
     ...serviceRoutes
   ];
+  
+  return allRoutes;
 }

@@ -86,7 +86,7 @@ const TooltipTrigger = React.memo(React.forwardRef<
 >(({ className, ...props }, ref) => (
   <TooltipPrimitive.Trigger
     ref={ref}
-    className={cn("outline-none focus:ring-2 focus:ring-vynal-accent-primary/50 rounded-sm", className)}
+    className={cn("outline-none focus:ring-2 focus:ring-vynal-accent-primary/50 rounded-sm focus-visible:ring-2 focus-visible:ring-vynal-accent-primary/70", className)}
     {...props}
   />
 )));
@@ -184,25 +184,37 @@ export const QuickTooltip = React.memo(({
   variant?: "default" | "info" | "success" | "warning" | "error";
   maxWidth?: string;
   className?: string;
-}) => (
-  <TooltipProvider delayDuration={delayDuration}>
-    <Tooltip>
-      <TooltipTrigger asChild>
-        {children}
-      </TooltipTrigger>
-      <TooltipContent 
-        side={side} 
-        align={align}
-        maxWidth={maxWidth}
-        variant={variant}
-        className={className}
-        {...props}
-      >
-        {content}
-      </TooltipContent>
-    </Tooltip>
-  </TooltipProvider>
-));
+}) => {
+  // Assurons-nous que le contenu du tooltip est disponible pour les lecteurs d'écran
+  // même si visuellement c'est un tooltip
+  const ariaDescription = typeof content === 'string' ? content : undefined;
+  
+  return (
+    <TooltipProvider delayDuration={delayDuration}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          {React.isValidElement(children) 
+            ? React.cloneElement(children as React.ReactElement, {
+                'aria-description': ariaDescription,
+                'aria-haspopup': 'true'
+              })
+            : children}
+        </TooltipTrigger>
+        <TooltipContent 
+          side={side} 
+          align={align}
+          maxWidth={maxWidth}
+          variant={variant}
+          className={className}
+          role="tooltip"
+          {...props}
+        >
+          {content}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+});
 
 // Ajout du displayName pour se conformer aux règles ESLint
 QuickTooltip.displayName = "QuickTooltip";

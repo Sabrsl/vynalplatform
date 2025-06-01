@@ -183,7 +183,7 @@ const SkeletonFour = () => {
         <p className="sm:text-sm text-xs text-center font-poppins font-semibold text-neutral-600 mt-4">
         Jamais bloqué : si ça ne va pas, on vous rembourse
         </p>
-        <p className="border-2 border-red-500 bg-red-100 dark:bg-red-900/20 text-red-600 text-xs rounded-full px-2 py-0.5 mt-4 font-poppins">
+        <p className="border-2 border-red-500 bg-red-200 dark:bg-red-800/40 text-red-700 dark:text-red-300 text-xs rounded-full px-2 py-0.5 mt-4 font-poppins">
          Remboursement
         </p>
       </motion.div>
@@ -198,7 +198,7 @@ const SkeletonFour = () => {
         <p className="sm:text-sm text-xs text-center font-poppins font-semibold text-neutral-600 mt-4">
          Un souci ? On trouve une solution rapide et équitable
         </p>
-        <p className="border-2 border-green-500 bg-green-100 dark:bg-green-900/20 text-green-600 text-xs rounded-full px-2 py-0.5 mt-4 font-poppins">
+        <p className="border-2 border-green-500 bg-green-200 dark:bg-green-800/40 text-green-700 dark:text-green-300 text-xs rounded-full px-2 py-0.5 mt-4 font-poppins">
          Assistance
         </p>
       </motion.div>
@@ -216,7 +216,7 @@ const SkeletonFour = () => {
         <p className="sm:text-sm text-xs text-center font-poppins font-semibold text-neutral-600 mt-4">
          Commandez l'esprit tranquille : satisfait ou remboursé
         </p>
-        <p className="border-2 border-orange-500 bg-orange-100 dark:bg-orange-900/20 text-orange-600 text-xs rounded-full px-2 py-0.5 mt-4 font-poppins">
+        <p className="border-2 border-orange-500 bg-orange-200 dark:bg-orange-800/40 text-orange-700 dark:text-orange-300 text-xs rounded-full px-2 py-0.5 mt-4 font-poppins">
          Satisfaction
         </p>
       </motion.div>

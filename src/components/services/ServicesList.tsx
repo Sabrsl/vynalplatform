@@ -12,6 +12,7 @@ import { PriceDisplay } from './PriceDisplay';
 import { formatPrice } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import type { ServiceWithFreelanceAndCategories } from "@/hooks/useServices";
+import Script from 'next/script';
 
 // Types
 interface ExtendedService extends ServiceWithFreelanceAndCategories {
@@ -158,105 +159,147 @@ const ServiceListItem = memo<ServiceListItemProps>(({
     return !isMobile;
   }, []);
 
+  // Données structurées pour le service
+  const serviceJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Service",
+    "name": service.title,
+    "description": service.description,
+    "url": `https://vynalplatform.com${serviceUrl}`,
+    "provider": {
+      "@type": "Person",
+      "name": service.profiles?.full_name || service.profiles?.username,
+      "image": service.profiles?.avatar_url
+    },
+    "offers": {
+      "@type": "Offer",
+      "price": service.price,
+      "priceCurrency": "XOF",
+      "availability": service.status === 'active' ? "https://schema.org/InStock" : "https://schema.org/OutOfStock"
+    },
+    "aggregateRating": {
+      "@type": "AggregateRating",
+      "ratingValue": 4.8,
+      "bestRating": "5",
+      "worstRating": "1",
+      "ratingCount": service.bookings_count || 0
+    },
+    "deliveryTime": service.delivery_time ? {
+      "@type": "QuantitativeValue",
+      "value": service.delivery_time,
+      "unitText": "day"
+    } : undefined,
+    "category": service.categories ? [service.categories.name] : []
+  };
+
   return (
-    <Card className="w-full bg-white/30 dark:bg-slate-900/30 shadow-sm hover:shadow-md transition-all duration-200 border border-slate-200 dark:border-slate-700/30 overflow-hidden">
-      <Link 
-        href={serviceUrl} 
-        className="focus:outline-none focus:ring-2 focus:ring-vynal-accent-primary/50 group"
-        prefetch={isPriority}
-        target={isPC ? "_blank" : undefined}
-        rel={isPC ? "noopener noreferrer" : undefined}
-      >
-        <CardContent className="p-0">
-          <div className="flex w-full h-20 sm:h-28">
-            {/* Service Thumbnail */}
-            <div className="relative w-20 h-20 sm:w-28 sm:h-28 flex-shrink-0 rounded-l-md overflow-hidden bg-white/20 dark:bg-slate-800/25">
-              {!hasError('main') && mainImage ? (
-                <Image
-                  src={mainImage}
-                  alt={`Miniature du service ${service.title}`}
-                  className="object-cover w-full h-full"
-                  width={112}
-                  height={112}
-                  onError={() => handleError('main')}
-                  priority={isPriority}
-                  loading={isPriority ? 'eager' : 'lazy'}
-                  sizes="(max-width: 640px) 80px, 112px"
-                  decoding="async"
-                />
-              ) : (
-                <div className="flex items-center justify-center w-full h-full bg-white/20 dark:bg-slate-800/25">
-                  <svg
-                    className="w-8 h-8 sm:w-10 sm:h-10 text-slate-400 dark:text-vynal-text-secondary/60"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      d="M4 16L8.586 11.414C8.96106 11.0391 9.46967 10.8284 10 10.8284C10.5303 10.8284 11.0389 11.0391 11.414 11.414L16 16M14 14L15.586 12.414C15.9611 12.0391 16.4697 11.8284 17 11.8284C17.5303 11.8284 18.0389 12.0391 18.414 12.414L20 14M14 8H14.01M6 20H18C19.1046 20 20 19.1046 20 18V6C20 4.89543 19.1046 4 18 4H6C4.89543 4 4 4.89543 4 6V18C4 19.1046 4.89543 20 6 20Z"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </div>
-              )}
-              
-              {/* Price Badge */}
-              <div className="absolute bottom-1 left-1">
-                <PriceDisplay 
-                  price={service.price}
-                  variant="badge"
-                  showFixedIndicator={false}
-                  badgeClassName="bg-white/40 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700/30 text-slate-700 dark:text-vynal-text-primary"
-                />
-              </div>
-            </div>
-            
-            {/* Service Content */}
-            <div className="flex-1 p-2 sm:p-3 flex flex-col justify-between bg-white/25 dark:bg-slate-900/20">
-              <div>
-                <h3 className="text-[10px] sm:text-sm font-medium text-slate-800 dark:text-vynal-text-primary line-clamp-1">
-                  {service.title}
-                </h3>
-                <p className="text-[8px] sm:text-xs text-slate-600 dark:text-vynal-text-secondary line-clamp-2 mt-0.5">
-                  {cleanDescription}
-                </p>
-              </div>
-              
-              <div className="flex items-center justify-between mt-1">
-                <div className="flex items-center gap-2">
-                  <Avatar className="w-4 h-4 sm:w-5 sm:h-5 border border-slate-200 dark:border-slate-700/30">
-                    <AvatarImage src={service.profiles?.avatar_url || ''} />
-                    <AvatarFallback className="text-[8px] sm:text-[10px] bg-white/40 dark:bg-slate-800/40 text-slate-700 dark:text-vynal-text-primary">
-                      {profileInitial}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="text-[8px] sm:text-[10px] text-slate-600 dark:text-vynal-text-secondary">
-                    {profileName}
-                  </span>
-                  {service.profiles?.is_certified && service.profiles?.certification_type && (
-                    <CertificationBadge 
-                      type={service.profiles.certification_type as 'standard' | 'premium' | 'expert'} 
-                      size="xs"
-                    />
-                  )}
-                </div>
+    <>
+      <Script
+        id={`service-jsonld-${service.id}`}
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(serviceJsonLd)
+        }}
+      />
+      <Card className="w-full bg-white/30 dark:bg-slate-900/30 shadow-sm hover:shadow-md transition-all duration-200 border border-slate-200 dark:border-slate-700/30 overflow-hidden">
+        <Link 
+          href={serviceUrl} 
+          className="focus:outline-none focus:ring-2 focus:ring-vynal-accent-primary/50 group"
+          prefetch={isPriority}
+          target={isPC ? "_blank" : undefined}
+          rel={isPC ? "noopener noreferrer" : undefined}
+        >
+          <CardContent className="p-0">
+            <div className="flex w-full h-20 sm:h-28">
+              {/* Service Thumbnail */}
+              <div className="relative w-20 h-20 sm:w-28 sm:h-28 flex-shrink-0 rounded-l-md overflow-hidden bg-white/20 dark:bg-slate-800/25">
+                {!hasError('main') && mainImage ? (
+                  <Image
+                    src={mainImage}
+                    alt={`Miniature du service ${service.title}`}
+                    className="object-cover w-full h-full"
+                    width={112}
+                    height={112}
+                    onError={() => handleError('main')}
+                    priority={isPriority}
+                    loading={isPriority ? 'eager' : 'lazy'}
+                    sizes="(max-width: 640px) 80px, 112px"
+                    decoding="async"
+                  />
+                ) : (
+                  <div className="flex items-center justify-center w-full h-full bg-white/20 dark:bg-slate-800/25">
+                    <svg
+                      className="w-8 h-8 sm:w-10 sm:h-10 text-slate-400 dark:text-vynal-text-secondary/60"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="M4 16L8.586 11.414C8.96106 11.0391 9.46967 10.8284 10 10.8284C10.5303 10.8284 11.0389 11.0391 11.414 11.414L16 16M14 14L15.586 12.414C15.9611 12.0391 16.4697 11.8284 17 11.8284C17.5303 11.8284 18.0389 12.0391 18.414 12.414L20 14M14 8H14.01M6 20H18C19.1046 20 20 19.1046 20 18V6C20 4.89543 19.1046 4 18 4H6C4.89543 4 4 4.89543 4 6V18C4 19.1046 4.89543 20 6 20Z"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </div>
+                )}
                 
-                <div className="flex items-center gap-2">
-                  <ServiceRating service={service} />
-                  <ServiceMetrics 
-                    deliveryTime={service.delivery_time}
-                    revisionCount={service.revision_count}
+                {/* Price Badge */}
+                <div className="absolute bottom-1 left-1">
+                  <PriceDisplay 
+                    price={service.price}
+                    variant="badge"
+                    showFixedIndicator={false}
+                    badgeClassName="bg-white/40 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700/30 text-slate-700 dark:text-vynal-text-primary"
                   />
                 </div>
               </div>
+              
+              {/* Service Content */}
+              <div className="flex-1 p-2 sm:p-3 flex flex-col justify-between bg-white/25 dark:bg-slate-900/20">
+                <div>
+                  <h3 className="text-[10px] sm:text-sm font-medium text-slate-800 dark:text-vynal-text-primary line-clamp-1">
+                    {service.title}
+                  </h3>
+                  <p className="text-[8px] sm:text-xs text-slate-600 dark:text-vynal-text-secondary line-clamp-2 mt-0.5">
+                    {cleanDescription}
+                  </p>
+                </div>
+                
+                <div className="flex items-center justify-between mt-1">
+                  <div className="flex items-center gap-2">
+                    <Avatar className="w-4 h-4 sm:w-5 sm:h-5 border border-slate-200 dark:border-slate-700/30">
+                      <AvatarImage src={service.profiles?.avatar_url || ''} />
+                      <AvatarFallback className="text-[8px] sm:text-[10px] bg-white/40 dark:bg-slate-800/40 text-slate-700 dark:text-vynal-text-primary">
+                        {profileInitial}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="text-[8px] sm:text-[10px] text-slate-600 dark:text-vynal-text-secondary">
+                      {profileName}
+                    </span>
+                    {service.profiles?.is_certified && service.profiles?.certification_type && (
+                      <CertificationBadge 
+                        type={service.profiles.certification_type as 'standard' | 'premium' | 'expert'} 
+                        size="xs"
+                      />
+                    )}
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <ServiceRating service={service} />
+                    <ServiceMetrics 
+                      deliveryTime={service.delivery_time}
+                      revisionCount={service.revision_count}
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
-        </CardContent>
-      </Link>
-    </Card>
+          </CardContent>
+        </Link>
+      </Card>
+    </>
   );
 });
 

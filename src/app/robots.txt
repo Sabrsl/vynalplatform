@@ -1,11 +1,348 @@
 # robots.txt for vynalplatform.com
+# Last updated: 2025-06-01
+# Version: 2.0 - Ultra-optimized
+
+# Default rules for all crawlers
 User-agent: *
+Disallow: /dashboard/
+Disallow: /admin/
+Disallow: /admin-dashboard/
+Disallow: /client-dashboard/
+Disallow: /api/
+Disallow: /auth/
+Disallow: /checkout/
+Disallow: /cart/
+Disallow: /user/settings/
+Disallow: /messages/
+Disallow: /_next/
+Disallow: /static/
+Disallow: /*.json$
+Disallow: /*.xml$
+Disallow: /search?*
+Disallow: /*?*sort=*
+Disallow: /*?*filter=*
+Disallow: /*?*page=*
+Disallow: /*?*limit=*
+Disallow: /*?*offset=*
+Disallow: /*?*order=*
+Disallow: /*?*view=*
+Disallow: /*?*session=*
+Disallow: /*?*token=*
+Disallow: /*?*utm_*
+Disallow: /*?*ref=*
+Disallow: /*?*affiliate=*
+Disallow: /services?sort=*
+Disallow: /services?filter=*
+Disallow: /services?page=*
+Disallow: /freelancers?sort=*
+Disallow: /freelancers?filter=*
+Disallow: /freelancers?page=*
+Allow: /
+Crawl-delay: 1
+
+# Google specific rules - NO crawl delay for faster indexing
+User-agent: Googlebot
+Disallow: /dashboard/
+Disallow: /admin/
+Disallow: /admin-dashboard/
+Disallow: /client-dashboard/
+Disallow: /api/
+Disallow: /auth/
+Disallow: /checkout/
+Disallow: /cart/
+Disallow: /user/settings/
+Disallow: /messages/
+Disallow: /search?*
+Disallow: /*?*sort=*
+Disallow: /*?*filter=*
+Disallow: /*?*page=*
+Disallow: /*?*utm_*
+Allow: /_next/static/css/
+Allow: /_next/static/chunks/
+Allow: /_next/static/media/
+Allow: /static/images/
+Allow: /static/fonts/
 Allow: /
 
-# Sitemap
-Sitemap: https://vynalplatform.com/sitemap.xml
+# Googlebot Images - Optimize image indexing
+User-agent: Googlebot-Image
+Disallow: /dashboard/
+Disallow: /admin/
+Disallow: /user/settings/
+Disallow: /messages/
+Disallow: /checkout/
+Allow: /images/
+Allow: /assets/
+Allow: /_next/image/
+Allow: /static/images/
+Allow: /uploads/
+Allow: /media/
+Allow: /
 
-# Exclude admin and private sections
+# Bing specific rules
+User-agent: Bingbot
+Disallow: /dashboard/
+Disallow: /admin/
+Disallow: /admin-dashboard/
+Disallow: /client-dashboard/
+Disallow: /api/
+Disallow: /search?*
+Disallow: /*?*sort=*
+Disallow: /*?*filter=*
+Disallow: /*?*page=*
+Allow: /
+Crawl-delay: 1
+
+# Yandex specific rules
+User-agent: Yandex
 Disallow: /dashboard/
 Disallow: /admin/
 Disallow: /api/
+Disallow: /search?*
+Disallow: /*?*sort=*
+Disallow: /*?*filter=*
+Allow: /
+Crawl-delay: 1
+Clean-param: utm_source&utm_medium&utm_campaign&utm_term&utm_content&session&token&ref
+
+# Baidu specific rules
+User-agent: Baiduspider
+Disallow: /dashboard/
+Disallow: /admin/
+Disallow: /api/
+Allow: /
+Crawl-delay: 1
+
+# Block bad bots completely
+User-agent: AhrefsBot
+Disallow: /
+
+User-agent: SemrushBot
+Disallow: /
+
+User-agent: DotBot
+Disallow: /
+
+User-agent: MJ12bot
+Disallow: /
+
+User-agent: Majestic-12
+Disallow: /
+
+User-agent: BLEXBot
+Disallow: /
+
+User-agent: BacklinkCrawler
+Disallow: /
+
+# Block AI/GPT crawlers (adjust based on your content strategy)
+User-agent: GPTBot
+Disallow: /
+
+User-agent: ChatGPT-User
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
+
+User-agent: anthropic-ai
+Disallow: /
+
+User-agent: Claude-Web
+Disallow: /
+
+User-agent: PerplexityBot
+Disallow: /
+
+User-agent: YouBot
+Disallow: /
+
+# Social media crawlers - Full access to public content
+User-agent: facebookexternalhit
+Disallow: /dashboard/
+Disallow: /admin/
+Disallow: /checkout/
+Allow: /
+
+User-agent: Twitterbot
+Disallow: /dashboard/
+Disallow: /admin/
+Disallow: /checkout/
+Allow: /
+
+User-agent: LinkedInBot
+Disallow: /dashboard/
+Disallow: /admin/
+Disallow: /checkout/
+Allow: /
+
+User-agent: WhatsApp
+Disallow: /dashboard/
+Disallow: /admin/
+Allow: /
+
+User-agent: Slackbot
+Disallow: /dashboard/
+Disallow: /admin/
+Allow: /
+
+User-agent: Discordbot
+Disallow: /dashboard/
+Disallow: /admin/
+Allow: /
+
+User-agent: TelegramBot
+Disallow: /dashboard/
+Disallow: /admin/
+Allow: /
+
+# Performance monitoring bots - Allow with restrictions
+User-agent: Pingdom
+Disallow: /dashboard/
+Disallow: /admin/
+Allow: /
+
+User-agent: UptimeRobot
+Disallow: /dashboard/
+Disallow: /admin/
+Allow: /
+
+# Google Performance & Quality Tools - Full access for better insights
+User-agent: Lighthouse
+Allow: /
+
+User-agent: Google-PageSpeed
+Allow: /
+
+User-agent: Google-InspectionTool
+Allow: /
+
+User-agent: Chrome-Lighthouse
+Allow: /
+
+User-agent: Google-Site-Verification
+Allow: /
+
+User-agent: Google-Structured-Data-Testing-Tool
+Allow: /
+
+User-agent: Google-richsnippets
+Allow: /
+
+User-agent: Googlebot-Mobile
+Allow: /
+
+# GTmetrix Performance Testing
+User-agent: GTmetrix
+Allow: /
+Crawl-delay: 0
+
+# WebPageTest.org
+User-agent: WebPageTest
+Allow: /
+
+User-agent: WebPageTest.org
+Allow: /
+
+# Pingdom variants
+User-agent: Pingdom.com_bot
+Allow: /
+
+# Ahrefs (if you want to allow for your own analysis)
+# User-agent: AhrefsBot
+# Disallow: /dashboard/
+# Disallow: /admin/
+# Allow: /
+# Crawl-delay: 5
+
+# SEMrush (if you want to allow for your own analysis)
+# User-agent: SemrushBot
+# Disallow: /dashboard/
+# Disallow: /admin/
+# Allow: /
+# Crawl-delay: 5
+
+# SEO monitoring tools (allow if you use them)
+User-agent: Screaming Frog SEO Spider
+Disallow: /dashboard/
+Disallow: /admin/
+Allow: /
+Crawl-delay: 2
+
+# W3C Validators - Important for code quality
+User-agent: W3C_Validator
+Allow: /
+
+User-agent: W3C_CSS_Validator
+Allow: /
+
+User-agent: W3C_Unicorn
+Allow: /
+
+User-agent: W3C-checklink
+Allow: /
+
+User-agent: W3C_I18n-Checker
+Allow: /
+
+User-agent: W3C-mobileOK
+Allow: /
+
+# Accessibility checkers
+User-agent: WAVE
+Allow: /
+
+User-agent: Axe
+Allow: /
+
+# Security scanners (adjust based on your needs)
+User-agent: Qualys
+Disallow: /dashboard/
+Disallow: /admin/
+Disallow: /api/
+Allow: /
+Crawl-delay: 10
+
+# Mozilla Observatory
+User-agent: Mozilla
+Allow: /
+
+# Cloudflare Always Online
+User-agent: Cloudflare-AMP
+Allow: /
+
+User-agent: CloudFlare-AlwaysOnline
+Allow: /
+
+# Google Ads & Analytics verification
+User-agent: AdsBot-Google
+Disallow: /checkout/
+Disallow: /cart/
+Allow: /
+
+User-agent: AdsBot-Google-Mobile
+Disallow: /checkout/
+Disallow: /cart/
+Allow: /
+
+User-agent: Mediapartners-Google
+Allow: /
+
+# Bing Ads
+User-agent: AdIdxBot
+Allow: /
+
+User-agent: BingPreview
+Allow: /
+
+# Sitemaps - Multiple for better organization
+Sitemap: https://vynalplatform.com/sitemap.xml
+Sitemap: https://vynalplatform.com/sitemap-index.xml
+Sitemap: https://vynalplatform.com/sitemap-services.xml
+Sitemap: https://vynalplatform.com/sitemap-freelancers.xml
+Sitemap: https://vynalplatform.com/sitemap-blog.xml
+Sitemap: https://vynalplatform.com/sitemap-categories.xml
+Sitemap: https://vynalplatform.com/sitemap-locations.xml
+
+# Host directive
+Host: https://vynalplatform.com

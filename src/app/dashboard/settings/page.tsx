@@ -1386,6 +1386,7 @@ export default function SettingsPage() {
                       />
                     </div>
                     <Button
+                      type="button"
                       variant="outline"
                       onClick={disable2FA}
                       disabled={isDisabling2FA}
@@ -1699,6 +1700,7 @@ export default function SettingsPage() {
                   </ul>
                   
                 <Button
+                    type="button"
                     variant="outline"
                     onClick={handleProfileExport}
                     disabled={exportingPdf || pdfBlockRemainingDays > 0}
@@ -1765,6 +1767,7 @@ export default function SettingsPage() {
                   </ul>
 
                   <Button
+                    type="button"
                     variant="outline"
                     onClick={handleDataDownload}
                     disabled={downloadingData || blockRemainingDays > 0}

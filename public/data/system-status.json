@@ -5,7 +5,7 @@
       "name": "Authentification",
       "description": "Système de connexion et d'inscription",
       "status": "functional",
-      "last_updated": "2025-05-25T15:00:00.000Z",
+      "last_updated": "2025-05-01T15:00:00.000Z",
       "component_type": "core"
     },
     {
@@ -13,7 +13,7 @@
       "name": "Messagerie",
       "description": "Système de messages entre clients et freelances",
       "status": "functional",
-      "last_updated": "2025-05-25T15:00:00.000Z",
+      "last_updated": "2025-05-01T15:00:00.000Z",
       "component_type": "communication"
     },
     {
@@ -21,7 +21,7 @@
       "name": "Paiements",
       "description": "Traitement des paiements et transactions",
       "status": "degraded",
-      "last_updated": "2025-05-25T15:00:00.000Z",
+      "last_updated": "2025-05-01T15:00:00.000Z",
       "component_type": "financial"
     },
     {
@@ -29,7 +29,7 @@
       "name": "Recherche",
       "description": "Recherche de services et de freelances",
       "status": "functional",
-      "last_updated": "2025-05-25T15:00:00.000Z",
+      "last_updated": "2025-05-01T15:00:00.000Z",
       "component_type": "core"
     },
     {
@@ -37,7 +37,7 @@
       "name": "Notifications",
       "description": "Système de notifications push et email",
       "status": "degraded",
-      "last_updated": "2025-05-25T15:00:00.000Z",
+      "last_updated": "2025-05-01T15:00:00.000Z",
       "component_type": "communication"
     },
     {
@@ -45,7 +45,7 @@
       "name": "Upload de fichiers",
       "description": "Téléchargement et stockage de fichiers",
       "status": "functional",
-      "last_updated": "2025-05-25T15:00:00.000Z",
+      "last_updated": "2025-05-01T15:00:00.000Z",
       "component_type": "storage"
     },
     {
@@ -53,7 +53,7 @@
       "name": "API externe",
       "description": "Connexions avec services tiers",
       "status": "functional",
-      "last_updated": "2025-05-25T15:00:00.000Z",
+      "last_updated": "2025-05-01T15:00:00.000Z",
       "component_type": "integration"
     }
   ],
@@ -172,5 +172,5 @@
       ]
     }
   ],
-  "last_updated": "2025-05-25T15:00:00.000Z"
+  "last_updated": "2025-05-01T15:00:00.000Z"
 } 

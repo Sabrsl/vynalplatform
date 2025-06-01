@@ -1313,6 +1313,7 @@ export default function ServicesPage() {
                               )}
                             </Button>
                             <Button
+                              type="button"
                               variant="default"
                               size="sm" 
                               className="text-xs sm:text-sm"

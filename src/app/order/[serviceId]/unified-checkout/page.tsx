@@ -1190,6 +1190,7 @@ export default function UnifiedCheckoutPage({
                         fill
                         sizes="40px"
                         className="object-cover"
+                        quality={75}
                       />
                     </div>
                     <div className="flex-1 min-w-0">
@@ -1297,6 +1298,7 @@ export default function UnifiedCheckoutPage({
                       rounded-lg"
                   >
                     <button
+                      type="button"
                       onClick={() => handleMethodSelect("wave")}
                       className={`py-2.5 sm:py-3 px-3 sm:px-4 rounded-md flex items-center justify-center transition-all border ${
                         orderData.selectedPaymentMethod === "wave"
@@ -1330,6 +1332,7 @@ export default function UnifiedCheckoutPage({
                       rounded-lg"
                   >
                     <button
+                      type="button"
                       onClick={() => handleMethodSelect("orange-money")}
                       className={`py-2.5 sm:py-3 px-3 sm:px-4 rounded-md flex items-center justify-center transition-all border ${
                         orderData.selectedPaymentMethod === "orange-money"
@@ -1363,6 +1366,7 @@ export default function UnifiedCheckoutPage({
                       rounded-lg"
                   >
                     <button
+                      type="button"
                       onClick={() => handleMethodSelect("paypal")}
                       className={`py-2.5 sm:py-3 px-3 sm:px-4 rounded-md flex items-center justify-center transition-all border ${
                         orderData.selectedPaymentMethod === "paypal"
@@ -1518,6 +1522,7 @@ export default function UnifiedCheckoutPage({
                         rounded-lg"
                     >
                       <button
+                        type="button"
                         onClick={() => {
                           if (
                             paymentAvailability.applePay &&
@@ -1583,6 +1588,7 @@ export default function UnifiedCheckoutPage({
                         rounded-lg"
                     >
                       <button
+                        type="button"
                         onClick={() => {
                           if (
                             paymentAvailability.googlePay &&
@@ -1650,6 +1656,7 @@ export default function UnifiedCheckoutPage({
                         rounded-lg"
                     >
                       <button
+                        type="button"
                         onClick={() => {
                           if (
                             paymentAvailability.link &&
@@ -1918,6 +1925,7 @@ export default function UnifiedCheckoutPage({
                     orderData.selectedPaymentMethod,
                   ) && (
                     <button
+                      type="button"
                       onClick={(e) => {
                         // Si c'est le mode carte et pas le mode test, soumettre le formulaire Stripe
                         if (

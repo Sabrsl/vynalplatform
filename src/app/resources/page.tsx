@@ -247,6 +247,10 @@ export default function ResourcesPage() {
                           height={300}
                           className="w-full h-full object-cover"
                           priority={true}
+                          loading="lazy"
+                          decoding="async"
+                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                          quality={75}
                         />
                       </div>
                       <div className="absolute top-3 md:top-4 left-3 md:left-4 z-20">
@@ -294,6 +298,10 @@ export default function ResourcesPage() {
                         width={400}
                         height={225}
                         className="w-full h-full object-cover"
+                        loading="lazy"
+                        decoding="async"
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                        quality={75}
                       />
                     </div>
                     <div className="absolute top-2 left-2 md:top-3 md:left-3 z-20">

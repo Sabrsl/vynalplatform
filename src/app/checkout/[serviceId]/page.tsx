@@ -493,8 +493,11 @@ export default function CheckoutPage({
                     alt="Stripe"
                     width={60}
                     height={25}
+                    loading="lazy"
+                    decoding="async"
+                    sizes="60px"
+                    quality={75}
                     onError={(e) => {
-                      // Fallback si l'image n'existe pas
                       e.currentTarget.style.display = "none";
                     }}
                   />
@@ -503,6 +506,10 @@ export default function CheckoutPage({
                     alt="Visa"
                     width={32}
                     height={20}
+                    loading="lazy"
+                    decoding="async"
+                    sizes="32px"
+                    quality={75}
                     onError={(e) => {
                       e.currentTarget.style.display = "none";
                     }}
@@ -512,6 +519,10 @@ export default function CheckoutPage({
                     alt="Mastercard"
                     width={32}
                     height={20}
+                    loading="lazy"
+                    decoding="async"
+                    sizes="32px"
+                    quality={75}
                     onError={(e) => {
                       e.currentTarget.style.display = "none";
                     }}

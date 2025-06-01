@@ -139,6 +139,10 @@ export default function HowItWorksPage() {
               alt="Vidéo explicative Vynal Platform" 
               fill
               className="object-cover transition-transform hover:scale-105 duration-700"
+              loading="lazy"
+              decoding="async"
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 1200px"
+              quality={75}
             />
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-vynal-accent-primary flex items-center justify-center shadow-lg cursor-pointer transition-transform hover:scale-110 duration-300">

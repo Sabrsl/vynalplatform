@@ -52,9 +52,9 @@ const ResultsHeader = ({
   return (
     <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-3">
       <div>
-        <h1 className="text-xl font-semibold text-slate-800 dark:text-vynal-text-primary mb-1">
+        <h2 id="results-heading" className="text-xl font-semibold text-slate-800 dark:text-vynal-text-primary mb-1">
           {title}
-        </h1>
+        </h2>
         <p className="text-sm text-slate-600 dark:text-vynal-text-secondary">
           {totalCount} {totalCount > 1 ? 'talents disponibles' : 'talent disponible'}
           {currentPage > 1 && totalPages > 1 && ` • Page ${currentPage} sur ${totalPages}`}
@@ -66,9 +66,10 @@ const ResultsHeader = ({
         <div className="flex items-center space-x-2">
           <span className="text-sm text-slate-700 dark:text-vynal-text-primary">Trier par:</span>
           <select 
-            className="text-sm border border-slate-200 dark:border-slate-700/30 rounded-md px-2 py-1 bg-white/30 dark:bg-slate-900/30 text-slate-700 dark:text-vynal-text-primary"
+            className="text-sm border border-slate-200 dark:border-slate-700/30 rounded-md px-2 py-1 bg-white/30 dark:bg-slate-900/30 text-slate-700 dark:text-vynal-text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-vynal-accent-primary/70 focus-visible:ring-offset-2"
             value={sortMethod}
             onChange={(e) => onSortChange(e.target.value)}
+            aria-label="Trier les talents par"
           >
             <option value="recommended" className="bg-white dark:bg-slate-900 text-slate-700 dark:text-vynal-text-primary">Recommandés</option>
             <option value="rating" className="bg-white dark:bg-slate-900 text-slate-700 dark:text-vynal-text-primary">Mieux notés</option>
@@ -83,10 +84,11 @@ const ResultsHeader = ({
           variant="outline"
           size="sm"
           onClick={onRefresh}
-          className="flex items-center gap-1 border-slate-200/80 dark:border-slate-700/30 bg-white/30 dark:bg-slate-900/30 text-slate-800 dark:text-vynal-text-primary hover:bg-slate-100/50 dark:hover:bg-slate-800/50 px-1.5 py-0.5 h-6"
+          className="flex items-center gap-1 border-slate-200/80 dark:border-slate-700/30 bg-white/30 dark:bg-slate-900/30 text-slate-800 dark:text-vynal-text-primary hover:bg-slate-100/50 dark:hover:bg-slate-800/50 px-1.5 py-0.5 h-6 focus:outline-none focus-visible:ring-2 focus-visible:ring-vynal-accent-primary/70 focus-visible:ring-offset-2"
           disabled={isLoading}
+          aria-label="Rafraîchir la liste des talents"
         >
-          <RefreshCw className={`h-2.5 w-2.5 ${isLoading ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`h-2.5 w-2.5 ${isLoading ? 'animate-spin' : ''}`} aria-hidden="true" />
           <span className="text-[10px]">Rafraîchir</span>
         </Button>
       </div>
@@ -274,49 +276,65 @@ export default function TalentsClientPage({ initialData }: TalentsClientPageProp
   }, []);
   
   return (
-    <div className="container mx-auto px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 py-6 sm:py-8 md:py-10">
-      {/* Barre de recherche */}
-      <div className="mb-6 sm:mb-8">
-        <SearchBarSimple
-          placeholder="Rechercher un talent..."
-          onSearch={handleSearch}
-          initialValue={searchQuery}
-        />
-      </div>
+    <>
+      <h1 className="sr-only">Talents Freelances | Vynal Platform</h1>
+      <div className="min-h-screen bg-white/30 dark:bg-slate-900/30">
+        <div className="container mx-auto px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 py-6 sm:py-8 md:py-10">
+          {/* Barre de recherche */}
+          <section aria-labelledby="search-heading">
+            <h2 id="search-heading" className="sr-only">Recherche de talents</h2>
+            <div className="mb-6 sm:mb-8">
+              <SearchBarSimple
+                placeholder="Rechercher un talent..."
+                onSearch={handleSearch}
+                initialValue={searchQuery}
+              />
+            </div>
+          </section>
 
-      {/* En-tête des résultats */}
-      <ResultsHeader
-        searchQuery={searchQuery}
-        totalCount={totalTalents}
-        currentPage={currentPage}
-        totalPages={totalPages}
-        sortMethod={sortMethod}
-        onSortChange={handleSortChange}
-        onRefresh={handleRefresh}
-        isLoading={isLoading}
-      />
+          {/* En-tête des résultats */}
+          <section aria-labelledby="results-heading">
+            <ResultsHeader
+              searchQuery={searchQuery}
+              totalCount={totalTalents}
+              currentPage={currentPage}
+              totalPages={totalPages}
+              sortMethod={sortMethod}
+              onSortChange={handleSortChange}
+              onRefresh={handleRefresh}
+              isLoading={isLoading}
+            />
+          </section>
 
-      {/* Liste des talents */}
-      {isLoading ? (
-        <TalentSkeletonLoader count={12} grid={true} />
-      ) : (
-        <TalentsGrid
-          talents={paginatedTalents}
-          isPriority={true}
-          onViewTalent={(id) => router.push(`/profile/id/${id}`)}
-        />
-      )}
+          {/* Liste des talents */}
+          <section aria-labelledby="talents-list-heading">
+            <h2 id="talents-list-heading" className="sr-only">Liste des talents</h2>
+            {isLoading ? (
+              <TalentSkeletonLoader count={12} grid={true} />
+            ) : (
+              <TalentsGrid
+                talents={paginatedTalents}
+                isPriority={true}
+                onViewTalent={(id) => router.push(`/profile/id/${id}`)}
+                aria-live="polite"
+                aria-busy={isLoading}
+              />
+            )}
+          </section>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="mt-8 sm:mt-10 flex justify-center">
-          <PaginationControls
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={handlePageChange}
-          />
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <section aria-label="Navigation des pages" className="mt-8 sm:mt-10 flex justify-center">
+              <PaginationControls
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+                aria-label="Pagination"
+              />
+            </section>
+          )}
         </div>
-      )}
-    </div>
+      </div>
+    </>
   );
 } 

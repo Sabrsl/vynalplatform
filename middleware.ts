@@ -25,6 +25,9 @@ const SECURITY_HEADERS = {
  */
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+  const hostname = req.headers.get('host') || '';
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://vynalplatform.com';
+  const siteHostname = new URL(siteUrl).hostname;
 
   // 1. Bypass immédiat pour les ressources statiques (le plus rapide possible)
   if (
@@ -36,13 +39,27 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // 2. Créer réponse avec headers de sécurité
+  // 2. Rediriger les URL non canoniques vers l'URL canonique
+  if (hostname !== siteHostname && !hostname.includes('localhost')) {
+    const url = new URL(pathname, siteUrl);
+    url.search = req.nextUrl.search;
+    return NextResponse.redirect(url.toString(), 301);
+  }
+
+  // 3. Rediriger les chemins sans slash final vers la version avec slash final pour l'URL racine
+  if (pathname === '' && !req.nextUrl.pathname.endsWith('/')) {
+    const url = req.nextUrl.clone();
+    url.pathname = url.pathname + '/';
+    return NextResponse.redirect(url);
+  }
+
+  // 4. Créer réponse avec headers de sécurité
   const response = NextResponse.next();
   Object.entries(SECURITY_HEADERS).forEach(([key, value]) => {
     response.headers.set(key, value);
   });
 
-  // 3. Protection CSRF simple pour les APIs modifiantes
+  // 5. Protection CSRF simple pour les APIs modifiantes
   if (
     pathname.startsWith("/api/") &&
     ["POST", "PUT", "DELETE", "PATCH"].includes(req.method)
@@ -55,7 +72,7 @@ export async function middleware(req: NextRequest) {
     }
   }
 
-  // 4. Auth check pour routes protégées uniquement
+  // 6. Auth check pour routes protégées uniquement
   if (
     pathname.startsWith("/checkout") ||
     pathname.startsWith("/dashboard") ||

@@ -264,7 +264,10 @@ export default function DisputeDetailPage() {
                           className="h-full w-full object-cover"
                           width={40}
                           height={40}
-                          unoptimized
+                          loading="lazy"
+                          decoding="async"
+                          sizes="40px"
+                          quality={75}
                         />
                       ) : (
                         <div className="h-full w-full flex items-center justify-center text-slate-500 dark:text-vynal-text-secondary text-sm font-medium">

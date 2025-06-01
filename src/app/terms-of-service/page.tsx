@@ -1,8 +1,20 @@
 import { Metadata } from "next";
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://vynalplatform.com';
+
 export const metadata: Metadata = {
   title: "Conditions d'utilisation | Vynal Platform",
-  description: "Conditions d'utilisation de la plateforme Vynal",
+  description: "Consultez les conditions générales d'utilisation de Vynal Platform, la plateforme de freelance en Afrique. Informations sur les comptes, les services, les paiements et vos droits.",
+  keywords: "conditions utilisation, CGU, terms of service, freelance Afrique, Vynal Platform, contrat freelance",
+  alternates: {
+    canonical: `${siteUrl}/terms-of-service`,
+  },
+  openGraph: {
+    title: "Conditions d'utilisation | Vynal Platform",
+    description: "Consultez les conditions générales d'utilisation de Vynal Platform, la plateforme de freelance en Afrique.",
+    url: `${siteUrl}/terms-of-service`,
+    type: 'article',
+  },
 };
 
 // Ajouter une configuration de mise en cache pour cette page statique

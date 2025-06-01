@@ -68,7 +68,22 @@ const FastLCPTitle = memo(() => (
   </h1>
 ));
 
+// Ajout des titres de section
+const SectionTitle = memo(({ children }: { children: React.ReactNode }) => (
+  <h2 className="text-2xl md:text-3xl font-semibold text-slate-800 dark:text-vynal-text-primary mb-4">
+    {children}
+  </h2>
+));
+
+const SubSectionTitle = memo(({ children }: { children: React.ReactNode }) => (
+  <h3 className="text-xl md:text-2xl font-medium text-slate-700 dark:text-vynal-text-secondary mb-3">
+    {children}
+  </h3>
+));
+
 FastLCPTitle.displayName = "FastLCPTitle";
+SectionTitle.displayName = "SectionTitle";
+SubSectionTitle.displayName = "SubSectionTitle";
 
 export default function Home() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -253,7 +268,7 @@ export default function Home() {
               <div className="relative">
                 <input
                   type="text"
-                  className="w-full py-3 pl-5 pr-14 rounded-full bg-white/40 dark:bg-slate-800/40 text-slate-800 dark:text-white border-2 border-slate-300 dark:border-slate-700/30 shadow-md focus:ring-2 focus:ring-vynal-accent-primary/30 dark:focus:ring-vynal-accent-primary/40 outline-none transition-all text-sm placeholder:text-slate-500 placeholder:text-[10px] xs:placeholder:text-xs sm:placeholder:text-sm"
+                  className="w-full py-3 pl-5 pr-14 rounded-full bg-white/40 dark:bg-slate-800/40 text-slate-800 dark:text-white border-2 border-slate-300/30 dark:border-slate-700/30 shadow-md focus:ring-1 focus:ring-vynal-accent-primary/30 dark:focus:ring-vynal-accent-primary/30 outline-none transition-all text-sm placeholder:text-slate-500 placeholder:text-[10px] xs:placeholder:text-xs sm:placeholder:text-sm rounded-[9999px]"
                   placeholder={mobilePlaceholder}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   aria-label="Rechercher un service"
@@ -261,7 +276,7 @@ export default function Home() {
                 <GlowingEffect disabled={isMobile} spread={30} variant="default" borderWidth={2} />
                 <button
                   type="submit"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-white p-2 rounded-full transition-all"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-white p-2 rounded-full transition-all focus:outline-none focus:ring-1 focus:ring-vynal-accent-primary/30 rounded-[9999px]"
                   aria-label="Rechercher"
                 >
                   <Search className="h-4 w-4" aria-hidden="true" />
@@ -280,6 +295,7 @@ export default function Home() {
                   width={84}
                   height={18}
                   className="h-4 md:h-5 w-auto object-contain grayscale hover:grayscale-0 transition-all duration-300"
+                  loading="lazy"
                   decoding="async"
                 />
                 <Image 
@@ -288,6 +304,7 @@ export default function Home() {
                   width={84}
                   height={18}
                   className="h-4 md:h-5 w-auto object-contain grayscale hover:grayscale-0 transition-all duration-300"
+                  loading="lazy"
                   decoding="async"
                 />
                 <Image 
@@ -296,7 +313,10 @@ export default function Home() {
                   width={84}
                   height={18}
                   className="h-4 md:h-5 w-auto object-contain grayscale hover:grayscale-0 transition-all duration-300"
+                  loading="lazy"
                   decoding="async"
+                  sizes="(max-width: 768px) 84px, 84px"
+                  quality={75}
                 />
                 <Image 
                   src="/assets/partners/om_logo_.webp" 
@@ -304,6 +324,7 @@ export default function Home() {
                   width={84}
                   height={18}
                   className="h-4 md:h-5 w-auto object-contain grayscale hover:grayscale-0 transition-all duration-300"
+                  loading="lazy"
                   decoding="async"
                 />
                 <Image 
@@ -312,6 +333,7 @@ export default function Home() {
                   width={84}
                   height={18}
                   className="h-4 md:h-5 w-auto object-contain grayscale hover:grayscale-0 transition-all duration-300"
+                  loading="lazy"
                   decoding="async"
                 />
                 <Image 
@@ -319,7 +341,9 @@ export default function Home() {
                   alt="GitHub" 
                   width={84}
                   height={18}
-                  className="h-4 md:h-5 w-auto object-contain dark:invert grayscale hover:grayscale-0 transition-all duration-300" 
+                  className="h-4 md:h-5 w-auto object-contain dark:invert grayscale hover:grayscale-0 transition-all duration-300"
+                  loading="lazy"
+                  decoding="async"
                 />
               </div>
             </div>
@@ -380,7 +404,8 @@ export default function Home() {
                         border border-slate-300 dark:border-slate-700/30 
                         shadow-sm hover:shadow-md 
                         hover:border-vynal-accent-primary/40 dark:hover:border-vynal-accent-primary/40 
-                        hover:-translate-y-1 transition-all duration-200 group ${hideOnDesktop}`}
+                        hover:-translate-y-1 transition-all duration-200 group ${hideOnDesktop}
+                        focus:outline-none focus-visible:ring-2 focus-visible:ring-vynal-accent-primary/70 focus-visible:ring-offset-2`}
                       aria-label={`Voir les services de ${cat.name}`}
                     >
                       <div className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center rounded-full bg-vynal-accent-10 dark:bg-vynal-accent-10 border border-vynal-accent-primary/20 dark:border-vynal-accent-primary/20 mb-2 md:mb-3 text-vynal-accent-primary group-hover:bg-vynal-accent-20 dark:group-hover:bg-vynal-accent-20 group-hover:border-vynal-accent-primary/30 dark:group-hover:border-vynal-accent-primary/40 transition-all duration-200">
@@ -403,7 +428,8 @@ export default function Home() {
                 bg-vynal-accent-primary/20 hover:bg-vynal-accent-primary/30
                 dark:bg-vynal-accent-primary/10 dark:hover:bg-vynal-accent-primary/20
                 text-vynal-accent-primary font-medium text-xs
-                transition-all duration-200 hover:-translate-y-0.5"
+                transition-all duration-200 hover:-translate-y-0.5
+                focus:outline-none focus-visible:ring-2 focus-visible:ring-vynal-accent-primary/70 focus-visible:ring-offset-2"
               aria-label="Voir tous les services disponibles"
             >
               Voir tous les services
@@ -502,16 +528,14 @@ export default function Home() {
                   <p className="text-white/90 mb-6 text-center">
                     Rejoignez la plateforme Vynal, une première en Afrique !
                   </p>
-                  <a 
+                  <Link 
                     href="/auth/signup?role=client"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      window.location.href = '/auth/signup?role=client';
-                    }}
                     className="bg-white/25 hover:bg-white/30 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-300 border border-white/30 cursor-pointer z-50 relative"
+                    role="button"
+                    aria-label="Créer un compte client"
                   >
                     Commencer maintenant
-                  </a>
+                  </Link>
                 </div>
               </WobbleCard>
             </div>
@@ -657,6 +681,7 @@ export default function Home() {
                   hover:border-vynal-accent-primary/30 dark:hover:border-vynal-accent-primary/40
                   hover:text-vynal-accent-primary dark:hover:text-vynal-accent-primary
                   hover:-translate-y-0.5`}
+                aria-label={`Voir les services de ${subcategory.name}`}
               >
                 {subcategory.name}
               </Link>
@@ -705,6 +730,7 @@ export default function Home() {
               hover:border-vynal-accent-primary/30 dark:hover:border-vynal-accent-primary/40
               hover:text-vynal-accent-primary dark:hover:text-vynal-accent-primary
               hover:-translate-y-0.5`}
+            aria-label={`Voir les services de ${subcat.name}`}
           >
             {subcat.name}
           </Link>
@@ -721,9 +747,10 @@ export default function Home() {
           dark:bg-vynal-accent-primary/10 dark:hover:bg-vynal-accent-primary/20
           text-vynal-accent-primary font-medium text-sm
           transition-all duration-200 hover:-translate-y-0.5"
+        aria-label="Voir tous les services disponibles"
       >
         Voir tous les services
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
           <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
         </svg>
       </Link>
@@ -747,6 +774,8 @@ export default function Home() {
                   <Link 
                     href={`${AUTH_ROUTES.REGISTER}?role=client`}
                     className="bg-vynal-accent-primary hover:bg-vynal-accent-secondary text-white py-3 px-8 rounded-lg font-medium transition-all duration-300 shadow-md hover:shadow-vynal-accent-primary/20"
+                    role="button"
+                    aria-label="S'inscrire en tant que client"
                   >
                     S'inscrire comme client
                   </Link>

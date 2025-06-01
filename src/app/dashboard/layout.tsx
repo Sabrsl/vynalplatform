@@ -208,6 +208,7 @@ const Logo = memo(() => {
             width={16}
             height={16}
             priority
+            decoding="async"
           />
         </div>
         <div className="transition-opacity duration-200 overflow-hidden">
