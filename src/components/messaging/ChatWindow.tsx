@@ -773,6 +773,46 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             "info",
           );
         }
+
+        // Envoyer une notification au destinataire (messages directs)
+        if (!isOrderConversation && otherParticipant?.id) {
+          try {
+            const notificationResponse = await fetch(
+              "/api/notifications/message",
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  userId: otherParticipant.id,
+                  type: "new_message",
+                  content: JSON.stringify({
+                    messagePreview: finalMessageText,
+                    senderName:
+                      user?.user_metadata?.full_name ||
+                      user?.email ||
+                      "Utilisateur",
+                    metadata: {
+                      conversationId: conversation.id,
+                    },
+                  }),
+                  conversationId: conversation.id,
+                }),
+              },
+            );
+            if (!notificationResponse.ok) {
+              console.error(
+                "Erreur lors de l'envoi de la notification:",
+                await notificationResponse.text(),
+              );
+            }
+          } catch (notificationError) {
+            // Ne pas bloquer le flux principal si la notification échoue
+            console.error(
+              "Erreur lors de l'envoi de la notification:",
+              notificationError,
+            );
+          }
+        }
       } catch (error) {
         console.error(
           "Erreur lors de la validation ou de l'envoi du message:",

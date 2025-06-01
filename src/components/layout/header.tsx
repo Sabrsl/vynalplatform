@@ -560,7 +560,7 @@ const MobileSearchBar = memo(
             isMobile={true}
           />
           <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-1 text-[10px] text-gray-400 px-1.5 py-0.5 bg-gray-100/50 dark:bg-vynal-purple-secondary/20 rounded">
-            <Keyboard className="h-3 w-3" />
+            <Keyboard className="h-3 w-3" aria-hidden="true" />
             <span>ESC</span>
           </div>
         </div>
@@ -941,13 +941,21 @@ function Header() {
   const handleSearch = useCallback(
     (e: React.FormEvent) => {
       e.preventDefault();
+
+      // Gérer le cas où searchQuery est une chaîne vide ou contient uniquement des espaces
       if (searchQuery.trim()) {
         NavigationLoadingState.setIsNavigating(true);
         router.push(
           `/services?search=${encodeURIComponent(searchQuery.trim())}`,
         );
-        setSearchBarVisible(false);
+      } else {
+        // Si la recherche est vide, rediriger vers la page des services sans paramètre
+        NavigationLoadingState.setIsNavigating(true);
+        router.push("/services");
       }
+
+      // Fermer la barre de recherche mobile si elle est ouverte
+      setSearchBarVisible(false);
     },
     [searchQuery, router],
   );
@@ -1273,7 +1281,11 @@ function Header() {
                     <motion.button
                       onClick={toggleTheme}
                       className="w-8 h-8 flex items-center justify-center rounded-full bg-transparent hover:bg-gray-200/20 dark:hover:bg-vynal-purple-secondary/40 transition-all focus:outline-none !ring-0 !ring-offset-0"
-                      aria-label={isDark ? "Passer au thème clair" : "Passer au thème sombre"}
+                      aria-label={
+                        isDark
+                          ? "Passer au thème clair"
+                          : "Passer au thème sombre"
+                      }
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.9 }}
                     >
@@ -1314,7 +1326,11 @@ function Header() {
                     <motion.button
                       onClick={toggleTheme}
                       className="w-8 h-8 flex items-center justify-center rounded-full bg-transparent hover:bg-gray-200/20 dark:hover:bg-vynal-purple-secondary/40 transition-all focus:outline-none !ring-0 !ring-offset-0"
-                      aria-label={isDark ? "Passer au thème clair" : "Passer au thème sombre"}
+                      aria-label={
+                        isDark
+                          ? "Passer au thème clair"
+                          : "Passer au thème sombre"
+                      }
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.9 }}
                     >
@@ -1364,7 +1380,11 @@ function Header() {
                     <motion.button
                       onClick={toggleTheme}
                       className="w-8 h-8 flex items-center justify-center rounded-full bg-transparent hover:bg-gray-200/20 dark:hover:bg-vynal-purple-secondary/40 transition-all focus:outline-none !ring-0 !ring-offset-0"
-                      aria-label={isDark ? "Passer au thème clair" : "Passer au thème sombre"}
+                      aria-label={
+                        isDark
+                          ? "Passer au thème clair"
+                          : "Passer au thème sombre"
+                      }
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.9 }}
                     >

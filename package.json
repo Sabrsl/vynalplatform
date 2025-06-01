@@ -1,6 +1,6 @@
 {
   "name": "vynal-platform",
-  "version": "0.1.224",
+  "version": "0.1.228",
   "private": true,
   "scripts": {
     "dev": "cross-env NODE_OPTIONS='--max-old-space-size=4096' NODE_ENV=development next dev",
@@ -127,7 +127,7 @@
     "eslint-plugin-vue": "^10.0.0",
     "glob": "^10.3.10",
     "globals": "^16.0.0",
-    "husky": "^8.0.0",
+    "husky": "^8.0.3",
     "lint-staged": "^15.0.2",
     "postcss": "^8.4.35",
     "postcss-import": "^16.1.0",
