@@ -16,7 +16,7 @@
     "update-types": "npx supabase gen types typescript --project-id cybeqoprsggfgippxtvt --schema public > src/types/database.ts",
     "find:deadcode": "npx ts-prune",
     "security:audit": "npm audit --production --audit-level=high",
-    "prepare": "if exist .git\\hooks\\pre-commit del .git\\hooks\\pre-commit && npx husky install",
+    "prepare": "cross-env-shell \"[ -f .git/hooks/pre-commit ] && rm .git/hooks/pre-commit || true\" && npx husky install",
     "test:email": "node src/scripts/test-email.js",
     "db:migrate:messaging": "npx supabase db push --db-url $NEXT_PUBLIC_SUPABASE_URL --auth-token $SUPABASE_SERVICE_ROLE_KEY --migration-file ./migrations/add_increment_unread_count.sql",
     "db:migrate:permissions": "npx supabase db push --db-url $NEXT_PUBLIC_SUPABASE_URL --auth-token $SUPABASE_SERVICE_ROLE_KEY --migration-file ./migrations/fix_conversation_permissions.sql",
