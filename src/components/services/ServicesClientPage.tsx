@@ -808,10 +808,7 @@ export default function ServicesClientPage({
   // Gestion de la sélection d'une sous-catégorie
   const handleSelectSubcategory = useCallback<SubcategorySelectHandler>(
     (subcategory) => {
-      setSelectedSubcategory(subcategory.slug);
-      setCurrentPage(1);
-
-      // Mise à jour de l'URL
+      // Mise à jour de l'URL d'abord
       const params = new URLSearchParams(searchParams?.toString() || "");
       params.set("subcategory", subcategory.slug);
       params.set("page", "1");
@@ -819,7 +816,11 @@ export default function ServicesClientPage({
       // Mettre à jour l'URL sans déclencher de navigation
       router.replace(`${pathname}?${params.toString()}`, { scroll: false });
 
-      // Ne plus défiler vers les résultats pour garder le même comportement sur mobile et desktop
+      // Mettre à jour les états localement de manière synchrone
+      requestAnimationFrame(() => {
+        setSelectedSubcategory(subcategory.slug);
+        setCurrentPage(1);
+      });
     },
     [searchParams, router, pathname],
   );
@@ -878,20 +879,12 @@ export default function ServicesClientPage({
         >
           {/* Sous-catégories si une catégorie est sélectionnée */}
           {selectedCategory && activeSubcategories.length > 0 && activeCategory && (
-            <>
-              <h2 className="text-xl font-semibold text-slate-800 dark:text-vynal-text-primary mb-4">
-                {activeCategory?.name ?? 'Services'}
-              </h2>
-              <h3 className="text-lg font-medium text-slate-700 dark:text-vynal-text-secondary mb-3">
-                Sous-catégories
-              </h3>
-              <SubcategoriesGrid
-                subcategories={activeSubcategories}
-                selectedSubcategory={selectedSubcategory}
-                onSelectSubcategory={handleSelectSubcategory}
-                className="mb-6"
-              />
-            </>
+            <SubcategoriesGrid
+              subcategories={activeSubcategories}
+              selectedSubcategory={selectedSubcategory}
+              onSelectSubcategory={handleSelectSubcategory}
+              className="mb-6"
+            />
           )}
 
           {/* En-tête des résultats */}
